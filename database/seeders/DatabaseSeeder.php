@@ -30,6 +30,14 @@ class DatabaseSeeder extends Seeder
             ExaminationModuleSeeder::class,
             DummyDataSeeder::class,
             TransportSeeder::class,
+            HostelSeeder::class,
+            AcademicResourcesSeeder::class,
+            FrontOfficeSeeder::class,
+            AnnouncementsSeeder::class,
+            StaffAttendanceSeeder::class,
+            StudentHealthDocsSeeder::class,
+            ChatSeeder::class,
+            LedgerSeeder::class,
         ]);
     }
 }
