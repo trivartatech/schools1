@@ -29,6 +29,7 @@ class DatabaseSeeder extends Seeder
             StudentApplicationsSeeder::class,
             ExaminationModuleSeeder::class,
             DummyDataSeeder::class,
+            TransportSeeder::class,
         ]);
     }
 }
