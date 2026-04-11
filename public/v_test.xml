@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say voice="female" language="en-IN">Congratulations! The static XML fetch is working. This confirms your server is reachable, but Laravel's middleware was blocking the previous attempts. We will now restore the dynamic content with optimized settings.</Say>
+</Response>

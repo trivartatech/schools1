@@ -1,0 +1,7 @@
+--- FeeService Summary ---
+Total Due: 36000
+Total Paid: 1000
+Total Discount: 0
+Total Fine: 0
+Balance Due: 35000
+--------------------------
