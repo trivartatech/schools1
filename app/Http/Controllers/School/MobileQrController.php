@@ -23,13 +23,8 @@ class MobileQrController extends Controller
 
         if ($customDomain) {
             $schoolUrl = 'https://' . preg_replace('#^https?://#', '', $customDomain);
-        } elseif (!$isLocal && $school->slug) {
-            // In production, derive subdomain URL: slug.host
-            $parsed    = parse_url($appUrl);
-            $host      = $parsed['host'] ?? 'yourerp.in';
-            $schoolUrl = 'https://' . $school->slug . '.' . $host;
         } else {
-            // Local / tunnel environments — use the actual request URL
+            // Use the actual request host (works for local, tunnel, and production)
             $schoolUrl = $request->getSchemeAndHttpHost();
         }
 
