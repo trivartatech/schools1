@@ -72,7 +72,19 @@ $resolveGreetingData = function () {
         }
     }
 
-    // Strategy 2: CallSid cache (Exotel passes CallSid as POST param on applet fetches)
+    // Strategy 2: CallFrom cache — customer phone number (From=customer in our connect.json setup)
+    $callFrom = $raw['CallFrom'] ?? $raw['callfrom'] ?? $raw['From'] ?? $raw['from'] ?? '';
+    if (!empty($callFrom)) {
+        $fromDigits = preg_replace('/[^0-9]/', '', $callFrom);
+        if (strlen($fromDigits) > 10) $fromDigits = substr($fromDigits, -10);
+        $cached = Cache::get('tts_' . $fromDigits);
+        if ($cached) {
+            Log::info("📦 Greeting data via CallFrom cache [{$fromDigits}]", ['data' => $cached]);
+            return $cached;
+        }
+    }
+
+    // Strategy 3: CallSid cache fallback
     $callSid = $raw['CallSid'] ?? $raw['callsid'] ?? '';
     if (!empty($callSid)) {
         $cached = Cache::get('tts_' . $callSid);
@@ -254,6 +266,9 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
 
     // Homework Submission
     Route::post('/homework/{id}/submit', [$MA, 'submitHomework'])->name('api.mobile.homework.submit');
+
+    // Assignments
+    Route::get('/assignments',          [$MA, 'assignments'])->name('api.mobile.assignments');
 
     // Syllabus
     Route::get('/syllabus',             [$MA, 'syllabus'])->name('api.mobile.syllabus');
