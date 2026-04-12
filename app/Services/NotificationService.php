@@ -772,20 +772,18 @@ class NotificationService
 
         $baseUrl = rtrim(config('app.url'), '/');
 
-        // App ID is configurable per school — stored in voice settings
-        $appId      = $voiceConfig['app_id'] ?? '';
-        
-        if (empty($appId)) {
-            Log::error("Voice call aborted: app_id not configured for school [{$this->school->id}].");
-            return;
+        // Build a direct ExoML URL with TTS/audio encoded inline.
+        // Exotel fetches this URL and receives a <Response><Say>/<Play></Response> immediately.
+        // This avoids relying on Exotel Greeting applets (which never pass CustomField).
+        $directParams = ['p' => base64_encode($content ?? '')];
+        if (!empty($introUrl)) {
+            $directParams['a[]'] = $introUrl;
         }
+        if (!empty($announcementAudio)) {
+            $directParams['a[]'] = $announcementAudio;
+        }
+        $exomlUrl = $baseUrl . '/api/voice/direct?' . http_build_query($directParams);
 
-        $appFlowUrl = "http://my.exotel.com/{$apiSid}/exoml/start_voice/{$appId}";
-
-        // CustomField is base64(JSON) passed to all Greeting applets:
-        //   'i' → /voice/intro    returns intro audio URL
-        //   'a' → /voice/play     returns announcement audio URL
-        //   's' → /voice/greeting returns TTS text
         $customField = base64_encode(json_encode([
             'i' => $introUrl,
             'a' => array_values(array_filter([$announcementAudio])),
@@ -796,7 +794,7 @@ class NotificationService
             'From'           => $callerId,
             'To'             => $cleanRecipient,
             'CallerId'       => $callerId,
-            'Url'            => $appFlowUrl,
+            'Url'            => $exomlUrl,
             'CustomField'    => $customField,
             'CallType'       => 'trans',
             'StatusCallback' => $baseUrl . '/api/voice/status',
