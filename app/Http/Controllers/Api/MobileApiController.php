@@ -1937,26 +1937,17 @@ class MobileApiController extends Controller
         $yearId    = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
         $studentId = $this->resolveStudentId($user, $request);
 
-        if (!$studentId) {
-            return response()->json(['data' => []]);
-        }
-
-        $history = StudentAcademicHistory::where('student_id', $studentId)
+        $history = $studentId ? StudentAcademicHistory::where('student_id', $studentId)
             ->when($yearId, fn($q) => $q->where('academic_year_id', $yearId))
-            ->latest()
-            ->first();
-
-        if (!$history) {
-            return response()->json(['data' => []]);
-        }
+            ->where('status', 'current')
+            ->latest()->first() : null;
 
         $date = $request->input('date', now()->toDateString());
         $page = $request->input('page', 1);
 
         $entries = StudentDiary::where('school_id', $school->id)
             ->when($yearId, fn($q) => $q->where('academic_year_id', $yearId))
-            ->where('class_id', $history->class_id)
-            ->where('section_id', $history->section_id)
+            ->when($history, fn($q) => $q->where('class_id', $history->class_id)->where('section_id', $history->section_id))
             ->whereDate('date', $date)
             ->with(['subject:id,name', 'teacher.user:id,name'])
             ->orderBy('created_at', 'desc')
@@ -2049,6 +2040,65 @@ class MobileApiController extends Controller
 
     // ── Syllabus ─────────────────────────────────────────────────────────────
 
+    public function assignments(Request $request): JsonResponse
+    {
+        $user      = $request->user();
+        $school    = app('current_school');
+        $yearId    = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
+        $studentId = $this->resolveStudentId($user, $request);
+        $page      = $request->input('page', 1);
+
+        $history = $studentId ? StudentAcademicHistory::where('student_id', $studentId)
+            ->when($yearId, fn($q) => $q->where('academic_year_id', $yearId))
+            ->where('status', 'current')
+            ->latest()->first() : null;
+
+        $assignments = \App\Models\Assignment::where('school_id', $school->id)
+            ->when($yearId, fn($q) => $q->where('academic_year_id', $yearId))
+            ->when($history, fn($q) => $q->where('class_id', $history->class_id)->where('section_id', $history->section_id))
+            ->where('status', 'published')
+            ->with(['subject:id,name', 'teacher.user:id,name'])
+            ->orderByDesc('due_date')
+            ->paginate(20, ['*'], 'page', $page);
+
+        $submissionsMap = $studentId
+            ? \App\Models\AssignmentSubmission::whereIn('assignment_id', collect($assignments->items())->pluck('id'))
+                ->where('student_id', $studentId)
+                ->get()->keyBy('assignment_id')
+            : collect();
+
+        $today = now()->toDateString();
+
+        $data = collect($assignments->items())->map(function ($a) use ($submissionsMap, $today) {
+            $sub = $submissionsMap->get($a->id);
+            if ($sub) {
+                $status = $sub->marks !== null ? 'graded' : ($sub->is_late ? 'late' : 'submitted');
+            } elseif ($a->due_date && $a->due_date->toDateString() < $today) {
+                $status = 'missed';
+            } else {
+                $status = 'pending';
+            }
+            return [
+                'id'          => $a->id,
+                'title'       => $a->title,
+                'description' => $a->description,
+                'subject'     => $a->subject?->name ?? '',
+                'teacher'     => $a->teacher?->user?->name ?? '',
+                'due_date'    => $a->due_date?->toDateString(),
+                'max_marks'   => $a->max_marks,
+                'status'      => $status,
+                'marks'       => $sub?->marks,
+                'attachments' => $a->attachments ?? [],
+            ];
+        });
+
+        return response()->json([
+            'data'         => $data,
+            'current_page' => $assignments->currentPage(),
+            'last_page'    => $assignments->lastPage(),
+        ]);
+    }
+
     public function syllabus(Request $request): JsonResponse
     {
         $user      = $request->user();
@@ -2056,37 +2106,29 @@ class MobileApiController extends Controller
         $yearId    = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
         $studentId = $this->resolveStudentId($user, $request);
 
-        if (!$studentId) {
-            return response()->json(['data' => ['subjects' => []]]);
-        }
-
-        $history = StudentAcademicHistory::where('student_id', $studentId)
+        $history = $studentId ? StudentAcademicHistory::where('student_id', $studentId)
             ->when($yearId, fn($q) => $q->where('academic_year_id', $yearId))
-            ->latest()
-            ->first();
+            ->where('status', 'current')
+            ->latest()->first() : null;
 
-        if (!$history) {
-            return response()->json(['data' => ['subjects' => []]]);
-        }
-
-        // Get all syllabus topics for the student's class
+        // Get all syllabus topics — filtered by class if student, all if admin/teacher
         $topics = SyllabusTopic::where('school_id', $school->id)
-            ->where('class_id', $history->class_id)
+            ->when($history, fn($q) => $q->where('class_id', $history->class_id))
             ->with(['subject:id,name'])
             ->orderBy('subject_id')
             ->orderBy('sort_order')
             ->get();
 
-        // Get completion statuses for the student's section
+        // Get completion statuses
         $topicIds = $topics->pluck('id');
         $statuses = SyllabusStatus::whereIn('topic_id', $topicIds)
-            ->where('section_id', $history->section_id)
+            ->when($history, fn($q) => $q->where('section_id', $history->section_id))
             ->get()
             ->keyBy('topic_id');
 
-        // Get subject teachers from ClassSubject for this class+section
-        $subjectTeachers = \App\Models\ClassSubject::where('course_class_id', $history->class_id)
-            ->where('section_id', $history->section_id)
+        // Get subject teachers
+        $subjectTeachers = \App\Models\ClassSubject::where('school_id', $school->id)
+            ->when($history, fn($q) => $q->where('course_class_id', $history->class_id)->where('section_id', $history->section_id))
             ->whereNotNull('incharge_staff_id')
             ->with('inchargeStaff.user:id,name')
             ->get()
