@@ -794,12 +794,12 @@ class NotificationService
         $callerIdDigits = preg_replace('/[^0-9]/', '', $callerId);
         if (strlen($callerIdDigits) === 10) $callerIdDigits = '0' . $callerIdDigits;
 
-        // From = ExoPhone (virtual number, shown as caller ID on customer's phone)
-        // To   = customer (their phone rings)
-        // ExoPhone's app chain (Greeting 1→2→3) runs when customer answers
+        // From = customer (A-leg — Exotel dials customer first, they hear ExoPhone ring)
+        // To   = ExoPhone (B-leg — bridges after customer answers)
+        // Url  = ExoML returned by /api/voice/direct — executed when call connects
         $payload = [
-            'From'           => $callerIdDigits,
-            'To'             => $cleanRecipient,
+            'From'           => $cleanRecipient,
+            'To'             => $callerIdDigits,
             'CallerId'       => $callerIdDigits,
             'Url'            => $exomlUrl,
             'CustomField'    => $customField,
