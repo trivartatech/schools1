@@ -45,21 +45,27 @@ class BroadcastService
             } elseif ($announcement->audience_type === 'employee') {
                 $query->whereNotIn('user_type', ['student', 'parent']);
             } elseif ($announcement->audience_type === 'class') {
+                // Use academicHistories (all years, status=current) so broadcast works
+                // even when students haven't been re-enrolled for the new academic year.
                 $query->whereIn('user_type', ['student', 'parent'])
                     ->where(function($q) use ($announcement) {
-                        $q->whereHas('student.currentAcademicHistory', function($sq) use ($announcement) {
-                            $sq->whereIn('class_id', $announcement->audience_ids);
-                        })->orWhereHas('studentParent.students.currentAcademicHistory', function($sq) use ($announcement) {
-                            $sq->whereIn('class_id', $announcement->audience_ids);
+                        $q->whereHas('student.academicHistories', function($sq) use ($announcement) {
+                            $sq->whereIn('class_id', $announcement->audience_ids)
+                               ->where('status', 'current');
+                        })->orWhereHas('studentParent.students.academicHistories', function($sq) use ($announcement) {
+                            $sq->whereIn('class_id', $announcement->audience_ids)
+                               ->where('status', 'current');
                         });
                     });
             } elseif ($announcement->audience_type === 'section') {
                 $query->whereIn('user_type', ['student', 'parent'])
                     ->where(function($q) use ($announcement) {
-                        $q->whereHas('student.currentAcademicHistory', function($sq) use ($announcement) {
-                            $sq->whereIn('section_id', $announcement->audience_ids);
-                        })->orWhereHas('studentParent.students.currentAcademicHistory', function($sq) use ($announcement) {
-                            $sq->whereIn('section_id', $announcement->audience_ids);
+                        $q->whereHas('student.academicHistories', function($sq) use ($announcement) {
+                            $sq->whereIn('section_id', $announcement->audience_ids)
+                               ->where('status', 'current');
+                        })->orWhereHas('studentParent.students.academicHistories', function($sq) use ($announcement) {
+                            $sq->whereIn('section_id', $announcement->audience_ids)
+                               ->where('status', 'current');
                         });
                     });
             } elseif ($announcement->audience_type === 'individual') {
