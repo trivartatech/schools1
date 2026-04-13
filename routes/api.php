@@ -294,16 +294,26 @@ Route::any('/voice/exoml', function () {
 
     $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n<Response>\n";
 
+    $hasContent = false;
+
     if (!empty($introUrl)) {
         $xml .= '  <Play>' . htmlspecialchars($introUrl, ENT_XML1, 'UTF-8') . '</Play>' . "\n";
+        $hasContent = true;
     }
     foreach ($audioUrls as $url) {
         if (!empty($url)) {
             $xml .= '  <Play>' . htmlspecialchars($url, ENT_XML1, 'UTF-8') . '</Play>' . "\n";
+            $hasContent = true;
         }
     }
     if (!empty($ttsText)) {
         $xml .= '  <Say>' . htmlspecialchars($ttsText, ENT_XML1, 'UTF-8') . '</Say>' . "\n";
+        $hasContent = true;
+    }
+
+    // Always include at least a Say so Exotel never rejects the call
+    if (!$hasContent) {
+        $xml .= '  <Say>Hello, this is an automated call.</Say>' . "\n";
     }
 
     $xml .= '  <Hangup/>' . "\n</Response>";

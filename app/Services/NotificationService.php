@@ -764,27 +764,27 @@ class NotificationService
 
         $baseUrl = rtrim(config('app.url'), '/');
 
-        // App ID from voice settings — the Exotel Greeting Chain app
+        // Use our ExoML endpoint — Exotel fetches it when the call connects.
+        // The Greeting chain only supports TTS (no dynamic audio), so ExoML with
+        // <Play> for audio and <Say> for TTS is the only way to play recorded audio.
+        $exomlUrl = $baseUrl . '/api/voice/exoml';
+
+        // Fallback: keep the Exotel App flow URL in case ExoML doesn't work
         $appId      = $voiceConfig['app_id'] ?? '1203048';
         $appFlowUrl = "http://my.exotel.com/{$apiSid}/exoml/start_voice/{$appId}";
 
-        // CustomField: base64(JSON) — Exotel substitutes {customfield} in Greeting applet URLs
-        // 'a' is kept empty so Greeting 2 (/voice/play) returns empty string.
-        // Audio is proxied directly from /voice/play endpoint (returns audio bytes, not a URL string).
-        $customField = base64_encode(json_encode([
-            'i' => $introUrl,
-            'a' => array_values(array_filter([$announcementAudio])),
-            's' => $content ?? '',
-        ]));
+        // Decide: use ExoML if we have audio, otherwise use App flow (TTS via Greeting chain)
+        $useExoml = !empty($announcementAudio);
+        $callFlowUrl = $useExoml ? $exomlUrl : $appFlowUrl;
+
+        Log::info("📞 [Voice] Using " . ($useExoml ? 'ExoML' : 'AppFlow') . " URL: {$callFlowUrl}");
 
         // From  = customer (who gets called, shown with ExoPhone as caller ID)
         // No To — Exotel uses CallerId as the ExoPhone to originate the call
-        // Url   = Exotel App flow → triggers Greeting chain
         $payload = [
             'From'           => $cleanRecipient,
             'CallerId'       => $callerId,
-            'Url'            => $appFlowUrl,
-            'CustomField'    => $customField,
+            'Url'            => $callFlowUrl,
             'CallType'       => 'trans',
             'StatusCallback' => $baseUrl . '/api/voice/status',
         ];
