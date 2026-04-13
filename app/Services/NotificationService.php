@@ -577,45 +577,35 @@ class NotificationService
             return null;
         }
 
-        $absolutePath = $disk->path($pathOrUrl);
-        $mimeType     = $disk->mimeType($pathOrUrl) ?: 'audio/mpeg';
+        $mimeType = $disk->mimeType($pathOrUrl) ?: 'audio/mpeg';
 
-        // ── Convert WebM/Opus → WAV if needed ────────────────────────────
-        // Browser MediaRecorder always outputs audio/webm which Exotel cannot play.
-        // Convert to WAV at 8kHz mono (Exotel telephony standard).
         $needsConversion = in_array($mimeType, ['audio/webm', 'audio/mp4', 'audio/aac', 'video/webm'])
             || str_ends_with(strtolower($pathOrUrl), '.webm');
 
-        $content   = null;
-        $finalMime = $mimeType;
-
-        if ($needsConversion) {
-            $wavBytes = $this->convertToWav($absolutePath);
-            if ($wavBytes !== null) {
-                $content   = $wavBytes;
-                $finalMime = 'audio/wav';
-                Log::info("🎵 [Audio] Converted WebM → WAV for [{$pathOrUrl}]");
-            } else {
-                // FFmpeg not installed — fall back to original (may not play in Exotel)
-                Log::warning("⚠️ [Audio] FFmpeg unavailable. Serving original WebM for [{$pathOrUrl}]");
-                $content = $disk->get($pathOrUrl);
-            }
-        } else {
-            $content = $disk->get($pathOrUrl);
+        if (!$needsConversion) {
+            // Already WAV or MP3 — return the direct storage URL.
+            // No re-encoding or voice_cache copy needed.
+            $publicUrl = rtrim(config('app.url'), '/') . '/storage/' . $pathOrUrl;
+            Log::info("🎵 [Audio] Direct URL [{$pathOrUrl}] → [{$publicUrl}]");
+            return $publicUrl;
         }
 
-        // Save as a uniquely named file in public storage
-        // Exotel Greeting applet requires a direct file URL returned as plain text.
-        // We use a random name each broadcast so Exotel doesn't serve stale cached audio.
-        $randKey    = \Illuminate\Support\Str::random(16);
-        $ext        = ($finalMime === 'audio/wav') ? '.wav' : '.mp3';
-        $publicPath = 'voice_cache/' . $randKey . $ext;
+        // WebM (browser recording) — must convert to WAV for Exotel telephony
+        $absolutePath = $disk->path($pathOrUrl);
+        $wavBytes     = $this->convertToWav($absolutePath);
 
-        \Illuminate\Support\Facades\Storage::disk('public')->put($publicPath, $content);
+        if ($wavBytes === null) {
+            // FFmpeg not installed — cannot serve WebM to Exotel (unsupported format)
+            Log::warning("⚠️ [Audio] FFmpeg unavailable — skipping WebM audio. Install ffmpeg on server.");
+            return null;
+        }
+
+        $randKey    = \Illuminate\Support\Str::random(16);
+        $publicPath = 'voice_cache/' . $randKey . '.wav';
+        \Illuminate\Support\Facades\Storage::disk('public')->put($publicPath, $wavBytes);
 
         $publicUrl = rtrim(config('app.url'), '/') . '/storage/' . $publicPath;
-
-        Log::info("🎵 [Audio] Ready [{$pathOrUrl}] ({$finalMime}) → [{$publicUrl}]");
+        Log::info("🎵 [Audio] Converted WebM → WAV [{$pathOrUrl}] → [{$publicUrl}]");
 
         return $publicUrl;
     }
