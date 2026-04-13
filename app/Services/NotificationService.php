@@ -734,10 +734,10 @@ class NotificationService
             $secondaryAudio = null;
         }
 
-        // Force 0 + last 10 digits for Exotel India (e.g. 08660234312)
+        // Force +91 + last 10 digits for Exotel India (e.g. +918660234312)
         $digits         = preg_replace('/[^0-9]/', '', $recipient);
         if (strlen($digits) > 10) $digits = substr($digits, -10);
-        $cleanRecipient = '0' . $digits;
+        $cleanRecipient = '+91' . $digits;
 
         Log::info("🔍 [Voice] Recipient: [{$recipient}] → [{$cleanRecipient}] | CallerID: [{$callerId}]");
 
@@ -772,36 +772,24 @@ class NotificationService
 
         $baseUrl = rtrim(config('app.url'), '/');
 
-        // Build a direct ExoML URL with TTS/audio encoded inline.
-        // Exotel fetches this URL and receives a <Response><Say>/<Play></Response> immediately.
-        // This avoids relying on Exotel Greeting applets (which never pass CustomField).
-        $directParams = ['p' => base64_encode($content ?? '')];
-        if (!empty($introUrl)) {
-            $directParams['a[]'] = $introUrl;
-        }
-        if (!empty($announcementAudio)) {
-            $directParams['a[]'] = $announcementAudio;
-        }
-        $exomlUrl = $baseUrl . '/api/voice/direct?' . http_build_query($directParams);
+        // App ID from voice settings — the Exotel Greeting Chain app
+        $appId      = $voiceConfig['app_id'] ?? '1203048';
+        $appFlowUrl = "http://my.exotel.com/{$apiSid}/exoml/start_voice/{$appId}";
 
+        // CustomField: base64(JSON) — Exotel substitutes {customfield} in Greeting applet URLs
         $customField = base64_encode(json_encode([
             'i' => $introUrl,
             'a' => array_values(array_filter([$announcementAudio])),
             's' => $content ?? '',
         ]));
 
-        // Ensure caller ID has leading 0 (Exotel India format)
-        $callerIdDigits = preg_replace('/[^0-9]/', '', $callerId);
-        if (strlen($callerIdDigits) === 10) $callerIdDigits = '0' . $callerIdDigits;
-
-        // From = customer (A-leg — Exotel dials customer first, they hear ExoPhone ring)
-        // To   = ExoPhone (B-leg — bridges after customer answers)
-        // Url  = ExoML returned by /api/voice/direct — executed when call connects
+        // From  = customer (who gets called, shown with ExoPhone as caller ID)
+        // No To — Exotel uses CallerId as the ExoPhone to originate the call
+        // Url   = Exotel internal app flow → runs the Greeting chain
         $payload = [
             'From'           => $cleanRecipient,
-            'To'             => $callerIdDigits,
-            'CallerId'       => $callerIdDigits,
-            'Url'            => $exomlUrl,
+            'CallerId'       => $callerId,
+            'Url'            => $appFlowUrl,
             'CustomField'    => $customField,
             'CallType'       => 'trans',
             'StatusCallback' => $baseUrl . '/api/voice/status',
