@@ -110,23 +110,23 @@ $resolveGreetingData = function () {
 };
 
 // Greeting 1 — Intro audio (played on every call if school has intro configured)
-// Returns intro audio URL as plain text. Exotel detects the https:// prefix and fetches+plays it.
+// 302 redirect to audio file so Exotel follows and plays audio bytes.
 Route::get('/voice/intro', function () use ($resolveGreetingData) {
     $data = $resolveGreetingData();
     Log::info('🔔 /api/voice/intro HIT', ['ip' => request()->ip(), 'data' => $data]);
 
     $introUrl = $data['i'] ?? '';
     if (!empty($introUrl)) {
-        Log::info('🔔 Intro URL: ' . $introUrl);
-        return response($introUrl, 200)->header('Content-Type', 'text/plain');
+        Log::info('🔔 Redirecting to intro: ' . $introUrl);
+        return redirect($introUrl, 302);
     }
 
     return response('', 200)->header('Content-Type', 'text/plain');
 })->name('api.voice.intro');
 
-// Greeting 2 — Announcement audio (played if announcement has recorded/uploaded audio)
-// Returns audio URL as plain text. Exotel detects https:// prefix, fetches the URL, and plays it.
-// The URL points to /api/voice/wav/{path} which serves raw WAV bytes with Content-Type: audio/wav.
+// Greeting 2 — Announcement audio
+// Returns a 302 redirect to the WAV file so Exotel follows it and receives audio bytes
+// (Content-Type: audio/wav) rather than a URL string that Exotel speaks as TTS.
 Route::get('/voice/play', function () use ($resolveGreetingData) {
     $data = $resolveGreetingData();
     Log::info('🔊 /api/voice/play HIT', ['ip' => request()->ip(), 'data' => $data]);
@@ -135,8 +135,8 @@ Route::get('/voice/play', function () use ($resolveGreetingData) {
     $audioUrl = !empty($audios) ? $audios[0] : '';
 
     if (!empty($audioUrl)) {
-        Log::info('🔊 Audio URL: ' . $audioUrl);
-        return response($audioUrl, 200)->header('Content-Type', 'text/plain');
+        Log::info('🔊 Redirecting to audio: ' . $audioUrl);
+        return redirect($audioUrl, 302);
     }
 
     return response('', 200)->header('Content-Type', 'text/plain');
