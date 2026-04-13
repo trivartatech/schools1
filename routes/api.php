@@ -110,31 +110,58 @@ $resolveGreetingData = function () {
 };
 
 // Greeting 1 — Intro audio (played on every call if school has intro configured)
-// Returns intro audio URL as plain text, or empty to skip.
+// Proxies audio bytes directly (same reason as Greeting 2 — see below).
 Route::get('/voice/intro', function () use ($resolveGreetingData) {
     $data = $resolveGreetingData();
     Log::info('🔔 /api/voice/intro HIT', ['ip' => request()->ip(), 'data' => $data]);
 
     $introUrl = $data['i'] ?? '';
     if (!empty($introUrl)) {
-        Log::info('🔔 Intro URL: ' . $introUrl);
-        return response($introUrl, 200)->header('Content-Type', 'text/plain');
+        if (preg_match('#/api/voice/audio/([a-zA-Z0-9]+)$#', $introUrl, $m)) {
+            $cacheKey = 'audio_' . $m[1];
+            $cached   = Cache::get($cacheKey);
+            if ($cached) {
+                $binary = base64_decode($cached['content']);
+                Log::info('🔔 Proxying intro audio bytes (' . strlen($binary) . ' bytes)');
+                return response($binary, 200)
+                    ->header('Content-Type', $cached['mime'] ?? 'audio/wav')
+                    ->header('Content-Length', strlen($binary));
+            }
+        }
+        return redirect($introUrl, 302);
     }
 
     return response('', 200)->header('Content-Type', 'text/plain');
 })->name('api.voice.intro');
 
 // Greeting 2 — Announcement audio (played if announcement has recorded/uploaded audio)
-// Returns announcement audio URL as plain text, or empty to skip.
+// Proxies audio bytes directly so Exotel receives Content-Type: audio/wav and plays it.
+// Returning a URL as plain text causes Exotel to speak the URL as TTS — do NOT do that.
 Route::get('/voice/play', function () use ($resolveGreetingData) {
     $data = $resolveGreetingData();
     Log::info('🔊 /api/voice/play HIT', ['ip' => request()->ip(), 'data' => $data]);
 
     $audios   = $data['a'] ?? [];
     $audioUrl = !empty($audios) ? $audios[0] : '';
+
     if (!empty($audioUrl)) {
-        Log::info('🔊 Audio URL: ' . $audioUrl);
-        return response($audioUrl, 200)->header('Content-Type', 'text/plain');
+        // Extract cache key from our /api/voice/audio/{key} URL and proxy bytes directly.
+        // This way Exotel receives audio/wav bytes, not a URL string it would speak as TTS.
+        if (preg_match('#/api/voice/audio/([a-zA-Z0-9]+)$#', $audioUrl, $m)) {
+            $cacheKey = 'audio_' . $m[1];
+            $cached   = Cache::get($cacheKey);
+            if ($cached) {
+                $binary = base64_decode($cached['content']);
+                Log::info('🔊 Proxying audio bytes (' . strlen($binary) . ' bytes)');
+                return response($binary, 200)
+                    ->header('Content-Type', $cached['mime'] ?? 'audio/wav')
+                    ->header('Content-Length', strlen($binary));
+            }
+            Log::warning('🔊 Cache miss for audio key: ' . $cacheKey);
+        }
+        // Fallback: redirect (Exotel may follow redirect to audio URL)
+        Log::info('🔊 Redirecting to audio URL: ' . $audioUrl);
+        return redirect($audioUrl, 302);
     }
 
     return response('', 200)->header('Content-Type', 'text/plain');

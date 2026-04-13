@@ -764,21 +764,27 @@ class NotificationService
 
         $baseUrl = rtrim(config('app.url'), '/');
 
-        // Use our own ExoML endpoint as the Url.
-        // Exotel fetches this when the call connects and processes the returned ExoML:
-        //   <Play> fetches the audio URL and plays it (actual audio playback)
-        //   <Say>  reads text as TTS
-        // This is more reliable than the Exotel App Builder Greeting chain which
-        // treated ALL plain text responses (including URLs) as TTS text.
-        $exomlUrl = $baseUrl . '/api/voice/exoml';
+        // App ID from voice settings — the Exotel Greeting Chain app
+        $appId      = $voiceConfig['app_id'] ?? '1203048';
+        $appFlowUrl = "http://my.exotel.com/{$apiSid}/exoml/start_voice/{$appId}";
+
+        // CustomField: base64(JSON) — Exotel substitutes {customfield} in Greeting applet URLs
+        // 'a' is kept empty so Greeting 2 (/voice/play) returns empty string.
+        // Audio is proxied directly from /voice/play endpoint (returns audio bytes, not a URL string).
+        $customField = base64_encode(json_encode([
+            'i' => $introUrl,
+            'a' => array_values(array_filter([$announcementAudio])),
+            's' => $content ?? '',
+        ]));
 
         // From  = customer (who gets called, shown with ExoPhone as caller ID)
         // No To — Exotel uses CallerId as the ExoPhone to originate the call
-        // Url   = our ExoML endpoint → plays audio + TTS
+        // Url   = Exotel App flow → triggers Greeting chain
         $payload = [
             'From'           => $cleanRecipient,
             'CallerId'       => $callerId,
-            'Url'            => $exomlUrl,
+            'Url'            => $appFlowUrl,
+            'CustomField'    => $customField,
             'CallType'       => 'trans',
             'StatusCallback' => $baseUrl . '/api/voice/status',
         ];
