@@ -715,7 +715,7 @@ class MobileApiController extends Controller
             'audience_ids'              => 'nullable|array',
             'communication_template_id' => 'nullable|exists:communication_templates,id',
             'scheduled_at'              => 'nullable|date|after:now',
-            'audio'                     => 'nullable|file|mimes:mp3,wav,ogg,m4a,aac,webm|max:10240',
+            'audio'                     => 'nullable|file|mimes:mp3,wav,ogg,m4a,aac,webm,mp4|max:10240',
         ]);
 
         $audioPath = null;

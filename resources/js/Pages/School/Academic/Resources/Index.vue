@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref, computed, onMounted, onUnmounted } from 'vue';
@@ -38,6 +39,11 @@ const applyFilters = () => {
 
 const clearFilter = (key) => {
     filterForm.value[key] = '';
+    applyFilters();
+};
+
+const clearAllFilters = () => {
+    filterForm.value = { class_id: '', subject_id: '', type: '' };
     applyFilters();
 };
 
@@ -288,16 +294,16 @@ const platformMeta = (p) => ({
         </div>
 
         <!-- ── Filter bar ──────────────────────────────────── -->
-        <div class="filter-bar">
-            <select v-model="filterForm.class_id" class="filter-select" @change="applyFilters">
+        <FilterBar :active="activeFilters.length > 0" @clear="clearAllFilters">
+            <select v-model="filterForm.class_id" @change="applyFilters" style="width:150px;">
                 <option value="">All Classes</option>
                 <option v-for="c in courseClasses" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
-            <select v-model="filterForm.subject_id" class="filter-select" @change="applyFilters">
+            <select v-model="filterForm.subject_id" @change="applyFilters" style="width:160px;">
                 <option value="">All Subjects</option>
                 <option v-for="s in allSubjects" :key="s.id" :value="s.id">{{ s.name }}</option>
             </select>
-            <select v-model="filterForm.type" class="filter-select" @change="applyFilters">
+            <select v-model="filterForm.type" @change="applyFilters" style="width:130px;">
                 <option value="">All Types</option>
                 <option value="pdf">PDF</option>
                 <option value="ppt">PowerPoint</option>
@@ -305,15 +311,13 @@ const platformMeta = (p) => ({
                 <option value="image">Image</option>
                 <option value="doc">Document</option>
             </select>
-
-            <!-- Active filter pills -->
             <div class="active-filters">
                 <span v-for="f in activeFilters" :key="f.key" class="filter-pill">
                     {{ f.label }}
                     <button @click="clearFilter(f.key)" class="pill-x">×</button>
                 </span>
             </div>
-        </div>
+        </FilterBar>
 
         <!-- ── Tabs ────────────────────────────────────────── -->
         <div class="tab-bar">
@@ -829,18 +833,7 @@ const platformMeta = (p) => ({
 .past-dot { background: #94a3b8; }
 
 /* ── Filter bar ────────────────────────────────────────── */
-.filter-bar {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-    padding: 12px 16px; background: #fff; border: 1px solid #e2e8f0;
-    border-radius: 12px; margin-bottom: 16px;
-}
-.filter-select {
-    border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 6px 10px;
-    font-size: 0.8125rem; color: #334155; outline: none; background: #f8fafc;
-    cursor: pointer;
-}
-.filter-select:focus { border-color: #6366f1; background: #fff; }
-.active-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.active-filters { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .filter-pill {
     display: inline-flex; align-items: center; gap: 4px;
     padding: 3px 10px; background: #eef2ff; color: #4338ca;

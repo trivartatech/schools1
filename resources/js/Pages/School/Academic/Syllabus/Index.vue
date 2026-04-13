@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 import { router, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref, computed } from 'vue';
@@ -210,33 +211,20 @@ const exportCSV = () => {
         </div>
 
         <!-- Filters -->
-        <div class="card mb-6">
-            <div class="card-body">
-                <div class="form-row">
-                    <div class="form-field">
-                        <label>Class</label>
-                        <select v-model="filterForm.class_id" @change="filterForm.subject_id=''; applyFilters()">
-                            <option value="">Select Class</option>
-                            <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label>Subject</label>
-                        <select v-model="filterForm.subject_id" @change="applyFilters" :disabled="!filterForm.class_id">
-                            <option value="">Select Subject</option>
-                            <option v-for="s in subjectsForFilter" :key="s.id" :value="s.id">{{ s.name }}</option>
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label class="text-indigo-600">Track Section</label>
-                        <select v-model="filterForm.section_id" @change="applyFilters">
-                            <option value="">Master View</option>
-                            <option v-for="s in sections" :key="s.id" :value="s.id">{{ s.name }}</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <FilterBar :active="!!(filterForm.class_id || filterForm.subject_id || filterForm.section_id)" @clear="filterForm = {class_id:'',subject_id:'',section_id:''}; applyFilters()">
+            <select v-model="filterForm.class_id" @change="filterForm.subject_id=''; applyFilters()" style="width:160px;">
+                <option value="">Select Class</option>
+                <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+            </select>
+            <select v-model="filterForm.subject_id" @change="applyFilters" :disabled="!filterForm.class_id" style="width:160px;">
+                <option value="">Select Subject</option>
+                <option v-for="s in subjectsForFilter" :key="s.id" :value="s.id">{{ s.name }}</option>
+            </select>
+            <select v-model="filterForm.section_id" @change="applyFilters" style="width:160px;">
+                <option value="">Master View</option>
+                <option v-for="s in sections" :key="s.id" :value="s.id">{{ s.name }}</option>
+            </select>
+        </FilterBar>
 
         <!-- Progress Bar (when section is selected) -->
         <div v-if="filterForm.section_id && topics.length > 0" class="card mb-6">

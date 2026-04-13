@@ -216,29 +216,19 @@ const doExport = () => {
                 </button>
             </div>
 
-            <div class="card-body border-t border-slate-100 bg-slate-50">
-                <div class="form-row">
-                    <div class="form-field">
-                        <label>Class</label>
-                        <select v-model="filterForm.class_id" @change="applyFilter">
-                            <option value="">All Classes</option>
-                            <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label>Section</label>
-                        <select v-model="filterForm.section_id" @change="applyFilter">
-                            <option value="">All Sections</option>
-                            <option v-for="s in (classes.find(c => c.id === parseInt(filterForm.class_id))?.sections || [])" :key="s.id" :value="s.id">
-                                {{ s.name }}
-                            </option>
-                        </select>
-                    </div>
-                    <div class="flex items-end gap-2">
-                        <Button @click="applyFilter">Filter</Button>
-                        <Button variant="secondary" @click="filterForm = {class_id: '', section_id: '', date: new Date().toISOString().split('T')[0]}; applyFilter()">Reset</Button>
-                    </div>
-                </div>
+            <div class="diary-filter-row">
+                <select v-model="filterForm.class_id" @change="applyFilter" class="diary-filter-select">
+                    <option value="">All Classes</option>
+                    <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </select>
+                <select v-model="filterForm.section_id" @change="applyFilter" class="diary-filter-select">
+                    <option value="">All Sections</option>
+                    <option v-for="s in (classes.find(c => c.id === parseInt(filterForm.class_id))?.sections || [])" :key="s.id" :value="s.id">
+                        {{ s.name }}
+                    </option>
+                </select>
+                <Button @click="applyFilter">Filter</Button>
+                <Button variant="secondary" @click="filterForm = {class_id: '', section_id: '', date: new Date().toISOString().split('T')[0]}; applyFilter()">Reset</Button>
             </div>
         </div>
 
@@ -435,6 +425,31 @@ const doExport = () => {
 </template>
 
 <style scoped>
+.diary-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 10px 16px;
+    border-top: 1px solid #f1f5f9;
+    background: #f8fafc;
+}
+.diary-filter-select {
+    height: 38px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+    font-size: 0.875rem;
+    color: #1e293b;
+    padding: 0 12px;
+    outline: none;
+    width: 160px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.diary-filter-select:focus {
+    border-color: #1169cd;
+    box-shadow: 0 0 0 3px rgba(17, 105, 205, 0.08);
+}
 .diary-card {
     transition: transform 0.2s, box-shadow 0.2s;
 }

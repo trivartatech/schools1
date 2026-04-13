@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref, computed, watch } from 'vue';
@@ -139,31 +140,18 @@ const duplicateAssignment = (assignment) => {
         </div>
 
         <!-- Filters -->
-        <div class="card mb-6">
-            <div class="card-body">
-                <div class="form-row">
-                    <div class="form-field">
-                        <label>Class</label>
-                        <select v-model="filterForm.class_id" @change="applyFilters">
-                            <option value="">All Classes</option>
-                            <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label>Status</label>
-                        <select v-model="filterForm.status" @change="applyFilters">
-                            <option value="">All Statuses</option>
-                            <option value="draft">Draft</option>
-                            <option value="published">Published</option>
-                            <option value="closed">Closed</option>
-                        </select>
-                    </div>
-                    <div class="flex items-end">
-                        <Button variant="secondary" @click="filterForm = {class_id:'',subject_id:'',status:''}; applyFilters()" class="w-full">Reset</Button>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <FilterBar :active="!!(filterForm.class_id || filterForm.status)" @clear="filterForm = {class_id:'',subject_id:'',status:''}; applyFilters()">
+            <select v-model="filterForm.class_id" @change="applyFilters" style="width:160px;">
+                <option value="">All Classes</option>
+                <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+            </select>
+            <select v-model="filterForm.status" @change="applyFilters" style="width:150px;">
+                <option value="">All Statuses</option>
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="closed">Closed</option>
+            </select>
+        </FilterBar>
 
         <!-- Assignments Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

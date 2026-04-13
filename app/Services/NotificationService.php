@@ -583,28 +583,29 @@ class NotificationService
             || str_ends_with(strtolower($pathOrUrl), '.webm');
 
         if (!$needsConversion) {
-            // Already WAV or MP3 — return the direct storage URL.
-            // No re-encoding or voice_cache copy needed.
-            $publicUrl = rtrim(config('app.url'), '/') . '/storage/' . $pathOrUrl;
-            Log::info("🎵 [Audio] Direct URL [{$pathOrUrl}] → [{$publicUrl}]");
+            // Already WAV or MP3 — serve via /api/voice/audio/{key} so Exotel gets
+            // an explicit Content-Type: audio/wav header (static files may get
+            // application/octet-stream from Nginx which Exotel silently skips).
+            $bytes    = $disk->get($pathOrUrl);
+            $cacheKey = 'audio_' . \Illuminate\Support\Str::random(16);
+            Cache::put($cacheKey, ['content' => base64_encode($bytes), 'mime' => 'audio/wav'], now()->addMinutes(30));
+            $publicUrl = rtrim(config('app.url'), '/') . '/api/voice/audio/' . substr($cacheKey, 6);
+            Log::info("🎵 [Audio] Cached [{$pathOrUrl}] → [{$publicUrl}]");
             return $publicUrl;
         }
 
-        // WebM (browser recording) — must convert to WAV for Exotel telephony
+        // WebM (browser recording) — convert to 8kHz WAV first
         $absolutePath = $disk->path($pathOrUrl);
         $wavBytes     = $this->convertToWav($absolutePath);
 
         if ($wavBytes === null) {
-            // FFmpeg not installed — cannot serve WebM to Exotel (unsupported format)
             Log::warning("⚠️ [Audio] FFmpeg unavailable — skipping WebM audio. Install ffmpeg on server.");
             return null;
         }
 
-        $randKey    = \Illuminate\Support\Str::random(16);
-        $publicPath = 'voice_cache/' . $randKey . '.wav';
-        \Illuminate\Support\Facades\Storage::disk('public')->put($publicPath, $wavBytes);
-
-        $publicUrl = rtrim(config('app.url'), '/') . '/storage/' . $publicPath;
+        $cacheKey  = 'audio_' . \Illuminate\Support\Str::random(16);
+        Cache::put($cacheKey, ['content' => base64_encode($wavBytes), 'mime' => 'audio/wav'], now()->addMinutes(30));
+        $publicUrl = rtrim(config('app.url'), '/') . '/api/voice/audio/' . substr($cacheKey, 6);
         Log::info("🎵 [Audio] Converted WebM → WAV [{$pathOrUrl}] → [{$publicUrl}]");
 
         return $publicUrl;
