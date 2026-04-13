@@ -125,8 +125,9 @@ Route::get('/voice/intro', function () use ($resolveGreetingData) {
 })->name('api.voice.intro');
 
 // Greeting 2 — Announcement audio
-// Returns a 302 redirect to the WAV file so Exotel follows it and receives audio bytes
-// (Content-Type: audio/wav) rather than a URL string that Exotel speaks as TTS.
+// Exotel App Builder must set this Greeting to "Audio" mode (not "Read Text").
+// Returns WAV audio bytes directly so Exotel plays them.
+// If no audio, returns empty text → Exotel skips to next applet.
 Route::get('/voice/play', function () use ($resolveGreetingData) {
     $data = $resolveGreetingData();
     Log::info('🔊 /api/voice/play HIT', ['ip' => request()->ip(), 'data' => $data]);
@@ -135,7 +136,21 @@ Route::get('/voice/play', function () use ($resolveGreetingData) {
     $audioUrl = !empty($audios) ? $audios[0] : '';
 
     if (!empty($audioUrl)) {
-        Log::info('🔊 Redirecting to audio: ' . $audioUrl);
+        // Extract base64-encoded storage path from /api/voice/wav/{encoded} URL
+        if (preg_match('#/api/voice/wav/([a-zA-Z0-9_-]+)$#', $audioUrl, $m)) {
+            $storagePath = base64_decode(strtr($m[1], '-_', '+/'));
+            $disk = \Illuminate\Support\Facades\Storage::disk('public');
+            if ($disk->exists($storagePath)) {
+                $bytes = $disk->get($storagePath);
+                Log::info('🔊 Serving audio: ' . $storagePath . ' (' . strlen($bytes) . ' bytes)');
+                return response($bytes, 200)
+                    ->header('Content-Type', 'audio/wav')
+                    ->header('Content-Length', strlen($bytes));
+            }
+            Log::warning('🔊 File not found: ' . $storagePath);
+        }
+        // Fallback: redirect to the URL (e.g. external CDN)
+        Log::info('🔊 Redirecting to: ' . $audioUrl);
         return redirect($audioUrl, 302);
     }
 
