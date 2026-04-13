@@ -72,14 +72,16 @@ $resolveGreetingData = function () {
         }
     }
 
-    // Strategy 2: CallFrom cache — customer phone number (From=customer in our connect.json setup)
-    $callFrom = $raw['CallFrom'] ?? $raw['callfrom'] ?? $raw['From'] ?? $raw['from'] ?? '';
-    if (!empty($callFrom)) {
-        $fromDigits = preg_replace('/[^0-9]/', '', $callFrom);
-        if (strlen($fromDigits) > 10) $fromDigits = substr($fromDigits, -10);
-        $cached = Cache::get('tts_' . $fromDigits);
+    // Strategy 2: try CallFrom then CallTo — in Exotel outbound (From=ExoPhone, To=customer)
+    // the customer phone may appear as CallTo in the greeting request, not CallFrom.
+    foreach (['CallFrom', 'callfrom', 'CallTo', 'callto', 'From', 'from', 'To', 'to'] as $field) {
+        $num = $raw[$field] ?? '';
+        if (empty($num)) continue;
+        $digits = preg_replace('/[^0-9]/', '', $num);
+        if (strlen($digits) > 10) $digits = substr($digits, -10);
+        $cached = Cache::get('tts_' . $digits);
         if ($cached) {
-            Log::info("📦 Greeting data via CallFrom cache [{$fromDigits}]", ['data' => $cached]);
+            Log::info("📦 Greeting data via [{$field}={$digits}] cache", ['data' => $cached]);
             return $cached;
         }
     }
