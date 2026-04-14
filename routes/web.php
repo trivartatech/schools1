@@ -6,56 +6,10 @@ use App\Http\Controllers\DashboardController;
 use Inertia\Inertia;
 
 // Public Routes
-Route::get('/', function () {
-    return redirect()->route('login');
-});
-
-// Public Receipt Verification
-Route::get('/verify-receipt/{receipt_no}', function ($receipt_no) {
-    $payment = \App\Models\FeePayment::where('receipt_no', $receipt_no)
-        ->with(['student', 'feeHead.feeGroup', 'school'])
-        ->first();
-
-    if (!$payment) {
-        return response('Invalid or unrecognized receipt number.', 404);
-    }
-
-    return view('verify-receipt', compact('payment'));
-})->name('verify-receipt');
-
-// Public Gate Pass QR Verification
-Route::get('/school/hostel/gate-passes/verify/{token}', function ($token) {
-    $pass = \App\Models\HostelLeaveRequest::where('pass_token', $token)
-        ->with(['student', 'approver'])
-        ->first();
-
-    if (!$pass) {
-        return \Inertia\Inertia::render('School/Hostel/GatePasses/VerifyPublic', [
-            'pass' => null, 'error' => 'Invalid or expired gate pass token.'
-        ]);
-    }
-
-    return \Inertia\Inertia::render('School/Hostel/GatePasses/VerifyPublic', [
-        'pass' => $pass, 'error' => null
-    ]);
-})->name('gate-pass.verify-public');
-
-// Public Visitor Pass QR Verification
-Route::get('/school/hostel/visitors/verify/{token}', function ($token) {
-    $visitor = \App\Models\HostelVisitor::where('pass_token', $token)
-        ->with(['student', 'staff.user'])
-        ->first();
-
-    if (!$visitor) {
-        return \Inertia\Inertia::render('School/Hostel/Visitors/VerifyPublic', [
-            'visitor' => null, 'error' => 'Invalid or unrecognized visitor pass.'
-        ]);
-    }
-
-    return \Inertia\Inertia::render('School/Hostel/Visitors/VerifyPublic', [
-        'visitor' => $visitor, 'error' => null
-    ]);
-})->name('visitor-pass.verify-public');
+Route::get('/', [\App\Http\Controllers\PublicController::class, 'home']);
+Route::get('/verify-receipt/{receipt_no}', [\App\Http\Controllers\PublicController::class, 'verifyReceipt'])->name('verify-receipt');
+Route::get('/school/hostel/gate-passes/verify/{token}', [\App\Http\Controllers\PublicController::class, 'verifyGatePass'])->name('gate-pass.verify-public');
+Route::get('/school/hostel/visitors/verify/{token}', [\App\Http\Controllers\PublicController::class, 'verifyVisitorPass'])->name('visitor-pass.verify-public');
 
 // Student Universal QR
 Route::get('/q/{uuid}', [\App\Http\Controllers\QRScanController::class, 'show'])->name('qr.student.show');

@@ -8,6 +8,11 @@ use Illuminate\Support\Facades\App;
 
 class PublicApiController extends Controller
 {
+    public function index()
+    {
+        return response()->json(['message' => 'School ERP API v1', 'version' => '1.0.0']);
+    }
+
     /**
      * Return school configuration for mobile app discovery.
      * This endpoint is resolved via the ResolveTenant middleware (domain/header).
