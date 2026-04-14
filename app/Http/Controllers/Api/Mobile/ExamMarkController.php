@@ -111,10 +111,11 @@ class ExamMarkController extends Controller
             return response()->json(['schedules' => $result]);
 
         } catch (\Throwable $e) {
-            \Log::error('ExamMarkController@schedules: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-            ]);
-            return response()->json(['message' => $e->getMessage()], 500);
+            return response()->json([
+                'message' => $e->getMessage(),
+                'file'    => basename($e->getFile()) . ':' . $e->getLine(),
+                'class'   => get_class($e),
+            ], 500);
         }
     }
 
