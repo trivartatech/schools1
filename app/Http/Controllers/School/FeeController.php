@@ -767,10 +767,11 @@ class FeeController extends Controller
      */
     public function receipt(FeePayment $feePayment)
     {
-        $this->authorize('generateReceipt', $feePayment);
+        $schoolId = app('current_school_id');
+        abort_if($feePayment->school_id !== $schoolId, 403);
 
         $feePayment->load(['student', 'feeHead.feeGroup', 'collectedBy', 'academicYear']);
-        $school = \App\Models\School::find(app('current_school_id'));
+        $school = \App\Models\School::find($schoolId);
 
         // Prepare verification URL for the QR Code
         $verificationUrl = url("/verify-receipt/{$feePayment->receipt_no}");
