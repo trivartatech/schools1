@@ -162,6 +162,33 @@ class MobileApiController extends Controller
             $feeSummary = $this->feeService->getStudentFeeSummary($student, $yearId, $school->id);
         } catch (\Throwable $e) {}
 
+        // Payment history (completed / partial, not cancelled)
+        $feePayments = FeePayment::where('school_id', $school->id)
+            ->where('student_id', $id)
+            ->when($yearId, fn($q) => $q->where('academic_year_id', $yearId))
+            ->where('status', '!=', 'cancelled')
+            ->with(['feeHead:id,name'])
+            ->orderByDesc('payment_date')
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function ($p) {
+                $mode = $p->payment_mode instanceof \App\Enums\PaymentMode
+                    ? $p->payment_mode->value
+                    : $p->payment_mode;
+                return [
+                    'id'           => $p->id,
+                    'receipt_no'   => $p->receipt_no,
+                    'fee_head'     => $p->feeHead?->name ?? 'Other',
+                    'term'         => $p->term,
+                    'amount_paid'  => (float) $p->amount_paid,
+                    'balance'      => (float) ($p->balance ?? 0),
+                    'payment_date' => $p->payment_date?->toDateString(),
+                    'payment_mode' => $mode,
+                    'status'       => strtolower($p->status ?? 'pending'),
+                    'has_receipt'  => !empty($p->receipt_no),
+                ];
+            });
+
         $parent = $student->studentParent;
 
         // Exam marks — grouped by exam type
@@ -281,6 +308,7 @@ class MobileApiController extends Controller
                 'paid'      => $feeSummary['paid']      ?? 0,
                 'balance'   => $feeSummary['balance']   ?? 0,
                 'discount'  => $feeSummary['discount']  ?? 0,
+                'payments'  => $feePayments,
             ],
             'exam_marks' => $examMarks,
             'documents'  => $documents,
