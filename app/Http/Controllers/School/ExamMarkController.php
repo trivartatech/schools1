@@ -79,9 +79,14 @@ class ExamMarkController extends Controller
 
         $academicYearId = app('current_academic_year_id');
 
-        $students = \App\Models\Student::with(['user:id,name'])
-            ->whereHas('academicHistories', function($query) use ($request, $academicYearId) {
-                $query->where('section_id', $request->section_id)
+        $sectionId = $request->section_id;
+        $students = \App\Models\Student::with([
+                'user:id,name',
+                'academicHistories' => fn($q) => $q->where('section_id', $sectionId)
+                                                    ->where('academic_year_id', $academicYearId),
+            ])
+            ->whereHas('academicHistories', function($query) use ($sectionId, $academicYearId) {
+                $query->where('section_id', $sectionId)
                       ->where('academic_year_id', $academicYearId);
             })
             ->where('status', 'active')
@@ -130,10 +135,10 @@ class ExamMarkController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'exam_schedule_id' => 'required',
-            'section_id' => 'required',
-            'exam_schedule_subject_id' => 'required',
-            'marks' => 'required|array', // Structure: marks[student_id][assessment_item_id] = {marks_obtained, is_absent, teacher_remarks}
+            'exam_schedule_id'         => 'required|exists:exam_schedules,id',
+            'section_id'               => 'required|exists:sections,id',
+            'exam_schedule_subject_id' => 'required|exists:exam_schedule_subjects,id',
+            'marks'                    => 'required|array',
         ]);
 
         $schoolId = app('current_school_id');

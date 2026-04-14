@@ -12,6 +12,7 @@ use App\Models\GradingSystem;
 use App\Models\Section;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
@@ -183,44 +184,46 @@ class ExamScheduleController extends Controller
             'subjects.*.marks.*.passing_marks' => 'required|numeric|min:0',
         ]);
 
-        $examSchedule->update([
-            'exam_type_id'     => $validated['exam_type_id'],
-            'course_class_id'  => $validated['course_class_id'],
-            'has_co_scholastic'=> $validated['has_co_scholastic'] ?? false,
-            'scholastic_grading_system_id'    => $validated['scholastic_grading_system_id'] ?? null,
-            'co_scholastic_grading_system_id' => $validated['co_scholastic_grading_system_id'] ?? null,
-        ]);
-
-        $examSchedule->sections()->sync($validated['section_ids']);
-
-        // Safety check: Don't allow re-creating subjects if student marks exist.
+        // Safety check first — before any writes — so we don't leave a partial state.
         if ($examSchedule->scheduleSubjects()->whereHas('examMarks')->exists()) {
-             return back()->withErrors(['subjects' => 'Cannot update subjects because student marks have already been recorded for this exam.']);
+            return back()->withErrors(['subjects' => 'Cannot update subjects because student marks have already been recorded for this exam.']);
         }
 
-        // Recreate subjects & marks
-        $examSchedule->scheduleSubjects()->delete();
-        foreach ($validated['subjects'] ?? [] as $sub) {
-            $scheduleSubject = $examSchedule->scheduleSubjects()->create([
-                'subject_id'         => $sub['subject_id'],
-                'exam_assessment_id' => $sub['exam_assessment_id'] ?? null,
-                'is_co_scholastic'   => $sub['is_co_scholastic'] ?? false,
-                'is_enabled'         => $sub['is_enabled'] ?? true,
-                'exam_date'          => $sub['exam_date'] ?? null,
-                'exam_time'          => $sub['exam_time'] ?? null,
-                'duration_minutes'   => $sub['duration_minutes'] ?? null,
+        DB::transaction(function () use ($examSchedule, $validated) {
+            $examSchedule->update([
+                'exam_type_id'     => $validated['exam_type_id'],
+                'course_class_id'  => $validated['course_class_id'],
+                'has_co_scholastic'=> $validated['has_co_scholastic'] ?? false,
+                'scholastic_grading_system_id'    => $validated['scholastic_grading_system_id'] ?? null,
+                'co_scholastic_grading_system_id' => $validated['co_scholastic_grading_system_id'] ?? null,
             ]);
 
-            if (!empty($sub['marks'])) {
-                foreach ($sub['marks'] as $mark) {
-                    $scheduleSubject->markConfigs()->create([
-                        'exam_assessment_item_id' => $mark['exam_assessment_item_id'],
-                        'max_marks'               => $mark['max_marks'],
-                        'passing_marks'           => $mark['passing_marks'],
-                    ]);
+            $examSchedule->sections()->sync($validated['section_ids']);
+
+            // Recreate subjects & mark configs atomically.
+            $examSchedule->scheduleSubjects()->delete();
+            foreach ($validated['subjects'] ?? [] as $sub) {
+                $scheduleSubject = $examSchedule->scheduleSubjects()->create([
+                    'subject_id'         => $sub['subject_id'],
+                    'exam_assessment_id' => $sub['exam_assessment_id'] ?? null,
+                    'is_co_scholastic'   => $sub['is_co_scholastic'] ?? false,
+                    'is_enabled'         => $sub['is_enabled'] ?? true,
+                    'exam_date'          => $sub['exam_date'] ?? null,
+                    'exam_time'          => $sub['exam_time'] ?? null,
+                    'duration_minutes'   => $sub['duration_minutes'] ?? null,
+                ]);
+
+                if (!empty($sub['marks'])) {
+                    foreach ($sub['marks'] as $mark) {
+                        $scheduleSubject->markConfigs()->create([
+                            'exam_assessment_item_id' => $mark['exam_assessment_item_id'],
+                            'max_marks'               => $mark['max_marks'],
+                            'passing_marks'           => $mark['passing_marks'],
+                        ]);
+                    }
                 }
             }
-        }
+        });
 
         return redirect('/school/exam-schedules')->with('success', 'Exam Schedule updated.');
     }

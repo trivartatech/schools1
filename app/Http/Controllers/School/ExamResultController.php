@@ -45,10 +45,13 @@ class ExamResultController extends Controller
         ->where('school_id', $schoolId)
         ->findOrFail($request->exam_schedule_id);
 
-        $section = Section::findOrFail($request->section_id);
+        $section = Section::where('school_id', $schoolId)->findOrFail($request->section_id);
 
-        // Students sorted by roll_no from academic histories
-        $students = Student::with(['academicHistories'])
+        // Students sorted by roll_no from the current-year history for this section.
+        $students = Student::with(['academicHistories' => fn($q) =>
+                $q->where('academic_year_id', $academicYearId)
+                  ->where('section_id', $request->section_id)
+            ])
             ->where('school_id', $schoolId)
             ->whereHas('academicHistories', fn($q) =>
                 $q->where('academic_year_id', $academicYearId)
@@ -57,30 +60,33 @@ class ExamResultController extends Controller
             )
             ->where('status', 'active')
             ->get()
-            ->sortBy(function ($s) use ($request) {
-                $hist = $s->academicHistories->firstWhere('section_id', $request->section_id);
+            ->sortBy(function ($s) {
+                $hist = $s->academicHistories->first();
                 return [is_null($hist?->roll_no) ? PHP_INT_MAX : (int)$hist->roll_no, $s->first_name];
             })
             ->values();
 
-        $students->each(function ($s) use ($request) {
-            $hist = $s->academicHistories->firstWhere('section_id', $request->section_id);
-            $s->roll_no = $hist?->roll_no;
+        $students->each(function ($s) {
+            $s->roll_no = $s->academicHistories->first()?->roll_no;
         });
 
         $subjects = $schedule->scheduleSubjects
             ->filter(fn($ss) => $ss->examAssessment)
             ->values();
 
-        // Max marks per schedule subject
-        $subjectMaxMap = [];
+        // Max marks and passing marks per schedule subject
+        $subjectMaxMap  = [];
+        $subjectPassMap = [];
         foreach ($subjects as $ss) {
-            $max = 0;
+            $max  = 0;
+            $pass = 0;
             foreach ($ss->examAssessment->items as $item) {
-                $cfg = $ss->markConfigs->firstWhere('exam_assessment_item_id', $item->id);
-                $max += $cfg ? (float)$cfg->max_marks : (float)($item->max_marks ?? 0);
+                $cfg  = $ss->markConfigs->firstWhere('exam_assessment_item_id', $item->id);
+                $max  += $cfg ? (float)$cfg->max_marks     : (float)($item->max_marks  ?? 0);
+                $pass += $cfg ? (float)$cfg->passing_marks : 0;
             }
-            $subjectMaxMap[$ss->id] = $max;
+            $subjectMaxMap[$ss->id]  = $max;
+            $subjectPassMap[$ss->id] = $pass;
         }
 
         $scheduleSubjectIds = $subjects->pluck('id');
@@ -110,7 +116,12 @@ class ExamResultController extends Controller
                     $obtained += (float)$m->marks_obtained;
                 }
 
-                $pct = (!$absent && $max > 0) ? round(($obtained / $max) * 100, 1) : null;
+                $pct        = (!$absent && $max > 0) ? round(($obtained / $max) * 100, 1) : null;
+                $passMarks  = $subjectPassMap[$ss->id] ?? 0;
+                // Use configured passing marks when available; fall back to 33 %.
+                $subjectFail = !$absent && $pct !== null && (
+                    $passMarks > 0 ? $obtained < $passMarks : $pct < 33
+                );
 
                 $subjectResults[] = [
                     'subject_id'   => $ss->subject_id,
@@ -119,7 +130,7 @@ class ExamResultController extends Controller
                     'max'          => $max,
                     'absent'       => $absent,
                     'percentage'   => $pct,
-                    'fail'         => $pct !== null && $pct < 33,
+                    'fail'         => $subjectFail,
                 ];
 
                 $totalMax += $max;

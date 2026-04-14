@@ -156,7 +156,7 @@ function openEdit(schedule) {
             is_co_scholastic: ss.is_co_scholastic,
             is_enabled:       ss.is_enabled,
             exam_assessment_id: ss.exam_assessment_id || '',
-            marks:            (ss.marks || []).map(m => ({
+            marks:            (ss.mark_configs || []).map(m => ({
                 exam_assessment_item_id: m.exam_assessment_item_id,
                 max_marks:               m.max_marks,
                 passing_marks:           m.passing_marks,
@@ -420,7 +420,7 @@ function togglePublish(id, currentStatus) {
                                             </td>
                                             <td>
                                                 <div v-if="sub.marks && sub.marks.length > 0" style="display:flex;flex-direction:column;gap:6px;">
-                                                    <div v-for="(mark, midx) in sub.marks" :key="mark.exam_assessment_item_id" style="display:flex;gap:6px;align-items:center;font-size:.75rem;">
+                                                    <div v-for="mark in sub.marks" :key="mark.exam_assessment_item_id" style="display:flex;gap:6px;align-items:center;font-size:.75rem;">
                                                         <span style="width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;" :title="mark._item_name || 'Item'">{{ mark._item_name || 'Item' }}</span>
                                                         <input type="number" v-model="mark.max_marks" :disabled="!sub.is_enabled" placeholder="Max" min="0" step="0.5" class="sub-input" style="width:60px;padding:3px 6px;" title="Maximum Marks" required />
                                                         <input type="number" v-model="mark.passing_marks" :disabled="!sub.is_enabled" placeholder="Pass" min="0" step="0.5" class="sub-input" style="width:60px;padding:3px 6px;" title="Passing Marks" required />
@@ -476,7 +476,7 @@ function togglePublish(id, currentStatus) {
                                                 </td>
                                                 <td>
                                                     <div v-if="sub.marks && sub.marks.length > 0" style="display:flex;flex-direction:column;gap:6px;">
-                                                        <div v-for="(mark, midx) in sub.marks" :key="mark.exam_assessment_item_id" style="display:flex;gap:6px;align-items:center;font-size:.75rem;">
+                                                        <div v-for="mark in sub.marks" :key="mark.exam_assessment_item_id" style="display:flex;gap:6px;align-items:center;font-size:.75rem;">
                                                             <span style="width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;" :title="mark._item_name || 'Item'">{{ mark._item_name || 'Item' }}</span>
                                                             <input type="number" v-model="mark.max_marks" :disabled="!sub.is_enabled" placeholder="Max" min="0" step="0.5" class="sub-input" style="width:60px;padding:3px 6px;" title="Maximum Marks" required />
                                                             <input type="number" v-model="mark.passing_marks" :disabled="!sub.is_enabled" placeholder="Pass" min="0" step="0.5" class="sub-input" style="width:60px;padding:3px 6px;" title="Passing Marks" required />

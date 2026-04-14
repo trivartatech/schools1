@@ -374,7 +374,7 @@ class ReportCardController extends Controller
             'examType', 'courseClass',
             'scheduleSubjects' => fn($q) => $q->where('is_enabled', true)
                 ->with(['subject', 'examAssessment.items', 'markConfigs', 'gradingSystem.grades'])
-        ])->findOrFail($request->exam_schedule_id);
+        ])->where('school_id', app('current_school_id'))->findOrFail($request->exam_schedule_id);
 
         $academicYearId = app('current_academic_year_id');
         $students = Student::with(['studentParent', 'academicHistories'])
@@ -440,7 +440,7 @@ class ReportCardController extends Controller
             'examType', 'courseClass',
             'scheduleSubjects' => fn($q) => $q->where('is_enabled', true)
                 ->with(['subject', 'examAssessment.items', 'markConfigs', 'gradingSystem.grades'])
-        ])->findOrFail($request->exam_schedule_id);
+        ])->where('school_id', app('current_school_id'))->findOrFail($request->exam_schedule_id);
 
         $studentIds = explode(',', $request->student_ids);
 

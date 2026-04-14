@@ -85,6 +85,10 @@ class ExamTypeController extends Controller
         }
         abort_if($examType->school_id !== app('current_school_id'), 403, 'Unauthorized.');
 
+        if (\App\Models\ExamSchedule::where('exam_type_id', $examType->id)->exists()) {
+            return back()->with('error', 'Cannot delete this exam type because it has associated exam schedules. Delete those schedules first.');
+        }
+
         $examType->delete();
 
         return back()->with('success', 'Exam Type deleted successfully.');

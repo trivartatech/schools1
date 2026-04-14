@@ -132,6 +132,11 @@ class ExamAssessmentController extends Controller
         }
         abort_if($examAssessment->school_id !== app('current_school_id'), 403, 'Unauthorized.');
 
+        if (\App\Models\ExamScheduleSubject::where('exam_assessment_id', $examAssessment->id)->exists()) {
+            return redirect()->route('school.exam-assessments.index')
+                ->with('error', 'Cannot delete this assessment because it is used by one or more exam schedules. Remove it from those schedules first.');
+        }
+
         $examAssessment->items()->delete();
         $examAssessment->delete();
 

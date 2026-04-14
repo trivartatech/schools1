@@ -36,12 +36,12 @@ class AdmitCardController extends Controller
         ]);
 
         $schedule = ExamSchedule::with([
-            'examType', 
-            'courseClass', 
+            'examType',
+            'courseClass',
             'scheduleSubjects' => function($q) {
                 $q->where('is_enabled', true)->with('subject');
             }
-        ])->findOrFail($request->exam_schedule_id);
+        ])->where('school_id', app('current_school_id'))->findOrFail($request->exam_schedule_id);
 
         $students = Student::with('studentParent')
             ->where('school_id', app('current_school_id'))
@@ -72,12 +72,12 @@ class AdmitCardController extends Controller
         ]);
 
         $schedule = ExamSchedule::with([
-            'examType', 
-            'courseClass', 
+            'examType',
+            'courseClass',
             'scheduleSubjects' => function($q) {
                 $q->where('is_enabled', true)->with('subject');
             }
-        ])->findOrFail($request->exam_schedule_id);
+        ])->where('school_id', app('current_school_id'))->findOrFail($request->exam_schedule_id);
 
         $studentIds = explode(',', $request->student_ids);
 
