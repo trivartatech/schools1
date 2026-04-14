@@ -358,7 +358,7 @@ class FeeController extends Controller
                 $payments = $payments->filter(function ($p) {
                     $isTransport = $p->feeHead?->is_transport_fee ?? false;
                     $isHostel    = $p->feeHead?->is_hostel_fee ?? false;
-                    $isBlankDue  = $p->status === 'due' && (float) $p->amount_paid === 0.0;
+                    $isBlankDue  = $p->status === \App\Enums\FeePaymentStatus::Due && (float) $p->amount_paid === 0.0;
                     return !(($isTransport || $isHostel) && $isBlankDue);
                 })->values();
                 // ─────────────────────────────────────────────────────────────────────

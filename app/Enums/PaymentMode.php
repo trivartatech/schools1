@@ -12,6 +12,7 @@ enum PaymentMode: string
     case Neft         = 'neft';
     case Rtgs         = 'rtgs';
     case Upi          = 'upi';
+    case Card         = 'card';
 
     public function label(): string
     {
@@ -24,6 +25,7 @@ enum PaymentMode: string
             self::Neft         => 'NEFT',
             self::Rtgs         => 'RTGS',
             self::Upi          => 'UPI',
+            self::Card         => 'Card',
         };
     }
 }

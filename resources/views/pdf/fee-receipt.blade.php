@@ -136,7 +136,7 @@
             <td class="label">Academic Year:</td>
             <td>{{ $payment->academicYear->name }}</td>
             <td class="label">Payment Mode:</td>
-            <td>{{ strtoupper($payment->payment_mode) }}</td>
+            <td>{{ strtoupper($payment->payment_mode instanceof \App\Enums\PaymentMode ? $payment->payment_mode->value : $payment->payment_mode) }}</td>
         </tr>
         @if($payment->transaction_ref)
         <tr>
