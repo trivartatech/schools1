@@ -24,6 +24,7 @@ const props = defineProps({
     classes:            { type: Array, default: () => [] },
     sections:           { type: Array, default: () => [] },
     academicYears:      { type: Array, default: () => [] },
+    feePayments:        { type: Array, default: () => [] },
 });
 
 // ── Date Formatting ───────────────────────────────────────────────────────────
@@ -528,9 +529,13 @@ const qrCodeUrl   = computed(() => {
 
                 <!-- ─── TAB: FEE ───────────────────────────────────────────── -->
                 <div v-if="activeTab === 'fee'">
-                    <div class="card">
+                    <!-- Fee Summary -->
+                    <div class="card" style="margin-bottom:16px;">
                         <div class="card-header">
                             <span class="card-title">Fee Summary</span>
+                            <Button variant="success" as="link" :href="`/school/fee/collect?student_id=${student.id}`" style="margin-left:auto;">
+                                💰 Collect Fee
+                            </Button>
                         </div>
                         <div class="card-body">
                             <div v-if="student.fee_total !== undefined" class="fee-grid">
@@ -573,10 +578,60 @@ const qrCodeUrl   = computed(() => {
                                 <div class="empty-state-icon">💰</div>
                                 <p class="empty-state-title">No fee structure found for this academic year.</p>
                             </div>
-                            <div style="margin-top:20px;">
-                                <Button variant="success" as="link" :href="`/school/fee/collect?student_id=${student.id}`">
-                                    💰 Collect Fee
-                                </Button>
+                        </div>
+                    </div>
+
+                    <!-- Payment History -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Payment History</span>
+                            <span v-if="feePayments.length" class="badge-count" style="margin-left:8px;">{{ feePayments.length }}</span>
+                        </div>
+                        <div class="card-body" style="padding:0;">
+                            <div v-if="feePayments.length === 0" class="empty-state" style="padding:32px;">
+                                <div class="empty-state-icon">🧾</div>
+                                <p class="empty-state-title">No payments recorded for this academic year.</p>
+                            </div>
+                            <div v-else class="payment-table-wrap">
+                                <table class="payment-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Receipt No.</th>
+                                            <th>Date</th>
+                                            <th>Fee Head</th>
+                                            <th>Mode</th>
+                                            <th style="text-align:right;">Amount</th>
+                                            <th style="text-align:right;">Balance</th>
+                                            <th style="text-align:center;">Receipt</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="p in feePayments" :key="p.id">
+                                            <td>
+                                                <span class="receipt-no">{{ p.receipt_no ?? '—' }}</span>
+                                            </td>
+                                            <td>{{ p.payment_date ? new Date(p.payment_date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—' }}</td>
+                                            <td>
+                                                <div style="font-weight:600;color:#1e293b;">{{ p.fee_head ?? '—' }}</div>
+                                                <div v-if="p.fee_group" style="font-size:11px;color:#94a3b8;">{{ p.fee_group }}</div>
+                                            </td>
+                                            <td>
+                                                <span class="mode-badge">{{ p.payment_mode ? p.payment_mode.replace(/_/g,' ').toUpperCase() : '—' }}</span>
+                                            </td>
+                                            <td style="text-align:right;font-weight:700;color:#16a34a;">
+                                                ₹{{ Number(p.amount_paid).toLocaleString('en-IN') }}
+                                            </td>
+                                            <td style="text-align:right;" :style="p.balance > 0 ? 'color:#dc2626;font-weight:600;' : 'color:#16a34a;'">
+                                                {{ p.balance > 0 ? '₹' + Number(p.balance).toLocaleString('en-IN') : 'Nil' }}
+                                            </td>
+                                            <td style="text-align:center;">
+                                                <a :href="`/school/fee/collect/${p.id}/receipt`" target="_blank" class="receipt-link">
+                                                    🖨 Print
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -1432,6 +1487,84 @@ const qrCodeUrl   = computed(() => {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 16px;
+}
+
+/* ── Payment History Table ────────────────────────────────────────────────── */
+.payment-table-wrap {
+    overflow-x: auto;
+}
+.payment-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.payment-table thead tr {
+    background: #f8fafc;
+    border-bottom: 2px solid #e2e8f0;
+}
+.payment-table th {
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    color: #64748b;
+    white-space: nowrap;
+}
+.payment-table tbody tr {
+    border-bottom: 1px solid #f1f5f9;
+    transition: background 0.1s;
+}
+.payment-table tbody tr:last-child { border-bottom: none; }
+.payment-table tbody tr:hover { background: #f8fafc; }
+.payment-table td {
+    padding: 12px 14px;
+    color: #374151;
+    vertical-align: middle;
+}
+.receipt-no {
+    font-family: monospace;
+    font-size: 12px;
+    background: #f1f5f9;
+    color: #475569;
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-weight: 600;
+}
+.mode-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    background: #e0e7ff;
+    color: #4338ca;
+    border-radius: 4px;
+    padding: 2px 7px;
+    letter-spacing: 0.4px;
+}
+.receipt-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6366f1;
+    text-decoration: none;
+    background: #eef2ff;
+    border-radius: 6px;
+    padding: 4px 10px;
+    transition: background 0.15s;
+}
+.receipt-link:hover { background: #e0e7ff; color: #4338ca; }
+.badge-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #6366f1;
+    color: #fff;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
 }
 
 /* ── Attendance ───────────────────────────────────────────────────────────── */

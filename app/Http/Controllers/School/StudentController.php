@@ -392,6 +392,31 @@ class StudentController extends Controller
         $sections      = \App\Models\Section::where('school_id', $schoolId)->orderBy('id')->get(['id','name','course_class_id']);
         $academicYears = \App\Models\AcademicYear::where('school_id', $schoolId)->orderByDesc('id')->get(['id','name']);
 
+        // ── Fee Payments history ───────────────────────────────────────────────
+        $feePayments = [];
+        if ($academicYearId) {
+            $feePayments = \App\Models\FeePayment::where('student_id', $student->id)
+                ->where('academic_year_id', $academicYearId)
+                ->where('school_id', $schoolId)
+                ->with(['feeHead.feeGroup', 'collectedBy:id,name'])
+                ->orderByDesc('payment_date')
+                ->get()
+                ->map(fn($p) => [
+                    'id'           => $p->id,
+                    'receipt_no'   => $p->receipt_no,
+                    'payment_date' => $p->payment_date,
+                    'payment_mode' => $p->payment_mode,
+                    'amount_paid'  => $p->amount_paid,
+                    'amount_due'   => $p->amount_due,
+                    'discount'     => $p->discount,
+                    'fine'         => $p->fine,
+                    'balance'      => $p->balance,
+                    'fee_head'     => $p->feeHead?->name,
+                    'fee_group'    => $p->feeHead?->feeGroup?->name,
+                    'collected_by' => $p->collectedBy?->name,
+                ]);
+        }
+
         return Inertia::render('School/Students/Show', [
             'student'             => $student,
             'attendanceSummary'   => $attendanceSummary,
@@ -401,6 +426,7 @@ class StudentController extends Controller
             'classes'             => $classes,
             'sections'            => $sections,
             'academicYears'       => $academicYears,
+            'feePayments'         => $feePayments,
         ]);
     }
 
