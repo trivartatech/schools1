@@ -187,9 +187,10 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     Route::get('/id-card',              [$MA, 'idCard'])->name('api.mobile.id-card');
 
     // Payments
-    Route::get('/payments/history',     [$MA, 'paymentHistory'])->name('api.mobile.payments.history');
-    Route::post('/payments/create-order', [$MA, 'createPaymentOrder'])->name('api.mobile.payments.create-order');
-    Route::post('/payments/verify',     [$MA, 'verifyPayment'])->name('api.mobile.payments.verify');
+    Route::get('/payments/history',        [$MA, 'paymentHistory'])->name('api.mobile.payments.history');
+    Route::get('/payments/{id}/receipt',   [$MA, 'paymentReceipt'])->whereNumber('id')->name('api.mobile.payments.receipt');
+    Route::post('/payments/create-order',  [$MA, 'createPaymentOrder'])->name('api.mobile.payments.create-order');
+    Route::post('/payments/verify',        [$MA, 'verifyPayment'])->name('api.mobile.payments.verify');
 
     // Report Card Download
     Route::get('/report-cards/{scheduleId}/download', [$MA, 'downloadReportCard'])->name('api.mobile.report-cards.download');

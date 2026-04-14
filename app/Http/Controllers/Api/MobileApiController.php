@@ -2497,25 +2497,103 @@ class MobileApiController extends Controller
             ->orderByDesc('created_at')
             ->paginate(20, ['*'], 'page', $page);
 
-        $data = collect($payments->items())->map(fn($p) => [
-            'id'              => $p->id,
-            'receipt_no'      => $p->receipt_no,
-            'fee_head'        => $p->feeHead?->name ?? 'Other',
-            'term'            => $p->term,
-            'amount'          => (float) $p->amount_paid,
-            'amount_paid'     => (float) $p->amount_paid,
-            'payment_date'    => $p->payment_date?->toDateString(),
-            'payment_mode'    => $p->payment_mode,
-            'status'          => strtolower($p->status ?? 'pending'),
-            'transaction_id'  => $p->transaction_ref ?: $p->receipt_no,
-            'transaction_ref' => $p->transaction_ref,
-            'created_at'      => $p->created_at?->toIso8601String(),
-        ]);
+        $data = collect($payments->items())->map(function ($p) {
+            $mode = $p->payment_mode instanceof \App\Enums\PaymentMode
+                ? $p->payment_mode->value
+                : $p->payment_mode;
+
+            return [
+                'id'              => $p->id,
+                'receipt_no'      => $p->receipt_no,
+                'fee_head'        => $p->feeHead?->name ?? 'Other',
+                'term'            => $p->term,
+                'amount'          => (float) $p->amount_paid,
+                'amount_paid'     => (float) $p->amount_paid,
+                'balance'         => (float) ($p->balance ?? 0),
+                'payment_date'    => $p->payment_date?->toDateString(),
+                'payment_mode'    => $mode,
+                'status'          => strtolower($p->status ?? 'pending'),
+                'transaction_id'  => $p->transaction_ref ?: $p->receipt_no,
+                'transaction_ref' => $p->transaction_ref,
+                'created_at'      => $p->created_at?->toIso8601String(),
+                'has_receipt'     => !empty($p->receipt_no),
+            ];
+        });
 
         return response()->json([
             'data'         => $data,
             'current_page' => $payments->currentPage(),
             'last_page'    => $payments->lastPage(),
+        ]);
+    }
+
+    // ── Payments: Receipt (structured JSON for in-app viewer) ──────────────
+
+    public function paymentReceipt(Request $request, int $id): JsonResponse
+    {
+        $user   = $request->user();
+        $school = app('current_school');
+
+        $payment = FeePayment::where('school_id', $school->id)
+            ->where('id', $id)
+            ->with([
+                'student:id,first_name,last_name,admission_no,erp_no',
+                'feeHead.feeGroup:id,name',
+                'collectedBy:id,name',
+                'academicYear:id,name',
+            ])
+            ->firstOrFail();
+
+        // Parents & students can only view their own / their child's receipts
+        if ($user->isStudent() || $user->isParent()) {
+            $studentId = $this->resolveStudentId($user, $request);
+            if (!$studentId || $payment->student_id !== $studentId) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+        }
+
+        $mode = $payment->payment_mode instanceof \App\Enums\PaymentMode
+            ? $payment->payment_mode->value
+            : $payment->payment_mode;
+
+        return response()->json([
+            'school' => [
+                'name'     => $school->name,
+                'address'  => $school->address ?? '',
+                'city'     => $school->city ?? '',
+                'state'    => $school->state ?? '',
+                'zip_code' => $school->pincode ?? '',
+                'phone'    => $school->phone ?? '',
+                'email'    => $school->email ?? '',
+                'currency' => $school->currency ?? '₹',
+                'logo_url' => $school->logo ? asset('storage/' . $school->logo) : null,
+            ],
+            'payment' => [
+                'id'              => $payment->id,
+                'receipt_no'      => $payment->receipt_no,
+                'payment_date'    => $payment->payment_date?->toDateString(),
+                'payment_mode'    => strtoupper($mode ?? ''),
+                'transaction_ref' => $payment->transaction_ref,
+                'fee_head'        => $payment->feeHead?->name ?? 'Other',
+                'fee_group'       => $payment->feeHead?->feeGroup?->name ?? '',
+                'term'            => str_replace('_', ' ', ucfirst((string) $payment->term)),
+                'amount_due'      => (float) ($payment->amount_due ?? 0),
+                'fine'            => (float) ($payment->fine ?? 0),
+                'discount'        => (float) ($payment->discount ?? 0),
+                'amount_paid'     => (float) ($payment->amount_paid ?? 0),
+                'balance'         => (float) ($payment->balance ?? 0),
+                'concession_note' => $payment->concession_note,
+                'remarks'         => $payment->remarks,
+                'collected_by'    => $payment->collectedBy?->name ?? 'Administrator',
+                'academic_year'   => $payment->academicYear?->name,
+            ],
+            'student' => [
+                'id'            => $payment->student?->id,
+                'name'          => trim(($payment->student?->first_name ?? '') . ' ' . ($payment->student?->last_name ?? '')),
+                'admission_no'  => $payment->student?->admission_no,
+                'erp_no'        => $payment->student?->erp_no,
+            ],
+            'verification_url' => url("/verify-receipt/{$payment->receipt_no}"),
         ]);
     }
 
