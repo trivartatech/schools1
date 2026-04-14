@@ -101,6 +101,7 @@ class ExamMarkController extends Controller
                 return [
                     'id'            => $schedule->id,
                     'name'          => $schedule->examType?->name ?? 'Exam',
+                    'class_id'      => $schedule->course_class_id,
                     'class_name'    => $schedule->courseClass?->name ?? '',
                     'academic_year' => $schedule->academicYear?->name ?? null,
                     'sections'      => $classSections->map(fn ($s) => ['id' => $s->id, 'name' => $s->name])->values(),
