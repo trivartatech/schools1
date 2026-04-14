@@ -200,9 +200,19 @@ class AuthController extends Controller
 
         $user->update(['last_login_at' => now(), 'last_login_ip' => $request->ip()]);
 
-        // Revoke all previous mobile tokens and issue a fresh 30-day one
-        $user->tokens()->where('name', 'mobile')->delete();
-        $token = $user->createToken('mobile', ['*'], now()->addDays(30));
+        // Multi-device support: tag each token with a device fingerprint so the
+        // same user can stay logged in on multiple phones / tablets at once.
+        // If the same device logs in twice, we revoke only THAT device's previous
+        // token — other devices are left untouched.
+        $deviceName = trim((string) ($request->input('device_type') ?: $request->input('device_token') ?: ''));
+        if ($deviceName === '') {
+            $deviceName = 'mobile-' . substr(sha1((string) $request->userAgent() . $request->ip()), 0, 10);
+        }
+        // Namespace to avoid clashing with legacy "mobile" tokens from older clients
+        $tokenName = 'mobile:' . substr($deviceName, 0, 120);
+
+        $user->tokens()->where('name', $tokenName)->delete();
+        $token = $user->createToken($tokenName, ['*'], now()->addDays(30));
 
         return response()->json([
             'token'   => $token->plainTextToken,
@@ -230,12 +240,16 @@ class AuthController extends Controller
 
     /**
      * POST /api/mobile/refresh — revoke current token and issue a fresh one.
+     * Preserves the device-specific token name so multi-device sessions
+     * remain independent.
      */
     public function refresh(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
     {
-        $user = $request->user();
-        $user->currentAccessToken()?->delete();
-        $token = $user->createToken('mobile', ['*'], now()->addDays(30));
+        $user        = $request->user();
+        $current     = $user->currentAccessToken();
+        $previousName = $current?->name ?: 'mobile';
+        $current?->delete();
+        $token = $user->createToken($previousName, ['*'], now()->addDays(30));
         return response()->json(['token' => $token->plainTextToken]);
     }
 }
