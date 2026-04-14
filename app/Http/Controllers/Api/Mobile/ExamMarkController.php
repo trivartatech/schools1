@@ -157,7 +157,6 @@ class ExamMarkController extends Controller
             ->findOrFail($request->exam_schedule_subject_id);
 
         $students = Student::with([
-            'user:id,name',
             'academicHistories' => fn ($q) => $q->where('section_id', $sectionId)
                 ->where('academic_year_id', $academicYearId),
         ])
@@ -199,9 +198,10 @@ class ExamMarkController extends Controller
 
         $studentsData = $students->map(function ($s) {
             $hist = $s->academicHistories->first();
+            $name = trim("{$s->first_name} {$s->last_name}");
             return [
                 'id'      => $s->id,
-                'name'    => $s->user?->name ?? 'Unknown',
+                'name'    => $name !== '' ? $name : 'Unknown',
                 'roll_no' => $hist?->roll_no,
             ];
         });
