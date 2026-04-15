@@ -140,7 +140,13 @@ Route::middleware('auth')->group(function () {
         Route::get('utility/activity-log', [\App\Http\Controllers\School\ActivityLogController::class, 'index'])->name('utility.activity-log');
         Route::get('utility/error-log', [\App\Http\Controllers\School\ErrorLogController::class, 'index'])->name('utility.error-log');
         Route::get('utility/id-cards', [\App\Http\Controllers\School\IdCardController::class, 'index'])->name('utility.id-cards');
-        Route::get('utility/id-cards/print', [\App\Http\Controllers\School\IdCardController::class, 'print'])->name('utility.id-cards.print');
+        Route::get('utility/id-cards/create', [\App\Http\Controllers\School\IdCardController::class, 'create'])->name('utility.id-cards.create');
+        Route::post('utility/id-cards', [\App\Http\Controllers\School\IdCardController::class, 'store'])->name('utility.id-cards.store');
+        Route::get('utility/id-cards/{idCardTemplate}/edit', [\App\Http\Controllers\School\IdCardController::class, 'edit'])->name('utility.id-cards.edit');
+        Route::put('utility/id-cards/{idCardTemplate}', [\App\Http\Controllers\School\IdCardController::class, 'update'])->name('utility.id-cards.update');
+        Route::delete('utility/id-cards/{idCardTemplate}', [\App\Http\Controllers\School\IdCardController::class, 'destroy'])->name('utility.id-cards.destroy');
+        Route::get('utility/id-cards/{idCardTemplate}/generate', [\App\Http\Controllers\School\IdCardController::class, 'generate'])->name('utility.id-cards.generate');
+        Route::get('utility/id-cards/{idCardTemplate}/print', [\App\Http\Controllers\School\IdCardController::class, 'print'])->name('utility.id-cards.print');
 
         Route::post('switch-academic-year', function (\Illuminate\Http\Request $request) {
             $request->validate(['academic_year_id' => 'required|exists:academic_years,id']);

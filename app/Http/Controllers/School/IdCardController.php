@@ -4,47 +4,149 @@ namespace App\Http\Controllers\School;
 
 use App\Http\Controllers\Controller;
 use App\Models\CourseClass;
+use App\Models\IdCardTemplate;
 use App\Models\Student;
 use App\Services\TeacherScopeService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class IdCardController extends Controller
 {
-    /**
-     * Template designer & filter page.
-     */
-    public function index(Request $request)
-    {
-        $schoolId       = app('current_school_id');
-        $school         = app('current_school');
-        $academicYearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
+    // ── Template library ──────────────────────────────────────────────
 
-        $classes = CourseClass::where('school_id', $schoolId)
-            ->orderBy('order_index')
-            ->orderBy('name')
-            ->get(['id', 'name']);
+    public function index()
+    {
+        $schoolId  = app('current_school_id');
+        $templates = IdCardTemplate::where('school_id', $schoolId)
+            ->orderByDesc('created_at')
+            ->get(['id', 'name', 'orientation', 'background', 'columns', 'created_at']);
 
         return Inertia::render('School/IdCards/Index', [
-            'school'         => [
-                'name'    => $school->name,
-                'logo'    => $school->logo ? '/storage/' . $school->logo : null,
-                'address' => $school->address,
-                'phone'   => $school->phone,
-                'email'   => $school->email,
-                'board'   => $school->board,
-            ],
-            'classes'        => $classes,
-            'academicYearId' => $academicYearId,
-            'filters'        => $request->only(['class_id', 'section_id']),
+            'templates' => $templates,
         ]);
     }
 
-    /**
-     * Print page — returns students matching the filter + template settings.
-     */
-    public function print(Request $request)
+    // ── Designer: create ──────────────────────────────────────────────
+
+    public function create()
     {
+        return Inertia::render('School/IdCards/Designer', [
+            'template' => null,
+            'school'   => $this->schoolData(),
+        ]);
+    }
+
+    // ── Store new template ─────────────────────────────────────────────
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name'        => 'required|string|max:100',
+            'orientation' => 'required|in:landscape,portrait',
+            'background'  => 'required|array',
+            'elements'    => 'required|array',
+            'columns'     => 'required|integer|in:1,2,4',
+        ]);
+
+        $background = $this->resolveBackground($request->background);
+
+        IdCardTemplate::create([
+            'school_id'   => app('current_school_id'),
+            'created_by'  => auth()->id(),
+            'name'        => $request->name,
+            'orientation' => $request->orientation,
+            'background'  => $background,
+            'elements'    => $request->elements,
+            'columns'     => $request->columns,
+        ]);
+
+        return redirect()->route('school.utility.id-cards')
+            ->with('success', 'Template "' . $request->name . '" saved.');
+    }
+
+    // ── Designer: edit ─────────────────────────────────────────────────
+
+    public function edit(IdCardTemplate $idCardTemplate)
+    {
+        abort_if($idCardTemplate->school_id !== app('current_school_id'), 403);
+
+        return Inertia::render('School/IdCards/Designer', [
+            'template' => $idCardTemplate,
+            'school'   => $this->schoolData(),
+        ]);
+    }
+
+    // ── Update template ────────────────────────────────────────────────
+
+    public function update(Request $request, IdCardTemplate $idCardTemplate)
+    {
+        abort_if($idCardTemplate->school_id !== app('current_school_id'), 403);
+
+        $request->validate([
+            'name'        => 'required|string|max:100',
+            'orientation' => 'required|in:landscape,portrait',
+            'background'  => 'required|array',
+            'elements'    => 'required|array',
+            'columns'     => 'required|integer|in:1,2,4',
+        ]);
+
+        $background = $this->resolveBackground($request->background, $idCardTemplate->background);
+
+        $idCardTemplate->update([
+            'name'        => $request->name,
+            'orientation' => $request->orientation,
+            'background'  => $background,
+            'elements'    => $request->elements,
+            'columns'     => $request->columns,
+        ]);
+
+        return redirect()->route('school.utility.id-cards')
+            ->with('success', 'Template "' . $request->name . '" updated.');
+    }
+
+    // ── Delete template ────────────────────────────────────────────────
+
+    public function destroy(IdCardTemplate $idCardTemplate)
+    {
+        abort_if($idCardTemplate->school_id !== app('current_school_id'), 403);
+
+        // Delete background image if stored
+        $bg = $idCardTemplate->background;
+        if (($bg['type'] ?? '') === 'image' && isset($bg['value']) && str_starts_with($bg['value'], '/storage/')) {
+            $path = str_replace('/storage/', '', $bg['value']);
+            Storage::disk('public')->delete($path);
+        }
+
+        $idCardTemplate->delete();
+
+        return redirect()->route('school.utility.id-cards')
+            ->with('success', 'Template deleted.');
+    }
+
+    // ── Generate page (select class/section) ──────────────────────────
+
+    public function generate(IdCardTemplate $idCardTemplate)
+    {
+        abort_if($idCardTemplate->school_id !== app('current_school_id'), 403);
+
+        $schoolId = app('current_school_id');
+        $classes  = CourseClass::where('school_id', $schoolId)
+            ->orderBy('order_index')->orderBy('name')
+            ->get(['id', 'name']);
+
+        return Inertia::render('School/IdCards/Generate', [
+            'template' => $idCardTemplate,
+            'classes'  => $classes,
+        ]);
+    }
+
+    // ── Print page ─────────────────────────────────────────────────────
+
+    public function print(Request $request, IdCardTemplate $idCardTemplate)
+    {
+        abort_if($idCardTemplate->school_id !== app('current_school_id'), 403);
+
         $schoolId       = app('current_school_id');
         $school         = app('current_school');
         $academicYearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
@@ -59,7 +161,6 @@ class IdCardController extends Controller
             ->where('school_id', $schoolId)
             ->where('status', 'active');
 
-        // Teacher scope restriction
         if ($scope->restricted) {
             $query->whereHas('currentAcademicHistory', function ($q) use ($academicYearId, $scope) {
                 $q->where('academic_year_id', $academicYearId)
@@ -70,82 +171,86 @@ class IdCardController extends Controller
 
         if ($request->filled('class_id')) {
             $query->whereHas('currentAcademicHistory', function ($q) use ($request, $academicYearId) {
-                $q->where('academic_year_id', $academicYearId)
-                  ->where('class_id', $request->class_id);
+                $q->where('academic_year_id', $academicYearId)->where('class_id', $request->class_id);
             });
         }
 
         if ($request->filled('section_id')) {
             $query->whereHas('currentAcademicHistory', function ($q) use ($request, $academicYearId) {
-                $q->where('academic_year_id', $academicYearId)
-                  ->where('section_id', $request->section_id);
+                $q->where('academic_year_id', $academicYearId)->where('section_id', $request->section_id);
             });
         }
 
-        // Specific student IDs (optional cherry-pick)
-        if ($request->filled('student_ids')) {
-            $ids = array_filter(array_map('intval', explode(',', $request->student_ids)));
-            if ($ids) {
-                $query->whereIn('id', $ids);
-            }
+        $students = $query->orderBy('first_name')->get()->map(function ($s) {
+            $h = $s->currentAcademicHistory;
+            return [
+                'id'           => $s->id,
+                'name'         => $s->name,
+                'first_name'   => $s->first_name,
+                'last_name'    => $s->last_name,
+                'photo_url'    => $s->photo_url,
+                'admission_no' => $s->admission_no,
+                'roll_no'      => $h?->roll_no ?? $s->roll_no,
+                'dob'          => $s->dob,
+                'blood_group'  => $s->blood_group,
+                'uuid'         => $s->uuid,
+                'class'        => $h?->courseClass?->name,
+                'section'      => $h?->section?->name,
+                'parent_phone' => $s->studentParent?->primary_phone,
+                'father_name'  => $s->studentParent?->father_name,
+            ];
+        });
+
+        // Allow columns override from query string
+        $template = $idCardTemplate->toArray();
+        if ($request->filled('columns') && in_array((int)$request->columns, [1, 2, 4])) {
+            $template['columns'] = (int)$request->columns;
         }
-
-        $students = $query
-            ->orderByRaw("
-                COALESCE((
-                    SELECT sah.class_id FROM student_academic_histories sah
-                    WHERE sah.student_id = students.id AND sah.academic_year_id = ?
-                    AND sah.status = 'current' LIMIT 1
-                ), 999999)
-            ", [$academicYearId ?? 0])
-            ->orderBy('first_name')
-            ->get()
-            ->map(function ($student) {
-                $history = $student->currentAcademicHistory;
-                return [
-                    'id'           => $student->id,
-                    'name'         => $student->name,
-                    'first_name'   => $student->first_name,
-                    'last_name'    => $student->last_name,
-                    'photo_url'    => $student->photo_url,
-                    'admission_no' => $student->admission_no,
-                    'erp_no'       => $student->erp_no,
-                    'roll_no'      => $history?->roll_no ?? $student->roll_no,
-                    'dob'          => $student->dob,
-                    'blood_group'  => $student->blood_group,
-                    'gender'       => $student->gender,
-                    'uuid'         => $student->uuid,
-                    'class'        => $history?->courseClass?->name,
-                    'section'      => $history?->section?->name,
-                    'parent_phone' => $student->studentParent?->primary_phone,
-                    'father_name'  => $student->studentParent?->father_name,
-                ];
-            });
-
-        // Template settings (passed back as-is for the print page to use)
-        $template = [
-            'accent_color'   => $request->input('accent_color', '#1e3a8a'),
-            'style'          => $request->input('style', 'classic'),
-            'show_photo'     => filter_var($request->input('show_photo', true), FILTER_VALIDATE_BOOLEAN),
-            'show_qr'        => filter_var($request->input('show_qr', true), FILTER_VALIDATE_BOOLEAN),
-            'show_roll_no'   => filter_var($request->input('show_roll_no', true), FILTER_VALIDATE_BOOLEAN),
-            'show_admission' => filter_var($request->input('show_admission', false), FILTER_VALIDATE_BOOLEAN),
-            'show_dob'       => filter_var($request->input('show_dob', false), FILTER_VALIDATE_BOOLEAN),
-            'show_blood'     => filter_var($request->input('show_blood', true), FILTER_VALIDATE_BOOLEAN),
-            'show_parent'    => filter_var($request->input('show_parent', true), FILTER_VALIDATE_BOOLEAN),
-            'show_address'   => filter_var($request->input('show_address', false), FILTER_VALIDATE_BOOLEAN),
-        ];
 
         return Inertia::render('School/IdCards/Print', [
+            'template' => $template,
             'students' => $students,
             'school'   => [
-                'name'    => $school->name,
-                'logo'    => $school->logo ? '/storage/' . $school->logo : null,
-                'address' => $school->address,
-                'phone'   => $school->phone,
-                'board'   => $school->board,
+                'name'  => $school->name,
+                'logo'  => $school->logo ? '/storage/' . $school->logo : null,
+                'phone' => $school->phone,
+                'board' => $school->board,
             ],
-            'template' => $template,
         ]);
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────
+
+    private function schoolData(): array
+    {
+        $school = app('current_school');
+        return [
+            'name'  => $school->name,
+            'logo'  => $school->logo ? '/storage/' . $school->logo : null,
+            'phone' => $school->phone,
+            'board' => $school->board,
+        ];
+    }
+
+    /**
+     * If background value is a base64 data URI, save to storage and return file URL.
+     * Otherwise return as-is (already a URL or color hex).
+     */
+    private function resolveBackground(array $incoming, ?array $existing = null): array
+    {
+        if (($incoming['type'] ?? '') === 'image' && str_starts_with($incoming['value'] ?? '', 'data:image/')) {
+            // Delete old image if replacing
+            if ($existing && ($existing['type'] ?? '') === 'image' && str_starts_with($existing['value'] ?? '', '/storage/')) {
+                Storage::disk('public')->delete(str_replace('/storage/', '', $existing['value']));
+            }
+
+            $data = $incoming['value'];
+            $ext  = str_contains($data, 'image/png') ? 'png' : 'jpg';
+            $path = 'id-card-backgrounds/' . uniqid('bg_', true) . '.' . $ext;
+            Storage::disk('public')->put($path, base64_decode(substr($data, strpos($data, ',') + 1)));
+            return ['type' => 'image', 'value' => '/storage/' . $path];
+        }
+
+        return $incoming;
     }
 }
