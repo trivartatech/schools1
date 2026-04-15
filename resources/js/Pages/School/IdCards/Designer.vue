@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 
@@ -13,7 +13,7 @@ const isEdit = computed(() => !!props.template);
 // ── Available elements ────────────────────────────────────────────
 const FIELDS = [
     { type: 'photo',  label: 'Photo',            icon: '👤', defaultW: 22, defaultH: 60 },
-    { type: 'qr',     label: 'QR Code',           icon: '▦',  defaultW: 20, defaultH: 55 },
+    { type: 'qr',     label: 'QR Code',           icon: '▦',  defaultW: 20, defaultH: 20 },
     { type: 'field',  field: 'school_name',        label: 'School Name',      icon: '🏫', defaultW: 70 },
     { type: 'field',  field: 'name',               label: 'Full Name',        icon: '👤', defaultW: 55 },
     { type: 'field',  field: 'class_section',      label: 'Class & Section',  icon: '🎓', defaultW: 45 },
@@ -25,100 +25,154 @@ const FIELDS = [
     { type: 'field',  field: 'dob',                label: 'Date of Birth',    icon: '📅', defaultW: 40 },
     { type: 'field',  field: 'parent_phone',       label: 'Parent Phone',     icon: '📞', defaultW: 40 },
     { type: 'field',  field: 'father_name',        label: 'Father Name',      icon: '👨', defaultW: 45 },
+    { type: 'field',  field: 'mother_name',        label: 'Mother Name',      icon: '👩', defaultW: 45 },
+    { type: 'field',  field: 'address',            label: 'Address',          icon: '📍', defaultW: 70 },
     { type: 'field',  field: 'academic_year',      label: 'Academic Year',    icon: '📆', defaultW: 28 },
     { type: 'text',   label: 'Custom Text',        icon: 'T',  defaultW: 40 },
     { type: 'line',   label: 'Divider Line',       icon: '—',  defaultW: 80 },
 ];
 
-// ── Default elements ──────────────────────────────────────────────
+// ── Default elements (front side only) ───────────────────────────
 const defaultElements = () => [
-    { id: 'e1', type: 'field', field: 'school_name', label: 'School Name',     x: 2,  y: 3,  w: 96, fontSize: 12, fontWeight: 'bold',   color: '#ffffff', textAlign: 'center', prefix: '', suffix: '' },
-    { id: 'e2', type: 'text',  text: 'STUDENT IDENTITY CARD',                  x: 2,  y: 12, w: 96, fontSize: 8,  fontWeight: 'normal',  color: '#bfdbfe', textAlign: 'center' },
-    { id: 'e3', type: 'photo',                                                  x: 3,  y: 20, w: 22, h: 65, borderRadius: 4 },
-    { id: 'e4', type: 'field', field: 'name',        label: 'Full Name',        x: 27, y: 22, w: 48, fontSize: 13, fontWeight: 'bold',   color: '#ffffff', textAlign: 'left',   prefix: '', suffix: '' },
-    { id: 'e5', type: 'field', field: 'class_section', label: 'Class & Section', x: 27, y: 38, w: 48, fontSize: 10, fontWeight: 'normal', color: '#bfdbfe', textAlign: 'left',   prefix: 'Class: ', suffix: '' },
-    { id: 'e6', type: 'field', field: 'roll_no',     label: 'Roll No',          x: 27, y: 53, w: 28, fontSize: 10, fontWeight: 'normal', color: '#e2e8f0', textAlign: 'left',   prefix: 'Roll: ', suffix: '' },
-    { id: 'e7', type: 'field', field: 'blood_group', label: 'Blood Group',      x: 57, y: 53, w: 18, fontSize: 10, fontWeight: 'bold',   color: '#fca5a5', textAlign: 'left',   prefix: '', suffix: '' },
-    { id: 'e8', type: 'qr',                                                     x: 78, y: 20, w: 20, h: 65 },
-    { id: 'e9', type: 'field', field: 'academic_year', label: 'Academic Year',  x: 2,  y: 90, w: 96, fontSize: 8,  fontWeight: 'normal', color: '#94a3b8', textAlign: 'center', prefix: '', suffix: '' },
+    { id: 'e1', side: 'front', type: 'field', field: 'school_name', label: 'School Name',      x: 2,  y: 3,  w: 96, fontSize: 12, fontWeight: 'bold',   color: '#ffffff', textAlign: 'center', prefix: '', suffix: '' },
+    { id: 'e2', side: 'front', type: 'text',  text: 'STUDENT IDENTITY CARD',                   x: 2,  y: 12, w: 96, fontSize: 8,  fontWeight: 'normal',  color: '#bfdbfe', textAlign: 'center' },
+    { id: 'e3', side: 'front', type: 'photo',                                                   x: 3,  y: 20, w: 22, h: 65, borderRadius: 4 },
+    { id: 'e4', side: 'front', type: 'field', field: 'name',         label: 'Full Name',        x: 27, y: 22, w: 48, fontSize: 13, fontWeight: 'bold',   color: '#ffffff', textAlign: 'left',   prefix: '', suffix: '' },
+    { id: 'e5', side: 'front', type: 'field', field: 'class_section', label: 'Class & Section', x: 27, y: 38, w: 48, fontSize: 10, fontWeight: 'normal', color: '#bfdbfe', textAlign: 'left',   prefix: 'Class: ', suffix: '' },
+    { id: 'e6', side: 'front', type: 'field', field: 'roll_no',      label: 'Roll No',          x: 27, y: 53, w: 28, fontSize: 10, fontWeight: 'normal', color: '#e2e8f0', textAlign: 'left',   prefix: 'Roll: ', suffix: '' },
+    { id: 'e7', side: 'front', type: 'field', field: 'blood_group',  label: 'Blood Group',      x: 57, y: 53, w: 18, fontSize: 10, fontWeight: 'bold',   color: '#fca5a5', textAlign: 'left',   prefix: '', suffix: '' },
+    { id: 'e8', side: 'front', type: 'qr',                                                      x: 78, y: 20, w: 20, h: 20 },
+    { id: 'e9', side: 'front', type: 'field', field: 'academic_year', label: 'Academic Year',   x: 2,  y: 90, w: 96, fontSize: 8,  fontWeight: 'normal', color: '#94a3b8', textAlign: 'center', prefix: '', suffix: '' },
 ];
+
+// ── Background helpers ────────────────────────────────────────────
+const normalizeBackground = (bg) => {
+    if (!bg) return { front: { type: 'color', value: '#1e3a8a' }, back: { type: 'color', value: '#1a1a2e' } };
+    if (bg.front !== undefined || bg.back !== undefined) return {
+        front: bg.front ?? { type: 'color', value: '#1e3a8a' },
+        back:  bg.back  ?? { type: 'color', value: '#1a1a2e' },
+    };
+    // Old format: single background → assign to front, default dark for back
+    return { front: bg, back: { type: 'color', value: '#1a1a2e' } };
+};
 
 // ── Inertia form ──────────────────────────────────────────────────
 const form = useForm({
     name:        props.template?.name        ?? '',
     orientation: props.template?.orientation ?? 'landscape',
-    background:  props.template?.background  ?? { type: 'color', value: '#1e3a8a' },
-    elements:    props.template?.elements    ?? defaultElements(),
+    background:  normalizeBackground(props.template?.background),
+    elements:    props.template?.elements?.map(el => ({ side: 'front', ...el })) ?? defaultElements(),
     columns:     props.template?.columns     ?? 2,
 });
 
 const save = () => {
     if (isEdit.value) {
-        form.put(`/school/utility/id-cards/${props.template.id}`, {
-            onError: () => {},
-        });
+        form.put(`/school/utility/id-cards/${props.template.id}`, { onError: () => {} });
     } else {
-        form.post('/school/utility/id-cards', {
-            onError: () => {},
-        });
+        form.post('/school/utility/id-cards', { onError: () => {} });
     }
 };
 
 // ── Canvas sizing per orientation ─────────────────────────────────
-const LANDSCAPE_W = 514;
-const LANDSCAPE_H = 324;
-const PORTRAIT_W  = 324;
-const PORTRAIT_H  = 514;
+const canvasW = computed(() => form.orientation === 'portrait' ? 324 : 514);
+const canvasH = computed(() => form.orientation === 'portrait' ? 514 : 324);
 
-const canvasW = computed(() => form.orientation === 'portrait' ? PORTRAIT_W  : LANDSCAPE_W);
-const canvasH = computed(() => form.orientation === 'portrait' ? PORTRAIT_H  : LANDSCAPE_H);
+// ── Front / Back side ─────────────────────────────────────────────
+const currentSide = ref('front');
 
-// ── Drag logic ────────────────────────────────────────────────────
+const visibleElements = computed(() =>
+    form.elements.filter(el => (el.side ?? 'front') === currentSide.value)
+);
+
+const frontCount = computed(() => form.elements.filter(el => (el.side ?? 'front') === 'front').length);
+const backCount  = computed(() => form.elements.filter(el => el.side === 'back').length);
+
+// ── Drag state ────────────────────────────────────────────────────
 const canvasRef = ref(null);
 const dragging  = ref(null);
+const resizing  = ref(null);
 const selected  = ref(null);
 
 const startDrag = (e, el) => {
+    if (e.button !== 0 || resizing.value) return;
+    e.preventDefault();
+    e.stopPropagation();
+    selected.value = el.id;
+    const rect = canvasRef.value.getBoundingClientRect();
+    dragging.value = {
+        id:      el.id,
+        offsetX: e.clientX - rect.left - (el.x / 100) * rect.width,
+        offsetY: e.clientY - rect.top  - (el.y / 100) * rect.height,
+    };
+};
+
+// ── Resize state ──────────────────────────────────────────────────
+const startResize = (e, el, handle) => {
     if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
     selected.value = el.id;
-    const canvasRect = canvasRef.value.getBoundingClientRect();
-    const elPxX = (el.x / 100) * canvasRect.width;
-    const elPxY = (el.y / 100) * canvasRect.height;
-    dragging.value = {
-        id: el.id,
-        offsetX: e.clientX - canvasRect.left - elPxX,
-        offsetY: e.clientY - canvasRect.top  - elPxY,
-    };
+    resizing.value = { id: el.id, handle, lastX: e.clientX, lastY: e.clientY };
 };
 
+// ── Mouse handlers ────────────────────────────────────────────────
 const onMouseMove = (e) => {
-    if (!dragging.value || !canvasRef.value) return;
+    if (!canvasRef.value) return;
     const rect = canvasRef.value.getBoundingClientRect();
-    const el   = form.elements.find(el => el.id === dragging.value.id);
-    if (!el) return;
-    let nx = ((e.clientX - rect.left - dragging.value.offsetX) / rect.width)  * 100;
-    let ny = ((e.clientY - rect.top  - dragging.value.offsetY) / rect.height) * 100;
-    nx = Math.round(nx * 2) / 2;
-    ny = Math.round(ny * 2) / 2;
-    el.x = Math.max(0, Math.min(100 - el.w, nx));
-    el.y = Math.max(0, Math.min(97, ny));
+
+    // Resize
+    if (resizing.value) {
+        const dx = ((e.clientX - resizing.value.lastX) / rect.width)  * 100;
+        const dy = ((e.clientY - resizing.value.lastY) / rect.height) * 100;
+        const el = form.elements.find(el => el.id === resizing.value.id);
+        if (el) {
+            const h = resizing.value.handle;
+            if (h.includes('e')) { el.w = Math.max(5, el.w + dx); }
+            if (h.includes('s')) { el.h = Math.max(5, (el.h ?? 20) + dy); }
+            if (h.includes('w')) {
+                const nw = Math.max(5, el.w - dx);
+                el.x = Math.max(0, el.x + el.w - nw);
+                el.w = nw;
+            }
+            if (h.includes('n')) {
+                const nh = Math.max(5, (el.h ?? 20) - dy);
+                el.y = Math.max(0, el.y + (el.h ?? 20) - nh);
+                el.h = nh;
+            }
+            // QR: keep square
+            if (el.type === 'qr') {
+                if (h === 'n' || h === 's') { el.w = el.h; }
+                else { el.h = el.w; }
+            }
+        }
+        resizing.value.lastX = e.clientX;
+        resizing.value.lastY = e.clientY;
+        return;
+    }
+
+    // Drag
+    if (dragging.value) {
+        const el = form.elements.find(el => el.id === dragging.value.id);
+        if (!el) return;
+        let nx = ((e.clientX - rect.left - dragging.value.offsetX) / rect.width)  * 100;
+        let ny = ((e.clientY - rect.top  - dragging.value.offsetY) / rect.height) * 100;
+        nx = Math.round(nx * 2) / 2;
+        ny = Math.round(ny * 2) / 2;
+        el.x = Math.max(0, Math.min(100 - el.w, nx));
+        el.y = Math.max(0, Math.min(97, ny));
+    }
 };
 
-const stopDrag = () => { dragging.value = null; };
-
-const clickCanvas = (e) => {
-    if (e.target === canvasRef.value) selected.value = null;
-};
+const stopInteraction = () => { dragging.value = null; resizing.value = null; };
+const clickCanvas = (e) => { if (e.target === canvasRef.value) selected.value = null; };
 
 onMounted(() => {
     window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', stopDrag);
+    window.addEventListener('mouseup', stopInteraction);
 });
 onUnmounted(() => {
     window.removeEventListener('mousemove', onMouseMove);
-    window.removeEventListener('mouseup', stopDrag);
+    window.removeEventListener('mouseup', stopInteraction);
 });
 
 // ── Selected element ──────────────────────────────────────────────
@@ -156,11 +210,13 @@ const sendBack = () => {
 // ── Add element ───────────────────────────────────────────────────
 const addElement = (def) => {
     const id = 'e' + Date.now();
-    const base = { id, type: def.type, x: 10, y: 40, w: def.defaultW || 40 };
+    const base = { id, side: currentSide.value, type: def.type, x: 10, y: 40, w: def.defaultW || 40 };
     if (def.type === 'photo') {
         Object.assign(base, { h: def.defaultH || 55, borderRadius: 4 });
     } else if (def.type === 'qr') {
-        Object.assign(base, { h: def.defaultH || 55 });
+        // QR is always square
+        const size = def.defaultW || 20;
+        Object.assign(base, { w: size, h: size });
     } else if (def.type === 'field') {
         Object.assign(base, { field: def.field, label: def.label, fontSize: 11, fontWeight: 'normal', color: '#ffffff', textAlign: 'left', prefix: '', suffix: '' });
     } else if (def.type === 'text') {
@@ -180,36 +236,40 @@ const onBgUpload = (e) => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-        form.background = { type: 'image', value: ev.target.result };
+        form.background[currentSide.value] = { type: 'image', value: ev.target.result };
     };
     reader.readAsDataURL(file);
     e.target.value = '';
 };
 
 const removeBgImage = () => {
-    form.background = { type: 'color', value: '#1e3a8a' };
+    form.background[currentSide.value] = { type: 'color', value: currentSide.value === 'front' ? '#1e3a8a' : '#1a1a2e' };
 };
 
 // ── Canvas styles ─────────────────────────────────────────────────
 const canvasBg = computed(() => {
-    const bg = form.background;
+    const bg = form.background[currentSide.value];
+    if (!bg) return { background: '#1e3a8a' };
     return bg.type === 'image'
         ? { backgroundImage: `url(${bg.value})`, backgroundSize: 'cover', backgroundPosition: 'center' }
         : { background: bg.value };
 });
 
+const RESIZE_HANDLES = ['nw','n','ne','e','se','s','sw','w'];
+
 const elStyle = (el) => ({
-    position: 'absolute',
-    left:  el.x + '%',
-    top:   el.y + '%',
-    width: el.w + '%',
+    position:    'absolute',
+    left:        el.x + '%',
+    top:         el.y + '%',
+    width:       el.w + '%',
     ...(el.h ? { height: el.h + '%' } : {}),
-    cursor: 'move',
-    userSelect: 'none',
-    zIndex: selected.value === el.id ? 20 : 5,
-    outline: selected.value === el.id ? '1.5px dashed rgba(255,255,255,0.9)' : '1px dashed rgba(255,255,255,0.15)',
+    cursor:      'move',
+    userSelect:  'none',
+    zIndex:      selected.value === el.id ? 20 : 5,
+    outline:     selected.value === el.id ? '1.5px dashed rgba(255,255,255,0.9)' : '1px dashed rgba(255,255,255,0.15)',
     outlineOffset: '1px',
-    boxSizing: 'border-box',
+    boxSizing:   'border-box',
+    overflow:    'visible',
 });
 
 const textCss = (el) => ({
@@ -226,6 +286,8 @@ const textCss = (el) => ({
 // ── Sample preview data ───────────────────────────────────────────
 const SAMPLE = {
     name:          'Aarav Sharma',
+    first_name:    'Aarav',
+    last_name:     'Sharma',
     class:         'X',
     section:       'A',
     class_section: 'X - A',
@@ -235,6 +297,8 @@ const SAMPLE = {
     dob:           '15 Mar 2010',
     parent_phone:  '9876543210',
     father_name:   'Raj Sharma',
+    mother_name:   'Priya Sharma',
+    address:       '42, Shiv Nagar, Delhi',
     school_name:   props.school?.name || 'School Name',
     academic_year: '2026-27',
 };
@@ -253,11 +317,9 @@ const getPreview = (el) => {
         <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
             <div class="flex items-center gap-3 flex-1 min-w-0">
                 <a href="/school/utility/id-cards"
-                   class="text-slate-400 hover:text-slate-600 transition-colors flex-shrink-0">
+                   class="text-slate-400 hover:text-slate-600 transition-colors flex-shrink-0 text-sm">
                     ← Back
                 </a>
-
-                <!-- Template name -->
                 <input v-model="form.name"
                        type="text"
                        placeholder="Template name (e.g. Standard 2026)"
@@ -267,7 +329,7 @@ const getPreview = (el) => {
             </div>
 
             <div class="flex items-center gap-2 flex-wrap">
-                <!-- Orientation toggle -->
+                <!-- Orientation -->
                 <div class="flex items-center gap-0 border border-slate-300 rounded-lg overflow-hidden">
                     <button v-for="o in ['landscape', 'portrait']" :key="o"
                             @click="form.orientation = o"
@@ -277,7 +339,7 @@ const getPreview = (el) => {
                     </button>
                 </div>
 
-                <!-- Columns per page -->
+                <!-- Columns -->
                 <div class="flex items-center gap-0 border border-slate-300 rounded-lg overflow-hidden">
                     <span class="text-xs text-slate-500 px-2">Cols</span>
                     <button v-for="n in [1, 2, 4]" :key="n"
@@ -302,30 +364,28 @@ const getPreview = (el) => {
             <!-- ── Left: Elements palette ── -->
             <div class="w-44 flex-shrink-0 bg-white rounded-xl border border-slate-200 p-3">
                 <div class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Elements</div>
-                <div class="space-y-1">
+                <div class="space-y-0.5">
                     <button v-for="def in FIELDS" :key="def.type + (def.field || '')"
                             @click="addElement(def)"
                             class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm text-slate-600 hover:bg-blue-50 hover:text-blue-700 transition-colors text-left border border-transparent hover:border-blue-200">
-                        <span class="text-base w-5 text-center flex-shrink-0">{{ def.icon || '▪' }}</span>
+                        <span class="text-sm w-5 text-center flex-shrink-0">{{ def.icon || '▪' }}</span>
                         <span class="truncate text-xs">{{ def.label }}</span>
                     </button>
                 </div>
 
-                <!-- Background section -->
+                <!-- Background -->
                 <div class="mt-4 pt-3 border-t border-slate-200">
                     <div class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Background</div>
+                    <p class="text-xs text-slate-400 mb-2">Editing: <span class="font-medium text-slate-600 capitalize">{{ currentSide }}</span></p>
 
-                    <div v-if="form.background.type === 'color'" class="flex items-center gap-2 mb-2">
-                        <input type="color" v-model="form.background.value"
+                    <div v-if="form.background[currentSide]?.type === 'color'" class="flex items-center gap-2 mb-2">
+                        <input type="color" v-model="form.background[currentSide].value"
                                class="w-8 h-8 rounded border border-slate-200 cursor-pointer flex-shrink-0" />
-                        <input type="text" v-model="form.background.value"
+                        <input type="text" v-model="form.background[currentSide].value"
                                class="flex-1 border border-slate-300 rounded px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-blue-400" />
                     </div>
-
                     <div v-else class="flex items-center gap-2 mb-2">
-                        <div class="text-xs text-green-600 flex-1 truncate">
-                            {{ form.background.value?.startsWith('/storage/') ? 'Saved image' : 'Image uploaded' }}
-                        </div>
+                        <div class="text-xs text-green-600 flex-1 truncate">Image set</div>
                         <button @click="removeBgImage" class="text-xs text-red-500 hover:text-red-700 flex-shrink-0">✕ Remove</button>
                     </div>
 
@@ -333,33 +393,50 @@ const getPreview = (el) => {
                         Upload Image
                         <input ref="bgInput" type="file" accept="image/*" class="hidden" @change="onBgUpload" />
                     </label>
-                    <p class="text-xs text-slate-400 mt-1">Design your card in an image editor, upload as background, add fields on top</p>
                 </div>
             </div>
 
             <!-- ── Center: Canvas ── -->
             <div class="flex-1 min-w-0">
-                <div class="bg-slate-100 rounded-xl p-4 flex flex-col items-center gap-3">
+                <!-- Front / Back toggle -->
+                <div class="flex items-center justify-center gap-2 mb-3">
+                    <button v-for="side in ['front', 'back']" :key="side"
+                            @click="currentSide = side; selected = null"
+                            :class="['px-5 py-1.5 text-xs font-semibold rounded-full border transition-colors',
+                                     currentSide === side
+                                         ? 'bg-slate-800 text-white border-slate-800'
+                                         : 'text-slate-500 border-slate-300 hover:border-slate-400']">
+                        {{ side === 'front' ? 'Front' : 'Back' }}
+                        <span class="ml-1 opacity-60">{{ side === 'front' ? frontCount : backCount }}</span>
+                    </button>
+                </div>
 
+                <div class="bg-slate-100 rounded-xl p-4 flex flex-col items-center gap-3">
                     <div
                         ref="canvasRef"
-                        class="relative overflow-hidden rounded-lg shadow-xl flex-shrink-0"
-                        :style="[canvasBg, { width: canvasW + 'px', height: canvasH + 'px' }]"
+                        class="relative rounded-lg shadow-xl flex-shrink-0"
+                        :style="[canvasBg, { width: canvasW + 'px', height: canvasH + 'px', overflow: 'visible' }]"
                         @click="clickCanvas"
                     >
+                        <!-- clip mask so card bg doesn't leak but handles do -->
+                        <div class="absolute inset-0 rounded-lg overflow-hidden pointer-events-none"
+                             :style="canvasBg"></div>
+
                         <div
-                            v-for="el in form.elements" :key="el.id"
+                            v-for="el in visibleElements" :key="el.id"
                             :style="elStyle(el)"
                             @mousedown="(e) => startDrag(e, el)"
                             @click.stop="selected = el.id"
                         >
+                            <!-- Photo placeholder -->
                             <template v-if="el.type === 'photo'">
                                 <div class="w-full h-full bg-white/20 flex items-center justify-center overflow-hidden"
                                      :style="{ borderRadius: (el.borderRadius || 0) + 'px' }">
-                                    <span class="text-3xl">👤</span>
+                                    <span style="font-size:1.8em">👤</span>
                                 </div>
                             </template>
 
+                            <!-- QR placeholder -->
                             <template v-else-if="el.type === 'qr'">
                                 <div class="w-full h-full bg-white flex items-center justify-center rounded overflow-hidden p-0.5">
                                     <svg viewBox="0 0 21 21" fill="none" class="w-full h-full text-slate-800">
@@ -378,19 +455,26 @@ const getPreview = (el) => {
                                 </div>
                             </template>
 
+                            <!-- Divider line -->
                             <template v-else-if="el.type === 'line'">
                                 <div class="w-full" :style="{ borderTop: `1px solid ${el.color || '#ffffff'}` }"></div>
                             </template>
 
+                            <!-- Text / field -->
                             <template v-else>
                                 <div :style="textCss(el)">{{ getPreview(el) }}</div>
+                            </template>
+
+                            <!-- Resize handles (selected only) -->
+                            <template v-if="selected === el.id">
+                                <div v-for="handle in RESIZE_HANDLES" :key="handle"
+                                     :class="`rh rh-${handle}`"
+                                     @mousedown.stop.prevent="startResize($event, el, handle)" />
                             </template>
                         </div>
                     </div>
 
-                    <p class="text-xs text-slate-400">
-                        Click element to select &bull; Drag to move &bull; Edit properties in panel
-                    </p>
+                    <p class="text-xs text-slate-400">Click to select &bull; Drag to move &bull; Drag handles to resize</p>
                 </div>
             </div>
 
@@ -428,16 +512,18 @@ const getPreview = (el) => {
                                 <div>
                                     <label class="block text-xs text-slate-500 mb-0.5">Width %</label>
                                     <input type="number" v-model.number="selectedEl.w" min="1" max="100" step="1"
-                                           class="w-full border border-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
+                                           class="w-full border border-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                           @input="selectedEl.type === 'qr' && (selectedEl.h = selectedEl.w)" />
                                 </div>
                                 <div v-if="selectedEl.h !== undefined">
                                     <label class="block text-xs text-slate-500 mb-0.5">Height %</label>
                                     <input type="number" v-model.number="selectedEl.h" min="1" max="100" step="1"
-                                           class="w-full border border-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
+                                           class="w-full border border-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                           @input="selectedEl.type === 'qr' && (selectedEl.w = selectedEl.h)" />
                                 </div>
                             </div>
 
-                            <!-- Text-specific properties -->
+                            <!-- Text properties -->
                             <template v-if="selectedEl.type !== 'photo' && selectedEl.type !== 'qr' && selectedEl.type !== 'line'">
                                 <div>
                                     <label class="block text-xs text-slate-500 mb-0.5">Font Size</label>
@@ -446,7 +532,6 @@ const getPreview = (el) => {
                                         <span class="text-xs text-slate-600 w-7">{{ selectedEl.fontSize }}</span>
                                     </div>
                                 </div>
-
                                 <div>
                                     <label class="block text-xs text-slate-500 mb-0.5">Color</label>
                                     <div class="flex items-center gap-1">
@@ -456,7 +541,6 @@ const getPreview = (el) => {
                                                class="flex-1 border border-slate-300 rounded px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-blue-400" />
                                     </div>
                                 </div>
-
                                 <div class="flex gap-2">
                                     <button @click="selectedEl.fontWeight = selectedEl.fontWeight === 'bold' ? 'normal' : 'bold'"
                                             :class="['flex-1 py-1 text-xs rounded border font-bold transition-colors',
@@ -470,13 +554,11 @@ const getPreview = (el) => {
                                         {{ align === 'left' ? '⬅' : align === 'center' ? '↔' : '➡' }}
                                     </button>
                                 </div>
-
                                 <div v-if="selectedEl.type === 'text'">
                                     <label class="block text-xs text-slate-500 mb-0.5">Text</label>
                                     <input type="text" v-model="selectedEl.text"
                                            class="w-full border border-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
                                 </div>
-
                                 <template v-if="selectedEl.type === 'field'">
                                     <div>
                                         <label class="block text-xs text-slate-500 mb-0.5">Prefix</label>
@@ -485,7 +567,7 @@ const getPreview = (el) => {
                                     </div>
                                     <div>
                                         <label class="block text-xs text-slate-500 mb-0.5">Suffix</label>
-                                        <input type="text" v-model="selectedEl.suffix" placeholder="optional"
+                                        <input type="text" v-model="selectedEl.suffix"
                                                class="w-full border border-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
                                     </div>
                                 </template>
@@ -524,14 +606,13 @@ const getPreview = (el) => {
                                     Delete
                                 </button>
                             </div>
-
                             <div class="flex gap-2">
                                 <button @click="bringFront"
-                                        class="flex-1 py-1 text-xs border border-slate-300 rounded text-slate-500 hover:bg-slate-50 transition-colors">
+                                        class="flex-1 py-1 text-xs border border-slate-300 rounded text-slate-500 hover:bg-slate-50">
                                     Bring Front
                                 </button>
                                 <button @click="sendBack"
-                                        class="flex-1 py-1 text-xs border border-slate-300 rounded text-slate-500 hover:bg-slate-50 transition-colors">
+                                        class="flex-1 py-1 text-xs border border-slate-300 rounded text-slate-500 hover:bg-slate-50">
                                     Send Back
                                 </button>
                             </div>
@@ -539,14 +620,13 @@ const getPreview = (el) => {
                     </template>
                 </div>
 
-                <!-- Tips -->
                 <div class="mt-3 bg-blue-50 border border-blue-200 rounded-xl p-3">
                     <p class="text-xs text-blue-700 font-semibold mb-1">Tips</p>
                     <ul class="text-xs text-blue-600 space-y-1 list-disc list-inside">
-                        <li>Upload a designed card as background</li>
-                        <li>Place data fields on top</li>
-                        <li>Drag to position precisely</li>
-                        <li>Switch orientation above</li>
+                        <li>Front / Back toggle above canvas</li>
+                        <li>Drag handles to resize elements</li>
+                        <li>QR code stays square automatically</li>
+                        <li>Upload card image as background</li>
                     </ul>
                 </div>
             </div>
@@ -555,3 +635,25 @@ const getPreview = (el) => {
 
     </SchoolLayout>
 </template>
+
+<style scoped>
+/* ── Resize handles ── */
+.rh {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: #fff;
+    border: 1.5px solid #2563eb;
+    border-radius: 2px;
+    z-index: 30;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.15);
+}
+.rh-nw { top: -4px;              left: -4px;              cursor: nw-resize; }
+.rh-n  { top: -4px;              left: calc(50% - 4px);   cursor: n-resize; }
+.rh-ne { top: -4px;              right: -4px;             cursor: ne-resize; }
+.rh-e  { top: calc(50% - 4px);   right: -4px;             cursor: e-resize; }
+.rh-se { bottom: -4px;           right: -4px;             cursor: se-resize; }
+.rh-s  { bottom: -4px;           left: calc(50% - 4px);   cursor: s-resize; }
+.rh-sw { bottom: -4px;           left: -4px;              cursor: sw-resize; }
+.rh-w  { top: calc(50% - 4px);   left: -4px;              cursor: w-resize; }
+</style>

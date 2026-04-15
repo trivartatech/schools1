@@ -111,11 +111,13 @@ class IdCardController extends Controller
     {
         abort_if($idCardTemplate->school_id !== app('current_school_id'), 403);
 
-        // Delete background image if stored
+        // Delete background image(s) if stored
         $bg = $idCardTemplate->background;
-        if (($bg['type'] ?? '') === 'image' && isset($bg['value']) && str_starts_with($bg['value'], '/storage/')) {
-            $path = str_replace('/storage/', '', $bg['value']);
-            Storage::disk('public')->delete($path);
+        $sides = isset($bg['front']) ? array_filter([$bg['front'] ?? null, $bg['back'] ?? null]) : [$bg];
+        foreach ($sides as $side) {
+            if (($side['type'] ?? '') === 'image' && isset($side['value']) && str_starts_with($side['value'], '/storage/')) {
+                Storage::disk('public')->delete(str_replace('/storage/', '', $side['value']));
+            }
         }
 
         $idCardTemplate->delete();
@@ -198,6 +200,8 @@ class IdCardController extends Controller
                 'section'      => $h?->section?->name,
                 'parent_phone' => $s->studentParent?->primary_phone,
                 'father_name'  => $s->studentParent?->father_name,
+                'mother_name'  => $s->studentParent?->mother_name,
+                'address'      => $s->address,
             ];
         });
 
@@ -233,13 +237,32 @@ class IdCardController extends Controller
     }
 
     /**
-     * If background value is a base64 data URI, save to storage and return file URL.
-     * Otherwise return as-is (already a URL or color hex).
+     * Resolve background for storage. Handles both:
+     *   - new format: { front: {...}, back: {...} }
+     *   - legacy format: { type: 'color|image', value: '...' }
      */
     private function resolveBackground(array $incoming, ?array $existing = null): array
     {
+        // New front/back format
+        if (isset($incoming['front']) || isset($incoming['back'])) {
+            $result = $incoming;
+            foreach (['front', 'back'] as $side) {
+                if (isset($incoming[$side])) {
+                    $result[$side] = $this->resolveSingleBackground(
+                        $incoming[$side],
+                        $existing[$side] ?? null
+                    );
+                }
+            }
+            return $result;
+        }
+
+        return $this->resolveSingleBackground($incoming, $existing);
+    }
+
+    private function resolveSingleBackground(array $incoming, ?array $existing = null): array
+    {
         if (($incoming['type'] ?? '') === 'image' && str_starts_with($incoming['value'] ?? '', 'data:image/')) {
-            // Delete old image if replacing
             if ($existing && ($existing['type'] ?? '') === 'image' && str_starts_with($existing['value'] ?? '', '/storage/')) {
                 Storage::disk('public')->delete(str_replace('/storage/', '', $existing['value']));
             }

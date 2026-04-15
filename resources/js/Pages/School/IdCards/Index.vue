@@ -17,9 +17,11 @@ const orientationClass = (o) => o === 'portrait' ? 'badge-portrait' : 'badge-lan
 const bgStyle = (tpl) => {
     const bg = tpl.background;
     if (!bg) return { background: '#1e3a8a' };
-    return bg.type === 'image'
-        ? { backgroundImage: `url(${bg.value})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-        : { background: bg.value || '#1e3a8a' };
+    // New {front, back} format — use front for preview
+    const side = bg.front !== undefined ? bg.front : bg;
+    return side?.type === 'image'
+        ? { backgroundImage: `url(${side.value})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+        : { background: side?.value || '#1e3a8a' };
 };
 
 const formatDate = (d) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
