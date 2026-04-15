@@ -904,4 +904,55 @@ class StudentController extends Controller
             'bulk_results' => $results
         ]);
     }
+
+    /**
+     * GET /school/students/scanner
+     * Renders the QR scanner page used to look up a student profile.
+     * Same camera component as the attendance scanner, but on success
+     * we redirect to the student profile page instead of marking present.
+     */
+    public function qrProfileScanner()
+    {
+        return Inertia::render('School/Students/QRScanner');
+    }
+
+    /**
+     * POST /school/students/scan-by-uuid
+     * Resolves a scanned QR (raw UUID or "/q/<uuid>" URL) to a student id and
+     * returns the redirect URL to that student's profile page. Tenant-scoped
+     * to the current school so a QR from another school can't leak data.
+     */
+    public function scanByUuid(Request $request)
+    {
+        $request->validate(['uuid' => 'required|string|max:512']);
+
+        $raw = trim($request->uuid);
+        // Accept either the bare uuid or a "/q/<uuid>" URL
+        if (preg_match('~/q/([^/?#]+)~', $raw, $m)) {
+            $uuid = $m[1];
+        } else {
+            $uuid = $raw;
+        }
+
+        $schoolId = app('current_school_id');
+
+        $student = Student::where('school_id', $schoolId)
+            ->where('uuid', $uuid)
+            ->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found or invalid QR.'], 404);
+        }
+
+        return response()->json([
+            'success'      => true,
+            'student'      => [
+                'id'           => $student->id,
+                'name'         => $student->name,
+                'admission_no' => $student->admission_no,
+                'photo_url'    => $student->photo_url,
+            ],
+            'redirect_url' => route('school.students.show', $student->id),
+        ]);
+    }
 }

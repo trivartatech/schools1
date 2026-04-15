@@ -105,7 +105,8 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
 
     // Admin listings
     Route::get('/students',                   [$MA, 'studentList'])->name('api.mobile.students');
-    Route::get('/students/{id}',              [$MA, 'studentDetail'])->name('api.mobile.students.detail');
+    Route::post('/students/lookup-by-uuid',   [$MA, 'lookupStudentByUuid'])->name('api.mobile.students.lookup-by-uuid');
+    Route::get('/students/{id}',              [$MA, 'studentDetail'])->whereNumber('id')->name('api.mobile.students.detail');
     Route::get('/class-options',              [$MA, 'classOptions'])->name('api.mobile.class-options');
     Route::get('/teachers',                   [$MA, 'teacherList'])->name('api.mobile.teachers');
 

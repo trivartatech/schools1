@@ -3284,6 +3284,59 @@ class MobileApiController extends Controller
     }
 
     /**
+     * POST /mobile/students/lookup-by-uuid
+     * Resolves a scanned student QR (raw uuid or "/q/<uuid>" url) to the
+     * minimum info the app needs to navigate into StudentDetailScreen.
+     *
+     * Tenant-scoped to current school. Used by the mobile QR profile scanner
+     * — distinct from rapidScanAttendance, which marks attendance as a
+     * side-effect. This one is a pure lookup, no writes.
+     */
+    public function lookupStudentByUuid(Request $request): JsonResponse
+    {
+        $user   = $request->user();
+        $school = app('current_school');
+
+        // Only school staff (admin / teachers) can use the directory lookup
+        $userType = $user->user_type instanceof \BackedEnum ? $user->user_type->value : (string) $user->user_type;
+        if (!in_array($userType, ['admin', 'school_admin', 'principal', 'super_admin', 'teacher', 'staff'])) {
+            return response()->json(['error' => 'Unauthorized.'], 403);
+        }
+
+        $request->validate(['uuid' => 'required|string|max:512']);
+
+        $raw = trim($request->uuid);
+        if (preg_match('~/q/([^/?#]+)~', $raw, $m)) {
+            $uuid = $m[1];
+        } else {
+            $uuid = $raw;
+        }
+
+        $student = \App\Models\Student::with(['currentAcademicHistory.courseClass', 'currentAcademicHistory.section'])
+            ->where('school_id', $school->id)
+            ->where('uuid', $uuid)
+            ->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found or invalid QR.'], 404);
+        }
+
+        $history = $student->currentAcademicHistory;
+
+        return response()->json([
+            'success' => true,
+            'student' => [
+                'id'           => $student->id,
+                'name'         => $student->name,
+                'admission_no' => $student->admission_no,
+                'class_name'   => $history->courseClass->name ?? null,
+                'section_name' => $history->section->name ?? null,
+                'photo_url'    => $this->publicFileUrl($student->photo),
+            ],
+        ]);
+    }
+
+    /**
      * GET /mobile/attendance/report?class_id=X&section_id=Y&month=YYYY-MM
      * Returns per-student day-by-day map + counts, matching web AttendanceController::report().
      */
