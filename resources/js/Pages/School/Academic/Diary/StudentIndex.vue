@@ -41,7 +41,16 @@ const buildSlider = () => {
 
 const expandedId = ref(null);
 const formatDate = (d) => new Date(d).toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
-const getFileUrl = (p) => `/storage/${p}`;
+// Serve attachments through the Laravel /api/media proxy so we don't depend
+// on the /storage symlink being readable by nginx, and to dodge nginx's
+// image-extension location block (which matches on the URL path, so
+// keeping the file path inside ?p= avoids interception entirely).
+const getFileUrl = (p) => {
+    if (!p) return '';
+    if (/^https?:\/\//i.test(p)) return p;
+    const clean = String(p).replace(/^\/+/, '').replace(/^(?:storage|public)\//i, '');
+    return `/api/media?p=${encodeURIComponent(clean)}`;
+};
 const fileExt = (p) => p?.split('.').pop().toLowerCase();
 const fileIcon = (p) => {
     const ext = fileExt(p);

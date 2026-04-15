@@ -134,8 +134,11 @@ const closeViewer = () => { viewingMaterial.value = null; };
 
 const fileUrl = (m) => {
     if (m.external_url) return m.external_url;
-    if (m.file_path) return `/storage/${m.file_path}`;
-    return null;
+    if (!m.file_path) return null;
+    // Route through /api/media?p= proxy — nginx can 403 on /storage/*
+    // because of its image-extension location block.
+    const clean = String(m.file_path).replace(/^\/+/, '').replace(/^(?:storage|public)\//i, '');
+    return `/api/media?p=${encodeURIComponent(clean)}`;
 };
 
 const canPreviewInline = (m) => {

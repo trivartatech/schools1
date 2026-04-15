@@ -95,7 +95,14 @@ const platformIcon = (p) => {
     return '🎥';
 };
 
-const getFileUrl = (p) => `/storage/${p}`;
+// Serve attachments through the Laravel /api/media proxy so we don't depend
+// on the /storage symlink being readable by nginx.
+const getFileUrl = (p) => {
+    if (!p) return '';
+    if (/^https?:\/\//i.test(p)) return p;
+    const clean = String(p).replace(/^\/+/, '').replace(/^(?:storage|public)\//i, '');
+    return `/api/media?p=${encodeURIComponent(clean)}`;
+};
 
 // ── File viewer modal ────────────────────────────────────
 const viewingMaterial = ref(null);
@@ -113,8 +120,9 @@ const closeViewer = () => { viewingMaterial.value = null; };
 
 const fileUrl = (m) => {
     if (m.external_url) return m.external_url;
-    if (m.file_path) return `/storage/${m.file_path}`;
-    return null;
+    if (!m.file_path) return null;
+    const clean = String(m.file_path).replace(/^\/+/, '').replace(/^(?:storage|public)\//i, '');
+    return `/api/media?p=${encodeURIComponent(clean)}`;
 };
 
 const typeMetaViewer = (type) => ({

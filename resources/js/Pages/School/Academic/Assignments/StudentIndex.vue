@@ -57,7 +57,15 @@ const daysLeft = (due) => {
 };
 
 const formatDate = (d) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-const getFileUrl = (p) => `/storage/${p}`;
+// Serve attachments through the Laravel /api/media proxy so we don't depend
+// on the /storage symlink being readable by nginx, and to dodge nginx's
+// image-extension location block.
+const getFileUrl = (p) => {
+    if (!p) return '';
+    if (/^https?:\/\//i.test(p)) return p;
+    const clean = String(p).replace(/^\/+/, '').replace(/^(?:storage|public)\//i, '');
+    return `/api/media?p=${encodeURIComponent(clean)}`;
+};
 
 // ── File viewer modal ────────────────────────────────────
 const viewingFile = ref(null);
