@@ -1011,6 +1011,22 @@ class MobileApiController extends Controller
     }
 
     /**
+     * Normalize a stored file path. Upload code in different modules has
+     * saved paths in three different shapes over time:
+     *   - "academic/diary/Deni.jpg"                 (bare — cleanest)
+     *   - "storage/academic/diary/Deni.jpg"         (web-prefixed)
+     *   - "public/academic/diary/Deni.jpg"          (disk-prefixed)
+     * We strip any of these so the remainder is always relative to
+     * storage/app/public.
+     */
+    private function normalizeStoragePath(string $path): string
+    {
+        $p = ltrim($path, '/');
+        $p = preg_replace('#^(?:storage/|public/)+#i', '', $p);
+        return $p;
+    }
+
+    /**
      * Build a public URL for a file in storage/app/public.
      * Always routed through the /api/files proxy so the response doesn't
      * depend on nginx being able to read the /storage symlink.
@@ -1019,7 +1035,7 @@ class MobileApiController extends Controller
     {
         if (!$path || !is_string($path)) return null;
         if (preg_match('#^https?://#i', $path)) return $path;
-        return url('api/files/' . ltrim($path, '/'));
+        return url('api/files/' . $this->normalizeStoragePath($path));
     }
 
     /**
@@ -1042,7 +1058,7 @@ class MobileApiController extends Controller
             if (!is_string($path) || $path === '') continue;
             $out[] = preg_match('#^https?://#i', $path)
                 ? $path
-                : url('api/files/' . ltrim($path, '/'));
+                : url('api/files/' . $this->normalizeStoragePath($path));
         }
         return $out;
     }
@@ -1056,8 +1072,9 @@ class MobileApiController extends Controller
      */
     public function serveFile(Request $request, string $path)
     {
-        // Strip any leading slash, URL-decode once
-        $path = ltrim(rawurldecode($path), '/');
+        // URL-decode once, strip leading slash, then remove any lingering
+        // storage/ or public/ prefix that older upload code may have saved.
+        $path = $this->normalizeStoragePath(rawurldecode($path));
 
         // Block path traversal + absolute paths + windows-style drives
         if ($path === '' || str_contains($path, '..') || str_starts_with($path, '/') || preg_match('#^[a-zA-Z]:#', $path)) {
@@ -1069,10 +1086,16 @@ class MobileApiController extends Controller
 
         // Reject if realpath resolved outside the public storage root
         if ($base === false || $fullPath === false || !str_starts_with($fullPath, $base)) {
+            \Log::warning('serveFile: not found', [
+                'requested' => $path,
+                'base'      => $base,
+                'fullPath'  => $fullPath,
+            ]);
             abort(404);
         }
 
         if (!is_file($fullPath) || !is_readable($fullPath)) {
+            \Log::warning('serveFile: unreadable', ['path' => $fullPath]);
             abort(404);
         }
 
