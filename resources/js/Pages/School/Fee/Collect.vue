@@ -339,9 +339,7 @@ const statusBadge = (status) => {
                                 <div>
                                     <div class="flex items-center gap-2">
                                         <p class="font-semibold" style="color: var(--text-primary)">{{ c.name }}</p>
-                                        <span v-if="!c.is_active" class="badge badge-red text-[10px]">Inactive</span>
-                                        <span v-else-if="c.is_one_time && c.payments_count > 0" class="badge badge-amber text-[10px]">Consumed</span>
-                                        <span v-else-if="c.is_one_time" class="badge badge-blue text-[10px]">One-Time</span>
+                                        <span v-if="!c.is_active" class="badge badge-red text-[10px]">Used</span>
                                     </div>
                                     <p class="text-xs mt-0.5" style="color: var(--text-muted)" v-if="c.created_by?.name">Assigned by: {{ c.created_by.name }}</p>
                                 </div>
@@ -427,27 +425,24 @@ const statusBadge = (status) => {
                                            class="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                 </div>
                                 <!-- Concession Selector -->
-                                <div v-if="concessions && concessions.filter(c => c.is_active && (!c.is_one_time || c.payments_count === 0) && (!c.applicable_fee_heads?.length || c.applicable_fee_heads.includes(feeForm.fee_head_id))).length && !isEditing" class="col-span-2">
+                                <div v-if="concessions && concessions.filter(c => c.is_active && c.payments_count === 0 && (!c.applicable_fee_heads?.length || c.applicable_fee_heads.includes(feeForm.fee_head_id))).length && !isEditing" class="col-span-2">
                                     <label class="block text-xs mb-1" style="color: var(--text-muted)">🎟️ Apply Concession / Scholarship</label>
                                     <select v-model="feeForm.concession_id"
                                             class="w-full rounded-md border-indigo-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-indigo-50 font-medium">
                                         <option value="">— No Concession —</option>
-                                        <option v-for="c in concessions.filter(c => c.is_active && (!c.is_one_time || c.payments_count === 0) && (!c.applicable_fee_heads?.length || c.applicable_fee_heads.includes(feeForm.fee_head_id)))" :key="c.id" :value="c.id">
+                                        <option v-for="c in concessions.filter(c => c.is_active && c.payments_count === 0 && (!c.applicable_fee_heads?.length || c.applicable_fee_heads.includes(feeForm.fee_head_id)))" :key="c.id" :value="c.id">
                                             {{ c.name }}
                                             ({{ c.type === 'percentage' ? c.value + '%' : $page.props.school.currency + parseFloat(c.value).toLocaleString() }})
-                                            {{ c.is_one_time ? ' [One-Time]' : '' }}
                                             {{ c.description ? '— ' + c.description : '' }}
                                         </option>
                                     </select>
                                     <!-- Live discount preview -->
                                     <div v-if="selectedConcession && concessionPreview !== null"
-                                         class="mt-1.5 flex items-center gap-2 text-xs font-medium"
-                                         :class="selectedConcession.is_one_time ? 'bg-amber-50 text-amber-800 border-amber-200' : 'text-green-700 bg-green-50 border-green-200'"
+                                         class="mt-1.5 flex items-center gap-2 text-xs font-medium bg-amber-50 text-amber-800 border-amber-200"
                                          style="border-width: 1px; border-radius: 0.5rem; padding: 0.375rem 0.75rem;">
-                                        <span v-if="selectedConcession.is_one_time" class="text-amber-600">⚠️</span>
-                                        <span v-else class="text-green-600">✓</span>
+                                        <span class="text-amber-600">⚠️</span>
                                         Discount of <strong>{{ $page.props.school.currency }}{{ concessionPreview.toLocaleString('en-IN') }}</strong> will be applied.
-                                        <span v-if="selectedConcession.is_one_time" class="ml-1 text-amber-700 font-bold">(Will be consumed)</span>
+                                        <span class="ml-1 font-bold">(Expires after use)</span>
                                         <span class="ml-auto" style="color: var(--text-muted)">({{ selectedConcession.name }})</span>
                                     </div>
                                 </div>

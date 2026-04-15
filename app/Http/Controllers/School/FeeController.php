@@ -525,6 +525,11 @@ class FeeController extends Controller
 
             (new \App\Services\NotificationService(app('current_school')))->notifyFeePayment($existingPayment);
 
+            // Expire the concession after use — single-use only
+            if ($concessionId && isset($concession)) {
+                $concession->update(['is_active' => false]);
+            }
+
             return back()->with('success', "Special fee payment (Transport/Hostel/Ad-hoc) recorded! Balance: ₹{$balance}");
         }
         // ─────────────────────────────────────────────────────────────────────
@@ -557,6 +562,11 @@ class FeeController extends Controller
 
         // Trigger Notification
         (new NotificationService(app('current_school')))->notifyFeePayment($payment);
+
+        // Expire the concession after use — single-use only
+        if ($concessionId && isset($concession)) {
+            $concession->update(['is_active' => false]);
+        }
 
         $discountMsg = $discount > 0 ? " (Discount: ₹{$discount})" : '';
         return back()->with('success', "Payment recorded! Balance: ₹{$balance}{$discountMsg}");

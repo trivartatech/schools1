@@ -154,11 +154,11 @@ class FeeConcessionController extends Controller
             ->where('academic_year_id', $academicYearId)
             ->where('student_id', $student->id)
             ->where('is_active', true)
-            ->withCount('payments') // Track how many times it was used
+            ->withCount('payments')
             ->get(['id', 'name', 'description', 'type', 'value', 'is_one_time'])
             ->filter(function ($c) {
-                // If it's one-time and has at least one payment, hide it
-                if ($c->is_one_time && $c->payments_count > 0) return false;
+                // Hide if already applied — concessions are single-use
+                if ($c->payments_count > 0) return false;
                 return true;
             })
             ->values();
