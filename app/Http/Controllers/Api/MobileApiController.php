@@ -3199,6 +3199,91 @@ class MobileApiController extends Controller
     }
 
     /**
+     * POST /mobile/attendance/rapid-scan
+     * Mark a single student "present" from a scanned QR code.
+     *
+     * Payload: { "uuid": "<raw-qr-data>" }
+     *
+     * The QR code can be either the raw student UUID or a URL of the form
+     * "…/q/<uuid>" (which is what the web QRScanner emits). We strip the
+     * URL wrapper with the same regex the Vue side uses.
+     *
+     * Mirrors AttendanceController::rapidScan() but with strict
+     * school-id tenant scoping so a teacher can't mark attendance on a
+     * student from a different school by guessing their UUID.
+     */
+    public function rapidScanAttendance(Request $request): JsonResponse
+    {
+        $user   = $request->user();
+        $school = app('current_school');
+        $yearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
+
+        // Robust user-type check — same gate as markAttendance
+        $userType = $user->user_type instanceof \BackedEnum ? $user->user_type->value : (string) $user->user_type;
+        if (!in_array($userType, ['admin', 'school_admin', 'principal', 'super_admin', 'teacher', 'staff'])) {
+            return response()->json(['error' => 'Unauthorized. Only teachers and school management can mark attendance.'], 403);
+        }
+
+        if (!$yearId) {
+            return response()->json(['error' => 'No active academic year found.'], 422);
+        }
+
+        $request->validate(['uuid' => 'required|string|max:512']);
+
+        // Accept either the raw UUID or a "/q/<uuid>" URL (same shape the web
+        // QRScanner.vue emits). Strip everything outside the segment.
+        $raw = trim($request->uuid);
+        if (preg_match('#/q/([^/?#]+)#', $raw, $m)) {
+            $uuid = $m[1];
+        } else {
+            $uuid = $raw;
+        }
+
+        $student = \App\Models\Student::with(['currentAcademicHistory.courseClass', 'currentAcademicHistory.section'])
+            ->where('school_id', $school->id)   // tenant-scope (fixes web IDOR)
+            ->where('uuid', $uuid)
+            ->first();
+
+        if (!$student) {
+            return response()->json(['error' => 'Student not found or invalid QR.'], 404);
+        }
+
+        $history = $student->currentAcademicHistory;
+        if (!$history) {
+            return response()->json(['error' => "{$student->name} has no active academic record."], 400);
+        }
+
+        \App\Models\Attendance::updateOrCreate(
+            [
+                'school_id'  => $school->id,
+                'student_id' => $student->id,
+                'date'       => now()->toDateString(),
+            ],
+            [
+                'academic_year_id' => $yearId,
+                'class_id'         => $history->class_id,
+                'section_id'       => $history->section_id,
+                'status'           => 'present',
+                'marked_by'        => $user->id,
+            ]
+        );
+
+        return response()->json([
+            'success'   => true,
+            'message'   => 'Attendance marked Present.',
+            'student'   => [
+                'id'           => $student->id,
+                'name'         => $student->name,
+                'admission_no' => $student->admission_no,
+                'class_name'   => $history->courseClass->name ?? 'N/A',
+                'section_name' => $history->section->name ?? '',
+                'photo_url'    => $this->publicFileUrl($student->photo),
+            ],
+            'timestamp' => now()->format('Y-m-d H:i:s'),
+        ]);
+    }
+
+    /**
      * GET /mobile/attendance/report?class_id=X&section_id=Y&month=YYYY-MM
      * Returns per-student day-by-day map + counts, matching web AttendanceController::report().
      */

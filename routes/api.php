@@ -206,9 +206,10 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     Route::get('/report-cards/{scheduleId}/download', [$MA, 'downloadReportCard'])->name('api.mobile.report-cards.download');
 
     // Student Attendance (mark + report) — must come before generic /attendance
-    Route::get('/attendance/students', [$MA, 'attendanceStudents'])->name('api.mobile.attendance.students');
-    Route::post('/attendance/mark',    [$MA, 'markAttendance'])->name('api.mobile.attendance.mark');
-    Route::get('/attendance/report',   [$MA, 'attendanceReport'])->name('api.mobile.attendance.report');
+    Route::get('/attendance/students',    [$MA, 'attendanceStudents'])->name('api.mobile.attendance.students');
+    Route::post('/attendance/mark',       [$MA, 'markAttendance'])->name('api.mobile.attendance.mark');
+    Route::get('/attendance/report',      [$MA, 'attendanceReport'])->name('api.mobile.attendance.report');
+    Route::post('/attendance/rapid-scan', [$MA, 'rapidScanAttendance'])->name('api.mobile.attendance.rapid-scan');
 
     // AI Insights (admin-only; delegates to AiInsightsController)
     Route::get('/ai/insights',  [$MA, 'aiInsights'])->name('api.mobile.ai.insights');
