@@ -792,8 +792,16 @@ class NotificationService
         $subdomain = $voiceConfig['subdomain'] ?? 'api.exotel.com';
 
         try {
+            // Retry up to 3 times with 500ms backoff on transient network errors
+            // (cURL timeouts, connection resets). throw:false so we can still
+            // inspect the response in the failure case below.
             $response = Http::withBasicAuth($apiKey, $apiToken)
                 ->asForm()
+                ->timeout(15)
+                ->connectTimeout(10)
+                ->retry(3, 500, function ($exception) {
+                    return $exception instanceof \Illuminate\Http\Client\ConnectionException;
+                }, throw: false)
                 ->post("https://{$subdomain}/v1/Accounts/{$apiSid}/Calls/connect.json", $payload);
 
             Log::info("Exotel API Response for Account [{$apiSid}]:", [
