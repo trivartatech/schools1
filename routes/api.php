@@ -228,4 +228,16 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     Route::get('/staff-punch/status',    [$MA, 'staffPunchStatus'])->name('api.mobile.staff-punch.status');
     Route::post('/staff-punch/clock-in', [$MA, 'staffPunchClockIn'])->name('api.mobile.staff-punch.clock-in');
     Route::post('/staff-punch/clock-out',[$MA, 'staffPunchClockOut'])->name('api.mobile.staff-punch.clock-out');
+
+    // Student Leave — approve/reject (admin/teacher only)
+    Route::patch('/leaves/{id}/approve', [$MA, 'approveStudentLeave'])->whereNumber('id')->name('api.mobile.leaves.approve');
+    Route::patch('/leaves/{id}/reject',  [$MA, 'rejectStudentLeave'])->whereNumber('id')->name('api.mobile.leaves.reject');
+
+    // Staff Leave
+    Route::get('/staff-leave-types',              [$MA, 'staffLeaveTypes'])->name('api.mobile.staff-leave-types');
+    Route::get('/staff-leaves',                   [$MA, 'staffLeaves'])->name('api.mobile.staff-leaves');
+    Route::post('/staff-leaves',                  [$MA, 'applyStaffLeave'])->name('api.mobile.staff-leaves.apply');
+    Route::delete('/staff-leaves/{id}',           [$MA, 'cancelStaffLeave'])->whereNumber('id')->name('api.mobile.staff-leaves.cancel');
+    Route::patch('/staff-leaves/{id}/approve',    [$MA, 'approveStaffLeave'])->whereNumber('id')->name('api.mobile.staff-leaves.approve');
+    Route::patch('/staff-leaves/{id}/reject',     [$MA, 'rejectStaffLeave'])->whereNumber('id')->name('api.mobile.staff-leaves.reject');
 });

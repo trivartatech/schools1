@@ -27,9 +27,11 @@ use App\Models\SyllabusStatus;
 use App\Models\ExamMark;
 use App\Models\Complaint;
 use App\Models\BookList;
+use App\Models\Leave;
 use App\Models\Staff;
 use App\Models\StaffAttendance;
 use App\Services\FeeService;
+use Illuminate\Validation\Rule;
 use App\Services\RazorpayService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -4131,6 +4133,321 @@ class MobileApiController extends Controller
             'message'   => 'Clocked out successfully!',
             'check_out' => substr($now, 0, 5),
         ]);
+    }
+
+    // ── Student Leave Management (approve/reject) ─────────────────────────────
+
+    /**
+     * PATCH /mobile/leaves/{id}/approve
+     * Admin or teacher approves a student leave request.
+     */
+    public function approveStudentLeave(Request $request, int $id): JsonResponse
+    {
+        $user   = $request->user();
+        $school = app('current_school');
+
+        $isManager = in_array($user->user_type->value, ['admin', 'school_admin', 'principal', 'super_admin', 'teacher']);
+        if (!$isManager) {
+            return response()->json(['message' => 'Only admin or teachers can approve student leaves.'], 403);
+        }
+
+        $leave = StudentLeave::where('school_id', $school->id)->findOrFail($id);
+
+        if ($leave->status !== 'pending') {
+            return response()->json(['message' => 'Leave is not in pending state.'], 422);
+        }
+
+        $validated = $request->validate(['remarks' => 'nullable|string|max:500']);
+
+        $leave->update([
+            'status'      => 'approved',
+            'approved_by' => $user->id,
+            'remarks'     => $validated['remarks'] ?? null,
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Leave approved.']);
+    }
+
+    /**
+     * PATCH /mobile/leaves/{id}/reject
+     * Admin or teacher rejects a student leave request.
+     */
+    public function rejectStudentLeave(Request $request, int $id): JsonResponse
+    {
+        $user   = $request->user();
+        $school = app('current_school');
+
+        $isManager = in_array($user->user_type->value, ['admin', 'school_admin', 'principal', 'super_admin', 'teacher']);
+        if (!$isManager) {
+            return response()->json(['message' => 'Only admin or teachers can reject student leaves.'], 403);
+        }
+
+        $leave = StudentLeave::where('school_id', $school->id)->findOrFail($id);
+
+        if ($leave->status !== 'pending') {
+            return response()->json(['message' => 'Leave is not in pending state.'], 422);
+        }
+
+        $validated = $request->validate(['remarks' => 'nullable|string|max:500']);
+
+        $leave->update([
+            'status'      => 'rejected',
+            'approved_by' => $user->id,
+            'remarks'     => $validated['remarks'] ?? null,
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Leave rejected.']);
+    }
+
+    // ── Staff Leave Management ─────────────────────────────────────────────────
+
+    /**
+     * GET /mobile/staff-leave-types
+     * Leave types applicable to staff + balance for current user.
+     */
+    public function staffLeaveTypes(Request $request): JsonResponse
+    {
+        $user   = $request->user();
+        $school = app('current_school');
+        $yearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
+
+        $types = \App\Models\LeaveType::where('school_id', $school->id)
+            ->forStaff()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'code', 'color', 'days_allowed', 'requires_document', 'min_notice_days']);
+
+        // Calculate days used per type for the current user this academic year
+        $usedQuery = Leave::where('school_id', $school->id)
+            ->where('user_id', $user->id)
+            ->where('status', '!=', 'rejected');
+
+        if ($yearId) {
+            $academicYear = \App\Models\AcademicYear::find($yearId);
+            if ($academicYear) {
+                $usedQuery->whereDate('start_date', '>=', $academicYear->start_date)
+                          ->whereDate('start_date', '<=', $academicYear->end_date);
+            }
+        }
+
+        $usedLeaves = $usedQuery->get(['leave_type_id', 'start_date', 'end_date']);
+
+        // PHP-side day counting (cross-DB compatible)
+        $usedByType = [];
+        foreach ($usedLeaves as $leave) {
+            $days = Carbon::parse($leave->start_date)->diffInDays(Carbon::parse($leave->end_date)) + 1;
+            $usedByType[$leave->leave_type_id] = ($usedByType[$leave->leave_type_id] ?? 0) + $days;
+        }
+
+        $balance = [];
+        foreach ($types as $type) {
+            $used = (int) ($usedByType[$type->id] ?? 0);
+            $balance[$type->id] = [
+                'allowed'   => $type->days_allowed,
+                'used'      => $used,
+                'remaining' => max(0, $type->days_allowed - $used),
+            ];
+        }
+
+        return response()->json(['leave_types' => $types, 'balance' => $balance]);
+    }
+
+    /**
+     * GET /mobile/staff-leaves
+     * Admin sees all staff leaves; others see their own.
+     */
+    public function staffLeaves(Request $request): JsonResponse
+    {
+        $user   = $request->user();
+        $school = app('current_school');
+
+        $isAdmin = in_array($user->user_type->value, ['admin', 'school_admin', 'principal', 'super_admin']);
+
+        $query = Leave::where('school_id', $school->id)
+            ->with(['leaveType:id,name,code,color', 'approver:id,name', 'user:id,name'])
+            ->orderByDesc('created_at');
+
+        if (!$isAdmin) {
+            $query->where('user_id', $user->id);
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        if ($request->filled('leave_type_id')) {
+            $query->where('leave_type_id', $request->leave_type_id);
+        }
+
+        $leaves = $query->paginate(20);
+
+        $summaryQuery = Leave::where('school_id', $school->id);
+        if (!$isAdmin) {
+            $summaryQuery->where('user_id', $user->id);
+        }
+
+        $statusCounts = (clone $summaryQuery)
+            ->selectRaw('status, count(*) as cnt')
+            ->groupBy('status')
+            ->pluck('cnt', 'status');
+
+        $summary = [
+            'total'    => $statusCounts->sum(),
+            'pending'  => $statusCounts['pending']  ?? 0,
+            'approved' => $statusCounts['approved'] ?? 0,
+            'rejected' => $statusCounts['rejected'] ?? 0,
+        ];
+
+        return response()->json([
+            'leaves'  => $leaves->items(),
+            'summary' => $summary,
+            'total'   => $leaves->total(),
+            'page'    => $leaves->currentPage(),
+        ]);
+    }
+
+    /**
+     * POST /mobile/staff-leaves
+     * Staff member applies for leave.
+     */
+    public function applyStaffLeave(Request $request): JsonResponse
+    {
+        $user   = $request->user();
+        $school = app('current_school');
+
+        $validated = $request->validate([
+            'leave_type_id' => ['required', Rule::exists('leave_types', 'id')->where('school_id', $school->id)],
+            'start_date'    => 'required|date|after_or_equal:today',
+            'end_date'      => 'required|date|after_or_equal:start_date',
+            'reason'        => 'required|string|max:1000',
+        ]);
+
+        $leaveType = \App\Models\LeaveType::where('id', $validated['leave_type_id'])
+            ->where('school_id', $school->id)
+            ->forStaff()
+            ->where('is_active', true)
+            ->first();
+
+        if (!$leaveType) {
+            return response()->json(['message' => 'Invalid or inactive leave type.'], 422);
+        }
+
+        if ($leaveType->min_notice_days > 0) {
+            $minDate = now()->addDays($leaveType->min_notice_days)->toDateString();
+            if ($validated['start_date'] < $minDate) {
+                return response()->json([
+                    'message' => "This leave type requires at least {$leaveType->min_notice_days} day(s) advance notice.",
+                    'errors'  => ['start_date' => ["Minimum {$leaveType->min_notice_days} day(s) notice required."]],
+                ], 422);
+            }
+        }
+
+        $leave = Leave::create([
+            'school_id'     => $school->id,
+            'user_id'       => $user->id,
+            'leave_type_id' => $validated['leave_type_id'],
+            'leave_type'    => strtolower($leaveType->code ?? $leaveType->name ?? 'other'),
+            'start_date'    => $validated['start_date'],
+            'end_date'      => $validated['end_date'],
+            'reason'        => $validated['reason'],
+            'status'        => 'pending',
+        ]);
+
+        $leave->load(['leaveType:id,name,code,color', 'user:id,name']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Leave application submitted successfully.',
+            'leave'   => $leave,
+        ], 201);
+    }
+
+    /**
+     * DELETE /mobile/staff-leaves/{id}
+     * Staff member cancels their own pending leave.
+     */
+    public function cancelStaffLeave(Request $request, int $id): JsonResponse
+    {
+        $user   = $request->user();
+        $school = app('current_school');
+
+        $leave = Leave::where('school_id', $school->id)->findOrFail($id);
+
+        if ($leave->user_id !== $user->id) {
+            return response()->json(['message' => 'You can only cancel your own leave.'], 403);
+        }
+        if ($leave->status !== 'pending') {
+            return response()->json(['message' => 'Only pending leaves can be cancelled.'], 422);
+        }
+
+        $leave->delete();
+
+        return response()->json(['success' => true, 'message' => 'Leave application cancelled.']);
+    }
+
+    /**
+     * PATCH /mobile/staff-leaves/{id}/approve
+     * Admin approves a staff leave and auto-marks attendance.
+     */
+    public function approveStaffLeave(Request $request, int $id): JsonResponse
+    {
+        $user   = $request->user();
+        $school = app('current_school');
+
+        $isAdmin = in_array($user->user_type->value, ['admin', 'school_admin', 'principal', 'super_admin']);
+        if (!$isAdmin) {
+            return response()->json(['message' => 'Only admins can approve staff leaves.'], 403);
+        }
+
+        $leave = Leave::where('school_id', $school->id)->findOrFail($id);
+
+        if ($leave->status !== 'pending') {
+            return response()->json(['message' => 'Leave is not in pending state.'], 422);
+        }
+
+        $leave->update(['status' => 'approved', 'approved_by' => $user->id]);
+
+        // Auto-mark StaffAttendance as 'leave' for each day (mirrors web controller)
+        $staff = Staff::where('user_id', $leave->user_id)->where('school_id', $school->id)->first();
+        if ($staff) {
+            $leave->load('leaveType');
+            $remark = 'Approved leave: ' . ($leave->leaveType->name ?? $leave->leave_type);
+            $start  = Carbon::parse($leave->start_date);
+            $end    = Carbon::parse($leave->end_date);
+            for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
+                StaffAttendance::updateOrCreate(
+                    ['school_id' => $school->id, 'staff_id' => $staff->id, 'date' => $date->toDateString()],
+                    ['status' => 'leave', 'remarks' => $remark, 'marked_by' => $user->id]
+                );
+            }
+        }
+
+        return response()->json(['success' => true, 'message' => 'Leave approved and attendance updated.']);
+    }
+
+    /**
+     * PATCH /mobile/staff-leaves/{id}/reject
+     * Admin rejects a staff leave.
+     */
+    public function rejectStaffLeave(Request $request, int $id): JsonResponse
+    {
+        $user   = $request->user();
+        $school = app('current_school');
+
+        $isAdmin = in_array($user->user_type->value, ['admin', 'school_admin', 'principal', 'super_admin']);
+        if (!$isAdmin) {
+            return response()->json(['message' => 'Only admins can reject staff leaves.'], 403);
+        }
+
+        $leave = Leave::where('school_id', $school->id)->findOrFail($id);
+
+        if ($leave->status !== 'pending') {
+            return response()->json(['message' => 'Leave is not in pending state.'], 422);
+        }
+
+        $leave->update(['status' => 'rejected', 'approved_by' => $user->id]);
+
+        return response()->json(['success' => true, 'message' => 'Leave rejected.']);
     }
 
     /** Haversine distance in metres between two lat/lng points. */
