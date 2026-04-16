@@ -790,7 +790,7 @@ Route::middleware('auth')->group(function () {
         });
 
         // Disciplinary / Behavior Tracking
-        Route::middleware(['school.management', 'module:students'])->group(function () {
+        Route::middleware(['school.management:admin_only', 'module:students'])->group(function () {
             $DC = \App\Http\Controllers\School\DisciplinaryController::class;
             Route::get('disciplinary',                                  [$DC, 'index'])          ->name('disciplinary.index');
             Route::post('disciplinary',                                  [$DC, 'store'])          ->name('disciplinary.store');
@@ -800,12 +800,12 @@ Route::middleware('auth')->group(function () {
         });
 
         // Advanced Analytics Dashboard
-        Route::middleware(['school.management'])->group(function () {
+        Route::middleware(['school.management:admin_only'])->group(function () {
             Route::get('analytics', [\App\Http\Controllers\School\AnalyticsDashboardController::class, 'index'])->name('analytics.dashboard');
         });
 
         // Inventory / Asset Management
-        Route::middleware(['school.management'])->group(function () {
+        Route::middleware(['school.management:admin_only'])->group(function () {
             $INV = \App\Http\Controllers\School\InventoryController::class;
             Route::get('inventory',                                    [$INV, 'index'])              ->name('inventory.index');
             Route::post('inventory',                                   [$INV, 'store'])              ->name('inventory.store');
@@ -818,15 +818,18 @@ Route::middleware('auth')->group(function () {
         });
 
         // Staff History / Promotion / Transfer
-        Route::middleware(['school.management'])->group(function () {
+        Route::middleware(['school.management:admin_only'])->group(function () {
             $SH = \App\Http\Controllers\School\StaffHistoryController::class;
             Route::get('staff-history',                     [$SH, 'indexAll']) ->name('staff.history.all');
-            Route::get('staff/{staff}/history',             [$SH, 'show'])     ->name('staff.history.show');
             Route::post('staff/{staff}/history',            [$SH, 'store'])    ->name('staff.history.store');
+        });
+        Route::middleware(['school.management'])->group(function () {
+            $SH = \App\Http\Controllers\School\StaffHistoryController::class;
+            Route::get('staff/{staff}/history',             [$SH, 'show'])     ->name('staff.history.show');
         });
 
         // Alumni Module
-        Route::middleware(['school.management'])->group(function () {
+        Route::middleware(['school.management:admin_only'])->group(function () {
             $AL = \App\Http\Controllers\School\AlumniController::class;
             Route::get('alumni',                    [$AL, 'index'])         ->name('alumni.index');
             Route::post('alumni/graduate',          [$AL, 'graduate'])      ->name('alumni.graduate');
