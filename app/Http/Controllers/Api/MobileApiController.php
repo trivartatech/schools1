@@ -2256,6 +2256,11 @@ class MobileApiController extends Controller
         $entries = StudentDiary::where('school_id', $school->id)
             ->when($yearId, fn($q) => $q->where('academic_year_id', $yearId))
             ->when($history, fn($q) => $q->where('class_id', $history->class_id)->where('section_id', $history->section_id))
+            ->when(! $history && $user->staff, function ($q) use ($user) {
+                // Teacher calling this endpoint: apply incharge scope (replaces the
+                // student history filter). Without this, the query returns ALL school diaries.
+                app(\App\Services\TeacherScopeService::class)->applySubjectScope($q, app(\App\Services\TeacherScopeService::class)->for($user));
+            })
             ->whereDate('date', $date)
             ->with(['subject:id,name', 'teacher.user:id,name'])
             ->orderBy('created_at', 'desc')
@@ -2364,6 +2369,10 @@ class MobileApiController extends Controller
         $assignments = \App\Models\Assignment::where('school_id', $school->id)
             ->when($yearId, fn($q) => $q->where('academic_year_id', $yearId))
             ->when($history, fn($q) => $q->where('class_id', $history->class_id)->where('section_id', $history->section_id))
+            ->when(! $history && $user->staff, function ($q) use ($user) {
+                // Teacher calling this endpoint: apply incharge scope.
+                app(\App\Services\TeacherScopeService::class)->applySubjectScope($q, app(\App\Services\TeacherScopeService::class)->for($user));
+            })
             ->where('status', 'published')
             ->with(['subject:id,name', 'teacher.user:id,name'])
             ->orderByDesc('due_date')
@@ -2419,9 +2428,13 @@ class MobileApiController extends Controller
             ->where('status', 'current')
             ->latest()->first() : null;
 
-        // Get all syllabus topics — filtered by class if student, all if admin/teacher
+        // Get all syllabus topics — filtered by student's class, teacher's scope, or all for admin
         $topics = SyllabusTopic::where('school_id', $school->id)
             ->when($history, fn($q) => $q->where('class_id', $history->class_id))
+            ->when(! $history && $user->staff, function ($q) use ($user) {
+                // Teacher calling this endpoint: apply incharge scope (class + subject level).
+                app(\App\Services\TeacherScopeService::class)->applyClassSubjectScope($q, app(\App\Services\TeacherScopeService::class)->for($user));
+            })
             ->with(['subject:id,name'])
             ->orderBy('subject_id')
             ->orderBy('sort_order')
@@ -3192,6 +3205,19 @@ class MobileApiController extends Controller
             'send_notifications'      => 'boolean',
         ]);
 
+        // Scope guard: restrict teachers to sections/classes they are incharge of
+        $scope = app(\App\Services\TeacherScopeService::class)->for($user);
+        if ($scope->restricted) {
+            $sectionId = $request->section_id ? (int) $request->section_id : null;
+            $classId   = (int) $request->class_id;
+            $allowed   = $sectionId
+                ? $scope->sectionIds->contains($sectionId)
+                : $scope->classIds->contains($classId);
+            if (! $allowed) {
+                return response()->json(['message' => 'Not assigned to this class or section.'], 403);
+            }
+        }
+
         $date      = \Carbon\Carbon::parse($request->date)->toDateString();
         $classId   = $request->class_id;
         $sectionId = $request->section_id;
@@ -3741,6 +3767,20 @@ class MobileApiController extends Controller
             'attachments.*' => 'nullable|file|max:10240|mimes:pdf,ppt,pptx,doc,docx,jpg,jpeg,png,zip',
         ]);
 
+        // Scope guard: non-admins can only create diary entries for sections/subjects they teach
+        if (! $isAdmin) {
+            $scope = app(\App\Services\TeacherScopeService::class)->for($user);
+            if ($scope->restricted) {
+                $entry = $scope->allowedMap[(int)$data['class_id']][(int)$data['section_id']] ?? null;
+                if ($entry === null) {
+                    return response()->json(['message' => 'Not assigned to this class/section.'], 403);
+                }
+                if (is_array($entry) && ! in_array((int)$data['subject_id'], $entry)) {
+                    return response()->json(['message' => 'Not assigned to teach this subject in this section.'], 403);
+                }
+            }
+        }
+
         $attachments = [];
         if ($request->hasFile('attachments')) {
             foreach ($request->file('attachments') as $file) {
@@ -3786,6 +3826,22 @@ class MobileApiController extends Controller
             'attachments'   => 'nullable|array',
             'attachments.*' => 'nullable|file|max:10240|mimes:pdf,ppt,pptx,doc,docx,jpg,jpeg,png,zip',
         ]);
+
+        // Scope guard: non-admins can only create assignments for sections/subjects they teach
+        if (! $isAdmin) {
+            $scope = app(\App\Services\TeacherScopeService::class)->for($user);
+            if ($scope->restricted) {
+                foreach ($data['section_ids'] as $sectionId) {
+                    $entry = $scope->allowedMap[(int)$data['class_id']][(int)$sectionId] ?? null;
+                    if ($entry === null) {
+                        return response()->json(['message' => 'Not assigned to section ' . $sectionId . '.'], 403);
+                    }
+                    if (is_array($entry) && ! in_array((int)$data['subject_id'], $entry)) {
+                        return response()->json(['message' => 'Not assigned to teach this subject in section ' . $sectionId . '.'], 403);
+                    }
+                }
+            }
+        }
 
         $attachments = [];
         if ($request->hasFile('attachments')) {
@@ -3833,6 +3889,26 @@ class MobileApiController extends Controller
             'sort_order'   => 'nullable|integer|min:1',
         ]);
 
+        // Scope guard: non-admins can only add topics for subjects they teach in this class
+        if (! $isAdmin) {
+            $scope = app(\App\Services\TeacherScopeService::class)->for($user);
+            if ($scope->restricted) {
+                $classSections = $scope->allowedMap[(int)$data['class_id']] ?? null;
+                $hasAccess = false;
+                if ($classSections) {
+                    foreach ($classSections as $subjects) {
+                        if ($subjects === 'ALL' || (is_array($subjects) && in_array((int)$data['subject_id'], $subjects))) {
+                            $hasAccess = true;
+                            break;
+                        }
+                    }
+                }
+                if (! $hasAccess) {
+                    return response()->json(['message' => 'Not assigned to teach this subject in this class.'], 403);
+                }
+            }
+        }
+
         $topic = \App\Models\SyllabusTopic::create([
             'school_id'    => $school->id,
             'class_id'     => $data['class_id'],
@@ -3867,6 +3943,22 @@ class MobileApiController extends Controller
             'is_published'  => 'nullable|boolean',
             'file'          => 'nullable|file|max:20480|mimes:pdf,doc,docx,ppt,pptx,jpg,jpeg,png,mp4,mov',
         ]);
+
+        // Scope guard: non-admins can only upload materials for sections/subjects they teach
+        if (! $isAdmin) {
+            $scope = app(\App\Services\TeacherScopeService::class)->for($user);
+            if ($scope->restricted) {
+                foreach ($data['section_ids'] as $sectionId) {
+                    $entry = $scope->allowedMap[(int)$data['class_id']][(int)$sectionId] ?? null;
+                    if ($entry === null) {
+                        return response()->json(['message' => 'Not assigned to section ' . $sectionId . '.'], 403);
+                    }
+                    if (is_array($entry) && ! in_array((int)$data['subject_id'], $entry)) {
+                        return response()->json(['message' => 'Not assigned to teach this subject in section ' . $sectionId . '.'], 403);
+                    }
+                }
+            }
+        }
 
         $filePath = null;
         if ($request->hasFile('file') && $request->file('file')->isValid()) {
