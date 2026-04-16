@@ -78,7 +78,7 @@ const fmt = (n) => '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDi
                 <Button variant="icon" size="sm" aria-label="Next month" @click="navigate(1)">&#9654;</Button>
             </div>
             <div style="display:flex;gap:8px;">
-                <Button variant="secondary" as="link" :href="`/school/payroll/export?month=${curMonth}&year=${curYear}`" target="_blank">
+                <Button variant="secondary" as="a" :href="`/school/payroll/export?month=${curMonth}&year=${curYear}`" target="_blank">
                     Export Excel
                 </Button>
                 <Button @click="generate" :loading="genForm.processing">
@@ -179,7 +179,7 @@ const fmt = (n) => '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDi
                                         <Button variant="success" size="xs" v-if="getPayroll(s.id).status !== 'paid'" @click="openMarkPaid(getPayroll(s.id).id)">
                                             Mark Paid
                                         </Button>
-                                        <Button variant="secondary" size="xs" as="link" :href="`/school/payroll/${getPayroll(s.id).id}/payslip`" target="_blank">
+                                        <Button variant="secondary" size="xs" as="a" :href="`/school/payroll/${getPayroll(s.id).id}/payslip`" target="_blank">
                                             Payslip
                                         </Button>
                                     </div>
