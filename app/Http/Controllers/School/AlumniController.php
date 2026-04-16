@@ -41,11 +41,11 @@ class AlumniController extends Controller
 
         $alumni = $query->select('alumni.*')->orderByDesc('alumni.passout_year')->paginate(30)->withQueryString();
 
-        // Available filter options
-        $years   = Alumni::where('school_id', $schoolId)->distinct()->orderByDesc('passout_year')->pluck('passout_year');
-        $classes = Alumni::where('school_id', $schoolId)->distinct()->orderBy('final_class')->pluck('final_class');
+        $years        = Alumni::where('school_id', $schoolId)->distinct()->orderByDesc('passout_year')->pluck('passout_year');
+        $classes      = Alumni::where('school_id', $schoolId)->distinct()->orderBy('final_class')->pluck('final_class');
+        $schoolClasses = CourseClass::where('school_id', $schoolId)->orderBy('sort_order')->get(['id', 'name']);
 
-        return Inertia::render('School/Alumni/Index', compact('alumni', 'years', 'classes'));
+        return Inertia::render('School/Alumni/Index', compact('alumni', 'years', 'classes', 'schoolClasses'));
     }
 
     // ── Graduate a student (create alumni record) ─────────────────────────
@@ -55,7 +55,8 @@ class AlumniController extends Controller
         $academicYearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
 
         $validated = $request->validate([
-            'student_id'        => 'required|exists:students,id',
+            'student_ids'       => 'required|array|min:1',
+            'student_ids.*'     => 'required|integer|exists:students,id',
             'final_class'       => 'nullable|string|max:100',
             'passout_year'      => 'nullable|string|max:9',
             'final_percentage'  => 'nullable|numeric|min:0|max:100',
@@ -64,33 +65,40 @@ class AlumniController extends Controller
             'notes'             => 'nullable|string',
         ]);
 
-        $student = Student::where('id', $validated['student_id'])
-            ->where('school_id', $schoolId)
-            ->firstOrFail();
+        $passoutYear = $validated['passout_year'] ?? (AcademicYear::find($academicYearId)?->name);
+        $graduated   = 0;
+        $skipped     = 0;
 
-        // Prevent double graduation
-        if (Alumni::where('student_id', $student->id)->exists()) {
-            return back()->withErrors(['student_id' => 'This student is already in the alumni records.']);
+        foreach ($validated['student_ids'] as $studentId) {
+            $student = Student::where('id', $studentId)->where('school_id', $schoolId)->first();
+            if (!$student) continue;
+
+            if (Alumni::where('student_id', $student->id)->exists()) {
+                $skipped++;
+                continue;
+            }
+
+            Alumni::create([
+                'school_id'        => $schoolId,
+                'student_id'       => $student->id,
+                'academic_year_id' => $academicYearId,
+                'final_class'      => $validated['final_class'],
+                'passout_year'     => $passoutYear,
+                'final_percentage' => $validated['final_percentage'],
+                'final_grade'      => $validated['final_grade'],
+                'graduated_on'     => $validated['graduated_on'] ?? now()->toDateString(),
+                'graduated_by'     => auth()->id(),
+                'notes'            => $validated['notes'],
+            ]);
+
+            $student->update(['status' => 'graduated']);
+            $graduated++;
         }
 
-        Alumni::create([
-            'school_id'        => $schoolId,
-            'student_id'       => $student->id,
-            'academic_year_id' => $academicYearId,
-            'final_class'      => $validated['final_class'],
-            'passout_year'     => $validated['passout_year']
-                ?? (AcademicYear::find($academicYearId)?->name),
-            'final_percentage' => $validated['final_percentage'],
-            'final_grade'      => $validated['final_grade'],
-            'graduated_on'     => $validated['graduated_on'] ?? now()->toDateString(),
-            'graduated_by'     => auth()->id(),
-            'notes'            => $validated['notes'],
-        ]);
+        $msg = "{$graduated} student(s) graduated successfully.";
+        if ($skipped > 0) $msg .= " {$skipped} already in alumni (skipped).";
 
-        // Optionally mark student as passed out
-        $student->update(['status' => 'graduated']);
-
-        return back()->with('success', "{$student->first_name} {$student->last_name} graduated and added to alumni.");
+        return back()->with('success', $msg);
     }
 
     // ── Update alumni profile (post-school info) ─────────────────────────
@@ -131,19 +139,24 @@ class AlumniController extends Controller
     // ── Search students to graduate (AJAX / Inertia) ──────────────────────
     public function searchStudents(Request $request)
     {
-        $schoolId = app('current_school_id');
+        $schoolId       = app('current_school_id');
+        $classId        = $request->get('class_id');
+        $q              = $request->get('q', '');
 
         $students = Student::where('school_id', $schoolId)
             ->where('status', 'active')
             ->whereDoesntHave('alumni')
-            ->where(function ($q) use ($request) {
-                $s = $request->get('q', '');
-                $q->where('first_name', 'like', "%$s%")
-                  ->orWhere('last_name', 'like', "%$s%")
-                  ->orWhere('admission_no', 'like', "%$s%");
-            })
-            ->with('currentAcademicHistory.courseClass')
-            ->limit(20)
+            ->when($classId, fn($query) => $query->whereHas('currentAcademicHistory',
+                fn($h) => $h->where('class_id', $classId)
+            ))
+            ->when($q, fn($query) => $query->where(function ($inner) use ($q) {
+                $inner->where('first_name', 'like', "%{$q}%")
+                      ->orWhere('last_name',  'like', "%{$q}%")
+                      ->orWhere('admission_no','like', "%{$q}%");
+            }))
+            ->with(['currentAcademicHistory' => fn($h) => $h->with('courseClass', 'section')])
+            ->orderBy('first_name')
+            ->limit(80)
             ->get(['id', 'first_name', 'last_name', 'admission_no']);
 
         return response()->json($students);
