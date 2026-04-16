@@ -83,13 +83,13 @@ class AiInsightsController extends Controller
         // ── Fees ──────────────────────────────────────────────────────────
         $feeToday = FeePayment::where('school_id', $school->id)
             ->where('academic_year_id', $year->id)
-            ->where('payment_date', $today)
+            ->whereDate('payment_date', $today)
             ->where('amount_paid', '>', 0)
             ->sum('amount_paid');
 
         $feeMonth = FeePayment::where('school_id', $school->id)
             ->where('academic_year_id', $year->id)
-            ->where('payment_date', '>=', $monthStart)
+            ->whereDate('payment_date', '>=', $monthStart)
             ->where('amount_paid', '>', 0)
             ->sum('amount_paid');
 

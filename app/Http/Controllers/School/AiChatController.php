@@ -99,8 +99,8 @@ class AiChatController extends Controller
                 ->map(fn($r) => "{$r->name}(" . round($r->p / $r->t * 100, 0) . "%)")->implode(', ');
 
             // ── FEES ──────────────────────────────────────────────────────
-            $feeToday  = FeePayment::where('school_id', $sid)->where('academic_year_id', $yid)->where('payment_date', $today)->where('amount_paid', '>', 0)->sum('amount_paid');
-            $feeMonth  = FeePayment::where('school_id', $sid)->where('academic_year_id', $yid)->where('payment_date', '>=', $monthStart)->where('amount_paid', '>', 0)->sum('amount_paid');
+            $feeToday  = FeePayment::where('school_id', $sid)->where('academic_year_id', $yid)->whereDate('payment_date', $today)->where('amount_paid', '>', 0)->sum('amount_paid');
+            $feeMonth  = FeePayment::where('school_id', $sid)->where('academic_year_id', $yid)->whereDate('payment_date', '>=', $monthStart)->where('amount_paid', '>', 0)->sum('amount_paid');
             $feeYear   = FeePayment::where('school_id', $sid)->where('academic_year_id', $yid)->where('amount_paid', '>', 0)->sum('amount_paid');
             // Structure-based pending: includes fee heads with no payment records
             $schoolPending = app(\App\Services\FeeService::class)->getSchoolPendingFees($sid, $yid);
