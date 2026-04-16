@@ -22,13 +22,15 @@ class AnalyticsDashboardController extends Controller
         $schoolId       = app('current_school_id');
         $academicYearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
 
+        $safe = fn(callable $fn) => rescue($fn, []);
+
         return Inertia::render('School/Analytics/Dashboard', [
-            'attendanceTrend'   => $this->attendanceTrend($schoolId, $academicYearId),
-            'feeCollection'     => $this->feeCollectionTrend($schoolId, $academicYearId),
-            'enrollmentByClass' => $this->enrollmentByClass($schoolId, $academicYearId),
-            'examPerformance'   => $this->examPerformance($schoolId, $academicYearId),
-            'staffLeaveHeatmap' => $this->staffLeaveHeatmap($schoolId),
-            'summary'           => $this->summaryStats($schoolId, $academicYearId),
+            'attendanceTrend'   => $safe(fn() => $this->attendanceTrend($schoolId, $academicYearId)),
+            'feeCollection'     => $safe(fn() => $this->feeCollectionTrend($schoolId, $academicYearId)),
+            'enrollmentByClass' => $safe(fn() => $this->enrollmentByClass($schoolId, $academicYearId)),
+            'examPerformance'   => $safe(fn() => $this->examPerformance($schoolId, $academicYearId)),
+            'staffLeaveHeatmap' => $safe(fn() => $this->staffLeaveHeatmap($schoolId)),
+            'summary'           => $safe(fn() => $this->summaryStats($schoolId, $academicYearId)),
         ]);
     }
 
@@ -193,10 +195,10 @@ class AnalyticsDashboardController extends Controller
             ->groupBy('status')
             ->pluck('cnt', 'status');
 
-        $presentToday = ($todayAttendance['present'] ?? 0)
-            + ($todayAttendance['late'] ?? 0)
-            + ($todayAttendance['half_day'] ?? 0);
-        $markedToday = $todayAttendance->sum();
+        $presentToday = (int)($todayAttendance->get('present', 0))
+            + (int)($todayAttendance->get('late', 0))
+            + (int)($todayAttendance->get('half_day', 0));
+        $markedToday  = (int) $todayAttendance->sum();
 
         $thisMonthFee = FeePayment::where('school_id', $schoolId)
             ->whereMonth('payment_date', now()->month)
