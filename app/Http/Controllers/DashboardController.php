@@ -144,7 +144,7 @@ class DashboardController extends Controller
                     ->get()
                     ->groupBy('day_of_week')
                     ->map(function ($dayItems) {
-                        return $dayItems->sortBy(fn($item) => $item->period->order)->map(fn($item) => [
+                        return $dayItems->sortBy(fn($item) => $item->period->order)->values()->map(fn($item) => [
                             'id' => $item->id,
                             'class' => $item->courseClass->name ?? '—',
                             'section' => $item->section->name ?? '—',
