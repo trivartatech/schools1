@@ -223,4 +223,9 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     Route::get('/exam-marks/schedules', [$EMC, 'schedules'])->name('api.mobile.exam-marks.schedules');
     Route::get('/exam-marks/students',  [$EMC, 'students'])->name('api.mobile.exam-marks.students');
     Route::post('/exam-marks/save',     [$EMC, 'save'])->name('api.mobile.exam-marks.save');
+
+    // Staff Punch (self-service clock-in / clock-out with geotag)
+    Route::get('/staff-punch/status',    [$MA, 'staffPunchStatus'])->name('api.mobile.staff-punch.status');
+    Route::post('/staff-punch/clock-in', [$MA, 'staffPunchClockIn'])->name('api.mobile.staff-punch.clock-in');
+    Route::post('/staff-punch/clock-out',[$MA, 'staffPunchClockOut'])->name('api.mobile.staff-punch.clock-out');
 });

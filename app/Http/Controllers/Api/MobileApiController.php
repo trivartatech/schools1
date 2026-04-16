@@ -27,6 +27,8 @@ use App\Models\SyllabusStatus;
 use App\Models\ExamMark;
 use App\Models\Complaint;
 use App\Models\BookList;
+use App\Models\Staff;
+use App\Models\StaffAttendance;
 use App\Services\FeeService;
 use App\Services\RazorpayService;
 use Illuminate\Http\JsonResponse;
@@ -3920,5 +3922,225 @@ class MobileApiController extends Controller
         ]);
 
         return response()->json(['message' => 'Book added to list.', 'id' => $book->id], 201);
+    }
+
+    // ── Staff Punch ────────────────────────────────────────────────────────────
+
+    /**
+     * GET /mobile/staff-punch/status
+     * Returns today's punch status + last 7 days history + geofence config.
+     * Available to all authenticated users who have a staff record.
+     */
+    public function staffPunchStatus(Request $request): JsonResponse
+    {
+        $user   = $request->user();
+        $school = app('current_school');
+
+        $staff = Staff::where('user_id', $user->id)
+                      ->where('school_id', $school->id)
+                      ->first();
+
+        if (! $staff) {
+            return response()->json(['message' => 'No staff record for this user.'], 404);
+        }
+
+        $today = now()->toDateString();
+
+        $attendance = StaffAttendance::where('school_id', $school->id)
+            ->where('staff_id', $staff->id)
+            ->whereDate('date', $today)
+            ->first();
+
+        $history = StaffAttendance::where('school_id', $school->id)
+            ->where('staff_id', $staff->id)
+            ->whereDate('date', '>=', now()->subDays(6)->toDateString())
+            ->orderByDesc('date')
+            ->get()
+            ->map(fn ($r) => [
+                'date'      => $r->date instanceof \Carbon\Carbon ? $r->date->toDateString() : (string) $r->date,
+                'day'       => $r->date instanceof \Carbon\Carbon ? $r->date->format('D') : \Carbon\Carbon::parse($r->date)->format('D'),
+                'status'    => $r->status,
+                'check_in'  => $r->check_in  ? substr($r->check_in,  0, 5) : null,
+                'check_out' => $r->check_out ? substr($r->check_out, 0, 5) : null,
+            ])->values()->toArray();
+
+        $geoFenceEnabled = $school->geo_fence_lat && $school->geo_fence_lng;
+
+        return response()->json([
+            'staff_id'    => $staff->id,
+            'staff_name'  => trim(($staff->first_name ?? '') . ' ' . ($staff->last_name ?? '')),
+            'employee_id' => $staff->employee_id,
+            'today'       => $today,
+            'attendance'  => $attendance ? [
+                'status'    => $attendance->status,
+                'check_in'  => $attendance->check_in  ? substr($attendance->check_in,  0, 5) : null,
+                'check_out' => $attendance->check_out ? substr($attendance->check_out, 0, 5) : null,
+            ] : null,
+            'history'  => $history,
+            'geo_fence' => [
+                'enabled' => $geoFenceEnabled,
+                'lat'     => $geoFenceEnabled ? (float) $school->geo_fence_lat    : null,
+                'lng'     => $geoFenceEnabled ? (float) $school->geo_fence_lng    : null,
+                'radius'  => $geoFenceEnabled ? (int)   $school->geo_fence_radius : null,
+            ],
+        ]);
+    }
+
+    /**
+     * POST /mobile/staff-punch/clock-in
+     * Body: { latitude, longitude }
+     */
+    public function staffPunchClockIn(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'latitude'  => 'required|numeric',
+            'longitude' => 'required|numeric',
+        ]);
+
+        $user   = $request->user();
+        $school = app('current_school');
+
+        $staff = Staff::where('user_id', $user->id)
+                      ->where('school_id', $school->id)
+                      ->first();
+
+        if (! $staff) {
+            return response()->json(['message' => 'No staff record for this user.'], 404);
+        }
+
+        // Geofence check
+        if ($school->geo_fence_lat && $school->geo_fence_lng) {
+            $distance = $this->staffHaversine(
+                $validated['latitude'], $validated['longitude'],
+                (float) $school->geo_fence_lat, (float) $school->geo_fence_lng
+            );
+
+            if ($distance > (int) $school->geo_fence_radius) {
+                $dist = $distance >= 1000
+                    ? round($distance / 1000, 1) . ' km'
+                    : round($distance) . 'm';
+                return response()->json([
+                    'message' => "You are {$dist} away from school. Please punch within {$school->geo_fence_radius}m of campus.",
+                    'error'   => 'geofence',
+                    'distance_metres' => (int) round($distance),
+                ], 422);
+            }
+        }
+
+        $today = now()->toDateString();
+
+        $existing = StaffAttendance::where('school_id', $school->id)
+            ->where('staff_id', $staff->id)
+            ->whereDate('date', $today)
+            ->first();
+
+        if ($existing && $existing->check_in) {
+            return response()->json(['message' => 'You have already clocked in today.', 'error' => 'duplicate'], 422);
+        }
+
+        // Determine late vs present
+        $lateThreshold = $school->settings['late_threshold'] ?? '09:30';
+        $now           = now()->format('H:i:s');
+        $status        = Carbon::parse($now)->gt(Carbon::parse($lateThreshold)) ? 'late' : 'present';
+
+        StaffAttendance::updateOrCreate(
+            ['school_id' => $school->id, 'staff_id' => $staff->id, 'date' => $today],
+            [
+                'status'       => $status,
+                'check_in'     => $now,
+                'punch_in_lat' => $validated['latitude'],
+                'punch_in_lng' => $validated['longitude'],
+                'marked_by'    => $user->id,
+            ]
+        );
+
+        $message = $status === 'late' ? 'Clocked in — marked late.' : 'Clocked in successfully!';
+
+        return response()->json([
+            'message'  => $message,
+            'status'   => $status,
+            'check_in' => substr($now, 0, 5),
+        ]);
+    }
+
+    /**
+     * POST /mobile/staff-punch/clock-out
+     * Body: { latitude, longitude }
+     */
+    public function staffPunchClockOut(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'latitude'  => 'required|numeric',
+            'longitude' => 'required|numeric',
+        ]);
+
+        $user   = $request->user();
+        $school = app('current_school');
+
+        $staff = Staff::where('user_id', $user->id)
+                      ->where('school_id', $school->id)
+                      ->first();
+
+        if (! $staff) {
+            return response()->json(['message' => 'No staff record for this user.'], 404);
+        }
+
+        // Geofence check
+        if ($school->geo_fence_lat && $school->geo_fence_lng) {
+            $distance = $this->staffHaversine(
+                $validated['latitude'], $validated['longitude'],
+                (float) $school->geo_fence_lat, (float) $school->geo_fence_lng
+            );
+
+            if ($distance > (int) $school->geo_fence_radius) {
+                $dist = $distance >= 1000
+                    ? round($distance / 1000, 1) . ' km'
+                    : round($distance) . 'm';
+                return response()->json([
+                    'message' => "You are {$dist} away from school. Please punch within {$school->geo_fence_radius}m of campus.",
+                    'error'   => 'geofence',
+                    'distance_metres' => (int) round($distance),
+                ], 422);
+            }
+        }
+
+        $today = now()->toDateString();
+
+        $attendance = StaffAttendance::where('school_id', $school->id)
+            ->where('staff_id', $staff->id)
+            ->whereDate('date', $today)
+            ->first();
+
+        if (! $attendance || ! $attendance->check_in) {
+            return response()->json(['message' => 'You must clock in before clocking out.', 'error' => 'no_clock_in'], 422);
+        }
+
+        if ($attendance->check_out) {
+            return response()->json(['message' => 'You have already clocked out today.', 'error' => 'duplicate'], 422);
+        }
+
+        $now = now()->format('H:i:s');
+
+        $attendance->update([
+            'check_out'      => $now,
+            'punch_out_lat'  => $validated['latitude'],
+            'punch_out_lng'  => $validated['longitude'],
+        ]);
+
+        return response()->json([
+            'message'   => 'Clocked out successfully!',
+            'check_out' => substr($now, 0, 5),
+        ]);
+    }
+
+    /** Haversine distance in metres between two lat/lng points. */
+    private function staffHaversine(float $lat1, float $lng1, float $lat2, float $lng2): float
+    {
+        $R    = 6371000;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+        $a    = sin($dLat / 2) ** 2
+              + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
+        return $R * 2 * atan2(sqrt($a), sqrt(1 - $a));
     }
 }
