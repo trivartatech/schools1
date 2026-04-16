@@ -127,22 +127,32 @@ const onMouseMove = (e) => {
         const el = form.elements.find(el => el.id === resizing.value.id);
         if (el) {
             const h = resizing.value.handle;
-            if (h.includes('e')) { el.w = Math.max(5, el.w + dx); }
-            if (h.includes('s')) { el.h = Math.max(5, (el.h ?? 20) + dy); }
-            if (h.includes('w')) {
-                const nw = Math.max(5, el.w - dx);
-                el.x = Math.max(0, el.x + el.w - nw);
-                el.w = nw;
-            }
-            if (h.includes('n')) {
-                const nh = Math.max(5, (el.h ?? 20) - dy);
-                el.y = Math.max(0, el.y + (el.h ?? 20) - nh);
-                el.h = nh;
-            }
-            // QR: keep square
-            if (el.type === 'qr') {
-                if (h === 'n' || h === 's') { el.w = el.h; }
-                else { el.h = el.w; }
+
+            if (el.type === 'photo' || el.type === 'qr') {
+                // These use CSS aspect-ratio — only width drives the size.
+                // Convert vertical drag (dy) to equivalent horizontal % using canvas ratio.
+                const wRatio = canvasW.value / canvasH.value;
+                if (h.includes('e')) { el.w = Math.max(5, el.w + dx); }
+                if (h.includes('w')) {
+                    const nw = Math.max(5, el.w - dx);
+                    el.x = Math.max(0, el.x + el.w - nw);
+                    el.w = nw;
+                }
+                if (h === 'n') { el.w = Math.max(5, el.w - dy * wRatio); }
+                if (h === 's') { el.w = Math.max(5, el.w + dy * wRatio); }
+            } else {
+                if (h.includes('e')) { el.w = Math.max(5, el.w + dx); }
+                if (h.includes('s')) { el.h = Math.max(5, (el.h ?? 20) + dy); }
+                if (h.includes('w')) {
+                    const nw = Math.max(5, el.w - dx);
+                    el.x = Math.max(0, el.x + el.w - nw);
+                    el.w = nw;
+                }
+                if (h.includes('n')) {
+                    const nh = Math.max(5, (el.h ?? 20) - dy);
+                    el.y = Math.max(0, el.y + (el.h ?? 20) - nh);
+                    el.h = nh;
+                }
             }
         }
         resizing.value.lastX = e.clientX;
@@ -257,20 +267,32 @@ const canvasBg = computed(() => {
 
 const RESIZE_HANDLES = ['nw','n','ne','e','se','s','sw','w'];
 
-const elStyle = (el) => ({
-    position:    'absolute',
-    left:        el.x + '%',
-    top:         el.y + '%',
-    width:       el.w + '%',
-    ...(el.h ? { height: el.h + '%' } : {}),
-    cursor:      'move',
-    userSelect:  'none',
-    zIndex:      selected.value === el.id ? 20 : 5,
-    outline:     selected.value === el.id ? '1.5px dashed rgba(255,255,255,0.9)' : '1px dashed rgba(255,255,255,0.15)',
-    outlineOffset: '1px',
-    boxSizing:   'border-box',
-    overflow:    'visible',
-});
+const elStyle = (el) => {
+    const base = {
+        position:      'absolute',
+        left:          el.x + '%',
+        top:           el.y + '%',
+        width:         el.w + '%',
+        cursor:        'move',
+        userSelect:    'none',
+        zIndex:        selected.value === el.id ? 20 : 5,
+        outline:       selected.value === el.id ? '1.5px dashed rgba(255,255,255,0.9)' : '1px dashed rgba(255,255,255,0.15)',
+        outlineOffset: '1px',
+        boxSizing:     'border-box',
+        overflow:      'visible',
+    };
+    // Photo and QR use CSS aspect-ratio so they stay geometrically correct
+    // regardless of the card's own aspect ratio. Height % alone is unreliable
+    // because the card is not square (e.g. 514×324 landscape).
+    if (el.type === 'photo') {
+        base.aspectRatio = '3 / 4';   // standard passport portrait
+    } else if (el.type === 'qr') {
+        base.aspectRatio = '1 / 1';   // always square
+    } else if (el.h) {
+        base.height = el.h + '%';
+    }
+    return base;
+};
 
 const textCss = (el) => ({
     fontSize:     (el.fontSize || 11) + 'px',
@@ -415,10 +437,10 @@ const getPreview = (el) => {
                     <div
                         ref="canvasRef"
                         class="relative rounded-lg shadow-xl flex-shrink-0"
-                        :style="[canvasBg, { width: canvasW + 'px', height: canvasH + 'px', overflow: 'visible' }]"
+                        :style="{ width: canvasW + 'px', height: canvasH + 'px', overflow: 'visible' }"
                         @click="clickCanvas"
                     >
-                        <!-- clip mask so card bg doesn't leak but handles do -->
+                        <!-- Background clipped to card shape; outer div stays overflow:visible so resize handles poke out -->
                         <div class="absolute inset-0 rounded-lg overflow-hidden pointer-events-none"
                              :style="canvasBg"></div>
 
@@ -512,16 +534,22 @@ const getPreview = (el) => {
                                 <div>
                                     <label class="block text-xs text-slate-500 mb-0.5">Width %</label>
                                     <input type="number" v-model.number="selectedEl.w" min="1" max="100" step="1"
-                                           class="w-full border border-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
-                                           @input="selectedEl.type === 'qr' && (selectedEl.h = selectedEl.w)" />
+                                           class="w-full border border-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
                                 </div>
-                                <div v-if="selectedEl.h !== undefined">
+                                <!-- Photo/QR: height auto via aspect-ratio — only show width -->
+                                <div v-if="selectedEl.type !== 'photo' && selectedEl.type !== 'qr' && selectedEl.h !== undefined">
                                     <label class="block text-xs text-slate-500 mb-0.5">Height %</label>
                                     <input type="number" v-model.number="selectedEl.h" min="1" max="100" step="1"
-                                           class="w-full border border-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
-                                           @input="selectedEl.type === 'qr' && (selectedEl.w = selectedEl.h)" />
+                                           class="w-full border border-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
                                 </div>
                             </div>
+                            <!-- Aspect-ratio hint -->
+                            <p v-if="selectedEl.type === 'photo'" class="text-xs text-slate-400">
+                                Height auto (3:4 passport ratio)
+                            </p>
+                            <p v-if="selectedEl.type === 'qr'" class="text-xs text-slate-400">
+                                Height auto (1:1 square)
+                            </p>
 
                             <!-- Text properties -->
                             <template v-if="selectedEl.type !== 'photo' && selectedEl.type !== 'qr' && selectedEl.type !== 'line'">

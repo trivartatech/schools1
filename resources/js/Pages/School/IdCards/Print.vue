@@ -33,15 +33,24 @@ const backElements  = computed(() => tpl.value.elements.filter(el => el.side ===
 const hasBack       = computed(() => backElements.value.length > 0);
 
 // ── Element positioning ───────────────────────────────────────────
-const elStyle = (el) => ({
-    position:  'absolute',
-    left:      el.x + '%',
-    top:       el.y + '%',
-    width:     el.w + '%',
-    ...(el.h ? { height: el.h + '%' } : {}),
-    overflow:  'hidden',
-    boxSizing: 'border-box',
-});
+const elStyle = (el) => {
+    const base = {
+        position:  'absolute',
+        left:      el.x + '%',
+        top:       el.y + '%',
+        width:     el.w + '%',
+        overflow:  'hidden',
+        boxSizing: 'border-box',
+    };
+    if (el.type === 'photo') {
+        base.aspectRatio = '3 / 4';
+    } else if (el.type === 'qr') {
+        base.aspectRatio = '1 / 1';
+    } else if (el.h) {
+        base.height = el.h + '%';
+    }
+    return base;
+};
 
 const textStyle = (el) => ({
     fontSize:     (el.fontSize || 11) + 'px',
