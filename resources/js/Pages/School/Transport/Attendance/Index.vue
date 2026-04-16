@@ -3,6 +3,9 @@ import Button from '@/Components/ui/Button.vue';
 import { ref, reactive, computed, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     routes: Array,
@@ -13,7 +16,7 @@ const props = defineProps({
 const filter = reactive({
     route_id: '',
     trip_type: 'pickup',
-    date: props.date || new Date().toISOString().slice(0, 10),
+    date: props.date || school.today(),
 });
 
 // ── Student list fetched via API ────────────────────────────────────────────

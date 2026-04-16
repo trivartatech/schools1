@@ -3,6 +3,9 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     staff: Object,
@@ -21,8 +24,14 @@ let clockTimer = null;
 onMounted(() => { clockTimer = setInterval(() => currentTime.value = new Date(), 1000); });
 onUnmounted(() => clearInterval(clockTimer));
 
-const timeStr = computed(() => currentTime.value.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }));
-const dateStr = computed(() => currentTime.value.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
+const timeStr = computed(() => {
+    const t = currentTime.value;
+    const hh = String(t.getHours()).padStart(2, '0');
+    const mm = String(t.getMinutes()).padStart(2, '0');
+    const ss = String(t.getSeconds()).padStart(2, '0');
+    return school.fmtTime(`${hh}:${mm}:${ss}`);
+});
+const dateStr = computed(() => currentTime.value.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
 
 // ── Geolocation ─────────────────────────────────────────────
 const geoStatus = ref('idle');   // idle | loading | success | error | denied
@@ -139,9 +148,7 @@ const statusColors = {
 
 function formatTime(t) {
     if (!t) return '--:--';
-    const [h, m] = t.split(':');
-    const d = new Date(); d.setHours(+h, +m);
-    return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    return school.fmtTime(t);
 }
 
 function workingHours(checkIn, checkOut) {

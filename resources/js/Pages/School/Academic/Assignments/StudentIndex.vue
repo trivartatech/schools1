@@ -4,6 +4,9 @@ import { useForm, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref, computed } from 'vue';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     assignments: Object,   // paginated — only the student's class/section
@@ -37,7 +40,7 @@ const handleFiles = (e) => {
 };
 
 // ── Helpers ───────────────────────────────────────────────
-const todayStr = new Date().toISOString().split('T')[0];
+const todayStr = school.today();
 
 const assignmentStatus = (a) => {
     const sub = props.mySubmissions?.[a.id];
@@ -56,7 +59,7 @@ const daysLeft = (due) => {
     return { text: `${diff}d left`, cls: 'text-slate-500' };
 };
 
-const formatDate = (d) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+const formatDate = (d) => school.fmtDate(d);
 // Serve attachments through the Laravel /api/media proxy so we don't depend
 // on the /storage symlink being readable by nginx, and to dodge nginx's
 // image-extension location block.

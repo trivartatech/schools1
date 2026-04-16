@@ -4,6 +4,9 @@ import { router, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref } from 'vue';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     tcs:     Object,   // paginated
@@ -141,7 +144,7 @@ const totalCount = () => Object.values(props.counts).reduce((a, b) => a + b, 0);
                             </td>
                             <!-- Leaving Date -->
                             <td class="text-sm text-slate-600">
-                                {{ tc.leaving_date ? new Date(tc.leaving_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—' }}
+                                {{ tc.leaving_date ? school.fmtDate(tc.leaving_date) : '—' }}
                             </td>
                             <!-- Reason -->
                             <td class="text-sm text-slate-500 max-w-[200px] truncate">

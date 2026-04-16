@@ -1,6 +1,9 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({ post: Object });
 const page = usePage();
@@ -32,7 +35,7 @@ const timeAgo = (d) => {
     if (diff < 3600) return `${Math.floor(diff / 60)}m`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
     if (diff < 604800) return `${Math.floor(diff / 86400)}d`;
-    return new Date(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    return school.fmtDate(d);
 };
 
 const roleColor = (userType) => ROLE_COLORS[userType] || '#6B7280';

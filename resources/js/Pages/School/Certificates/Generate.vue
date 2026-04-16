@@ -3,6 +3,9 @@ import { ref, computed, watch } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useClassSections } from '@/Composables/useClassSections';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     template: { type: Object, required: true },
@@ -17,7 +20,7 @@ const customVals = ref(
     Object.fromEntries((props.template.custom_vars ?? []).map(v => [v.key, '']))
 );
 
-const today    = new Date().toISOString().slice(0, 10);
+const today    = school.today();
 const certDate = ref(today);
 
 const { sections, isFetching: fetchingSections, fetchSections } = useClassSections();

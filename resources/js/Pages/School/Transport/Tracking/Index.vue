@@ -2,6 +2,9 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { usePermissions } from '@/Composables/usePermissions';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const { can } = usePermissions();
 
@@ -94,7 +97,7 @@ async function fetchLiveLocations() {
         if (!res.ok) throw new Error('Failed to fetch live data.');
         const data = await res.json();
         vehicles.value = data;
-        lastUpdated.value = new Date().toLocaleTimeString();
+        lastUpdated.value = school.fmtTime(new Date().toISOString());
         updateBusMarkers(data);
 
         // Auto-select first vehicle if nothing selected

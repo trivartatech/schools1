@@ -4,6 +4,9 @@ import { ref, computed } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     overdue: { type: Array, default: () => [] },
@@ -34,10 +37,7 @@ const markComplete = (log) => {
     }, { preserveScroll: true });
 };
 
-const formatDate = (dt) => {
-    if (!dt) return '--';
-    return new Date(dt).toLocaleDateString([], { dateStyle: 'medium' });
-};
+const formatDate = (dt) => dt ? school.fmtDate(dt) : '--';
 
 const studentName = (log) => {
     if (!log.related_student) return '--';

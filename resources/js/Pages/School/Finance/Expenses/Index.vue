@@ -6,6 +6,9 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import ExportDropdown from '@/Components/ExportDropdown.vue';
 import debounce from 'lodash/debounce';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     expenses: Array,
@@ -181,7 +184,7 @@ const formatCurrency = (amount) => {
                         </thead>
                         <tbody>
                             <tr v-for="exp in expenses" :key="exp.id">
-                                <td class="text-sm" style="color: var(--text-secondary)">{{ new Date(exp.expense_date).toLocaleDateString('en-GB') }}</td>
+                                <td class="text-sm" style="color: var(--text-secondary)">{{ school.fmtDate(exp.expense_date) }}</td>
                                 <td>
                                     <span class="badge badge-gray">{{ exp.category?.name }}</span>
                                 </td>

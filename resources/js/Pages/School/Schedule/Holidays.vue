@@ -6,6 +6,9 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import SlidePanel from '@/Components/SlidePanel.vue';
 import { useDelete } from '@/Composables/useDelete';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps(['holidays']);
 const typeColors = { holiday: 'bg-red-100 text-red-800', event: 'bg-blue-100 text-blue-800', exam: 'bg-purple-100 text-purple-800', other: 'bg-gray-100 text-gray-700' };
@@ -36,7 +39,7 @@ const destroy = (id) => {
     if (!id) return;
     del(`/school/holidays/${id}`, 'Delete this entry?');
 };
-const fmt = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+const fmt = (d) => d ? school.fmtDate(d) : '';
 </script>
 
 <template>

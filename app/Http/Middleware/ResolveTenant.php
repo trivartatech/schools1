@@ -61,6 +61,13 @@ class ResolveTenant
             App::instance('current_school', $school);
             app()->bind('current_school_id', fn() => $school->id);
 
+            // Apply the school's configured timezone so all Carbon/now() calls
+            // reflect the correct local time for this tenant.
+            if (!empty($school->timezone)) {
+                config(['app.timezone' => $school->timezone]);
+                date_default_timezone_set($school->timezone);
+            }
+
             // Globally scope Spatie Permissions to this school (tenant)
             app(\Spatie\Permission\PermissionRegistrar::class)->setPermissionsTeamId($school->id);
 

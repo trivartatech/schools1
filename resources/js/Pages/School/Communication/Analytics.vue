@@ -2,6 +2,9 @@
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     dailyTrend: Array,
@@ -31,10 +34,7 @@ const channelGroups = computed(() => {
     });
 });
 
-const formatDate = (dateStr) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
-};
+const formatDate = (dateStr) => school.fmtDate(dateStr);
 </script>
 
 <template>

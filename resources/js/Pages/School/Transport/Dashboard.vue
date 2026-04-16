@@ -3,6 +3,9 @@ import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     stats: Object,
@@ -74,10 +77,7 @@ function expiryLabel(days) {
 }
 
 function formatDate(dateStr) {
-    if (!dateStr) return '--';
-    return new Date(dateStr).toLocaleDateString('en-IN', {
-        day: '2-digit', month: 'short', year: 'numeric',
-    });
+    return dateStr ? school.fmtDate(dateStr) : '--';
 }
 
 function utilizationColor(pct) {

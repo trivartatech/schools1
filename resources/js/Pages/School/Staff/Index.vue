@@ -9,6 +9,9 @@ import { useDelete } from '@/Composables/useDelete';
 import { usePermissions } from '@/Composables/usePermissions';
 import { useTableFilters } from '@/Composables/useTableFilters';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const { canDo } = usePermissions();
 
@@ -158,7 +161,7 @@ const deleteStaff = (id, name) => del(`/school/staff/${id}`, `Delete staff membe
                             </div>
                         </td>
                         <td style="color:#475569;font-size:0.825rem;">
-                            {{ member.joining_date ? new Date(member.joining_date).toLocaleDateString('en-GB') : '—' }}
+                            {{ member.joining_date ? school.fmtDate(member.joining_date) : '—' }}
                         </td>
                         <td>
                             <span v-if="member.status === 'active'" class="badge badge-green">Active</span>

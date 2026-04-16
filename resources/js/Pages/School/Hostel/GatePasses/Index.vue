@@ -7,6 +7,11 @@ import WebcamCapture from '@/Components/WebcamCapture.vue';
 import GatePassCard from '@/Components/GatePassCard.vue';
 import Table from '@/Components/ui/Table.vue';
 
+/** Local datetime string for datetime-local input (avoids UTC day-shift). */
+function localISODT(d = new Date()) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
 const props = defineProps({
     gatePasses: Object,
     students: Array,
@@ -50,7 +55,7 @@ function openCreateModal() {
     const later = new Date(now.getTime() + 8 * 3600000);
     Object.assign(createForm, {
         student_id: '', leave_type: 'Day Out',
-        from_date: now.toISOString().slice(0, 16), to_date: later.toISOString().slice(0, 16),
+        from_date: localISODT(now), to_date: localISODT(later),
         reason: '', destination: '', escort_name: '', escort_relation: 'Father',
         escort_phone: '', escort_id_proof_type: 'Aadhaar', parent_name: ''
     });
@@ -69,8 +74,8 @@ function updateStatus(gp, status) {
     selectedPass.value = gp;
     actionData.status = status;
     if (status === 'Out' || status === 'Returned') {
-        actionData.actual_out_time = new Date().toISOString().slice(0, 16);
-        actionData.actual_in_time = new Date().toISOString().slice(0, 16);
+        actionData.actual_out_time = localISODT();
+        actionData.actual_in_time = localISODT();
         actionData.late_reason = '';
         showModal.value = true;
     } else {

@@ -3,6 +3,9 @@ import Button from '@/Components/ui/Button.vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref } from 'vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     diaries:       Object,  // paginated
@@ -40,7 +43,7 @@ const buildSlider = () => {
 };
 
 const expandedId = ref(null);
-const formatDate = (d) => new Date(d).toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+const formatDate = (d) => school.fmtDate(d);
 // Serve attachments through the Laravel /api/media proxy so we don't depend
 // on the /storage symlink being readable by nginx, and to dodge nginx's
 // image-extension location block (which matches on the URL path, so

@@ -1,6 +1,9 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 import CommentSection from './CommentSection.vue';
 import Button from '@/Components/ui/Button.vue';
 
@@ -54,7 +57,7 @@ const timeAgo = (d) => {
     if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
     if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
     if (diff < 604800) return `${Math.floor(diff/86400)}d ago`;
-    return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    return school.fmtDate(d);
 };
 const formatCount = (n) => n >= 1000 ? `${(n/1000).toFixed(1)}K` : String(n);
 

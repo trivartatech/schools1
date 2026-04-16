@@ -3,6 +3,9 @@ import Button from '@/Components/ui/Button.vue';
 import { router, Link, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref } from 'vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     tc: Object,
@@ -42,8 +45,8 @@ const statusBadge = (s) => ({
     rejected:  'bg-red-100 text-red-700 border-red-200',
 }[s] ?? 'bg-slate-100 text-slate-600');
 
-const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
-const formatDT   = (d) => d ? new Date(d).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+const formatDate = (d) => d ? school.fmtDate(d) : '—';
+const formatDT   = (d) => d ? school.fmtDateTime(d) : '—';
 </script>
 
 <template>

@@ -3,6 +3,9 @@ import Button from '@/Components/ui/Button.vue';
 import { ref, computed } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     correspondences: { type: Array, default: () => [] },
@@ -182,7 +185,7 @@ const filteredData = computed(() => {
                     <div class="corr-details">
                         <div class="corr-detail-item">
                             <span class="corr-detail-label">Date</span>
-                            <span class="corr-detail-value">{{ new Date(item.date).toLocaleDateString() }}</span>
+                            <span class="corr-detail-value">{{ school.fmtDate(item.date) }}</span>
                         </div>
                         <div class="corr-detail-item">
                             <span class="corr-detail-label">Department</span>

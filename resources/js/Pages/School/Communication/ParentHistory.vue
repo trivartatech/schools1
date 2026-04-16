@@ -1,6 +1,9 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 defineProps({
     logs: Object,
@@ -49,7 +52,7 @@ const relativeTime = (dateStr) => {
     if (hours < 24) return `${hours}h ago`;
     const days = Math.floor(hours / 24);
     if (days < 7) return `${days}d ago`;
-    return date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' });
+    return school.fmtDate(dateStr);
 };
 </script>
 

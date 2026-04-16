@@ -2,6 +2,9 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const schoolStore = useSchoolStore();
 
 const props = defineProps({
     template: { type: Object, default: null },
@@ -295,7 +298,7 @@ const SAMPLE = {
     father_name:   'Raj Sharma',
     school_name:   props.school?.name || 'School Name',
     academic_year: '2026-27',
-    cert_date:     new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }),
+    cert_date:     schoolStore.fmtDate(schoolStore.today()),
 };
 
 // Inject custom var samples too

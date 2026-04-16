@@ -7,6 +7,9 @@ import { ref, computed } from 'vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import axios from 'axios';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     topics:      Array,
@@ -272,7 +275,7 @@ const exportCSV = () => {
                                 </td>
                                 <td v-if="filterForm.section_id" class="text-xs text-slate-500">
                                     {{ statuses?.[topic.id]?.completed_date
-                                        ? new Date(statuses[topic.id].completed_date).toLocaleDateString('en-IN')
+                                        ? school.fmtDate(statuses[topic.id].completed_date)
                                         : '—' }}
                                 </td>
                                 <td v-if="can('edit_academic') || can('delete_academic')" class="text-right">

@@ -6,9 +6,11 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import { useToast } from '@/Composables/useToast';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const { can } = usePermissions();
 const toast = useToast();
+const school = useSchoolStore();
 
 const props = defineProps({
     visitors: { type: Array, default: () => [] },
@@ -318,11 +320,11 @@ const filteredVisitors = computed(() => {
                                     <span class="badge badge-blue">{{ v.purpose }}</span>
                                 </td>
                                 <td style="font-family: monospace; font-size: 0.8rem;">
-                                    {{ new Date(v.in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+                                    {{ school.fmtTime(v.in_time) }}
                                 </td>
                                 <td>
                                     <span v-if="v.out_time" style="font-family: monospace; font-size: 0.8rem;">
-                                        {{ new Date(v.out_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+                                        {{ school.fmtTime(v.out_time) }}
                                     </span>
                                     <span v-else class="badge badge-amber">INSIDE</span>
                                 </td>

@@ -5,6 +5,9 @@ import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     reports: Array,
@@ -101,7 +104,7 @@ const totals = computed(() => {
         <div class="hidden print:block mb-6 text-center">
             <h1 class="text-2xl font-bold">Fee Summary Report</h1>
             <p class="text-lg">Filter: {{ classes.find(c => c.id == filterForm.class_id)?.name || 'All Classes' }} {{ filterForm.section_id ? ` - ${sections.find(s => s.id == filterForm.section_id)?.name}` : '' }}</p>
-            <p class="text-sm">Generated on {{ new Date().toLocaleDateString('en-GB') }}</p>
+            <p class="text-sm">Generated on {{ school.fmtDate(school.today()) }}</p>
         </div>
 
         <div class="card overflow-hidden">

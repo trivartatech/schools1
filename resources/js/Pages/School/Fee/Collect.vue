@@ -4,6 +4,9 @@ import { ref, reactive, computed, watch } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useDelete } from '@/Composables/useDelete';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     student:      Object,
@@ -86,7 +89,7 @@ const feeForm = reactive({
     discount:             0,
     fine:                 0,
     payment_mode:         'cash',
-    payment_date:         new Date().toISOString().slice(0, 10),
+    payment_date:         school.today(),
     transaction_ref:      '',
     remarks:              '',
     receipt_no:           '',

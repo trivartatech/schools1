@@ -1,6 +1,9 @@
 <script setup>
 import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const schoolStore = useSchoolStore();
 
 const props = defineProps({
     students:    { type: Array,  required: true },
@@ -41,9 +44,7 @@ const studentVars = (student) => ({
     roll_no:       student.roll_no       || '',
     admission_no:  student.admission_no  || '',
     blood_group:   student.blood_group   || '',
-    dob:           student.dob
-                       ? new Date(student.dob).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })
-                       : '',
+    dob:           student.dob ? schoolStore.fmtDate(student.dob) : '',
     father_name:   student.father_name   || '',
     mother_name:   student.mother_name   || '',
     address:       student.address       || '',

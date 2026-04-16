@@ -4,6 +4,9 @@ import { ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     editRequests: Object,
@@ -79,7 +82,7 @@ const setStatus = (status) => {
                                     {{ req.requestable_type.includes('Student') ? 'Student' : 'Staff' }}
                                 </span>
                             </td>
-                            <td>{{ new Date(req.created_at).toLocaleDateString('en-GB') }}</td>
+                            <td>{{ school.fmtDate(req.created_at) }}</td>
                             <td>
                                 <div style="display:flex;flex-wrap:wrap;gap:0.25rem;max-width:12.5rem;">
                                     <span v-for="(val, key) in req.requested_changes" :key="key"

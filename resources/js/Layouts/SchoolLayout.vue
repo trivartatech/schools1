@@ -3,6 +3,9 @@ import { computed, ref, watch, watchEffect, onMounted, onUnmounted } from 'vue';
 import { Head, Link, usePage, router, useForm } from '@inertiajs/vue3';
 import { usePermissions } from '@/Composables/usePermissions';
 import { useToast } from '@/Composables/useToast';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const schoolStore = useSchoolStore();
 import ChatWidget from '@/Components/ChatWidget.vue';
 import AiChatbot from '@/Components/AiChatbot.vue';
 import Button from '@/Components/ui/Button.vue';
@@ -129,10 +132,7 @@ function punchClockOut() {
 }
 
 function formatPunchTime(t) {
-    if (!t) return '--:--';
-    const [h, m] = t.split(':');
-    const d = new Date(); d.setHours(+h, +m);
-    return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    return t ? schoolStore.fmtTime(t) : '--:--';
 }
 
 function punchWorkingHours(checkIn, checkOut) {

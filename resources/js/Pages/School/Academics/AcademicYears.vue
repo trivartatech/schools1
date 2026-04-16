@@ -6,6 +6,9 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import SlidePanel from '@/Components/SlidePanel.vue';
 import { useDelete } from '@/Composables/useDelete';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps(['academicYears']);
 const panelOpen = ref(false);
@@ -68,8 +71,8 @@ const destroy = (id) => del(`/school/academic-years/${id}`, 'Delete this academi
                             <span style="font-weight:500;color:var(--text-primary);">{{ year.name }}</span>
                             <span v-if="year.is_current" class="badge badge-green" style="margin-left:0.5rem;">Current</span>
                         </td>
-                        <td style="color:var(--text-secondary);">{{ year.start_date ? new Date(year.start_date).toLocaleDateString() : '—' }}</td>
-                        <td style="color:var(--text-secondary);">{{ year.end_date ? new Date(year.end_date).toLocaleDateString() : '—' }}</td>
+                        <td style="color:var(--text-secondary);">{{ year.start_date ? school.fmtDate(year.start_date) : '—' }}</td>
+                        <td style="color:var(--text-secondary);">{{ year.end_date ? school.fmtDate(year.end_date) : '—' }}</td>
                         <td>
                             <span :class="year.status === 'active' ? 'badge badge-blue' : 'badge badge-gray'" style="text-transform:capitalize;">{{ year.status }}</span>
                         </td>

@@ -3,6 +3,9 @@ import Button from '@/Components/ui/Button.vue';
 import { ref, computed } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     callLogs: { type: Array, default: () => [] },
@@ -186,7 +189,7 @@ const filteredLogs = computed(() => {
                             <div v-if="log.follow_up_date" class="followup-badge" :class="log.follow_up_completed ? 'followup--done' : 'followup--pending'">
                                 <svg v-if="log.follow_up_completed" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                                 <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                <span>Due: {{ new Date(log.follow_up_date).toLocaleDateString() }}</span>
+                                <span>Due: {{ school.fmtDate(log.follow_up_date) }}</span>
                                 <button @click="toggleFollowUp(log)" class="followup-btn">
                                     {{ log.follow_up_completed ? 'Re-open' : 'Mark Done' }}
                                 </button>

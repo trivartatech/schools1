@@ -7,8 +7,10 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useDelete } from '@/Composables/useDelete';
 import { usePermissions } from '@/Composables/usePermissions';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const { canDo, canRequestEditStudent } = usePermissions();
+const school = useSchoolStore();
 
 const deleteStudent = (id) => {
     if (confirm('Are you sure you want to delete this student? This action cannot be undone.')) {
@@ -29,11 +31,7 @@ const props = defineProps({
 });
 
 // ── Date Formatting ───────────────────────────────────────────────────────────
-const formatDate = (dateString) => {
-    if (!dateString) return '—';
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
-};
+const formatDate = (dateString) => dateString ? school.fmtDate(dateString) : '—';
 
 // ── Active Tab ────────────────────────────────────────────────────────────────
 const activeTab = ref('basic');
@@ -632,7 +630,7 @@ watch(showIdModal, (open) => { if (open) renderIdQr(); });
                                             <td>
                                                 <span class="receipt-no">{{ p.receipt_no ?? '—' }}</span>
                                             </td>
-                                            <td>{{ p.payment_date ? new Date(p.payment_date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—' }}</td>
+                                            <td>{{ p.payment_date ? school.fmtDate(p.payment_date) : '—' }}</td>
                                             <td>
                                                 <div style="font-weight:600;color:#1e293b;">{{ p.fee_head ?? '—' }}</div>
                                                 <div v-if="p.fee_group" style="font-size:11px;color:#94a3b8;">{{ p.fee_group }}</div>

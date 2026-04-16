@@ -5,6 +5,9 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { computed } from 'vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const { canDo, canRequestEditStaff } = usePermissions();
 
@@ -20,12 +23,7 @@ const formatMoney = (amount) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount);
 };
 
-// Format date
-const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
-};
+const formatDate = (dateString) => dateString ? school.fmtDate(dateString) : 'N/A';
 
 const getMonthName = (monthNum) => {
     if (!monthNum) return '';

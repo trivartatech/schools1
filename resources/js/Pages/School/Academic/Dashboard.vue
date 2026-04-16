@@ -2,6 +2,9 @@
 import Button from '@/Components/ui/Button.vue';
 import { Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     pendingGrading:       Array,   // assignments with ungraded submissions
@@ -12,14 +15,8 @@ const props = defineProps({
     upcomingDue:          Array,
 });
 
-const formatDT = (d) => new Date(d).toLocaleString('en-IN', {
-    day: '2-digit', month: 'short',
-    hour: '2-digit', minute: '2-digit',
-});
-
-const formatDate = (d) => new Date(d).toLocaleDateString('en-IN', {
-    day: '2-digit', month: 'short', year: 'numeric'
-});
+const formatDT   = (d) => school.fmtDateTime(d);
+const formatDate = (d) => school.fmtDate(d);
 
 const now = new Date();
 const classStatus = (c) => {

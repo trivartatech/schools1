@@ -5,6 +5,9 @@ import { useForm, router, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useDelete } from '@/Composables/useDelete';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     leaves: Object,   // paginated
@@ -231,7 +234,7 @@ const rejected = computed(() => (props.leaves?.data || []).filter(l => l.status 
                                 </span>
                             </td>
                             <td>
-                                <div>{{ new Date(leave.start_date).toLocaleDateString('en-GB') }} — {{ new Date(leave.end_date).toLocaleDateString('en-GB') }}</div>
+                                <div>{{ school.fmtDate(leave.start_date) }} — {{ school.fmtDate(leave.end_date) }}</div>
                                 <div style="font-size:.75rem;color:#94a3b8;">{{ daysBetween(leave.start_date, leave.end_date) }} day(s)</div>
                             </td>
                             <td style="max-width:200px;">

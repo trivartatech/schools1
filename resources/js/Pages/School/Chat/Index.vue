@@ -3,6 +3,9 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { Head, usePage } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import axios from 'axios';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     conversations:   { type: Array, default: () => [] },
@@ -275,16 +278,8 @@ async function createBroadcast() {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-function formatTime(dt) {
-    if (!dt) return '';
-    const d = new Date(dt);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-function formatDate(dt) {
-    if (!dt) return '';
-    return new Date(dt).toLocaleDateString();
-}
+function formatTime(dt) { return school.fmtTime(dt); }
+function formatDate(dt) { return school.fmtDate(dt); }
 
 function isMe(msg) {
     return msg.sender_id === authUser.value?.id;

@@ -230,6 +230,9 @@
 <script setup>
 import { ref, computed, nextTick, onMounted } from 'vue';
 import axios from 'axios';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const SESSIONS_KEY = 'erp_ai_sessions';
 const CURRENT_KEY  = 'erp_ai_current_session';
@@ -665,7 +668,7 @@ function formatMessage(text) {
             '<span class="ai-num">$1</span>');
 }
 
-function formatTime(ts) { if (!ts) return ''; return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+function formatTime(ts) { return school.fmtTime(ts); }
 
 function formatDateSep(ts) {
     if (!ts) return '';
@@ -673,7 +676,7 @@ function formatDateSep(ts) {
     yesterday.setDate(today.getDate() - 1);
     if (d.toDateString() === today.toDateString()) return 'Today';
     if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
-    return d.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+    return school.fmtDate(ts);
 }
 
 function formatSessionDate(ts) {
@@ -682,7 +685,7 @@ function formatSessionDate(ts) {
     yesterday.setDate(today.getDate() - 1);
     if (d.toDateString() === today.toDateString()) return 'Today';
     if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
-    return d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+    return school.fmtDate(ts);
 }
 
 function showDateSep(index) {

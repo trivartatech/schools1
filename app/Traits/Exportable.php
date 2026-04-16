@@ -59,7 +59,7 @@ trait Exportable
                 'rows'        => $rows,
                 'footerRow'   => $footer,
                 'orientation' => $orientation,
-                'generatedAt' => now()->format('d M Y, h:i A'),
+                'generatedAt' => now()->format($this->schoolDateFmt() . ', ' . $this->schoolTimeFmt()),
             ])->setPaper('a4', $orientation);
 
             return $pdf->download($filename . '.pdf');
@@ -72,7 +72,32 @@ trait Exportable
             'rows'        => $rows,
             'footerRow'   => $footer,
             'orientation' => $orientation,
-            'generatedAt' => now()->format('d M Y, h:i A'),
+            'generatedAt' => now()->format($this->schoolDateFmt() . ', ' . $this->schoolTimeFmt()),
         ]);
+    }
+
+    /** Convert system-config date_format key to a PHP date() format string. */
+    private function schoolDateFmt(): string
+    {
+        $settings = app('current_school')?->settings ?? [];
+        return match($settings['date_format'] ?? '') {
+            'DD/MM/YYYY'  => 'd/m/Y',
+            'MM/DD/YYYY'  => 'm/d/Y',
+            'YYYY-MM-DD'  => 'Y-m-d',
+            'D MMM, YYYY' => 'j M, Y',
+            default        => 'd M Y',
+        };
+    }
+
+    /** Convert system-config time_format key to a PHP date() format string. */
+    private function schoolTimeFmt(): string
+    {
+        $settings = app('current_school')?->settings ?? [];
+        return match($settings['time_format'] ?? '') {
+            'h:mm A'    => 'g:i A',
+            'H:mm'      => 'H:i',
+            'h:mm:ss A' => 'g:i:s A',
+            default      => 'g:i A',
+        };
     }
 }

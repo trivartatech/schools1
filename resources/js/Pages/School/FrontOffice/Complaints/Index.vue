@@ -3,6 +3,9 @@ import Button from '@/Components/ui/Button.vue';
 import { ref, computed } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     complaints: { type: Array, default: () => [] },
@@ -159,7 +162,7 @@ const updateStatus = (complaint, newStatus) => {
                         </p>
 
                         <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">
-                            <span>{{ new Date(complaint.created_at).toLocaleDateString() }}</span>
+                            <span>{{ school.fmtDate(complaint.created_at) }}</span>
                             <span v-if="complaint.assigned_department_id" class="badge badge-blue">
                                 Dept: {{ complaint.assigned_department?.name || 'Assigned' }}
                             </span>

@@ -4,6 +4,9 @@ import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import axios from 'axios';
 import Button from '@/Components/ui/Button.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     papers:  Array,
@@ -104,7 +107,7 @@ function confirmDelete(paper) {
                             <td class="px-6 py-4 text-sm text-gray-600">{{ paper.subject?.name }}</td>
                             <td class="px-6 py-4 text-sm text-gray-600">{{ paper.total_marks }}</td>
                             <td class="px-6 py-4 text-sm text-gray-600">{{ paper.duration_minutes }} min</td>
-                            <td class="px-6 py-4 text-sm text-gray-500">{{ new Date(paper.created_at).toLocaleDateString() }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-500">{{ school.fmtDate(paper.created_at) }}</td>
                             <td class="px-6 py-4 text-right space-x-2">
                                 <a :href="`/school/question-papers/${paper.id}`"
                                    class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">View</a>

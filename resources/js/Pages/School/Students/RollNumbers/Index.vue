@@ -4,6 +4,9 @@ import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref, computed, watch } from 'vue';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     academicYears: Array,
@@ -185,7 +188,7 @@ const doPrint = () => {
         <h3>Total: ${rows.value.length} &nbsp;|&nbsp; Boys: ${rows.value.filter(r => r.gender === 'Male').length} &nbsp;|&nbsp; Girls: ${rows.value.filter(r => r.gender === 'Female').length}</h3>
         <table><thead><tr><th>#</th><th>Roll No</th><th>Student Name</th><th>Admission No</th><th>Gender</th></tr></thead>
         <tbody>${tableRows}</tbody></table>
-        <div class="footer">Generated on ${new Date().toLocaleDateString('en-IN')}</div>
+        <div class="footer">Generated on ${school.fmtDate(school.today())}</div>
         <script>window.onload=()=>window.print();<\/script></body></html>`;
 
     const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));

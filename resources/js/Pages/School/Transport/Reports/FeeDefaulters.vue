@@ -3,6 +3,9 @@ import Button from '@/Components/ui/Button.vue';
 import { ref, computed } from 'vue';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     defaulters: Array,
@@ -40,9 +43,7 @@ function formatCurrency(value) {
 }
 
 function formatDate(dateStr) {
-    if (!dateStr) return '--';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    return dateStr ? school.fmtDate(dateStr) : '--';
 }
 </script>
 

@@ -5,6 +5,9 @@ import { useForm, router, usePage, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     leaves:         Object,
@@ -489,9 +492,9 @@ const docTypeIcon = (mime) => {
                                     <!-- Duration -->
                                     <td style="white-space:nowrap;">
                                         <div style="font-size:0.75rem;color:#1f2937;">
-                                            {{ new Date(leave.start_date).toLocaleDateString('en-GB') }}
+                                            {{ school.fmtDate(leave.start_date) }}
                                             <span v-if="leave.start_date !== leave.end_date">
-                                                → {{ new Date(leave.end_date).toLocaleDateString('en-GB') }}
+                                                → {{ school.fmtDate(leave.end_date) }}
                                             </span>
                                         </div>
                                         <div style="font-size:0.75rem;color:#9ca3af;">{{ daysBetween(leave.start_date, leave.end_date) }} day(s)</div>

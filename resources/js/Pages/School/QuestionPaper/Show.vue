@@ -1,6 +1,9 @@
 <script setup>
 import { ref } from 'vue';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     paper: Object,
@@ -97,7 +100,7 @@ const typeLabels = {
 
             <!-- Meta -->
             <div class="text-sm text-gray-400 text-center pb-8">
-                Created by {{ paper.created_by?.name || 'Unknown' }} on {{ new Date(paper.created_at).toLocaleDateString() }}
+                Created by {{ paper.created_by?.name || 'Unknown' }} on {{ school.fmtDate(paper.created_at) }}
             </div>
         </div>
     </SchoolLayout>

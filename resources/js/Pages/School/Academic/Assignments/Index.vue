@@ -6,6 +6,9 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref, computed, watch } from 'vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import ExportDropdown from '@/Components/ExportDropdown.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     assignments: Object,  // paginated
@@ -81,15 +84,12 @@ const submit = () => {
 };
 
 // ── Helpers ──────────────────────────────────────────────
-const formatDate = (date) =>
-    new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+const formatDate = (date) => school.fmtDate(date);
 
 /**
  * Compare date strings only (YYYY-MM-DD) — avoids false "Expired" on due-day.
- * new Date('2026-04-02') is midnight UTC; comparing with new Date() (which includes
- * time) would mark today as expired mid-day. Instead compare ISO date strings.
  */
-const todayStr = () => new Date().toISOString().split('T')[0];
+const todayStr = () => school.today();
 
 const isExpired = (assignment) => {
     if (assignment.status === 'closed') return true;

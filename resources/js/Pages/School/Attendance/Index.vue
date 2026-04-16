@@ -6,8 +6,10 @@ import { router, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const { can, isSchoolManagement } = usePermissions();
+const school = useSchoolStore();
 const hasWriteAccess = computed(() => isSchoolManagement.value || can('create_attendance') || can('edit_attendance'));
 
 const props = defineProps({
@@ -24,7 +26,7 @@ const props = defineProps({
 const filter = reactive({
     class_id:   props.selectedClassId  || '',
     section_id: props.selectedSectionId || '',
-    date:       props.selectedDate || new Date().toISOString().slice(0, 10),
+    date:       props.selectedDate || school.today(),
 });
 
 const applyFilter = () => {

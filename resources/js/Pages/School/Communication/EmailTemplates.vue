@@ -3,6 +3,9 @@ import Button from '@/Components/ui/Button.vue';
 import { ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 defineProps({
     templates: Array,
@@ -39,14 +42,7 @@ const truncate = (text, length = 100) => {
     return text.length > length ? text.substring(0, length) + '...' : text;
 };
 
-const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    return new Date(dateStr).toLocaleDateString('en-IN', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-    });
-};
+const formatDate = (dateStr) => school.fmtDate(dateStr);
 </script>
 
 <template>

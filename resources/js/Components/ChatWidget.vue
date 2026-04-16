@@ -1,6 +1,9 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { usePage } from '@inertiajs/vue3';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 import axios from 'axios';
 
 const page = usePage();
@@ -132,10 +135,7 @@ function scrollBottom() {
     }
 }
 
-function formatTime(dt) {
-    if (!dt) return '';
-    return new Date(dt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
+function formatTime(dt) { return school.fmtTime(dt); }
 
 function isMe(msg) {
     return msg.sender_id === authUser.value?.id;

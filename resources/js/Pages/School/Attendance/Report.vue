@@ -5,6 +5,9 @@ import { reactive, ref, computed } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import ExportDropdown from '@/Components/ExportDropdown.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     classes: Array,
@@ -20,7 +23,7 @@ const props = defineProps({
 const filter = reactive({
     class_id:   props.selectedClassId || '',
     section_id: props.selectedSectionId || '',
-    month:      props.selectedMonth || new Date().toISOString().slice(0,7),
+    month:      props.selectedMonth || school.currentMonth(),
 });
 
 const applyFilter = () => {

@@ -3,6 +3,9 @@ import Button from '@/Components/ui/Button.vue';
 import { ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     defaulters: Array,
@@ -103,7 +106,7 @@ const formatCurrency = (amount) => {
         <div class="hidden print:block mb-6 text-center">
             <h1 class="text-2xl font-bold">Fee Defaulters List</h1>
             <p class="text-lg">Class Filter: {{ classes.find(c => c.id == filterForm.class_id)?.name || 'All Classes' }}</p>
-            <p class="text-sm">As of {{ new Date().toLocaleDateString('en-GB') }}</p>
+            <p class="text-sm">As of {{ school.fmtDate(school.today()) }}</p>
         </div>
 
         <!-- Defaulters Table -->

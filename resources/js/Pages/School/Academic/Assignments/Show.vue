@@ -5,6 +5,9 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref, computed } from 'vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     assignment: Object,
@@ -94,14 +97,8 @@ const duplicateAssignment = () => {
     router.post(route('school.academic.assignments.duplicate', props.assignment.id));
 };
 
-const formatDate = (date) =>
-    new Date(date).toLocaleString('en-IN', {
-        day: '2-digit', month: 'short', year: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-    });
-
-const formatDateOnly = (date) =>
-    new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+const formatDate     = (date) => school.fmtDateTime(date);
+const formatDateOnly = (date) => school.fmtDate(date);
 
 // Serve attachments through the Laravel /api/media proxy so we don't depend
 // on the /storage symlink being readable by nginx, and to dodge nginx's

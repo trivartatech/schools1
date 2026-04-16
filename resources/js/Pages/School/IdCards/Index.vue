@@ -1,6 +1,9 @@
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     templates: { type: Array, required: true },
@@ -24,7 +27,7 @@ const bgStyle = (tpl) => {
         : { background: side?.value || '#1e3a8a' };
 };
 
-const formatDate = (d) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+const formatDate = (d) => school.fmtDate(d);
 </script>
 
 <template>

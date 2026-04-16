@@ -3,6 +3,9 @@ import Button from '@/Components/ui/Button.vue';
 import { ref, watch } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     date:       { type: String, default: '' },
@@ -13,7 +16,7 @@ const props = defineProps({
     mail:       { type: Object, default: () => ({}) },
 });
 
-const selectedDate = ref(props.date || new Date().toISOString().slice(0, 10));
+const selectedDate = ref(props.date || school.today());
 
 const onDateChange = () => {
     router.get('/school/front-office/daily-report', {
@@ -26,12 +29,7 @@ const onDateChange = () => {
 
 watch(selectedDate, onDateChange);
 
-const formatDate = (d) => {
-    if (!d) return '';
-    return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', {
-        weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
-    });
-};
+const formatDate = (d) => school.fmtDate(d);
 
 const priorityBadge = (priority) => {
     const map = {

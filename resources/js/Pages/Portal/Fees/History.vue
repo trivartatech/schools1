@@ -3,6 +3,9 @@ import { ref, computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     payments: { type: Object, default: () => ({ data: [] }) },
@@ -156,7 +159,7 @@ const modeBadge = (mode) => ({
                                         {{ o.status }}
                                     </span>
                                 </td>
-                                <td class="px-4 py-3 text-gray-500 text-xs">{{ new Date(o.created_at).toLocaleDateString('en-IN') }}</td>
+                                <td class="px-4 py-3 text-gray-500 text-xs">{{ school.fmtDate(o.created_at) }}</td>
                                 <td class="px-4 py-3 font-mono text-xs text-gray-400">{{ o.gateway_payment_id ?? '—' }}</td>
                             </tr>
                             <tr v-if="!orders.data?.length">

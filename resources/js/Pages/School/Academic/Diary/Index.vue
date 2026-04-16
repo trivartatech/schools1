@@ -6,6 +6,9 @@ import { ref, computed, onMounted } from 'vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import ExportDropdown from '@/Components/ExportDropdown.vue';
 import axios from 'axios';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     diaries: Object,
@@ -58,13 +61,7 @@ const deleteEntry = (id) => {
     }
 };
 
-const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-    });
-};
+const formatDate = (date) => school.fmtDate(date);
 
 // ── View Mode: list | calendar ─────────────────────────────
 const viewMode = ref('list');
