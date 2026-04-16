@@ -31,6 +31,7 @@ use App\Models\Leave;
 use App\Models\Staff;
 use App\Models\StaffAttendance;
 use App\Services\FeeService;
+use App\Services\TeacherScopeService;
 use Illuminate\Validation\Rule;
 use App\Services\RazorpayService;
 use Illuminate\Http\JsonResponse;
@@ -76,6 +77,7 @@ class MobileApiController extends Controller
 
     public function studentList(Request $request): JsonResponse
     {
+        $user    = $request->user();
         $school  = app('current_school');
         $search  = $request->input('search', '');
         $classId = $request->input('class_id');
@@ -93,6 +95,17 @@ class MobileApiController extends Controller
             ->leftJoin('course_classes as cc', 'cc.id', '=', 'sah.class_id')
             ->leftJoin('sections as sec', 'sec.id', '=', 'sah.section_id')
             ->leftJoin('users as u', 'u.id', '=', 'students.user_id');
+
+        // Teachers only see students from their assigned classes/sections
+        if ($user->isTeacher()) {
+            $scope = app(TeacherScopeService::class)->for($user);
+            if ($scope->restricted) {
+                if ($scope->sectionIds->isEmpty()) {
+                    return response()->json(['data' => [], 'total' => 0, 'current_page' => 1, 'last_page' => 1]);
+                }
+                $query->whereIn('sah.section_id', $scope->sectionIds);
+            }
+        }
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -135,6 +148,7 @@ class MobileApiController extends Controller
 
     public function studentDetail(Request $request, int $id): JsonResponse
     {
+        $user   = $request->user();
         $school = app('current_school');
         $yearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
 
@@ -157,6 +171,18 @@ class MobileApiController extends Controller
             ->orderByDesc('sah.id')
             ->select('cc.name as class_name', 'sec.name as section_name', 'sah.class_id', 'sah.section_id')
             ->first();
+
+        // Teachers: verify the student belongs to one of their assigned sections
+        if ($user->isTeacher()) {
+            $scope = app(TeacherScopeService::class)->for($user);
+            if ($scope->restricted && $history) {
+                if (! $scope->sectionIds->contains($history->section_id)) {
+                    return response()->json(['message' => 'You are not authorized to view this student.'], 403);
+                }
+            } elseif ($scope->restricted && ! $history) {
+                return response()->json(['message' => 'You are not authorized to view this student.'], 403);
+            }
+        }
 
         // Attendance summary (current academic year)
         $attTotal   = 0;
@@ -313,6 +339,9 @@ class MobileApiController extends Controller
             'status'          => $alloc->status,
         ] : null;
 
+        // Teachers do not see sensitive PII (Aadhaar, religion, caste, category)
+        $isTeacher = $user->isTeacher();
+
         return response()->json([
             'student' => [
                 'id'                       => $student->id,
@@ -327,10 +356,10 @@ class MobileApiController extends Controller
                 'dob'                      => $student->dob,
                 'gender'                   => $student->gender,
                 'blood_group'              => $student->blood_group,
-                'religion'                 => $student->religion,
-                'caste'                    => $student->caste,
-                'category'                 => $student->category,
-                'aadhaar_no'               => $student->aadhaar_no,
+                'religion'                 => $isTeacher ? null : $student->religion,
+                'caste'                    => $isTeacher ? null : $student->caste,
+                'category'                 => $isTeacher ? null : $student->category,
+                'aadhaar_no'               => $isTeacher ? null : $student->aadhaar_no,
                 'nationality'              => $student->nationality,
                 'mother_tongue'            => $student->mother_tongue,
                 'birth_place'              => $student->birth_place,
@@ -385,20 +414,41 @@ class MobileApiController extends Controller
 
     public function classOptions(Request $request): JsonResponse
     {
-        $school  = app('current_school');
-        $classes = \App\Models\CourseClass::where('school_id', $school->id)
+        $user   = $request->user();
+        $school = app('current_school');
+
+        $classQuery = \App\Models\CourseClass::where('school_id', $school->id)
             ->orderBy('numeric_value')
-            ->orderBy('name')
-            ->get(['id', 'name', 'numeric_value'])
-            ->map(fn($c) => [
-                'id'       => $c->id,
-                'name'     => $c->name,
-                'sections' => \App\Models\Section::where('course_class_id', $c->id)
+            ->orderBy('name');
+
+        // Teachers only see their assigned classes/sections
+        $teacherSectionIds = null;
+        if ($user->isTeacher()) {
+            $scope = app(TeacherScopeService::class)->for($user);
+            if ($scope->restricted) {
+                if ($scope->classIds->isEmpty()) {
+                    return response()->json(['classes' => []]);
+                }
+                $classQuery->whereIn('id', $scope->classIds);
+                $teacherSectionIds = $scope->sectionIds;
+            }
+        }
+
+        $classes = $classQuery->get(['id', 'name', 'numeric_value'])
+            ->map(function ($c) use ($teacherSectionIds) {
+                $sectionQuery = \App\Models\Section::where('course_class_id', $c->id)
                     ->orderBy('sort_order')
-                    ->orderBy('name')
-                    ->get(['id', 'name', 'sort_order'])
-                    ->map(fn($s) => ['id' => $s->id, 'name' => $s->name]),
-            ]);
+                    ->orderBy('name');
+                if ($teacherSectionIds !== null) {
+                    $sectionQuery->whereIn('id', $teacherSectionIds);
+                }
+                return [
+                    'id'       => $c->id,
+                    'name'     => $c->name,
+                    'sections' => $sectionQuery->get(['id', 'name', 'sort_order'])
+                        ->map(fn($s) => ['id' => $s->id, 'name' => $s->name]),
+                ];
+            });
 
         return response()->json(['classes' => $classes]);
     }
@@ -1227,9 +1277,15 @@ class MobileApiController extends Controller
         }
 
         if ($user->isTeacher()) {
+            $scope          = app(TeacherScopeService::class)->for($user);
+            $studentCount   = Student::where('school_id', $school->id)
+                ->when($scope->restricted && $scope->sectionIds->isNotEmpty(), function ($q) use ($scope) {
+                    $q->whereHas('academicHistories', fn($ah) => $ah->whereIn('section_id', $scope->sectionIds));
+                })
+                ->count();
             return [
                 'classes_today'  => 0,
-                'total_students' => Student::where('school_id', $school->id)->count(),
+                'total_students' => $studentCount,
                 'pending_marks'  => 0,
                 'leave_requests' => 0,
             ];
@@ -1465,8 +1521,20 @@ class MobileApiController extends Controller
             $childIds = $parent->students()->pluck('id');
             if ($childIds->isEmpty()) return response()->json(['leaves' => [], 'summary' => []]);
             $query->whereIn('student_id', $childIds);
+        } elseif ($user->isTeacher()) {
+            // Teachers only see leaves for students in their assigned sections
+            $scope = app(TeacherScopeService::class)->for($user);
+            if ($scope->restricted) {
+                if ($scope->sectionIds->isEmpty()) {
+                    return response()->json(['leaves' => [], 'summary' => ['total' => 0, 'pending' => 0, 'approved' => 0, 'rejected' => 0], 'total' => 0, 'page' => 1]);
+                }
+                $studentIdsInScope = StudentAcademicHistory::where('school_id', $school->id)
+                    ->whereIn('section_id', $scope->sectionIds)
+                    ->pluck('student_id');
+                $query->whereIn('student_id', $studentIdsInScope);
+            }
         }
-        // Admin/teacher see all leaves for the school
+        // Admins see all leaves for the school
 
         // Filters
         if ($request->filled('status')) {
@@ -1487,6 +1555,14 @@ class MobileApiController extends Controller
             if ($parent) {
                 $childIds = $parent->students()->pluck('id');
                 $summaryQuery->whereIn('student_id', $childIds);
+            }
+        } elseif ($user->isTeacher()) {
+            $scope = app(TeacherScopeService::class)->for($user);
+            if ($scope->restricted && $scope->sectionIds->isNotEmpty()) {
+                $studentIdsInScope = StudentAcademicHistory::where('school_id', $school->id)
+                    ->whereIn('section_id', $scope->sectionIds)
+                    ->pluck('student_id');
+                $summaryQuery->whereIn('student_id', $studentIdsInScope);
             }
         }
 
@@ -3336,6 +3412,14 @@ class MobileApiController extends Controller
             return response()->json(['error' => "{$student->name} has no active academic record."], 400);
         }
 
+        // Teachers: verify the student is in one of their assigned sections
+        if ($user->isTeacher()) {
+            $scope = app(TeacherScopeService::class)->for($user);
+            if ($scope->restricted && ! $scope->sectionIds->contains($history->section_id)) {
+                return response()->json(['error' => 'You are not authorized to mark attendance for this student.'], 403);
+            }
+        }
+
         \App\Models\Attendance::updateOrCreate(
             [
                 'school_id'  => $school->id,
@@ -3592,6 +3676,7 @@ class MobileApiController extends Controller
      */
     public function attendanceReport(Request $request): JsonResponse
     {
+        $user      = $request->user();
         $school    = app('current_school');
         $yearId    = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
         $classId   = $request->input('class_id');
@@ -3600,6 +3685,19 @@ class MobileApiController extends Controller
 
         if (!$classId) {
             return response()->json(['message' => 'class_id is required.'], 422);
+        }
+
+        // Teachers: verify they have access to the requested class/section
+        if ($user->isTeacher()) {
+            $scope = app(TeacherScopeService::class)->for($user);
+            if ($scope->restricted) {
+                if (! $scope->classIds->contains((int) $classId)) {
+                    return response()->json(['message' => 'You are not authorized to view this class.'], 403);
+                }
+                if ($sectionId && ! $scope->sectionIds->contains((int) $sectionId)) {
+                    return response()->json(['message' => 'You are not authorized to view this section.'], 403);
+                }
+            }
         }
 
         // Sanitize month format
@@ -4245,6 +4343,19 @@ class MobileApiController extends Controller
 
         $leave = StudentLeave::where('school_id', $school->id)->findOrFail($id);
 
+        // Teachers: verify the student belongs to their assigned section
+        if ($user->isTeacher()) {
+            $scope = app(TeacherScopeService::class)->for($user);
+            if ($scope->restricted) {
+                $studentSection = StudentAcademicHistory::where('student_id', $leave->student_id)
+                    ->where('school_id', $school->id)
+                    ->orderByDesc('id')->value('section_id');
+                if (! $scope->sectionIds->contains($studentSection)) {
+                    return response()->json(['message' => 'You are not authorized to approve this leave.'], 403);
+                }
+            }
+        }
+
         if ($leave->status !== 'pending') {
             return response()->json(['message' => 'Leave is not in pending state.'], 422);
         }
@@ -4275,6 +4386,19 @@ class MobileApiController extends Controller
         }
 
         $leave = StudentLeave::where('school_id', $school->id)->findOrFail($id);
+
+        // Teachers: verify the student belongs to their assigned section
+        if ($user->isTeacher()) {
+            $scope = app(TeacherScopeService::class)->for($user);
+            if ($scope->restricted) {
+                $studentSection = StudentAcademicHistory::where('student_id', $leave->student_id)
+                    ->where('school_id', $school->id)
+                    ->orderByDesc('id')->value('section_id');
+                if (! $scope->sectionIds->contains($studentSection)) {
+                    return response()->json(['message' => 'You are not authorized to reject this leave.'], 403);
+                }
+            }
+        }
 
         if ($leave->status !== 'pending') {
             return response()->json(['message' => 'Leave is not in pending state.'], 422);
