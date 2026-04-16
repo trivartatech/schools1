@@ -399,7 +399,7 @@ const activeTab = ref('admissions')
                         <span class="hero-exam-unit" v-if="nextExam.days_left > 0">days left</span>
                         <span class="hero-exam-unit" v-else>TODAY</span>
                     </div>
-                    <div class="hero-exam-date">{{ nextExam.date }}</div>
+                    <div class="hero-exam-date">{{ schoolStore.fmtDate(nextExam.date) }}</div>
                 </div>
                 <div class="hero-fee-box">
                     <div class="hero-fee-tag">FEE COLLECTED TODAY</div>

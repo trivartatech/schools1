@@ -6,6 +6,9 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import WebcamCapture from '@/Components/WebcamCapture.vue';
 import VisitorPassCard from '@/Components/VisitorPassCard.vue';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     visitors: Object,
@@ -105,7 +108,7 @@ function viewPass(visitor) {
                     </thead>
                     <tbody>
                         <tr v-for="v in visitors.data" :key="v.id">
-                            <td style="font-weight: 500;">{{ v.date }}</td>
+                            <td style="font-weight: 500;">{{ school.fmtDate(v.date) }}</td>
                             <td>
                                 <div style="font-weight: 600;">{{ v.visitor_name }}
                                     <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 400;">({{ v.visitor_count }} pax)</span>

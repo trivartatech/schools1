@@ -5,6 +5,9 @@ import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     feePayments: Array,
@@ -136,7 +139,7 @@ const formatCurrency = (amount) => {
         <!-- Print Header -->
         <div class="hidden print:block mb-6 text-center">
             <h1 class="text-2xl font-bold">Cash Register (Day Book)</h1>
-            <p class="text-lg">Period: {{ filterForm.start_date }} to {{ filterForm.end_date }}</p>
+            <p class="text-lg">Period: {{ school.fmtDate(filterForm.start_date) }} to {{ school.fmtDate(filterForm.end_date) }}</p>
             <div class="flex justify-between font-bold border-b-2 border-black mt-4 pb-2">
                 <span>Total Receipts: {{ formatCurrency(summary.total_inflow) }}</span>
                 <span>Total Payments: {{ formatCurrency(summary.total_outflow) }}</span>

@@ -4,6 +4,7 @@ import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const props = defineProps({
     channels:             Object,   // { sms: bool, whatsapp: bool, voice: bool, email: bool }
@@ -15,6 +16,8 @@ const props = defineProps({
 });
 
 /* ── helpers ─────────────────────────────────────────────────── */
+const school = useSchoolStore();
+
 const deliveryRate = (ch) => {
     if (!ch || ch.total === 0) return 0;
     return Math.round((ch.delivered / ch.total) * 100);
@@ -55,10 +58,7 @@ const methodBadgeColor = (method) => {
 
 const formatSchedule = (dateStr) => {
     if (!dateStr) return 'Not scheduled';
-    return new Date(dateStr).toLocaleString('en-IN', {
-        day: '2-digit', month: 'short', year: 'numeric',
-        hour: '2-digit', minute: '2-digit',
-    });
+    return school.fmtDateTime(dateStr);
 };
 
 const channelList = computed(() => [

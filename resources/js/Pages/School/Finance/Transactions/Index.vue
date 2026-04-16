@@ -6,6 +6,9 @@ import { router, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import ExportDropdown from '@/Components/ExportDropdown.vue';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     transactions : Object,   // paginated
@@ -149,7 +152,7 @@ const statusClass = {
                                     {{ t.transaction_no }}
                                 </Link>
                             </td>
-                            <td class="mono date-col">{{ t.date }}</td>
+                            <td class="mono date-col">{{ school.fmtDate(t.date) }}</td>
                             <td>
                                 <span class="type-pill" :class="typeColors[t.type]">{{ t.type }}</span>
                             </td>

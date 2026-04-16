@@ -5,8 +5,10 @@ import { useForm, router, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useToast } from '@/Composables/useToast';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const toast = useToast();
+const school = useSchoolStore();
 
 const props = defineProps({
     announcements: { type: Object, required: true },
@@ -372,9 +374,9 @@ const selectedTemplateContent = computed(() => {
                                             <span class="badge" :class="methodBadge(item.delivery_method)" style="text-transform:uppercase;">
                                                 {{ item.delivery_method }}
                                             </span>
-                                            <span style="font-size:.72rem;color:var(--text-muted);">{{ new Date(item.created_at).toLocaleString() }}</span>
+                                            <span style="font-size:.72rem;color:var(--text-muted);">{{ school.fmtDateTime(item.created_at) }}</span>
                                             <div v-if="item.scheduled_at && !item.is_broadcasted" style="font-size:.72rem;color:var(--accent);font-weight:600;">
-                                                Scheduled: {{ new Date(item.scheduled_at).toLocaleString() }}
+                                                Scheduled: {{ school.fmtDateTime(item.scheduled_at) }}
                                             </div>
                                         </div>
                                     </td>
@@ -395,7 +397,7 @@ const selectedTemplateContent = computed(() => {
                                                 {{ item.broadcast_error.message }}
                                             </div>
                                             <div v-if="item.failed_at" style="font-size:.68rem;color:var(--text-muted);font-style:italic;margin-top:4px;">
-                                                Occurred: {{ new Date(item.failed_at).toLocaleString() }}
+                                                Occurred: {{ school.fmtDateTime(item.failed_at) }}
                                             </div>
                                         </div>
                                         <span v-else-if="item.is_broadcasted" class="badge badge-green">Sent successfully</span>

@@ -4,10 +4,13 @@ import { computed } from 'vue';
 import { router, Link, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const props = defineProps({
     transaction : Object,
 });
+
+const school = useSchoolStore();
 
 const debitLines  = computed(() => props.transaction.lines.filter(l => l.type === 'debit'));
 const creditLines = computed(() => props.transaction.lines.filter(l => l.type === 'credit'));
@@ -63,7 +66,7 @@ const typeBg = {
                 </Link>
                 <div>
                     <h1 class="page-header-title">{{ transaction.transaction_no }}</h1>
-                    <p class="page-header-sub">{{ transaction.date }} &bull; {{ transaction.academic_year?.name }}</p>
+                    <p class="page-header-sub">{{ school.fmtDate(transaction.date) }} &bull; {{ transaction.academic_year?.name }}</p>
                 </div>
             </div>
             <div style="display:flex; gap:10px; align-items:center;">
@@ -108,7 +111,7 @@ const typeBg = {
                 <div class="voucher-meta">
                     <div class="meta-item">
                         <span class="meta-label">Date</span>
-                        <span class="meta-value">{{ transaction.date }}</span>
+                        <span class="meta-value">{{ school.fmtDate(transaction.date) }}</span>
                     </div>
                     <div class="meta-item">
                         <span class="meta-label">Reference</span>

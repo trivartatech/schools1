@@ -6,6 +6,7 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const props = defineProps({
     onlineClasses:     Object,
@@ -231,12 +232,10 @@ const filteredMaterials = computed(() => {
 });
 
 // ── Display helpers ───────────────────────────────────────
-const formatDate = (d) => new Date(d).toLocaleString('en-IN', {
-    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
-});
-const formatDateFull = (d) => new Date(d).toLocaleString('en-IN', {
-    weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-});
+const school = useSchoolStore();
+
+const formatDate     = (d) => school.fmtDateTime(d);
+const formatDateFull = (d) => school.fmtDateTime(d);
 
 const typeLabel = (t) => ({ pdf:'PDF', ppt:'PowerPoint', video:'Video', image:'Image', doc:'Document' })[t] ?? t;
 

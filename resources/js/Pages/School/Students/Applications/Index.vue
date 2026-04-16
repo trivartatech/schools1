@@ -4,6 +4,9 @@ import { ref, computed } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     applications: { type: Object, required: true }, // paginated: { data, total, links, ... }
@@ -119,7 +122,7 @@ const statusBadge = (status) => {
                                     </div>
                                     <div>
                                         <p style="font-size:0.875rem;font-weight:600;color:#111827;">{{ app.first_name }} {{ app.last_name }}</p>
-                                        <p style="font-size:0.75rem;color:#9ca3af;">{{ app.gender }} · {{ app.dob }}</p>
+                                        <p style="font-size:0.75rem;color:#9ca3af;">{{ app.gender }} · {{ school.fmtDate(app.dob) }}</p>
                                     </div>
                                 </div>
                             </td>
@@ -128,7 +131,7 @@ const statusBadge = (status) => {
                                 <span v-if="app.section" style="color:#9ca3af;">/ {{ app.section.name }}</span>
                             </td>
                             <td style="font-family:monospace;">{{ app.primary_phone }}</td>
-                            <td>{{ app.submitted_at?.split('T')[0] ?? '—' }}</td>
+                            <td>{{ school.fmtDate(app.submitted_at) || '—' }}</td>
                             <td>
                                 <span :class="{
                                     'badge badge-amber': app.status === 'pending',

@@ -3,6 +3,7 @@ import Button from '@/Components/ui/Button.vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref, computed } from 'vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const props = defineProps({
     materials: Object,     // paginated LearningMaterial[]
@@ -81,10 +82,9 @@ const classStatus = (c) => {
     return 'past';
 };
 
-const formatDT = (d) => new Date(d).toLocaleString('en-IN', {
-    day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
-});
+const school = useSchoolStore();
+
+const formatDT = (d) => school.fmtDateTime(d);
 
 const platformIcon = (p) => {
     if (!p) return '🎥';

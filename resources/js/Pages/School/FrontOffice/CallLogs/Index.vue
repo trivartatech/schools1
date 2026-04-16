@@ -171,7 +171,7 @@ const filteredLogs = computed(() => {
                             <a :href="`tel:${log.phone_number}`" class="badge badge-blue" style="font-family:monospace;">{{ log.phone_number }}</a>
                             <span class="badge badge-gray">{{ log.purpose }}</span>
                             <span class="timeline-date">
-                                {{ new Date(log.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) }}
+                                {{ school.fmtDateTime(log.created_at) }}
                             </span>
                         </div>
 

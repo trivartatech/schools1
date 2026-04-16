@@ -4,6 +4,9 @@ import { ref, computed } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     ledger  : Object,
@@ -148,7 +151,7 @@ const fmtCur = (n) => '₹' + fmt(n);
                         </tr>
 
                         <tr v-for="r in rows" :key="r.id">
-                            <td class="mono">{{ r.date }}</td>
+                            <td class="mono">{{ school.fmtDate(r.date) }}</td>
                             <td>
                                 <!-- FIX #5/#6: use integer transaction_id for route model binding -->
                                 <Link :href="route('school.finance.transactions.show', r.transaction_id)" class="txn-link">

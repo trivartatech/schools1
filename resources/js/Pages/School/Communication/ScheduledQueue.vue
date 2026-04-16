@@ -3,10 +3,13 @@ import { ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
 defineProps({
     scheduled: Object,
 });
+
+const school = useSchoolStore();
 
 const expandedError = ref(null);
 
@@ -38,13 +41,7 @@ const retryMessage = (id) => {
 
 const formatDate = (dateStr) => {
     if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleString('en-IN', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
+    return school.fmtDateTime(dateStr);
 };
 
 const methodColor = (method) => {

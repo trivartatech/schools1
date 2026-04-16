@@ -1,11 +1,14 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import QRCode from 'qrcode';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const props = defineProps({
     gatePass: { type: Object, required: true },
     baseUrl: { type: String, default: () => window.location.origin }
 });
+
+const school = useSchoolStore();
 
 const qrDataUrl = ref('');
 const printRef = ref(null);
@@ -64,8 +67,8 @@ function printPass() {
                     <tr><td class="text-gray-500 pr-3 py-1">Student</td><td class="font-semibold">{{ gatePass.student?.first_name }} {{ gatePass.student?.last_name }}</td></tr>
                     <tr><td class="text-gray-500 pr-3 py-1">Leave Type</td><td>{{ gatePass.leave_type }}</td></tr>
                     <tr><td class="text-gray-500 pr-3 py-1">Destination</td><td>{{ gatePass.destination || 'N/A' }}</td></tr>
-                    <tr><td class="text-gray-500 pr-3 py-1">Out Time</td><td>{{ gatePass.from_date?.slice(0,16) }}</td></tr>
-                    <tr><td class="text-gray-500 pr-3 py-1">Return By</td><td>{{ gatePass.to_date?.slice(0,16) }}</td></tr>
+                    <tr><td class="text-gray-500 pr-3 py-1">Out Time</td><td>{{ school.fmtDateTime(gatePass.from_date) }}</td></tr>
+                    <tr><td class="text-gray-500 pr-3 py-1">Return By</td><td>{{ school.fmtDateTime(gatePass.to_date) }}</td></tr>
                     <tr v-if="gatePass.escort_name"><td class="text-gray-500 pr-3 py-1">Escort</td><td>{{ gatePass.escort_name }} ({{ gatePass.escort_relation }})</td></tr>
                     <tr v-if="gatePass.escort_phone"><td class="text-gray-500 pr-3 py-1">Escort Ph.</td><td>{{ gatePass.escort_phone }}</td></tr>
                     <tr v-if="gatePass.escort_id_proof_type"><td class="text-gray-500 pr-3 py-1">ID Proof</td><td>{{ gatePass.escort_id_proof_type }}</td></tr>
@@ -82,7 +85,7 @@ function printPass() {
                 </div>
 
                 <div class="footer mt-3 text-center text-xs text-gray-400">
-                    Valid until {{ gatePass.to_date?.slice(0,10) }} &nbsp;·&nbsp; Token: {{ gatePass.pass_token?.slice(0,8) }}...
+                    Valid until {{ school.fmtDate(gatePass.to_date) }} &nbsp;·&nbsp; Token: {{ gatePass.pass_token?.slice(0,8) }}...
                 </div>
             </div>
         </div>

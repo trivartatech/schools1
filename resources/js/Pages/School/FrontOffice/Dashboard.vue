@@ -2,6 +2,7 @@
 import Button from '@/Components/ui/Button.vue';
 import { Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const props = defineProps({
     stats: { type: Object, default: () => ({}) },
@@ -62,13 +63,11 @@ const statusBadge = (status) => {
     return map[status?.toLowerCase()] || 'badge-gray';
 };
 
+const school = useSchoolStore();
+
 const formatTime = (t) => {
     if (!t) return '';
-    const d = new Date(t);
-    return d.toLocaleString('en-IN', {
-        day: '2-digit', month: 'short',
-        hour: '2-digit', minute: '2-digit',
-    });
+    return school.fmtDateTime(t);
 };
 </script>
 

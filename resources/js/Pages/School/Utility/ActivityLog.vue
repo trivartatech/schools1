@@ -5,6 +5,7 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
 import Table from '@/Components/ui/Table.vue';
 import debounce from 'lodash/debounce';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const props = defineProps({
     logs: { type: Object, default: () => ({}) },
@@ -34,13 +35,11 @@ const resetFilters = () => {
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────
+const school = useSchoolStore();
+
 const formatTime = (dateStr) => {
     if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toLocaleString('en-IN', {
-        day: '2-digit', month: 'short', year: 'numeric',
-        hour: '2-digit', minute: '2-digit', hour12: true
-    });
+    return school.fmtDateTime(dateStr);
 };
 
 const getEventColor = (logName) => {

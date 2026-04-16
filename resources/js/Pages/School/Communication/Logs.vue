@@ -4,6 +4,7 @@ import { Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const props = defineProps({
     logs: { type: Object, default: () => ({ data: [], links: [], meta: {} }) },
@@ -35,6 +36,8 @@ const resetFilters = () => {
 const hasActive = () => !!(filterForm.value.type || filterForm.value.status || filterForm.value.search || filterForm.value.from || filterForm.value.to_date);
 
 // ── Helpers ─────────────────────────────────────────────────────────────
+const school = useSchoolStore();
+
 const truncate = (str, len = 60) => {
     if (!str) return '';
     return str.length > len ? str.substring(0, len) + '...' : str;
@@ -42,11 +45,7 @@ const truncate = (str, len = 60) => {
 
 const formatDateTime = (dateStr) => {
     if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toLocaleString('en-IN', {
-        day: '2-digit', month: 'short', year: 'numeric',
-        hour: '2-digit', minute: '2-digit', hour12: true,
-    });
+    return school.fmtDateTime(dateStr);
 };
 
 const typeBadgeClass = (type) => {

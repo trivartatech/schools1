@@ -4,6 +4,7 @@ import { useForm, Head, Link } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const props = defineProps({
     editRequest: Object,
@@ -14,6 +15,8 @@ const props = defineProps({
 const form = useForm({
     rejection_reason: ''
 });
+
+const school = useSchoolStore();
 
 const showRejectModal = ref(false);
 
@@ -39,7 +42,7 @@ const reject = () => {
             <div>
                 <h1 class="page-header-title">Review Edit Request</h1>
                 <p class="page-header-sub">
-                    Submitted by {{ editRequest.user.name }} on {{ new Date(editRequest.created_at).toLocaleString() }}
+                    Submitted by {{ editRequest.user.name }} on {{ school.fmtDateTime(editRequest.created_at) }}
                 </p>
             </div>
             <div class="header-actions" v-if="editRequest.status === 'pending'">

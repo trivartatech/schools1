@@ -1,11 +1,14 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import QRCode from 'qrcode';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const props = defineProps({
     visitor: { type: Object, required: true },
     baseUrl: { type: String, default: () => window.location.origin }
 });
+
+const school = useSchoolStore();
 
 const qrDataUrl = ref('');
 const printRef = ref(null);
@@ -66,7 +69,7 @@ function printPass() {
                     <tr><td class="text-gray-500 pr-3 py-1">Phone</td><td>{{ visitor.phone || 'N/A' }}</td></tr>
                     <tr><td class="text-gray-500 pr-3 py-1">Type</td><td>{{ visitor.visitor_type || 'General' }}</td></tr>
                     <tr><td class="text-gray-500 pr-3 py-1">Purpose</td><td>{{ visitor.purpose || 'N/A' }}</td></tr>
-                    <tr><td class="text-gray-500 pr-3 py-1">Date</td><td>{{ visitor.date }}</td></tr>
+                    <tr><td class="text-gray-500 pr-3 py-1">Date</td><td>{{ school.fmtDate(visitor.date) }}</td></tr>
                     <tr><td class="text-gray-500 pr-3 py-1">Entry</td><td>{{ visitor.in_time }}</td></tr>
                     <tr v-if="visitor.out_time"><td class="text-gray-500 pr-3 py-1">Exit</td><td>{{ visitor.out_time }}</td></tr>
                     <tr v-if="visitor.id_proof_type"><td class="text-gray-500 pr-3 py-1">ID Proof</td><td>{{ visitor.id_proof_type }}</td></tr>

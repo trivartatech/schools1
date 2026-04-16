@@ -92,7 +92,7 @@ const modeBadge = (mode) => ({
                                     {{ p.student?.first_name }} {{ p.student?.last_name }}
                                 </td>
                                 <td class="px-4 py-3 font-medium text-gray-900">{{ p.fee_head?.name ?? 'Fee' }}</td>
-                                <td class="px-4 py-3 text-gray-500">{{ p.payment_date }}</td>
+                                <td class="px-4 py-3 text-gray-500">{{ school.fmtDate(p.payment_date) }}</td>
                                 <td class="px-4 py-3 text-center">
                                     <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize" :class="modeBadge(p.payment_mode)">
                                         {{ p.payment_mode }}
