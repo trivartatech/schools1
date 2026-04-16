@@ -33,6 +33,34 @@ class ExamResultController extends Controller
             'section_id'       => 'required|exists:sections,id',
         ]);
 
+        return response()->json(
+            $this->buildResultData(
+                (int) $request->exam_schedule_id,
+                (int) $request->section_id
+            )
+        );
+    }
+
+    public function print(Request $request)
+    {
+        $request->validate([
+            'exam_schedule_id' => 'required|exists:exam_schedules,id',
+            'section_id'       => 'required|exists:sections,id',
+        ]);
+
+        $result = $this->buildResultData(
+            (int) $request->exam_schedule_id,
+            (int) $request->section_id
+        );
+
+        return Inertia::render('School/Examinations/Results/Print', array_merge($result, [
+            'schoolInfo'   => app('current_school'),
+            'academicYear' => app('current_academic_year')->name,
+        ]));
+    }
+
+    private function buildResultData(int $scheduleId, int $sectionId): array
+    {
         $schoolId       = app('current_school_id');
         $academicYearId = app('current_academic_year_id');
 
@@ -43,20 +71,20 @@ class ExamResultController extends Controller
                 ->with(['subject', 'examAssessment.items', 'markConfigs']),
         ])
         ->where('school_id', $schoolId)
-        ->findOrFail($request->exam_schedule_id);
+        ->findOrFail($scheduleId);
 
-        $section = Section::where('school_id', $schoolId)->findOrFail($request->section_id);
+        $section = Section::where('school_id', $schoolId)->findOrFail($sectionId);
 
         // Students sorted by roll_no from the current-year history for this section.
         $students = Student::with(['academicHistories' => fn($q) =>
                 $q->where('academic_year_id', $academicYearId)
-                  ->where('section_id', $request->section_id)
+                  ->where('section_id', $sectionId)
             ])
             ->where('school_id', $schoolId)
             ->whereHas('academicHistories', fn($q) =>
                 $q->where('academic_year_id', $academicYearId)
                   ->where('class_id', $schedule->course_class_id)
-                  ->where('section_id', $request->section_id)
+                  ->where('section_id', $sectionId)
             )
             ->where('status', 'active')
             ->get()
@@ -66,7 +94,7 @@ class ExamResultController extends Controller
             })
             ->values();
 
-        $students->each(function ($s) {
+        $students->each(function ($s) use ($sectionId) {
             $s->roll_no = $s->academicHistories->first()?->roll_no;
         });
 
@@ -118,7 +146,6 @@ class ExamResultController extends Controller
 
                 $pct        = (!$absent && $max > 0) ? round(($obtained / $max) * 100, 1) : null;
                 $passMarks  = $subjectPassMap[$ss->id] ?? 0;
-                // Use configured passing marks when available; fall back to 33 %.
                 $subjectFail = !$absent && $pct !== null && (
                     $passMarks > 0 ? $obtained < $passMarks : $pct < 33
                 );
@@ -184,7 +211,7 @@ class ExamResultController extends Controller
             'topper'  => $topperRow ? $topperRow['name'] : null,
         ];
 
-        return response()->json([
+        return [
             'schedule' => [
                 'id'         => $schedule->id,
                 'name'       => $schedule->examType->name ?? '',
@@ -197,6 +224,6 @@ class ExamResultController extends Controller
             ])->values(),
             'rows'     => array_values($rows),
             'stats'    => $stats,
-        ]);
+        ];
     }
 }

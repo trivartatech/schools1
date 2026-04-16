@@ -542,8 +542,15 @@ Route::middleware('auth')->group(function () {
 
             // Exam Results (class-wise result sheet with ranks)
             $ER = \App\Http\Controllers\School\ExamResultController::class;
-            Route::get('exam-results',      [$ER, 'index']) ->name('exam-results.index');
-            Route::get('exam-results/data', [$ER, 'data'])  ->name('exam-results.data');
+            Route::get('exam-results',       [$ER, 'index']) ->name('exam-results.index');
+            Route::get('exam-results/data',  [$ER, 'data'])  ->name('exam-results.data');
+            Route::get('exam-results/print', [$ER, 'print']) ->name('exam-results.print');
+
+            // Mark Summary Report (assessment-item level breakdown across all students)
+            $MS = \App\Http\Controllers\School\ExamMarkSummaryController::class;
+            Route::get('exam-mark-summary',       [$MS, 'index']) ->name('exam-mark-summary.index');
+            Route::get('exam-mark-summary/data',  [$MS, 'data'])  ->name('exam-mark-summary.data');
+            Route::get('exam-mark-summary/print', [$MS, 'print']) ->name('exam-mark-summary.print');
 
             // Marks & Grades
             Route::get('exam-marks/students', [\App\Http\Controllers\School\ExamMarkController::class, 'students'])->name('exam-marks.students');

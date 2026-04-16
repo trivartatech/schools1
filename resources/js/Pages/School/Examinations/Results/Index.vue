@@ -107,6 +107,12 @@ function openPrint() {
     const url = `/school/report-cards/print?exam_schedule_id=${selectedScheduleId.value}&section_id=${selectedSectionId.value}&student_ids=${ids}&use_weightage=0`;
     window.open(url, '_blank');
 }
+
+function openResultsPrint() {
+    const url = route('school.exam-results.print') +
+        `?exam_schedule_id=${selectedScheduleId.value}&section_id=${selectedSectionId.value}`;
+    window.open(url, '_blank');
+}
 </script>
 
 <template>
@@ -119,6 +125,9 @@ function openPrint() {
                 <h1 class="page-header-title">Exam Results</h1>
                 <p class="page-header-sub">Class-wise result sheet — rank, marks per subject, pass/fail status.</p>
             </div>
+            <Button v-if="result" variant="secondary" @click="openResultsPrint" style="margin-right:8px;">
+                Print Result Sheet
+            </Button>
             <Button v-if="result" @click="openPrint">
                 Print Report Cards
             </Button>
