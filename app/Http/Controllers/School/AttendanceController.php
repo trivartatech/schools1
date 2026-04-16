@@ -64,6 +64,7 @@ class AttendanceController extends Controller
 
             $students = $historyQuery->orderBy('roll_no')
                 ->get()
+                ->filter(fn($h) => $h->student !== null)
                 ->map(fn($h) => [
                     'id'           => $h->student->id,
                     'name'         => $h->student->first_name . ' ' . $h->student->last_name,
@@ -278,6 +279,7 @@ class AttendanceController extends Controller
             $markedDays   = 0;
 
             foreach ($histories as $h) {
+                if ($h->student === null) continue;
                 $sid    = $h->student->id;
                 $rows   = $records->get($sid, collect());
                 $days   = [];
