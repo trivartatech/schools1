@@ -4,6 +4,9 @@ import FilterBar from '@/Components/ui/FilterBar.vue';
 import { reactive, ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     classes:           Array,
@@ -160,7 +163,7 @@ const STATUS_COLOR = { present: '#22c55e', absent: '#ef4444', late: '#eab308', h
                                 :class="['dw-row dw-row-clickable', expanded === row.date ? 'dw-row-expanded' : '']"
                                 @click="toggle(row.date)"
                             >
-                                <td class="date-cell">{{ row.date }}</td>
+                                <td class="date-cell">{{ school.fmtDate(row.date) }}</td>
                                 <td class="day-cell">{{ row.day }}</td>
                                 <td class="col-num"><span class="badge badge-green">{{ row.present }}</span></td>
                                 <td class="col-num"><span class="badge badge-red">{{ row.absent }}</span></td>
@@ -192,7 +195,7 @@ const STATUS_COLOR = { present: '#22c55e', absent: '#ef4444', late: '#eab308', h
                                             No class-wise data available.
                                         </div>
                                         <template v-else>
-                                            <div class="breakdown-header">Class-wise breakdown — {{ row.date }} ({{ row.day }})</div>
+                                            <div class="breakdown-header">Class-wise breakdown — {{ school.fmtDate(row.date) }} ({{ row.day }})</div>
                                             <table class="breakdown-table">
                                                 <thead>
                                                     <tr>
