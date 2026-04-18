@@ -809,6 +809,9 @@ Route::middleware('auth')->group(function () {
         // Inventory / Asset Management
         Route::middleware(['school.management:admin_only'])->group(function () {
             $INV = \App\Http\Controllers\School\InventoryController::class;
+            $SUP = \App\Http\Controllers\School\SupplierController::class;
+            $ISC = \App\Http\Controllers\School\ItemStoreController::class;
+
             Route::get('inventory',                                    [$INV, 'index'])              ->name('inventory.index');
             Route::post('inventory',                                   [$INV, 'store'])              ->name('inventory.store');
             Route::put('inventory/{asset}',                            [$INV, 'update'])             ->name('inventory.update');
@@ -816,7 +819,35 @@ Route::middleware('auth')->group(function () {
             Route::patch('inventory/{asset}/return',                   [$INV, 'returnAsset'])        ->name('inventory.return');
             Route::post('inventory/{asset}/maintenance',               [$INV, 'maintenance'])        ->name('inventory.maintenance');
             Route::patch('inventory/maintenance/{record}/resolve',     [$INV, 'resolveMaintenance']) ->name('inventory.maintenance.resolve');
+            Route::patch('inventory/maintenance/{record}/progress',    [$INV, 'markInProgress'])     ->name('inventory.maintenance.progress');
+            Route::patch('inventory/{asset}/dispose',                  [$INV, 'dispose'])            ->name('inventory.dispose');
+            // Static routes before {asset} to avoid route collision
+            Route::get('inventory/reports',                            [$INV, 'reports'])            ->name('inventory.reports');
+            Route::get('inventory/export',                             [$INV, 'export'])             ->name('inventory.export');
+            Route::get('inventory/import-template',                    [$INV, 'importTemplate'])     ->name('inventory.import-template');
+            Route::post('inventory/import',                            [$INV, 'import'])             ->name('inventory.import');
             Route::post('inventory/categories',                        [$INV, 'storeCategory'])      ->name('inventory.categories.store');
+            Route::put('inventory/categories/{category}',              [$INV, 'updateCategory'])     ->name('inventory.categories.update');
+            Route::delete('inventory/categories/{category}',           [$INV, 'destroyCategory'])    ->name('inventory.categories.destroy');
+            // Asset detail (must come after static /inventory/* routes)
+            Route::get('inventory/{asset}',                            [$INV, 'show'])               ->name('inventory.show');
+
+            // Suppliers
+            Route::get('inventory-suppliers',                          [$SUP, 'index'])              ->name('inventory.suppliers.index');
+            Route::post('inventory-suppliers',                         [$SUP, 'store'])              ->name('inventory.suppliers.store');
+            Route::put('inventory-suppliers/{supplier}',               [$SUP, 'update'])             ->name('inventory.suppliers.update');
+            Route::delete('inventory-suppliers/{supplier}',            [$SUP, 'destroy'])            ->name('inventory.suppliers.destroy');
+
+            // Item Stores — static before parameterised
+            Route::get('inventory-stores',                             [$ISC, 'index'])              ->name('inventory.stores.index');
+            Route::post('inventory-stores',                            [$ISC, 'storeStore'])         ->name('inventory.stores.store');
+            Route::put('inventory-stores/items/{item}',                [$ISC, 'updateItem'])         ->name('inventory.stores.items.update');
+            Route::delete('inventory-stores/items/{item}',             [$ISC, 'destroyItem'])        ->name('inventory.stores.items.destroy');
+            Route::post('inventory-stores/items/{item}/transaction',   [$ISC, 'transaction'])        ->name('inventory.stores.items.transaction');
+            Route::get('inventory-stores/{store}',                     [$ISC, 'show'])               ->name('inventory.stores.show');
+            Route::put('inventory-stores/{store}',                     [$ISC, 'updateStore'])        ->name('inventory.stores.update');
+            Route::delete('inventory-stores/{store}',                  [$ISC, 'destroyStore'])       ->name('inventory.stores.destroy');
+            Route::post('inventory-stores/{store}/items',              [$ISC, 'storeItem'])          ->name('inventory.stores.items.store');
         });
 
         // Staff History / Promotion / Transfer

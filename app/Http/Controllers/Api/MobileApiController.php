@@ -4674,4 +4674,87 @@ class MobileApiController extends Controller
               + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
         return $R * 2 * atan2(sqrt($a), sqrt(1 - $a));
     }
+
+    // ── Inventory ─────────────────────────────────────────────────────────
+
+    public function inventoryAssets(Request $request): JsonResponse
+    {
+        $school = app('current_school');
+
+        $query = \App\Models\Asset::where('school_id', $school->id)
+            ->with('category:id,name');
+
+        if ($request->filled('status'))   $query->where('status', $request->status);
+        if ($request->filled('category')) $query->where('category_id', $request->category);
+        if ($request->filled('q')) {
+            $q = $request->q;
+            $query->where(fn($x) => $x->where('name', 'like', "%$q%")
+                ->orWhere('asset_code', 'like', "%$q%")
+                ->orWhere('serial_no', 'like', "%$q%"));
+        }
+
+        $assets = $query->latest()->paginate(50)->through(fn($a) => [
+            'id'             => $a->id,
+            'name'           => $a->name,
+            'asset_code'     => $a->asset_code,
+            'brand'          => $a->brand,
+            'serial_no'      => $a->serial_no,
+            'category'       => $a->category?->name,
+            'purchase_cost'  => (float) $a->purchase_cost,
+            'condition'      => $a->condition,
+            'status'         => $a->status,
+            'warranty_until' => $a->warranty_until,
+        ]);
+
+        return response()->json($assets);
+    }
+
+    public function inventoryAsset(Request $request, int $id): JsonResponse
+    {
+        $school = app('current_school');
+
+        $asset = \App\Models\Asset::where('school_id', $school->id)
+            ->with([
+                'category:id,name',
+                'activeAssignment',
+                'maintenanceLogs' => fn($q) => $q->orderBy('reported_on', 'desc')->limit(10),
+            ])
+            ->findOrFail($id);
+
+        return response()->json([
+            'id'                  => $asset->id,
+            'name'                => $asset->name,
+            'asset_code'          => $asset->asset_code,
+            'brand'               => $asset->brand,
+            'model_no'            => $asset->model_no,
+            'serial_no'           => $asset->serial_no,
+            'category'            => $asset->category?->name,
+            'purchase_date'       => $asset->purchase_date?->format('Y-m-d'),
+            'purchase_cost'       => (float) $asset->purchase_cost,
+            'current_value'       => round($asset->current_value, 2),
+            'depreciation_method' => $asset->depreciation_method,
+            'useful_life_years'   => $asset->useful_life_years,
+            'condition'           => $asset->condition,
+            'status'              => $asset->status,
+            'warranty_until'      => $asset->warranty_until,
+            'supplier'            => $asset->supplier,
+            'notes'               => $asset->notes,
+            'disposed_on'         => $asset->disposed_on?->format('Y-m-d'),
+            'disposal_reason'     => $asset->disposal_reason,
+            'active_assignment'   => $asset->activeAssignment ? [
+                'location'      => $asset->activeAssignment->location,
+                'assignee_type' => $asset->activeAssignment->assignee_type,
+                'assignee_name' => $asset->activeAssignment->assignee_name,
+                'assigned_on'   => $asset->activeAssignment->assigned_on?->format('Y-m-d'),
+            ] : null,
+            'recent_maintenance'  => $asset->maintenanceLogs->map(fn($m) => [
+                'id'                => $m->id,
+                'type'              => $m->type,
+                'issue_description' => $m->issue_description,
+                'status'            => $m->status,
+                'cost'              => (float) $m->cost,
+                'reported_on'       => $m->reported_on?->format('Y-m-d'),
+            ]),
+        ]);
+    }
 }

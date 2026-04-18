@@ -224,6 +224,10 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     Route::get('/exam-marks/students',  [$EMC, 'students'])->name('api.mobile.exam-marks.students');
     Route::post('/exam-marks/save',     [$EMC, 'save'])->name('api.mobile.exam-marks.save');
 
+    // Inventory (admin-only read)
+    Route::get('/inventory',             [$MA, 'inventoryAssets'])->name('api.mobile.inventory');
+    Route::get('/inventory/{id}',        [$MA, 'inventoryAsset'])->whereNumber('id')->name('api.mobile.inventory.detail');
+
     // Staff Punch (self-service clock-in / clock-out with geotag)
     Route::get('/staff-punch/status',    [$MA, 'staffPunchStatus'])->name('api.mobile.staff-punch.status');
     Route::post('/staff-punch/clock-in', [$MA, 'staffPunchClockIn'])->name('api.mobile.staff-punch.clock-in');
