@@ -362,6 +362,7 @@ Route::middleware('auth')->group(function () {
         Route::middleware(['school.management', 'module:expense'])->group(function () {
             Route::resource('expense-categories', \App\Http\Controllers\School\Finance\ExpenseCategoryController::class)->except(['create', 'show', 'edit']);
             Route::resource('expenses', \App\Http\Controllers\School\Finance\ExpenseController::class)->except(['create', 'show', 'edit']);
+            Route::post('expenses/post-all-unposted', [\App\Http\Controllers\School\Finance\ExpenseController::class, 'postAllUnposted'])->name('expenses.post-all-unposted');
             Route::post('expenses/{expense}/post-gl', [\App\Http\Controllers\School\Finance\ExpenseController::class, 'postGl'])->name('expenses.post-gl');
         });
 

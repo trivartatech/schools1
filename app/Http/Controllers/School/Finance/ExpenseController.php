@@ -136,6 +136,31 @@ class ExpenseController extends Controller
     }
 
     /**
+     * POST /school/expenses/post-all-unposted
+     * Batch-post all unposted expenses for the current school/year to GL.
+     */
+    public function postAllUnposted()
+    {
+        $schoolId       = app('current_school_id');
+        $academicYearId = app('current_academic_year_id');
+        $service        = app(\App\Services\GlPostingService::class);
+
+        $expenses = Expense::where('school_id', $schoolId)
+            ->where('academic_year_id', $academicYearId)
+            ->whereNull('gl_transaction_id')
+            ->with('category')
+            ->get();
+
+        $posted = 0;
+        foreach ($expenses as $expense) {
+            $tx = $service->postExpense($expense);
+            if ($tx) $posted++;
+        }
+
+        return back()->with('success', "Posted {$posted} of {$expenses->count()} unposted expenses to GL.");
+    }
+
+    /**
      * POST /school/expenses/{expense}/post-gl
      * Manually post an expense to the General Ledger
      */

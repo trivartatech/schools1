@@ -107,6 +107,18 @@ const postToGl = (exp) => {
     router.post(route('school.expenses.post-gl', exp.id), {}, { preserveScroll: true });
 };
 
+const unpostedCount = computed(() => props.expenses.filter(e => !e.gl_transaction).length);
+
+const postingAll = ref(false);
+const postAllUnposted = () => {
+    if (!confirm(`Post ${unpostedCount.value} unposted expense(s) to the General Ledger?`)) return;
+    postingAll.value = true;
+    router.post(route('school.expenses.post-all-unposted'), {}, {
+        preserveScroll: true,
+        onFinish: () => { postingAll.value = false; },
+    });
+};
+
 const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount);
 };
@@ -125,6 +137,15 @@ const formatCurrency = (amount) => {
                     base-url="/school/export/expenses"
                     :params="{ category_id: filterForm.category_id, from_date: filterForm.from_date, to_date: filterForm.to_date }"
                 />
+                <Button
+                    v-if="unpostedCount > 0 && activeTab === 'list'"
+                    variant="warning"
+                    @click="postAllUnposted"
+                    :loading="postingAll"
+                    :title="`${unpostedCount} expense(s) not yet posted to GL`"
+                >
+                    Post All to GL ({{ unpostedCount }})
+                </Button>
                 <Button
                     @click="activeTab = 'list'"
                     :variant="activeTab === 'list' ? 'primary' : 'secondary'"

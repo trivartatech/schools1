@@ -5,11 +5,13 @@ namespace App\Services;
 use App\Models\Expense;
 use App\Models\FeePayment;
 use App\Models\Ledger;
+use App\Models\LedgerType;
 use App\Models\Payroll;
 use App\Models\School;
 use App\Models\Transaction;
 use App\Models\TransactionLine;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Central service for posting operational records (fee payments, expenses, payroll)
@@ -156,9 +158,53 @@ class GlPostingService
 
     // ── Internals ─────────────────────────────────────────────────────────────
 
+    /**
+     * Return school GL settings, auto-creating default ledgers if any mapping is missing.
+     * This mirrors ensureDefaultLedgers in GlConfigController so auto-posting never silently
+     * fails just because the admin hasn't visited the GL Config page yet.
+     */
     private function settings(int $schoolId): array
     {
-        return School::find($schoolId)?->settings ?? [];
+        $school   = School::find($schoolId);
+        $settings = $school?->settings ?? [];
+
+        $needsCash    = empty($settings['gl_cash_ledger_id']);
+        $needsIncome  = empty($settings['gl_fee_income_ledger_id']);
+        $needsExpense = empty($settings['gl_expense_ledger_id']);
+
+        if (! $needsCash && ! $needsIncome && ! $needsExpense) {
+            return $settings;
+        }
+
+        $changed = false;
+
+        if ($needsCash) {
+            $assetType  = LedgerType::firstOrCreate(['school_id' => $schoolId, 'name' => 'Asset'],   ['nature' => 'debit',  'is_system' => true]);
+            $cashLedger = Ledger::firstOrCreate(['school_id' => $schoolId, 'name' => 'Cash / Bank'], ['ledger_type_id' => $assetType->id, 'is_system' => true, 'is_active' => true, 'opening_balance' => 0, 'opening_balance_type' => 'debit']);
+            $settings['gl_cash_ledger_id'] = $cashLedger->id;
+            $changed = true;
+        }
+
+        if ($needsIncome) {
+            $incomeType   = LedgerType::firstOrCreate(['school_id' => $schoolId, 'name' => 'Income'],    ['nature' => 'credit', 'is_system' => true]);
+            $incomeLedger = Ledger::firstOrCreate(['school_id' => $schoolId, 'name' => 'Fee Income'],   ['ledger_type_id' => $incomeType->id, 'is_system' => true, 'is_active' => true, 'opening_balance' => 0, 'opening_balance_type' => 'credit']);
+            $settings['gl_fee_income_ledger_id'] = $incomeLedger->id;
+            $changed = true;
+        }
+
+        if ($needsExpense) {
+            $expenseType   = LedgerType::firstOrCreate(['school_id' => $schoolId, 'name' => 'Expense'],        ['nature' => 'debit',  'is_system' => true]);
+            $expenseLedger = Ledger::firstOrCreate(['school_id' => $schoolId, 'name' => 'General Expenses'], ['ledger_type_id' => $expenseType->id, 'is_system' => true, 'is_active' => true, 'opening_balance' => 0, 'opening_balance_type' => 'debit']);
+            $settings['gl_expense_ledger_id'] = $expenseLedger->id;
+            $changed = true;
+        }
+
+        if ($changed && $school) {
+            $school->update(['settings' => $settings]);
+            Log::info("GL auto-configured for school #{$schoolId}");
+        }
+
+        return $settings;
     }
 
     private function assertLedgersExist(int $schoolId, array $ids): void
