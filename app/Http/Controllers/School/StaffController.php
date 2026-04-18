@@ -220,6 +220,8 @@ class StaffController extends Controller
         $validated = $request->validate([
             'name'             => 'required|string|max:255',
             'phone'            => 'required|string|max:20',
+            'username'         => ['nullable', 'string', 'max:100', Rule::unique('users', 'username')->ignore($staff->user_id)],
+            'password'         => 'nullable|string|min:6',
             'role'             => 'required|string|in:' . implode(',', array_keys($this->staffRoles())),
             'department_id'    => ['nullable', Rule::exists('departments', 'id')->where('school_id', $schoolId)],
             'designation_id'   => ['nullable', Rule::exists('designations', 'id')->where('school_id', $schoolId)],
@@ -267,12 +269,17 @@ class StaffController extends Controller
         }
 
         DB::transaction(function () use ($staff, $validated, $updateData) {
-            $staff->user->update([
+            $userUpdate = [
                 'name'      => $validated['name'],
                 'phone'     => $validated['phone'],
+                'username'  => $validated['username'] ?? null,
                 'user_type' => $validated['role'],
                 'is_active' => $validated['status'] === 'active',
-            ]);
+            ];
+            if (!empty($validated['password'])) {
+                $userUpdate['password'] = \Illuminate\Support\Facades\Hash::make($validated['password']);
+            }
+            $staff->user->update($userUpdate);
             $staff->user->syncRoles([$validated['role']]);
             $staff->update($updateData);
         });

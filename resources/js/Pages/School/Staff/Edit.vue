@@ -14,6 +14,8 @@ const form = useForm({
     _method: 'put',
     name: props.staff?.user?.name || '',
     phone: props.staff?.user?.phone || '',
+    username: props.staff?.user?.username || '',
+    password: '',
     role: props.staff?.current_role || 'teacher',
     department_id: props.staff?.department_id || '',
     designation_id: props.staff?.designation_id || '',
@@ -94,6 +96,16 @@ const submit = () => { form.post(`/school/staff/${props.staff.id}`); };
                                 </select>
                                 <div v-if="form.errors.role" class="form-error">{{ form.errors.role }}</div>
                                 <span class="field-hint">Changing the role affects login access immediately.</span>
+                            </div>
+                            <div class="form-field">
+                                <label>Username</label>
+                                <input v-model="form.username" type="text" placeholder="Login username">
+                                <div v-if="form.errors.username" class="form-error">{{ form.errors.username }}</div>
+                            </div>
+                            <div class="form-field">
+                                <label>New Password <span class="opt">(Optional, min 6 chars)</span></label>
+                                <input v-model="form.password" type="password" placeholder="Leave blank to keep current password">
+                                <div v-if="form.errors.password" class="form-error">{{ form.errors.password }}</div>
                             </div>
                             <div class="form-field">
                                 <label>Update Profile Photo</label>
