@@ -221,9 +221,12 @@ const formatCurrency = (amount) => {
                                     {{ formatCurrency(exp.amount) }}
                                 </td>
                                 <td>
-                                    <span v-if="exp.gl_transaction" class="gl-badge gl-posted" :title="exp.gl_transaction.transaction_no">
-                                        ✓ {{ exp.gl_transaction.transaction_no }}
-                                    </span>
+                                    <div v-if="exp.gl_transaction" class="flex items-center gap-1">
+                                        <span class="gl-badge gl-posted" :title="exp.gl_transaction.transaction_no">
+                                            ✓ {{ exp.gl_transaction.transaction_no }}
+                                        </span>
+                                        <button @click="postToGl(exp)" class="gl-repost" title="Repost to GL with current category ledger mapping">↻</button>
+                                    </div>
                                     <button v-else @click="postToGl(exp)" class="gl-badge gl-pending" title="Post to General Ledger">
                                         Post to GL
                                     </button>
@@ -334,4 +337,10 @@ const formatCurrency = (amount) => {
     transition: background 0.15s;
 }
 .gl-pending:hover { background: #fde68a; }
+.gl-repost {
+    background: none; border: none; cursor: pointer;
+    color: #6b7280; font-size: 0.85rem; padding: 1px 3px;
+    border-radius: 4px; line-height: 1; transition: color 0.15s;
+}
+.gl-repost:hover { color: #059669; }
 </style>

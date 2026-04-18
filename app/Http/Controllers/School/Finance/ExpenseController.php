@@ -168,14 +168,12 @@ class ExpenseController extends Controller
     {
         abort_unless($expense->school_id === app('current_school_id'), 403);
 
-        $tx = app(\App\Services\GlPostingService::class)->postExpense($expense);
+        $tx = app(\App\Services\GlPostingService::class)->repostExpense($expense);
 
         if ($tx) {
             return back()->with('success', 'Posted to GL: ' . $tx->transaction_no);
         }
 
-        return back()->with('info', $expense->gl_transaction_id
-            ? 'Already posted to GL.'
-            : 'GL not configured for this school.');
+        return back()->with('error', 'GL not configured. Please set up ledger mappings in GL Config.');
     }
 }

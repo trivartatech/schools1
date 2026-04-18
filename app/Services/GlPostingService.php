@@ -107,6 +107,52 @@ class GlPostingService
         });
     }
 
+    /**
+     * Void the existing GL entry (if any) and repost the expense to the current
+     * category ledger mapping. Use this when the category's ledger_id has changed
+     * after the initial posting.
+     *
+     * - Creates a reversal transaction (swapped debit/credit lines, reversal_of = old id)
+     * - Marks the old transaction as void
+     * - Posts a fresh transaction with the correct ledger
+     */
+    public function repostExpense(Expense $expense): ?Transaction
+    {
+        if ($expense->gl_transaction_id) {
+            $oldTx = Transaction::with('lines')->find($expense->gl_transaction_id);
+
+            if ($oldTx && $oldTx->status === 'posted') {
+                DB::transaction(function () use ($expense, $oldTx) {
+                    // Reversal: swap debit ↔ credit on every line
+                    $reversalLines = $oldTx->lines->map(fn($l) => [
+                        'ledger_id'   => $l->ledger_id,
+                        'type'        => $l->type === 'debit' ? 'credit' : 'debit',
+                        'amount'      => $l->amount,
+                        'description' => 'Reversal: ' . $l->description,
+                    ])->all();
+
+                    $reversal = $this->createTransaction([
+                        'school_id'        => $oldTx->school_id,
+                        'academic_year_id' => $oldTx->academic_year_id,
+                        'date'             => now()->toDateString(),
+                        'type'             => 'journal',
+                        'narration'        => 'Reversal of ' . $oldTx->transaction_no,
+                        'reversal_of'      => $oldTx->id,
+                        'created_by'       => auth()->id(),
+                    ], $reversalLines);
+
+                    $oldTx->update(['status' => 'void']);
+
+                    $expense->updateQuietly(['gl_transaction_id' => null]);
+                });
+            } elseif ($oldTx && $oldTx->status === 'void') {
+                $expense->updateQuietly(['gl_transaction_id' => null]);
+            }
+        }
+
+        return $this->postExpense($expense->fresh());
+    }
+
     // ── Payroll ───────────────────────────────────────────────────────────────
 
     /**
