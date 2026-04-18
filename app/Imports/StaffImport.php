@@ -49,9 +49,11 @@ class StaffImport implements ToCollection, WithHeadingRow
         $designations = Designation::where('school_id', $this->schoolId)->where('is_active', true)->pluck('id', 'name')->mapWithKeys(fn($id, $name) => [strtolower(trim($name)) => $id]);
         $existingEmpIds = Staff::where('school_id', $this->schoolId)->pluck('employee_id')->filter()->map(fn($v) => strtolower($v))->toArray();
         $existingEmails = User::where('school_id', $this->schoolId)->pluck('email')->filter()->map(fn($v) => strtolower($v))->toArray();
+        $existingUsernames = User::whereNotNull('username')->pluck('username')->filter()->map(fn($v) => strtolower($v))->toArray();
 
         $newEmpIds = [];
         $newEmails = [];
+        $newUsernames = [];
 
         // Phase 1: Validate
         foreach ($rows as $index => $row) {
@@ -74,6 +76,22 @@ class StaffImport implements ToCollection, WithHeadingRow
                 } else {
                     $newEmails[] = $email;
                 }
+            }
+
+            // Username (optional, but unique if provided)
+            $username = trim($row['username'] ?? '');
+            if ($username !== '') {
+                if (in_array(strtolower($username), $existingUsernames) || in_array(strtolower($username), $newUsernames)) {
+                    $this->setError($rowNum, 'username', "Username '{$username}' already exists or duplicated in file.");
+                } else {
+                    $newUsernames[] = strtolower($username);
+                }
+            }
+
+            // Password (optional, min 6 if provided)
+            $password = trim($row['password'] ?? '');
+            if ($password !== '' && strlen($password) < 6) {
+                $this->setError($rowNum, 'password', "Password must be at least 6 characters.");
             }
 
             // Required: Employee ID (with uniqueness)
@@ -155,13 +173,17 @@ class StaffImport implements ToCollection, WithHeadingRow
                 $role = strtolower(trim($row['role'] ?? 'teacher'));
                 if (!in_array($role, $this->validRoles)) $role = 'teacher';
 
+                $username = trim($row['username'] ?? '');
+                $password = trim($row['password'] ?? '');
+
                 $user = User::create([
-                    'name' => trim($row['name']),
-                    'email' => trim($row['email']),
-                    'phone' => trim($row['phone'] ?? ''),
+                    'name'      => trim($row['name']),
+                    'email'     => trim($row['email']),
+                    'phone'     => trim($row['phone'] ?? ''),
+                    'username'  => $username !== '' ? $username : null,
                     'user_type' => $role,
                     'school_id' => $this->schoolId,
-                    'password' => Hash::make(Str::random(10)),
+                    'password'  => Hash::make($password !== '' ? $password : Str::random(10)),
                     'is_active' => true,
                 ]);
 

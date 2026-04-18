@@ -12,7 +12,7 @@ class StaffImportTemplate implements FromArray, WithHeadings, WithStyles
     public function headings(): array
     {
         return [
-            'name', 'email', 'phone', 'employee_id', 'role',
+            'name', 'email', 'phone', 'username', 'password', 'employee_id', 'role',
             'department', 'designation', 'qualification', 'experience_years',
             'joining_date', 'basic_salary', 'bank_name', 'bank_account_no',
             'ifsc_code', 'pan_no', 'epf_no',
@@ -22,8 +22,8 @@ class StaffImportTemplate implements FromArray, WithHeadings, WithStyles
     public function array(): array
     {
         return [
-            ['Rajesh Kumar', 'rajesh@example.com', '9876543210', 'EMP001', 'teacher', 'Mathematics', 'Senior Teacher', 'M.Sc Mathematics', '8', '2024-04-01', '45000', 'State Bank', '12345678901234', 'SBIN0001234', 'ABCDE1234F', 'MH/BOM/12345'],
-            ['Anita Singh', 'anita@example.com', '9123456780', 'EMP002', 'accountant', 'Accounts', 'Accountant', 'M.Com', '5', '2024-06-15', '35000', 'HDFC Bank', '98765432101234', 'HDFC0004321', 'FGHIJ5678K', ''],
+            ['Rajesh Kumar', 'rajesh@example.com', '9876543210', 'rajesh.kumar', 'Pass@1234', 'EMP001', 'teacher', 'Mathematics', 'Senior Teacher', 'M.Sc Mathematics', '8', '2024-04-01', '45000', 'State Bank', '12345678901234', 'SBIN0001234', 'ABCDE1234F', 'MH/BOM/12345'],
+            ['Anita Singh', 'anita@example.com', '9123456780', '', '', 'EMP002', 'accountant', 'Accounts', 'Accountant', 'M.Com', '5', '2024-06-15', '35000', 'HDFC Bank', '98765432101234', 'HDFC0004321', 'FGHIJ5678K', ''],
         ];
     }
 

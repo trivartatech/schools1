@@ -14,6 +14,8 @@ const form = useForm({
     name: '',
     email: '',
     phone: '',
+    username: '',
+    password: '',
     role: 'teacher',
     employee_id: props.generated_employee_id || '',
     department_id: '',
@@ -85,6 +87,17 @@ const submit = () => { form.post('/school/staff'); };
                                 </select>
                                 <div v-if="form.errors.role" class="form-error">{{ form.errors.role }}</div>
                                 <span class="field-hint">Controls what this staff member can access after login.</span>
+                            </div>
+                            <div class="form-field">
+                                <label>Username <span class="opt">(Optional)</span></label>
+                                <input v-model="form.username" type="text" placeholder="Login username (leave blank to use email)">
+                                <div v-if="form.errors.username" class="form-error">{{ form.errors.username }}</div>
+                            </div>
+                            <div class="form-field">
+                                <label>Password <span class="opt">(Optional, min 6 chars)</span></label>
+                                <input v-model="form.password" type="password" placeholder="Set login password (leave blank to auto-generate)">
+                                <div v-if="form.errors.password" class="form-error">{{ form.errors.password }}</div>
+                                <span class="field-hint">If left blank, a secure password is auto-generated. Use the reset password flow to share it.</span>
                             </div>
                             <div class="form-field">
                                 <label>Profile Photo <span class="opt">(Optional, max 5MB)</span></label>

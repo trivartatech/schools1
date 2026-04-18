@@ -133,6 +133,8 @@ class StaffController extends Controller
             'name'             => 'required|string|max:255',
             'email'            => 'required|email|unique:users,email',
             'phone'            => 'required|string|max:20',
+            'username'         => 'nullable|string|max:100|unique:users,username',
+            'password'         => 'nullable|string|min:6',
             'role'             => 'required|string|in:' . implode(',', array_keys($this->staffRoles())),
             'employee_id'      => 'required|string|max:50|unique:staff,employee_id',
             'department_id'    => ['nullable', Rule::exists('departments', 'id')->where('school_id', $schoolId)],
@@ -155,9 +157,10 @@ class StaffController extends Controller
                 'name'      => $validated['name'],
                 'email'     => $validated['email'],
                 'phone'     => $validated['phone'],
+                'username'  => $validated['username'] ?? null,
                 'user_type' => $validated['role'],
                 'school_id' => $schoolId,
-                'password'  => \Illuminate\Support\Facades\Hash::make(\Illuminate\Support\Str::random(10)),
+                'password'  => \Illuminate\Support\Facades\Hash::make($validated['password'] ?? \Illuminate\Support\Str::random(10)),
                 'is_active' => true,
             ]);
 
