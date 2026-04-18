@@ -87,11 +87,6 @@ class Student extends Model
         return $this->belongsTo(StudentParent::class, 'parent_id');
     }
 
-    public function parent()
-    {
-        return $this->belongsTo(StudentParent::class, 'parent_id');
-    }
-
     public function academicHistories()
     {
         return $this->hasMany(StudentAcademicHistory::class);
