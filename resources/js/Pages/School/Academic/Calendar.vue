@@ -64,6 +64,7 @@ const typeConfig = {
     online_class:{ bg: 'bg-blue-100',   text: 'text-blue-700',   dot: 'bg-blue-500',   icon: '🎥' },
     syllabus:    { bg: 'bg-green-100',  text: 'text-green-700',  dot: 'bg-green-500',  icon: '📚' },
     diary:       { bg: 'bg-purple-100', text: 'text-purple-700', dot: 'bg-purple-500', icon: '📖' },
+    holiday:     { bg: 'bg-orange-100', text: 'text-orange-700', dot: 'bg-orange-500', icon: '🏖️' },
 };
 
 const cfg = (type) => typeConfig[type] ?? { bg: 'bg-slate-100', text: 'text-slate-700', dot: 'bg-slate-400', icon: '•' };
@@ -77,7 +78,7 @@ const dayEvents   = computed(() => selectedDay.value
 
 // Sidebar: this month events count by type
 const eventCounts = computed(() => {
-    const counts = { assignment: 0, online_class: 0, syllabus: 0, diary: 0 };
+    const counts = { assignment: 0, online_class: 0, syllabus: 0, diary: 0, holiday: 0 };
     props.events.forEach(e => { if (counts[e.type] !== undefined) counts[e.type]++; });
     return counts;
 });
@@ -127,7 +128,7 @@ const sections = computed(() => {
                 <div class="card">
                     <div class="card-header"><h3 class="card-title text-sm">This Month</h3></div>
                     <div class="card-body space-y-2">
-                        <div v-for="[type, label] in [['assignment','Assignments'],['online_class','Online Classes'],['syllabus','Syllabus Dates'],['diary','Diary Entries']]"
+                        <div v-for="[type, label] in [['assignment','Assignments'],['online_class','Online Classes'],['syllabus','Syllabus Dates'],['diary','Diary Entries'],['holiday','Holidays & Events']]"
                              :key="type"
                              class="flex items-center justify-between">
                             <div class="flex items-center gap-2">

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\School\Academic;
 use App\Http\Controllers\Controller;
 use App\Models\Assignment;
 use App\Models\AssignmentSubmission;
+use App\Models\Holiday;
 use App\Models\OnlineClass;
 use App\Models\StudentDiary;
 use App\Models\SyllabusTopic;
@@ -210,6 +211,32 @@ class AcademicDashboardController extends Controller
                 'color' => 'purple',
                 'link'  => route('school.academic.diary.index'),
             ];
+        }
+
+        // Holidays overlapping this month (single-day or multi-day ranges)
+        $holidays = Holiday::where('school_id', $schoolId)
+            ->where('date', '<=', $end->toDateString())
+            ->where(function ($q) use ($start) {
+                $q->whereNull('end_date')->where('date', '>=', $start->toDateString())
+                  ->orWhere('end_date', '>=', $start->toDateString());
+            })
+            ->get();
+
+        foreach ($holidays as $h) {
+            $hStart = max($h->date->toDateString(), $start->toDateString());
+            $hEnd   = $h->end_date ? min($h->end_date->toDateString(), $end->toDateString()) : $hStart;
+            $cursor = \Carbon\Carbon::parse($hStart);
+            while ($cursor->toDateString() <= $hEnd) {
+                $events[] = [
+                    'type'  => 'holiday',
+                    'date'  => $cursor->toDateString(),
+                    'title' => $h->title,
+                    'label' => ucfirst($h->type) . ($h->description ? ' · ' . \Illuminate\Support\Str::limit($h->description, 60) : ''),
+                    'color' => 'orange',
+                    'link'  => route('school.holidays.index'),
+                ];
+                $cursor->addDay();
+            }
         }
 
         return Inertia::render('School/Academic/Calendar', [
