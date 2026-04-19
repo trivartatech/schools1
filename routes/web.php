@@ -1100,6 +1100,17 @@ Route::middleware('auth')->group(function () {
             });
         });
 
+        // ── Backup Module ──────────────────────────────────────────────────────
+        Route::middleware(['school.management', 'permission:view_settings'])->group(function () {
+            Route::group(['prefix' => 'backup', 'as' => 'backup.'], function () {
+                $BC = \App\Http\Controllers\School\BackupController::class;
+                Route::get('/',                     [$BC, 'index'])    ->name('index');
+                Route::post('/',                    [$BC, 'store'])    ->name('store');
+                Route::get('{backup}/download',     [$BC, 'download']) ->name('download');
+                Route::delete('{backup}',           [$BC, 'destroy'])  ->name('destroy');
+            });
+        });
+
         // ── Bulk Export Routes (Excel / PDF / CSV) ─────────────────────────────
         Route::middleware(['school.management'])->prefix('export')->name('export.')->group(function () {
             Route::get('students',     \App\Http\Controllers\School\Export\StudentExportController::class)    ->name('students');

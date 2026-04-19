@@ -376,6 +376,16 @@ export const SIDEBAR_MENU = [
         icon: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/>`,
     },
 
+    // —— BACKUP ———————————————————————————————————————————————————————————————————————
+    {
+        id: 'backup',
+        title: 'Backup Manager',
+        group: 'Settings',
+        route: '/school/backup',
+        permission: 'view_settings',
+        icon: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>`,
+    },
+
     // —— UTILITIES ——————————————————————————————————————————————————————————————————————
     {
         id: 'utility',
