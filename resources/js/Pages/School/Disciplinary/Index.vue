@@ -678,8 +678,9 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-dig
 .btn-outline:hover { background:#f1f5f9;color:#1e293b; }
 
 /* ── Category modal ── */
-.cat-modal { width:min(460px,95vw); }
-.cat-list { border:1px solid #f1f5f9;border-radius:8px;overflow:hidden;margin-bottom:16px; }
+.cat-modal { width:min(420px,95vw);max-height:80vh;display:flex;flex-direction:column; }
+.cat-modal .modal-body { flex:1;overflow-y:auto;padding:16px 20px; }
+.cat-list { border:1px solid #f1f5f9;border-radius:8px;overflow-y:auto;max-height:280px;margin-bottom:14px; }
 .cat-row {
     display:flex;align-items:center;gap:10px;padding:11px 14px;
     border-bottom:1px solid #f8fafc;background:#fff;
