@@ -2,172 +2,335 @@
 
 namespace App\Services;
 
-use App\Models\School;
+use App\Enums\RolloverState;
 use App\Models\AcademicYear;
-use App\Models\Department;
-use App\Models\CourseClass;
-use App\Models\Section;
-use App\Models\Subject;
-use App\Models\ClassSubject;
+use App\Models\ExamTerm;
+use App\Models\ExamType;
+use App\Models\FeeConcession;
+use App\Models\FeeStructure;
+use App\Models\Grade;
+use App\Models\GradingSystem;
+use App\Models\RolloverRun;
+use App\Models\School;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
+/**
+ * Clones per-year structural configuration from the source year into the target year.
+ *
+ * School-wide tables (departments, course_classes, sections, subjects, class_subjects,
+ * fee_heads, fee_groups) are NOT cloned — they already apply to every year. Only tables
+ * keyed by academic_year_id get replicated.
+ *
+ * Every clone is recorded on the RolloverRun's item log so the run can be audited or
+ * partially reversed.
+ */
 class AcademicRolloverService
 {
+    /** Supported module keys for the $config['modules'] array. */
+    public const MODULE_FEE_STRUCTURES = 'fee_structures';
+    public const MODULE_EXAM_TERMS     = 'exam_terms';
+    public const MODULE_GRADING        = 'grading_systems';
+    public const MODULE_CONCESSIONS    = 'fee_concessions';
+
+    public const ALL_MODULES = [
+        self::MODULE_FEE_STRUCTURES,
+        self::MODULE_EXAM_TERMS,
+        self::MODULE_GRADING,
+        self::MODULE_CONCESSIONS,
+    ];
+
     /**
-     * Executes the rollover copy process.
-     * 
-     * @param School $school The school context
-     * @param AcademicYear $sourceYear The year to copy FROM
-     * @param AcademicYear $targetYear The year to copy TO
-     * @param array $modules Which parts to copy (e.g., ['departments', 'classes', 'subjects'])
+     * Clone per-year config from source into target. Must be called inside a RolloverRun.
+     * Idempotent per (run, item_type, source_id) — re-running the same run won't duplicate.
+     *
+     * @return array<string,array{created:int,skipped:int,failed:int}>
      */
-    public function execute(School $school, AcademicYear $sourceYear, AcademicYear $targetYear, array $modules)
+    public function execute(RolloverRun $run, array $modules = self::ALL_MODULES): array
     {
-        DB::beginTransaction();
+        $school      = $run->school;
+        $sourceYear  = $run->sourceYear;
+        $targetYear  = $run->targetYear;
+
+        $run->transitionTo(RolloverState::StructureRunning);
+
+        $stats = [];
+        $mapping = [
+            'grading_systems' => [],
+            'exam_terms'      => [],
+            'exam_types'      => [],
+            'fee_structures'  => [],
+        ];
 
         try {
-            // Keep track of old IDs to new IDs mappings for relations
-            $mapping = [
-                'departments' => [],
-                'classes'     => [],
-                'sections'    => [],
-                'subjects'    => [],
-            ];
-
-            if (in_array('departments', $modules)) {
-                $mapping['departments'] = $this->cloneDepartments($school, $sourceYear, $targetYear);
-            }
-
-            if (in_array('classes', $modules)) {
-                $classMap = $this->cloneClasses($school, $sourceYear, $targetYear, $mapping['departments']);
-                $mapping['classes'] = $classMap['classes'];
-                $mapping['sections'] = $classMap['sections'];
-            }
-
-            if (in_array('subjects', $modules)) {
-                $mapping['subjects'] = $this->cloneSubjects($school, $sourceYear, $targetYear);
-                
-                // If we also cloned classes, we can clone the assignments
-                if (in_array('classes', $modules)) {
-                    $this->cloneClassSubjectAssignments(
-                        $school, 
-                        $sourceYear, 
-                        $targetYear, 
-                        $mapping['classes'], 
-                        $mapping['sections'], 
-                        $mapping['subjects']
-                    );
+            DB::transaction(function () use ($run, $school, $sourceYear, $targetYear, $modules, &$stats, &$mapping) {
+                if (in_array(self::MODULE_GRADING, $modules, true)) {
+                    [$stats[self::MODULE_GRADING], $mapping['grading_systems']] =
+                        $this->cloneGradingSystems($run, $school, $sourceYear, $targetYear);
                 }
+
+                if (in_array(self::MODULE_EXAM_TERMS, $modules, true)) {
+                    [$termStats, $mapping['exam_terms']] =
+                        $this->cloneExamTerms($run, $school, $sourceYear, $targetYear);
+                    [$typeStats, $mapping['exam_types']] =
+                        $this->cloneExamTypes($run, $school, $sourceYear, $targetYear, $mapping['exam_terms']);
+                    $stats[self::MODULE_EXAM_TERMS] = $this->mergeCounts($termStats, $typeStats);
+                }
+
+                if (in_array(self::MODULE_FEE_STRUCTURES, $modules, true)) {
+                    [$stats[self::MODULE_FEE_STRUCTURES], $mapping['fee_structures']] =
+                        $this->cloneFeeStructures($run, $school, $sourceYear, $targetYear);
+                }
+
+                if (in_array(self::MODULE_CONCESSIONS, $modules, true)) {
+                    $stats[self::MODULE_CONCESSIONS] =
+                        $this->cloneFeeConcessions($run, $school, $sourceYear, $targetYear);
+                }
+            });
+
+            foreach ($stats as $key => $counts) {
+                $run->setStat("structure.{$key}", $counts);
             }
+            $run->setStat('structure.mapping', $mapping);
+            $run->transitionTo(RolloverState::StructureDone);
 
-            // We can easily expand this to handle Periods/Timetables, Fees, Transport, etc.
-
-            DB::commit();
-            
-            return ['status' => 'success', 'message' => 'Rollover completed successfully.'];
-
+            return $stats;
         } catch (\Throwable $e) {
-            DB::rollBack();
-            Log::error('Rollover Failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            $run->error = $e->getMessage();
+            $run->transitionTo(RolloverState::Failed);
             throw $e;
         }
     }
 
-    private function cloneDepartments(School $school, AcademicYear $sourceYear, AcademicYear $targetYear)
+    // ---------- Grading systems (and their grades) ----------
+
+    private function cloneGradingSystems(RolloverRun $run, School $school, AcademicYear $sourceYear, AcademicYear $targetYear): array
     {
-        $map = [];
-        $departments = Department::where('school_id', $school->id)->get();
+        $counts = ['created' => 0, 'skipped' => 0, 'failed' => 0];
+        $map    = [];
 
-        foreach ($departments as $dept) {
-            $newDept = $dept->replicate();
-            $newDept->academic_year_id = $targetYear->id;
-            $newDept->save();
+        $systems = GradingSystem::with('grades')
+            ->where('school_id', $school->id)
+            ->where('academic_year_id', $sourceYear->id)
+            ->get();
 
-            $map[$dept->id] = $newDept->id;
+        foreach ($systems as $src) {
+            $existing = GradingSystem::where('school_id', $school->id)
+                ->where('academic_year_id', $targetYear->id)
+                ->where('name', $src->name)
+                ->first();
+
+            if ($existing) {
+                $map[$src->id] = $existing->id;
+                $run->logItem('structure', 'grading_system', $src->id, $existing->id, 'skipped', 'already exists');
+                $counts['skipped']++;
+                continue;
+            }
+
+            $new = $src->replicate(['academic_year_id']);
+            $new->academic_year_id = $targetYear->id;
+            $new->save();
+
+            foreach ($src->grades as $grade) {
+                $newGrade = $grade->replicate(['grading_system_id']);
+                $newGrade->grading_system_id = $new->id;
+                $newGrade->save();
+            }
+
+            $map[$src->id] = $new->id;
+            $run->logItem('structure', 'grading_system', $src->id, $new->id, 'success', null, [
+                'grades_cloned' => $src->grades->count(),
+            ]);
+            $counts['created']++;
         }
 
-        return $map;
+        return [$counts, $map];
     }
 
-    private function cloneClasses(School $school, AcademicYear $sourceYear, AcademicYear $targetYear, array $deptMap)
+    // ---------- Exam terms ----------
+
+    private function cloneExamTerms(RolloverRun $run, School $school, AcademicYear $sourceYear, AcademicYear $targetYear): array
     {
-        $classMap = [];
-        $sectionMap = [];
-        
-        // Eager load sections to clone them inside the same loop
-        $classes = CourseClass::with('sections')->where('school_id', $school->id)->where('academic_year_id', $sourceYear->id)->get();
+        $counts = ['created' => 0, 'skipped' => 0, 'failed' => 0];
+        $map    = [];
 
-        foreach ($classes as $cls) {
-            $newClass = $cls->replicate();
-            $newClass->academic_year_id = $targetYear->id;
-            
-            // Map to the newly created department if it exists, otherwise leave null
-            if ($cls->department_id && isset($deptMap[$cls->department_id])) {
-                $newClass->department_id = $deptMap[$cls->department_id];
-            } else {
-                $newClass->department_id = null; // Important: Clear it if we didn't clone departments to prevent orphan links
+        $terms = ExamTerm::where('school_id', $school->id)
+            ->where('academic_year_id', $sourceYear->id)
+            ->get();
+
+        foreach ($terms as $src) {
+            $existing = ExamTerm::where('school_id', $school->id)
+                ->where('academic_year_id', $targetYear->id)
+                ->where('name', $src->name)
+                ->first();
+
+            if ($existing) {
+                $map[$src->id] = $existing->id;
+                $run->logItem('structure', 'exam_term', $src->id, $existing->id, 'skipped', 'already exists');
+                $counts['skipped']++;
+                continue;
             }
-            
-            $newClass->save();
-            $classMap[$cls->id] = $newClass->id;
 
-            // Clone sections for this class
-            foreach ($cls->sections as $section) {
-                // Ensure the section actually belonged to the source year 
-                if ($section->academic_year_id === $sourceYear->id) {
-                    $newSection = $section->replicate();
-                    $newSection->academic_year_id = $targetYear->id;
-                    $newSection->course_class_id = $newClass->id;
-                    $newSection->save();
+            $new = $src->replicate(['academic_year_id']);
+            $new->academic_year_id = $targetYear->id;
+            $new->save();
 
-                    $sectionMap[$section->id] = $newSection->id;
-                }
-            }
+            $map[$src->id] = $new->id;
+            $run->logItem('structure', 'exam_term', $src->id, $new->id, 'success');
+            $counts['created']++;
         }
 
-        return ['classes' => $classMap, 'sections' => $sectionMap];
+        return [$counts, $map];
     }
 
-    private function cloneSubjects(School $school, AcademicYear $sourceYear, AcademicYear $targetYear)
+    // ---------- Exam types (depend on term mapping) ----------
+
+    private function cloneExamTypes(RolloverRun $run, School $school, AcademicYear $sourceYear, AcademicYear $targetYear, array $termMap): array
     {
-        $map = [];
-        $subjects = Subject::where('school_id', $school->id)->where('academic_year_id', $sourceYear->id)->get();
+        $counts = ['created' => 0, 'skipped' => 0, 'failed' => 0];
+        $map    = [];
 
-        foreach ($subjects as $sub) {
-            $newSub = $sub->replicate();
-            $newSub->academic_year_id = $targetYear->id;
-            $newSub->save();
+        $types = ExamType::where('school_id', $school->id)
+            ->where('academic_year_id', $sourceYear->id)
+            ->get();
 
-            $map[$sub->id] = $newSub->id;
+        foreach ($types as $src) {
+            if (!isset($termMap[$src->exam_term_id])) {
+                $run->logItem('structure', 'exam_type', $src->id, null, 'skipped', 'parent term not mapped');
+                $counts['skipped']++;
+                continue;
+            }
+
+            $existing = ExamType::where('school_id', $school->id)
+                ->where('academic_year_id', $targetYear->id)
+                ->where('exam_term_id', $termMap[$src->exam_term_id])
+                ->where('name', $src->name)
+                ->first();
+
+            if ($existing) {
+                $map[$src->id] = $existing->id;
+                $run->logItem('structure', 'exam_type', $src->id, $existing->id, 'skipped', 'already exists');
+                $counts['skipped']++;
+                continue;
+            }
+
+            $new = $src->replicate(['academic_year_id', 'exam_term_id']);
+            $new->academic_year_id = $targetYear->id;
+            $new->exam_term_id     = $termMap[$src->exam_term_id];
+            $new->save();
+
+            $map[$src->id] = $new->id;
+            $run->logItem('structure', 'exam_type', $src->id, $new->id, 'success');
+            $counts['created']++;
         }
 
-        return $map;
+        return [$counts, $map];
     }
 
-    private function cloneClassSubjectAssignments(School $school, AcademicYear $sourceYear, AcademicYear $targetYear, array $classMap, array $sectionMap, array $subjectMap)
+    // ---------- Fee structures ----------
+
+    private function cloneFeeStructures(RolloverRun $run, School $school, AcademicYear $sourceYear, AcademicYear $targetYear): array
     {
-        $assignments = ClassSubject::with(['courseClass', 'subject', 'section'])
-            ->whereHas('courseClass', function($q) use ($sourceYear, $school) {
-                $q->where('school_id', $school->id)->where('academic_year_id', $sourceYear->id);
-            })->get();
+        $counts = ['created' => 0, 'skipped' => 0, 'failed' => 0];
+        $map    = [];
 
-        foreach ($assignments as $assignment) {
-            // Only proceed if we actually mapped the class and subject
-            if (isset($classMap[$assignment->course_class_id]) && isset($subjectMap[$assignment->subject_id])) {
-                $mappedSectionId = null;
-                if ($assignment->section_id && isset($sectionMap[$assignment->section_id])) {
-                    $mappedSectionId = $sectionMap[$assignment->section_id];
-                }
+        $rows = FeeStructure::where('school_id', $school->id)
+            ->where('academic_year_id', $sourceYear->id)
+            ->get();
 
-                ClassSubject::firstOrCreate([
-                    'course_class_id' => $classMap[$assignment->course_class_id],
-                    'section_id'      => $mappedSectionId,
-                    'subject_id'      => $subjectMap[$assignment->subject_id],
-                ], [
-                    'is_co_scholastic' => $assignment->is_co_scholastic
-                ]);
+        foreach ($rows as $src) {
+            $existing = FeeStructure::where('school_id', $school->id)
+                ->where('academic_year_id', $targetYear->id)
+                ->where('class_id', $src->class_id)
+                ->where('fee_head_id', $src->fee_head_id)
+                ->where('term', $src->term)
+                ->first();
+
+            if ($existing) {
+                $map[$src->id] = $existing->id;
+                $run->logItem('structure', 'fee_structure', $src->id, $existing->id, 'skipped', 'already exists');
+                $counts['skipped']++;
+                continue;
             }
+
+            $new = $src->replicate(['academic_year_id', 'due_date']);
+            $new->academic_year_id = $targetYear->id;
+            $new->due_date = $this->shiftDateYear($src->due_date, $sourceYear, $targetYear);
+            $new->save();
+
+            $map[$src->id] = $new->id;
+            $run->logItem('structure', 'fee_structure', $src->id, $new->id, 'success');
+            $counts['created']++;
         }
+
+        return [$counts, $map];
+    }
+
+    // ---------- Fee concessions (student-scoped; carry only if student also rolls over) ----------
+
+    private function cloneFeeConcessions(RolloverRun $run, School $school, AcademicYear $sourceYear, AcademicYear $targetYear): array
+    {
+        $counts = ['created' => 0, 'skipped' => 0, 'failed' => 0];
+
+        $rows = FeeConcession::where('school_id', $school->id)
+            ->where('academic_year_id', $sourceYear->id)
+            ->where('is_active', true)
+            ->get();
+
+        foreach ($rows as $src) {
+            $hasTargetEnrolment = DB::table('student_academic_histories')
+                ->where('student_id', $src->student_id)
+                ->where('academic_year_id', $targetYear->id)
+                ->exists();
+
+            if (!$hasTargetEnrolment) {
+                $run->logItem('structure', 'fee_concession', $src->id, null, 'skipped', 'student not enrolled in target year');
+                $counts['skipped']++;
+                continue;
+            }
+
+            $existing = FeeConcession::where('school_id', $school->id)
+                ->where('academic_year_id', $targetYear->id)
+                ->where('student_id', $src->student_id)
+                ->where('name', $src->name)
+                ->first();
+
+            if ($existing) {
+                $run->logItem('structure', 'fee_concession', $src->id, $existing->id, 'skipped', 'already exists');
+                $counts['skipped']++;
+                continue;
+            }
+
+            $new = $src->replicate(['academic_year_id']);
+            $new->academic_year_id = $targetYear->id;
+            $new->save();
+
+            $run->logItem('structure', 'fee_concession', $src->id, $new->id, 'success');
+            $counts['created']++;
+        }
+
+        return $counts;
+    }
+
+    // ---------- Helpers ----------
+
+    private function shiftDateYear(mixed $date, AcademicYear $sourceYear, AcademicYear $targetYear): ?string
+    {
+        if (!$date || !$sourceYear->start_date || !$targetYear->start_date) {
+            return $date ? \Carbon\Carbon::parse($date)->toDateString() : null;
+        }
+
+        $deltaDays = \Carbon\Carbon::parse($sourceYear->start_date)
+            ->diffInDays(\Carbon\Carbon::parse($targetYear->start_date), false);
+
+        return \Carbon\Carbon::parse($date)->addDays((int) $deltaDays)->toDateString();
+    }
+
+    private function mergeCounts(array $a, array $b): array
+    {
+        return [
+            'created' => ($a['created'] ?? 0) + ($b['created'] ?? 0),
+            'skipped' => ($a['skipped'] ?? 0) + ($b['skipped'] ?? 0),
+            'failed'  => ($a['failed'] ?? 0) + ($b['failed'] ?? 0),
+        ];
     }
 }

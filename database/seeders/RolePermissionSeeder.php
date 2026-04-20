@@ -137,6 +137,12 @@ class RolePermissionSeeder extends Seeder
         'approve_student_leaves'             => 'Student Leaves',
         'apply_student_leave'                => 'Student Leaves',
         'download_student_leave_document'    => 'Student Leaves',
+
+        // ── Rollover (Academic Year Transition) ──────────────────────────────
+        'manage_rollover'           => 'Settings & Setup',   // start/view rollover runs
+        'execute_rollover'          => 'Settings & Setup',   // run structure + students + fees phases
+        'finalize_rollover'         => 'Settings & Setup',   // finalize + freeze source year
+        'rollback_rollover'         => 'Settings & Setup',   // reverse a run (future; wired now so roles align)
     ];
 
     public function run(): void

@@ -20,6 +20,7 @@ class FeePayment extends Model
         'transaction_ref', 'status', 'remarks', 'collected_by',
         'taxable_amount', 'tax_amount', 'tax_percent',
         'gl_transaction_id',
+        'is_carry_forward', 'source_payment_id', 'source_year_id', 'rollover_run_id',
     ];
 
     protected $casts = [
@@ -35,6 +36,7 @@ class FeePayment extends Model
         'status'                 => FeePaymentStatus::class,
         'payment_mode'           => PaymentMode::class,
         'fee_structure_snapshot' => 'array',
+        'is_carry_forward'       => 'boolean',
     ];
 
     public function student()       { return $this->belongsTo(Student::class); }
@@ -44,6 +46,9 @@ class FeePayment extends Model
     public function glTransaction() { return $this->belongsTo(Transaction::class, 'gl_transaction_id'); }
     public function academicYear()  { return $this->belongsTo(AcademicYear::class); }
     public function school()        { return $this->belongsTo(School::class); }
+    public function sourcePayment() { return $this->belongsTo(self::class, 'source_payment_id'); }
+    public function sourceYear()    { return $this->belongsTo(AcademicYear::class, 'source_year_id'); }
+    public function rolloverRun()   { return $this->belongsTo(RolloverRun::class); }
 
     // Auto-generate receipt number using school's configurable format
     protected static function booted(): void

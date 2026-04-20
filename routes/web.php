@@ -216,11 +216,32 @@ Route::middleware('auth')->group(function () {
             Route::resource('academic-years', \App\Http\Controllers\School\AcademicYearController::class)->except(['create', 'show', 'edit']);
         });
 
-        // ── Student Management (management) ──
+        // ── Rollover Wizard (academic year transition) ──
+        // Read-only routes require manage_rollover; mutations require execute_rollover.
         Route::middleware(['school.management', 'module:settings'])->group(function () {
-            // Rollover Wizard
-            Route::get('settings/rollover', [\App\Http\Controllers\School\RolloverController::class, 'index'])->name('settings.rollover');
-            Route::post('settings/rollover', [\App\Http\Controllers\School\RolloverController::class, 'execute'])->name('settings.rollover.execute');
+            Route::get('settings/rollover',
+                [\App\Http\Controllers\School\RolloverController::class, 'index']
+            )->middleware('permission:manage_rollover')->name('settings.rollover');
+
+            Route::get('settings/rollover/runs/{run}',
+                [\App\Http\Controllers\School\RolloverController::class, 'show']
+            )->middleware('permission:manage_rollover')->name('settings.rollover.show');
+
+            Route::post('settings/rollover',
+                [\App\Http\Controllers\School\RolloverController::class, 'execute']
+            )->middleware('permission:execute_rollover')->name('settings.rollover.execute');
+
+            Route::post('settings/rollover/runs/{run}/promote-students',
+                [\App\Http\Controllers\School\RolloverController::class, 'promoteStudents']
+            )->middleware('permission:execute_rollover')->name('settings.rollover.promote-students');
+
+            Route::post('settings/rollover/runs/{run}/carry-forward',
+                [\App\Http\Controllers\School\RolloverController::class, 'carryForward']
+            )->middleware('permission:execute_rollover')->name('settings.rollover.carry-forward');
+
+            Route::post('settings/rollover/runs/{run}/finalize',
+                [\App\Http\Controllers\School\RolloverController::class, 'finalize']
+            )->middleware('permission:finalize_rollover')->name('settings.rollover.finalize');
         });
 
         // ── Bulk Import (Students, Staff & Photos) ──
@@ -346,6 +367,7 @@ Route::middleware('auth')->group(function () {
             Route::get('fee/config', fn() => redirect('/school/settings/number-formats'))->name('fee.config');
             Route::patch('fee/collect/{feePayment}/receipt-no', [$F, 'updateReceiptNo'])->name('fee.collect.receipt-no.update');
             Route::get('fee/collect/{feePayment}/receipt', [$F, 'receipt'])->name('fee.collect.receipt');
+            Route::get('fee/ledger/{student}', [$F, 'studentLedger'])->name('fee.student-ledger');
 
             $FC = \App\Http\Controllers\School\FeeConcessionController::class;
             Route::get('fee/concessions',                         [$FC, 'index'])        ->name('fee.concessions');

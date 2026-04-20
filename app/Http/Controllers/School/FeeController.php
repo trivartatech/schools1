@@ -421,16 +421,18 @@ class FeeController extends Controller
                 });
 
                 $adhocScheduleItems = $adhocDue->map(fn($p) => [
-                    'id'          => 'pay-' . $p->id,
-                    'fee_head_id' => $p->fee_head_id,
-                    'fee_head'    => $p->feeHead,
-                    'term'        => $p->term,
-                    'amount'      => $p->amount_due,
-                    'is_optional' => false,
-                    'source'      => 'payment',
-                    'payment_id'  => $p->id,
-                    'balance'     => (float) $p->balance,
-                    'status'      => $p->status,
+                    'id'               => 'pay-' . $p->id,
+                    'fee_head_id'      => $p->fee_head_id,
+                    'fee_head'         => $p->feeHead,
+                    'term'             => $p->term,
+                    'amount'           => $p->amount_due,
+                    'is_optional'      => false,
+                    'source'           => $p->is_carry_forward ? 'carry_forward' : 'payment',
+                    'payment_id'       => $p->id,
+                    'balance'          => (float) $p->balance,
+                    'status'           => $p->status,
+                    'is_carry_forward' => (bool) $p->is_carry_forward,
+                    'source_year_id'   => $p->source_year_id,
                 ])->values();
 
                 // Merge everything: class structures + transport + hostel + other adhoc
@@ -492,13 +494,91 @@ class FeeController extends Controller
                 ->get();
         }
 
+        $previousDues = null;
+        if ($student && $academicYearId) {
+            $carry = FeePayment::where('student_id', $student->id)
+                ->where('academic_year_id', $academicYearId)
+                ->where('is_carry_forward', true)
+                ->where('balance', '>', 0)
+                ->with(['feeHead:id,name', 'sourceYear:id,name'])
+                ->get();
+
+            if ($carry->isNotEmpty()) {
+                $previousDues = [
+                    'total'      => (string) $carry->sum(fn($p) => (float) $p->balance),
+                    'source_year'=> $carry->first()->sourceYear?->name,
+                    'rows'       => $carry->map(fn($p) => [
+                        'id'          => $p->id,
+                        'fee_head'    => $p->feeHead?->name,
+                        'balance'     => (float) $p->balance,
+                        'source_year' => $p->sourceYear?->name,
+                    ])->values(),
+                ];
+            }
+        }
+
         return Inertia::render('School/Fee/Collect', [
-            'student'     => $student,
-            'structures'  => $structures,
-            'payments'    => $payments,
-            'students'    => $students,
-            'classes'     => $classes,
-            'concessions' => $concessions,
+            'student'       => $student,
+            'structures'    => $structures,
+            'payments'      => $payments,
+            'students'      => $students,
+            'classes'       => $classes,
+            'concessions'   => $concessions,
+            'previousDues'  => $previousDues,
+        ]);
+    }
+
+    /**
+     * Cross-year fee ledger for a single student: every payment across every
+     * academic year they've been enrolled in, grouped by year, with totals.
+     */
+    public function studentLedger(Student $student)
+    {
+        $schoolId = app('current_school_id');
+        abort_if($student->school_id !== $schoolId, 404);
+
+        $payments = FeePayment::where('student_id', $student->id)
+            ->where('school_id', $schoolId)
+            ->with(['feeHead:id,name', 'academicYear:id,name,start_date', 'sourceYear:id,name'])
+            ->orderBy('payment_date')
+            ->get();
+
+        $grouped = $payments
+            ->groupBy(fn($p) => $p->academicYear?->name ?? '(no year)')
+            ->map(fn($rows, $name) => [
+                'year'          => $name,
+                'year_id'       => $rows->first()->academic_year_id,
+                'year_start'    => optional($rows->first()->academicYear?->start_date)->toDateString(),
+                'total_due'     => (float) $rows->sum('amount_due'),
+                'total_paid'    => (float) $rows->sum('amount_paid'),
+                'total_balance' => (float) $rows->sum('balance'),
+                'payments'      => $rows->map(fn($p) => [
+                    'id'               => $p->id,
+                    'receipt_no'       => $p->receipt_no,
+                    'fee_head'         => $p->feeHead?->name,
+                    'amount_due'       => (float) $p->amount_due,
+                    'amount_paid'      => (float) $p->amount_paid,
+                    'balance'          => (float) $p->balance,
+                    'status'           => is_object($p->status) ? $p->status->value : $p->status,
+                    'payment_date'     => optional($p->payment_date)->toDateString(),
+                    'is_carry_forward' => (bool) $p->is_carry_forward,
+                    'source_year'      => $p->sourceYear?->name,
+                ])->values(),
+            ])
+            ->values();
+
+        return response()->json([
+            'student' => [
+                'id'           => $student->id,
+                'name'         => trim($student->first_name . ' ' . ($student->last_name ?? '')),
+                'admission_no' => $student->admission_no,
+            ],
+            'years'   => $grouped,
+            'totals'  => [
+                'total_due'     => (float) $payments->sum('amount_due'),
+                'total_paid'    => (float) $payments->sum('amount_paid'),
+                'total_balance' => (float) $payments->sum('balance'),
+            ],
         ]);
     }
 
