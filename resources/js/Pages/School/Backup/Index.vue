@@ -153,7 +153,6 @@ const statusBadge = {
                                 No backups yet. Click "Create Backup" to get started.
                             </td>
                         </tr>
-                        <tr v-if="b.status === 'failed' && b.error_message" v-for="b in backups.filter(x => x.status === 'failed' && x.error_message)" :key="'err-' + b.id" style="display:none;"><!-- hidden --></tr>
                     </tbody>
                 </table>
 
