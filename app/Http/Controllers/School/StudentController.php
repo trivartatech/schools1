@@ -55,6 +55,15 @@ class StudentController extends Controller
             $studentId ? $query->where('id', $studentId) : $query->whereRaw('0 = 1');
         }
 
+        // ── Default year scope: only show students enrolled in the selected year ─
+        // (Opt-out with ?all_years=1 for admin cross-year searches, e.g. to locate
+        //  a student before issuing a TC for a prior year.)
+        if ($academicYearId && ! $request->boolean('all_years')) {
+            $query->whereHas('academicHistories', function ($q) use ($academicYearId) {
+                $q->where('academic_year_id', $academicYearId);
+            });
+        }
+
         // Filters
         if ($request->filled('search')) {
             $search = $request->search;
