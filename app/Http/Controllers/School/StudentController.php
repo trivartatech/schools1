@@ -182,7 +182,8 @@ class StudentController extends Controller
 
 
         // ── Class list scoped to teacher's assignments ──────────────────────────
-        $classQuery = CourseClass::where('school_id', $schoolId);
+        $classQuery = CourseClass::where('school_id', $schoolId)
+            ->orderBy('numeric_value')->orderBy('name');
         if ($scope->restricted && $scope->classIds->isNotEmpty()) {
             $classQuery->whereIn('id', $scope->classIds);
         }
@@ -208,7 +209,7 @@ class StudentController extends Controller
     public function create()
     {
         $schoolId = app('current_school_id');
-        $classes  = CourseClass::where('school_id', $schoolId)->get();
+        $classes  = CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('name')->get();
         $routes   = TransportRoute::where('school_id', $schoolId)
             ->where('status', 'active')
             ->with(['stops' => fn($q) => $q->orderBy('stop_order')])
@@ -415,7 +416,7 @@ class StudentController extends Controller
             : collect();
 
         // ── Classes & Academic Years for Record Edit modal ──────────────────
-        $classes       = CourseClass::where('school_id', $schoolId)->orderBy('id')->get(['id','name']);
+        $classes       = CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('name')->get(['id','name']);
         $sections      = \App\Models\Section::where('school_id', $schoolId)->orderBy('id')->get(['id','name','course_class_id']);
         $academicYears = \App\Models\AcademicYear::where('school_id', $schoolId)->orderByDesc('id')->get(['id','name']);
 
@@ -465,7 +466,7 @@ class StudentController extends Controller
         $schoolId = app('current_school_id');
         abort_if($student->school_id !== $schoolId, 403);
 
-        $classes = CourseClass::where('school_id', $schoolId)->get();
+        $classes = CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('name')->get();
         $student->load(['studentParent', 'currentAcademicHistory']);
         
         return Inertia::render('School/Students/Edit', [
