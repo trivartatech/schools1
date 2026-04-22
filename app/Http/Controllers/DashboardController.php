@@ -175,11 +175,21 @@ class DashboardController extends Controller
                 $thisMonthEnd = now()->endOfMonth();
 
                 // ── KPI Metrics ──────────────────────────────────────────
+                // Scope student count to the selected academic year via histories,
+                // so the dashboard reflects the year selector (empty before rollover
+                // for a fresh year, year-over-year totals for past years).
                 $totalStudents = \App\Models\Student::where('school_id', $schoolId)
-                    ->where('status', 'active')->count();
+                    ->where('status', 'active')
+                    ->when($academicYearId, fn($q) => $q->whereHas('academicHistories',
+                        fn($h) => $h->where('academic_year_id', $academicYearId)
+                    ))
+                    ->count();
 
                 $newStudentsThisMonth = \App\Models\Student::where('school_id', $schoolId)
                     ->whereBetween('admission_date', [$thisMonth->toDateString(), $thisMonthEnd->toDateString()])
+                    ->when($academicYearId, fn($q) => $q->whereHas('academicHistories',
+                        fn($h) => $h->where('academic_year_id', $academicYearId)
+                    ))
                     ->count();
 
                 $totalStaff = \App\Models\Staff::where('school_id', $schoolId)
