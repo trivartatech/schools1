@@ -59,20 +59,25 @@ class AllocationController extends Controller
 
         foreach ($validated['student_ids'] as $studentId) {
             TransportStudentAllocation::create([
-                'student_id'    => $studentId,
-                'route_id'      => $validated['route_id'],
-                'stop_id'       => $validated['stop_id'],
-                'vehicle_id'    => $validated['vehicle_id'],
-                'pickup_type'   => $validated['pickup_type'],
-                'start_date'    => $validated['start_date'],
-                'end_date'      => $validated['end_date'],
-                'status'        => $validated['status'],
-                'school_id'     => app('current_school_id'),
-                'transport_fee' => $stop->fee,
+                'student_id'     => $studentId,
+                'route_id'       => $validated['route_id'],
+                'stop_id'        => $validated['stop_id'],
+                'vehicle_id'     => $validated['vehicle_id'],
+                'pickup_type'    => $validated['pickup_type'],
+                'start_date'     => $validated['start_date'],
+                'end_date'       => $validated['end_date'],
+                'status'         => $validated['status'],
+                'school_id'      => app('current_school_id'),
+                'transport_fee'  => $stop->fee,
+                'amount_paid'    => 0,
+                'discount'       => 0,
+                'fine'           => 0,
+                'balance'        => $stop->fee,
+                'payment_status' => $stop->fee > 0 ? 'unpaid' : 'paid',
             ]);
         }
 
-        return back()->with('success', 'Students transport allocated successfully. Fee entries created.');
+        return back()->with('success', 'Students allocated to transport.');
     }
 
     public function update(Request $request, TransportStudentAllocation $allocation)
@@ -91,13 +96,20 @@ class AllocationController extends Controller
         ]);
 
         // Re-fetch fee only if stop changed
-        if ((int)$validated['stop_id'] !== (int)$allocation->stop_id) {
+        $stopChanged = (int) $validated['stop_id'] !== (int) $allocation->stop_id;
+        if ($stopChanged) {
             $stop = \App\Models\TransportStop::where('id', $validated['stop_id'])
                 ->where('school_id', $schoolId)->firstOrFail();
             $validated['transport_fee'] = $stop->fee;
         }
 
         $allocation->update($validated);
+
+        // Rebalance only if the fee changed or status moved to inactive —
+        // receipts stay, but balance/payment_status need to follow the new total.
+        if ($stopChanged || $allocation->wasChanged('status')) {
+            $allocation->refresh()->recalculateTotals();
+        }
 
         return back()->with('success', 'Allocation updated.');
     }

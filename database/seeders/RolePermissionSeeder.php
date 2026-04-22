@@ -126,6 +126,7 @@ class RolePermissionSeeder extends Seeder
 
         // ── Transport ────────────────────────────────────────────────────────
         'view_transport'            => 'Transport',
+        'collect_transport_fee'     => 'Transport',   // record transport-fee receipts
 
         // ── Portal (parent/student self-service) ─────────────────────────────
         'view_own_student'          => 'Parent/Student Portal',
@@ -359,6 +360,10 @@ class RolePermissionSeeder extends Seeder
             'view_fee', 'create_fee', 'edit_fee', 'delete_fee',
             'waive_fee', 'generate_fee_receipt', 'manage_fee_structure',
 
+            // Transport fee collection (standalone from Finance > Fee)
+            'view_transport_allocations',
+            'collect_transport_fee',
+
             // Expense — full CRUD
             'view_expense', 'create_expense', 'edit_expense', 'delete_expense',
 
@@ -424,6 +429,8 @@ class RolePermissionSeeder extends Seeder
             'view_transport_routes', 'create_transport_routes', 'edit_transport_routes', 'delete_transport_routes',
             'view_transport_allocations', 'create_transport_allocations', 'edit_transport_allocations', 'delete_transport_allocations',
             'view_transport_tracking',
+            'collect_transport_fee',
+            'generate_fee_receipt',
             'view_students',
             'view_transport',
         ]);

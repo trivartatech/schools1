@@ -252,6 +252,7 @@ export const SIDEBAR_MENU = [
             { title: 'Routes & Stops',     route: '/school/transport/routes',       permission: 'view_transport_routes' },
             { title: 'Vehicles',           route: '/school/transport/vehicles',     permission: 'view_transport_vehicles' },
             { title: 'Student Allocation', route: '/school/transport/allocations',  permission: 'view_transport_allocations' },
+            { title: 'Fee Collection',     route: '/school/transport/fees',         permission: 'view_transport_allocations' },
             { title: 'Bus Roll Call',      route: '/school/transport/attendance',   permission: 'view_transport_tracking' },
             { title: 'Route Report',       route: '/school/transport/reports/route-report',    permission: 'view_transport_routes' },
             { title: 'Fee Defaulters',     route: '/school/transport/reports/fee-defaulters',  permission: 'view_transport_allocations' },

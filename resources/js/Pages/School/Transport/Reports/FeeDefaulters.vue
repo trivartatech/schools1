@@ -1,6 +1,7 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import { ref, computed } from 'vue';
+import { Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
@@ -12,14 +13,14 @@ const props = defineProps({
 });
 
 const search = ref('');
-const expandedRows = ref({});
 
 const filteredDefaulters = computed(() => {
     if (!search.value.trim()) return props.defaulters;
     const q = search.value.toLowerCase().trim();
     return props.defaulters.filter(d => {
         const name = d.allocation?.student?.user?.name || '';
-        return name.toLowerCase().includes(q);
+        const adm  = d.allocation?.student?.admission_no || '';
+        return name.toLowerCase().includes(q) || adm.toLowerCase().includes(q);
     });
 });
 
@@ -29,10 +30,6 @@ const totalAmountDue = computed(() => {
     return props.defaulters.reduce((sum, d) => sum + parseFloat(d.total_due || 0), 0);
 });
 
-function toggleRow(index) {
-    expandedRows.value[index] = !expandedRows.value[index];
-}
-
 function formatCurrency(value) {
     return new Intl.NumberFormat('en-IN', {
         style: 'currency',
@@ -40,10 +37,6 @@ function formatCurrency(value) {
         minimumFractionDigits: 0,
         maximumFractionDigits: 2,
     }).format(value);
-}
-
-function formatDate(dateStr) {
-    return dateStr ? school.fmtDate(dateStr) : '--';
 }
 </script>
 
@@ -115,91 +108,50 @@ function formatDate(dateStr) {
                             <th>Admission No</th>
                             <th>Route</th>
                             <th>Stop</th>
-                            <th style="text-align: center;">Monthly Fee</th>
-                            <th style="text-align: center;">Total Overdue</th>
-                            <th style="text-align: center;">Overdue Invoices</th>
+                            <th style="text-align: right;">Total Fee</th>
+                            <th style="text-align: right;">Paid</th>
+                            <th style="text-align: right;">Outstanding</th>
+                            <th style="text-align: center;">Status</th>
                             <th style="text-align: center;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <template v-for="(defaulter, idx) in filteredDefaulters" :key="idx">
-                            <tr>
-                                <td>
-                                    <span style="font-weight: 600; color: #111827;">
-                                        {{ defaulter.allocation?.student?.user?.name || '--' }}
-                                    </span>
-                                </td>
-                                <td style="font-family: monospace; color: var(--text-muted);">
-                                    {{ defaulter.allocation?.student?.admission_no || '--' }}
-                                </td>
-                                <td>
-                                    <span style="font-weight: 500;">{{ defaulter.allocation?.route?.route_name || '--' }}</span>
-                                    <span v-if="defaulter.allocation?.route?.route_code" class="route-code">
-                                        {{ defaulter.allocation.route.route_code }}
-                                    </span>
-                                </td>
-                                <td>{{ defaulter.allocation?.stop?.stop_name || '--' }}</td>
-                                <td style="text-align: center;">
-                                    {{ formatCurrency(defaulter.allocation?.transport_fee || 0) }}
-                                </td>
-                                <td style="text-align: center;">
-                                    <span class="badge badge-red">
-                                        {{ formatCurrency(defaulter.total_due) }}
-                                    </span>
-                                </td>
-                                <td style="text-align: center;">
-                                    {{ defaulter.overdue_fees?.length || 0 }}
-                                </td>
-                                <td style="text-align: center;">
-                                    <Button variant="secondary" size="xs" @click="toggleRow(idx)" :title="expandedRows[idx] ? 'Collapse' : 'Expand'">
-                                        <svg
-                                            class="w-4 h-4 expand-icon"
-                                            :class="{ 'expand-icon--open': expandedRows[idx] }"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                        >
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                        </svg>
-                                    </Button>
-                                </td>
-                            </tr>
-                            <!-- Expanded: overdue fee records -->
-                            <tr v-if="expandedRows[idx]" class="expanded-row">
-                                <td colspan="8" style="padding: 0;">
-                                    <div class="expanded-content">
-                                        <Table class="sub-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Invoice ID</th>
-                                                    <th style="text-align: center;">Amount Due</th>
-                                                    <th style="text-align: center;">Balance</th>
-                                                    <th style="text-align: center;">Status</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr v-for="fee in defaulter.overdue_fees" :key="fee.id">
-                                                    <td style="font-family: monospace; font-size: 0.8rem;">
-                                                        #{{ fee.id }}
-                                                    </td>
-                                                    <td style="text-align: center; font-weight: 600;">
-                                                        {{ formatCurrency(fee.amount_due) }}
-                                                    </td>
-                                                    <td style="text-align: center;">
-                                                        {{ formatCurrency(fee.balance) }}
-                                                    </td>
-                                                    <td style="text-align: center;">
-                                                        <span class="badge badge-red" style="text-transform: capitalize;">
-                                                            {{ fee.status }}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </Table>
-                                    </div>
-                                </td>
-                            </tr>
-                        </template>
+                        <tr v-for="(defaulter, idx) in filteredDefaulters" :key="idx">
+                            <td>
+                                <span style="font-weight: 600; color: #111827;">
+                                    {{ defaulter.allocation?.student?.user?.name || '--' }}
+                                </span>
+                            </td>
+                            <td style="font-family: monospace; color: var(--text-muted);">
+                                {{ defaulter.allocation?.student?.admission_no || '--' }}
+                            </td>
+                            <td>
+                                <span style="font-weight: 500;">{{ defaulter.allocation?.route?.route_name || '--' }}</span>
+                                <span v-if="defaulter.allocation?.route?.route_code" class="route-code">
+                                    {{ defaulter.allocation.route.route_code }}
+                                </span>
+                            </td>
+                            <td>{{ defaulter.allocation?.stop?.stop_name || '--' }}</td>
+                            <td style="text-align: right; font-family: monospace;">
+                                {{ formatCurrency(defaulter.allocation?.transport_fee || 0) }}
+                            </td>
+                            <td style="text-align: right; font-family: monospace; color: #059669;">
+                                {{ formatCurrency(defaulter.allocation?.amount_paid || 0) }}
+                            </td>
+                            <td style="text-align: right; font-family: monospace;">
+                                <span class="badge badge-red">
+                                    {{ formatCurrency(defaulter.total_due) }}
+                                </span>
+                            </td>
+                            <td style="text-align: center; text-transform: capitalize;">
+                                {{ defaulter.allocation?.payment_status || '--' }}
+                            </td>
+                            <td style="text-align: center;">
+                                <Link :href="`/school/transport/fees/${defaulter.allocation?.id}`">
+                                    <Button variant="primary" size="xs">Collect</Button>
+                                </Link>
+                            </td>
+                        </tr>
                     </tbody>
                 </Table>
                 <div v-else class="empty-state">

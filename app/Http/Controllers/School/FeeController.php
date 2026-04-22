@@ -67,16 +67,10 @@ class FeeController extends Controller
                 'nullable', 'string', 'max:10',
                 Rule::unique('fee_heads')->where('school_id', $schoolId)
             ],
-            'is_taxable'       => 'boolean',
-            'gst_percent'      => 'numeric|min:0|max:28',
-            'is_transport_fee' => 'boolean',
-            'is_hostel_fee'    => 'boolean',
+            'is_taxable'    => 'boolean',
+            'gst_percent'   => 'numeric|min:0|max:28',
+            'is_hostel_fee' => 'boolean',
         ]);
-
-        // Only one transport fee head per school
-        if ($request->boolean('is_transport_fee')) {
-            FeeHead::where('school_id', $schoolId)->update(['is_transport_fee' => false]);
-        }
 
         // Only one hostel fee head per school
         if ($request->boolean('is_hostel_fee')) {
@@ -84,9 +78,8 @@ class FeeController extends Controller
         }
 
         FeeHead::create(array_merge($request->only(['fee_group_id', 'name', 'short_code', 'is_taxable', 'gst_percent', 'sort_order']), [
-            'school_id'        => $schoolId,
-            'is_transport_fee' => $request->boolean('is_transport_fee'),
-            'is_hostel_fee'    => $request->boolean('is_hostel_fee'),
+            'school_id'     => $schoolId,
+            'is_hostel_fee' => $request->boolean('is_hostel_fee'),
         ]));
         return back()->with('success', 'Fee head added.');
     }
@@ -105,16 +98,8 @@ class FeeController extends Controller
                 'nullable', 'string', 'max:10',
                 Rule::unique('fee_heads')->where('school_id', $schoolId)->ignore($feeHead->id)
             ],
-            'is_transport_fee' => 'boolean',
-            'is_hostel_fee'    => 'boolean',
+            'is_hostel_fee' => 'boolean',
         ]);
-
-        // Only one transport fee head per school
-        if ($request->boolean('is_transport_fee')) {
-            FeeHead::where('school_id', $schoolId)
-                ->where('id', '!=', $feeHead->id)
-                ->update(['is_transport_fee' => false]);
-        }
 
         // Only one hostel fee head per school
         if ($request->boolean('is_hostel_fee')) {
@@ -123,7 +108,7 @@ class FeeController extends Controller
                 ->update(['is_hostel_fee' => false]);
         }
 
-        $feeHead->update($request->only(['name', 'short_code', 'is_taxable', 'gst_percent', 'sort_order', 'is_transport_fee', 'is_hostel_fee']));
+        $feeHead->update($request->only(['name', 'short_code', 'is_taxable', 'gst_percent', 'sort_order', 'is_hostel_fee']));
         return back()->with('success', 'Fee head updated.');
     }
 
@@ -317,56 +302,13 @@ class FeeController extends Controller
                     ->with(['feeHead', 'collectedBy:id,first_name,last_name,name', 'glTransaction:id,transaction_no'])
                     ->get();
 
-                // ── Extract configured terms before stripping them ───────────────────
-                // This allows the UI to display the exact "term" the admin configured
-                // in the Fee Structure (e.g. 'Term 1', 'Annual', 'Monthly')
-                $transportTerm = $structures->first(fn($s) => $s->feeHead?->is_transport_fee ?? false)?->term ?? 'annual';
-                $hostelTerm    = $structures->first(fn($s) => $s->feeHead?->is_hostel_fee ?? false)?->term ?? 'annual';
+                // ── Extract configured hostel term before stripping it ───────────────
+                // Transport is fully decoupled — handled in the Transport module only.
+                $hostelTerm = $structures->first(fn($s) => $s->feeHead?->is_hostel_fee ?? false)?->term ?? 'annual';
 
-                // ── Strip transport and hostel fee heads from class structures ────────
-                // Transport and hostel amounts are per-student (from allocation), not per-class.
-                // Remove any class-level ₹0 entries so they don't block the real amount.
-                $structures = $structures->filter(fn($s) => !($s->feeHead?->is_transport_fee ?? false) && !($s->feeHead?->is_hostel_fee ?? false))->values();
-
-                // ── Transport Fee Schedule from Allocation (source of truth) ─────────
-                // Pull amount from allocation, and balance = amount - all paid receipts.
-                // This way EVERY payment creates its own receipt in Payment History.
-                $transportHead = \App\Models\FeeHead::where('school_id', $schoolId)
-                    ->where('is_transport_fee', true)
-                    ->first();
-
-                $transportAllocation = \App\Models\TransportStudentAllocation::where('student_id', $student->id)
-                    ->where('school_id', $schoolId)
-                    ->where('status', 'active')
-                    ->first();
-
-                if ($transportHead && $transportAllocation && $transportAllocation->transport_fee > 0) {
-                    $transportPayments = $payments
-                        ->where('fee_head_id', $transportHead->id)
-                        ->where('amount_paid', '>', 0);
-
-                    $totalPaid     = $transportPayments->sum('amount_paid');
-                    $totalDiscount = $transportPayments->sum('discount');
-                    $totalFine     = $transportPayments->sum('fine');
-
-                    $balance = max(0, (float) $transportAllocation->transport_fee - $totalPaid - $totalDiscount + $totalFine);
-                    $status  = $balance <= 0 ? 'paid' : (($totalPaid + $totalDiscount) > 0 ? 'partial' : 'due');
-
-                    // Always show — even when paid, so staff can see the completed entry
-                    $structures = $structures->concat([[
-                        'id'          => 'transport-alloc-' . $transportAllocation->id,
-                        'fee_head_id' => $transportHead->id,
-                        'fee_head'    => $transportHead->load('feeGroup'),
-                        'term'        => $transportTerm,
-                        'amount'      => $transportAllocation->transport_fee,
-                        'is_optional' => false,
-                        'source'      => 'payment',
-                        'payment_id'  => null,
-                        'balance'     => $balance,
-                        'status'      => $status,
-                    ]]);
-                }
-                // ────────────────────────────────────────────────────────────────────
+                // ── Strip hostel fee heads from class structures ─────────────────────
+                // Hostel amount is per-student (from allocation), not per-class.
+                $structures = $structures->filter(fn($s) => !($s->feeHead?->is_hostel_fee ?? false))->values();
 
                 // ── Hostel Fee Schedule from Allocation (source of truth) ────────────
                 $hostelHead = \App\Models\FeeHead::where('school_id', $schoolId)
@@ -410,12 +352,11 @@ class FeeController extends Controller
                 }
                 // ────────────────────────────────────────────────────────────────────
 
-                // ── Other ad-hoc due payments (non-transport, non-hostel) ────────────
+                // ── Other ad-hoc due payments (non-hostel) ───────────────────────────
                 $existingHeadIds = $structures->pluck('fee_head_id')->unique();
 
                 $adhocDue = $payments->filter(function ($p) use ($existingHeadIds) {
-                    if ($p->feeHead?->is_transport_fee ?? false) return false; // handled above
-                    if ($p->feeHead?->is_hostel_fee ?? false) return false;    // handled above
+                    if ($p->feeHead?->is_hostel_fee ?? false) return false; // handled above
                     return in_array($p->status, ['due', 'partial'])
                         && !$existingHeadIds->contains($p->fee_head_id);
                 });
@@ -443,10 +384,9 @@ class FeeController extends Controller
                 // ── Payment History: hide auto-created due records only (amount_paid=0) ─
                 // Actual receipts (amount_paid > 0) always show in history.
                 $payments = $payments->filter(function ($p) {
-                    $isTransport = $p->feeHead?->is_transport_fee ?? false;
-                    $isHostel    = $p->feeHead?->is_hostel_fee ?? false;
-                    $isBlankDue  = $p->status === \App\Enums\FeePaymentStatus::Due && (float) $p->amount_paid === 0.0;
-                    return !(($isTransport || $isHostel) && $isBlankDue);
+                    $isHostel   = $p->feeHead?->is_hostel_fee ?? false;
+                    $isBlankDue = $p->status === \App\Enums\FeePaymentStatus::Due && (float) $p->amount_paid === 0.0;
+                    return !($isHostel && $isBlankDue);
                 })->values();
                 // ─────────────────────────────────────────────────────────────────────
 

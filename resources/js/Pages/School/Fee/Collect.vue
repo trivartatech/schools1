@@ -370,14 +370,13 @@ const statusBadge = (status) => {
                                 <div class="flex items-center gap-1.5 flex-wrap">
                                     <p class="text-sm font-medium" style="color: var(--text-primary)">{{ s.fee_head?.name }}</p>
                                     <span v-if="s.source === 'payment' && s.status === 'paid'" class="badge badge-green text-[10px]">✓ paid</span>
-                                    <span v-else-if="s.source === 'payment' && s.fee_head?.is_transport_fee" class="badge badge-blue text-[10px]">Transport</span>
                                     <span v-else-if="s.source === 'payment' && s.fee_head?.is_hostel_fee" class="badge badge-purple text-[10px]">Hostel</span>
                                     <span v-if="s.is_optional" class="badge badge-purple text-[10px]">Optional</span>
                                     <span v-if="s.fee_head?.is_taxable" class="badge badge-red text-[10px]" title="Includes GST">GST {{ s.fee_head?.gst_percent }}%</span>
                                 </div>
                                 <p class="text-xs mt-0.5" style="color: var(--text-muted)">
                                     {{ s.term.startsWith('Installment') ? s.term : s.term.charAt(0).toUpperCase() + s.term.slice(1).replace('_', ' ') }}
-                                    · {{ s.fee_head?.fee_group?.name ?? (s.fee_head?.is_hostel_fee ? 'Hostel' : 'Transport') }}
+                                    · {{ s.fee_head?.fee_group?.name ?? (s.fee_head?.is_hostel_fee ? 'Hostel' : 'Fee') }}
                                 </p>
                             </div>
                             <div class="text-right">

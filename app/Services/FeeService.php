@@ -95,15 +95,14 @@ class FeeService
             $hostelFee = (float) $hostelAllocation->bed->room->cost_per_month;
         }
 
-        // C. Class fees total (excluding transport + hostel heads)
+        // C. Class fees total (excluding hostel heads — transport is fully decoupled)
         $classTotal = $structures->filter(
-            fn($s) => !($s->feeHead?->is_transport_fee ?? false) && !($s->feeHead?->is_hostel_fee ?? false)
+            fn($s) => !($s->feeHead?->is_hostel_fee ?? false)
         )->sum('amount');
 
         // D. Ad-hoc fees (payments not in class structures)
         $structureHeadIds = $structures->pluck('fee_head_id')->unique();
         $adhocFeesTotal = $payments->filter(function($p) use ($structureHeadIds) {
-            if ($p->feeHead?->is_transport_fee ?? false) return false;
             if ($p->feeHead?->is_hostel_fee ?? false) return false;
             return !in_array($p->fee_head_id, $structureHeadIds->toArray()) &&
                    in_array($p->status, ['due', 'partial', 'paid']);
@@ -111,21 +110,35 @@ class FeeService
 
         $totalDue = $classTotal + $transportFee + $hostelFee + $adhocFeesTotal;
 
-        // D. Payments/Discounts/Fines (Real Money)
-        $totalPaid = $payments->sum('amount_paid');
+        // D. Payments/Discounts/Fines (Real Money) — class + hostel + adhoc only
+        $totalPaid     = $payments->sum('amount_paid');
         $totalDiscount = $payments->sum('discount');
-        $totalFine = $payments->sum('fine');
+        $totalFine     = $payments->sum('fine');
 
-        // Balance Calculation matching logic in FeeController
-        // Balance = TotalDue - (Paid + Discount) + Fines
-        $balance = max(0, $totalDue - ($totalPaid + $totalDiscount) + $totalFine);
+        // Transport payments are tracked on the allocation itself, add them to totals
+        $transportPaid     = (float) ($transportAllocation?->amount_paid ?? 0);
+        $transportDiscount = (float) ($transportAllocation?->discount    ?? 0);
+        $transportFine     = (float) ($transportAllocation?->fine        ?? 0);
+        $transportBalance  = (float) ($transportAllocation?->balance     ?? 0);
+
+        $totalPaid     += $transportPaid;
+        $totalDiscount += $transportDiscount;
+        $totalFine     += $transportFine;
+
+        // Balance = non-transport balance + transport balance
+        $nonTransportDue = $totalDue - $transportFee;
+        $nonTransportPaid = $totalPaid - $transportPaid;
+        $nonTransportDiscount = $totalDiscount - $transportDiscount;
+        $nonTransportFine = $totalFine - $transportFine;
+        $balance = max(0, $nonTransportDue - ($nonTransportPaid + $nonTransportDiscount) + $nonTransportFine)
+                 + $transportBalance;
 
         // 5. Build Head-wise Breakdown — ALL fee heads visible with status
         $feeHeadsArr = [];
 
-        // A. Class Fees — every structure entry is always shown
+        // A. Class Fees — every structure entry is always shown (hostel is surfaced separately)
         foreach ($structures as $s) {
-            if ($s->feeHead?->is_transport_fee || $s->feeHead?->is_hostel_fee) continue;
+            if ($s->feeHead?->is_hostel_fee) continue;
 
             $p = $payments->where('fee_head_id', $s->fee_head_id)->where('term', $s->term);
             $pPaid = $p->sum('amount_paid');
@@ -154,33 +167,20 @@ class FeeService
             ];
         }
 
-        // B. Transport Fee
+        // B. Transport Fee — read-only summary sourced from the allocation itself.
+        // Collection happens in the Transport module, NOT in Finance > Fee Collection.
         if ($transportFee > 0) {
-            $transportHead = \App\Models\FeeHead::where('school_id', $schoolId)->where('is_transport_fee', true)->first();
-            $tPayments = $transportHead ? $payments->where('fee_head_id', $transportHead->id) : collect();
-
-            $tPaid = $tPayments->sum('amount_paid');
-            $tDiscount = $tPayments->sum('discount');
-            $tFine = $tPayments->sum('fine');
-            $tBal = max(0, $transportFee - ($tPaid + $tDiscount) + $tFine);
-
-            if ($tBal <= 0) {
-                $tStatus = 'paid';
-            } elseif ($tPaid > 0 || $tDiscount > 0) {
-                $tStatus = 'partial';
-            } else {
-                $tStatus = 'unpaid';
-            }
-
             $feeHeadsArr[] = [
-                'fee_head_id' => $transportHead->id ?? null,
-                'head_name'   => 'Transport Fee',
-                'term'        => 'Annual',
-                'amount_due'  => $transportFee,
-                'amount_paid' => $tPaid,
-                'discount'    => $tDiscount,
-                'balance'     => $tBal,
-                'status'      => $tStatus,
+                'fee_head_id'  => null,
+                'head_name'    => 'Transport Fee',
+                'term'         => 'Annual',
+                'amount_due'   => $transportFee,
+                'amount_paid'  => $transportPaid,
+                'discount'     => $transportDiscount,
+                'balance'      => $transportBalance,
+                'status'       => $transportAllocation?->payment_status ?? 'unpaid',
+                'source'       => 'transport',
+                'read_only'    => true,
             ];
         }
 
@@ -216,7 +216,6 @@ class FeeService
 
         // D. Adhoc Fees (Arrears, special charges, existing but not in structure)
         $adhocList = $payments->filter(function($p) use ($structureHeadIds) {
-            if ($p->feeHead?->is_transport_fee ?? false) return false;
             if ($p->feeHead?->is_hostel_fee ?? false) return false;
             return !in_array($p->fee_head_id, $structureHeadIds->toArray()) &&
                    in_array($p->status, ['due', 'partial', 'paid']);
@@ -305,7 +304,7 @@ class FeeService
                 if ($s->class_id != $classId) return false;
                 if (!in_array($s->gender, ['all', $gender])) return false;
                 if (!in_array($s->student_type, ['all', $studentType])) return false;
-                if ($s->feeHead?->is_transport_fee || $s->feeHead?->is_hostel_fee) return false;
+                if ($s->feeHead?->is_hostel_fee) return false;
                 return true;
             })->sum('amount');
 
@@ -344,7 +343,6 @@ class FeeService
             ->with('feeHead')
             ->get()
             ->filter(function ($p) use ($structureHeadTermKeys) {
-                if ($p->feeHead?->is_transport_fee ?? false) return false;
                 if ($p->feeHead?->is_hostel_fee ?? false) return false;
                 $key = $p->fee_head_id . '|' . $p->term;
                 return !in_array($key, $structureHeadTermKeys);

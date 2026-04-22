@@ -9,10 +9,12 @@ const props = defineProps({
     regConfig: Object,
     feeConfig: Object,
     tcConfig:  Object,
+    transportConfig: Object,
     admissionCount: Number,
     registrationCount: Number,
     feeCount: Number,
     tcCount:  Number,
+    transportCount: Number,
     academicYearName: String,
 });
 
@@ -60,6 +62,11 @@ const form = useForm({
     tc_suffix:      props.tcConfig?.suffix     ?? '/{YEAR}',
     tc_start_no:    props.tcConfig?.start_no   ?? 1,
     tc_pad_length:  props.tcConfig?.pad_length ?? 4,
+    // Transport Fee Receipt
+    transport_prefix:     props.transportConfig?.prefix     ?? 'TR-',
+    transport_suffix:     props.transportConfig?.suffix     ?? '',
+    transport_start_no:   props.transportConfig?.start_no   ?? 1,
+    transport_pad_length: props.transportConfig?.pad_length ?? 5,
 });
 
 // Computed previews
@@ -69,10 +76,11 @@ function preview(prefix, suffix, startNo, count, pad) {
     const n = String(Number(startNo) + Number(count)).padStart(Number(pad), '0');
     return p + n + s;
 }
-const admNextPreview = computed(() => preview(form.adm_prefix, form.adm_suffix, form.adm_start_no, props.admissionCount,    form.adm_pad_length));
-const regNextPreview = computed(() => preview(form.reg_prefix, form.reg_suffix, form.reg_start_no, props.registrationCount, form.reg_pad_length));
-const feeNextPreview = computed(() => preview(form.fee_prefix, form.fee_suffix, form.fee_start_no, props.feeCount,          form.fee_pad_length));
-const tcNextPreview  = computed(() => preview(form.tc_prefix,  form.tc_suffix,  form.tc_start_no,  props.tcCount,           form.tc_pad_length));
+const admNextPreview       = computed(() => preview(form.adm_prefix,       form.adm_suffix,       form.adm_start_no,       props.admissionCount,    form.adm_pad_length));
+const regNextPreview       = computed(() => preview(form.reg_prefix,       form.reg_suffix,       form.reg_start_no,       props.registrationCount, form.reg_pad_length));
+const feeNextPreview       = computed(() => preview(form.fee_prefix,       form.fee_suffix,       form.fee_start_no,       props.feeCount,          form.fee_pad_length));
+const tcNextPreview        = computed(() => preview(form.tc_prefix,        form.tc_suffix,        form.tc_start_no,        props.tcCount,           form.tc_pad_length));
+const transportNextPreview = computed(() => preview(form.transport_prefix, form.transport_suffix, form.transport_start_no, props.transportCount,    form.transport_pad_length));
 
 // Token insertion target
 const activeField = ref('adm_prefix');
@@ -95,6 +103,9 @@ const warnings = computed(() => {
     }
     if (Number(form.tc_start_no) <= props.tcCount) {
         list.push(`⚠️ Transfer Certificate: Starting number ${form.tc_start_no} is ≤ ${props.tcCount} already issued — may produce duplicate certificate numbers.`);
+    }
+    if (Number(form.transport_start_no) <= (props.transportCount ?? 0)) {
+        list.push(`⚠️ Transport Receipt: Starting number ${form.transport_start_no} is ≤ ${props.transportCount ?? 0} already issued — may produce duplicate receipt numbers.`);
     }
     // If prefix/suffix changed vs saved config (different resolved value), also warn
     const savedAdmPrefix = resolveTokens(props.admConfig?.prefix ?? 'ADM');
@@ -149,6 +160,11 @@ const submit = () => form.post('/school/settings/number-formats', { preserveScro
                     <p class="text-xl font-mono font-bold text-rose-700 tracking-widest truncate">{{ tcNextPreview }}</p>
                     <p class="text-xs text-rose-400 mt-1">After {{ tcCount }} TC(s) issued</p>
                 </div>
+                <div class="bg-sky-50 border border-sky-200 rounded-xl p-4">
+                    <p class="text-xs font-semibold text-sky-600 uppercase tracking-wider mb-1">🚌 Next Transport Receipt No.</p>
+                    <p class="text-xl font-mono font-bold text-sky-700 tracking-widest truncate">{{ transportNextPreview }}</p>
+                    <p class="text-xs text-sky-400 mt-1">After {{ transportCount ?? 0 }} transport payment(s)</p>
+                </div>
             </div>
 
             <!-- Token Picker -->
@@ -180,10 +196,11 @@ const submit = () => form.post('/school/settings/number-formats', { preserveScro
 
                 <!-- Section builder helper component inline -->
                 <template v-for="section in [
-                    { emoji: '🎓', title: 'Admission Number',    pk: 'adm', count: admissionCount,    preview: admNextPreview,  color: 'indigo' },
-                    { emoji: '📋', title: 'Registration Number', pk: 'reg', count: registrationCount, preview: regNextPreview,  color: 'blue'   },
-                    { emoji: '🧾', title: 'Fee Receipt Number',  pk: 'fee', count: feeCount,          preview: feeNextPreview,  color: 'green'  },
-                    { emoji: '📜', title: 'Transfer Certificate Number', pk: 'tc', count: tcCount,   preview: tcNextPreview,   color: 'rose'   },
+                    { emoji: '🎓', title: 'Admission Number',    pk: 'adm',       count: admissionCount,        preview: admNextPreview,       color: 'indigo' },
+                    { emoji: '📋', title: 'Registration Number', pk: 'reg',       count: registrationCount,     preview: regNextPreview,       color: 'blue'   },
+                    { emoji: '🧾', title: 'Fee Receipt Number',  pk: 'fee',       count: feeCount,              preview: feeNextPreview,       color: 'green'  },
+                    { emoji: '📜', title: 'Transfer Certificate Number', pk: 'tc', count: tcCount,              preview: tcNextPreview,        color: 'rose'   },
+                    { emoji: '🚌', title: 'Transport Receipt Number', pk: 'transport', count: (transportCount ?? 0), preview: transportNextPreview, color: 'sky' },
                 ]" :key="section.pk">
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                         <div class="flex items-center gap-2 mb-5 pb-3 border-b">

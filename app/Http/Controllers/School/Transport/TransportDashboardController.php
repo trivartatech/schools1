@@ -117,44 +117,23 @@ class TransportDashboardController extends Controller
      */
     public function feeDefaulters()
     {
-        $schoolId = app('current_school_id');
-
-        // Get active allocations with their fee payment status
-        $allocations = TransportStudentAllocation::tenant()
+        $defaulters = TransportStudentAllocation::tenant()
             ->where('status', 'active')
+            ->whereIn('payment_status', ['unpaid', 'partial'])
+            ->where('balance', '>', 0)
             ->with([
                 'student:id,admission_no',
                 'student.user:id,name',
                 'route:id,route_name,route_code',
                 'stop:id,stop_name',
             ])
-            ->get();
-
-        // Check fee payments — find students with unpaid/overdue transport fees
-        $transportHead = \App\Models\FeeHead::where('school_id', $schoolId)
-            ->where('is_transport_fee', true)->first();
-
-        $defaulters = collect();
-        if ($transportHead) {
-            $defaulters = $allocations->filter(function ($alloc) use ($schoolId, $transportHead) {
-                return \App\Models\FeePayment::where('school_id', $schoolId)
-                    ->where('student_id', $alloc->student_id)
-                    ->where('fee_head_id', $transportHead->id)
-                    ->whereIn('status', ['due', 'partial'])
-                    ->exists();
-            })->map(function ($alloc) use ($schoolId, $transportHead) {
-                $overdue = \App\Models\FeePayment::where('school_id', $schoolId)
-                    ->where('student_id', $alloc->student_id)
-                    ->where('fee_head_id', $transportHead->id)
-                    ->whereIn('status', ['due', 'partial'])
-                    ->get(['id', 'amount_due', 'balance', 'payment_date', 'status']);
-                return [
-                    'allocation'   => $alloc,
-                    'overdue_fees' => $overdue,
-                    'total_due'    => $overdue->sum('balance'),
-                ];
-            })->values();
-        }
+            ->orderByDesc('balance')
+            ->get()
+            ->map(fn ($alloc) => [
+                'allocation' => $alloc,
+                'total_due'  => (float) $alloc->balance,
+            ])
+            ->values();
 
         return Inertia::render('School/Transport/Reports/FeeDefaulters', [
             'defaulters' => $defaulters,

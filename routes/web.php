@@ -8,6 +8,7 @@ use Inertia\Inertia;
 // Public Routes
 Route::get('/', [\App\Http\Controllers\PublicController::class, 'home']);
 Route::get('/verify-receipt/{receipt_no}', [\App\Http\Controllers\PublicController::class, 'verifyReceipt'])->name('verify-receipt');
+Route::get('/verify-transport-receipt/{receipt_no}', [\App\Http\Controllers\PublicController::class, 'verifyTransportReceipt'])->name('verify-transport-receipt');
 Route::get('/school/hostel/gate-passes/verify/{token}', [\App\Http\Controllers\PublicController::class, 'verifyGatePass'])->name('gate-pass.verify-public');
 Route::get('/school/hostel/visitors/verify/{token}', [\App\Http\Controllers\PublicController::class, 'verifyVisitorPass'])->name('visitor-pass.verify-public');
 Route::get('/verify/certificate/{token}', [\App\Http\Controllers\PublicController::class, 'verifyCertificate'])->name('certificate.verify-public');
@@ -1020,17 +1021,30 @@ Route::middleware('auth')->group(function () {
                     $AC = \App\Http\Controllers\School\Transport\AllocationController::class;
                     Route::get('allocations',                   [$AC, 'index'])->name('allocations.index');
                     Route::get('allocations/students-by-class', [$AC, 'studentsByClass'])->name('allocations.students-by-class');
-                    
+
                     Route::middleware(['permission:create_transport_allocations'])->group(function() use ($AC) {
                         Route::post('allocations',              [$AC, 'store'])->name('allocations.store');
                     });
-                    
+
                     Route::middleware(['permission:edit_transport_allocations'])->group(function() use ($AC) {
                         Route::put('allocations/{allocation}',  [$AC, 'update'])->name('allocations.update');
                     });
-                    
+
                     Route::middleware(['permission:delete_transport_allocations'])->group(function() use ($AC) {
                         Route::delete('allocations/{allocation}', [$AC, 'destroy'])->name('allocations.destroy');
+                    });
+                });
+
+                // Transport Fee Collection (standalone — no link to Finance FeePayment)
+                Route::middleware(['permission:view_transport_allocations'])->group(function () {
+                    $TFC = \App\Http\Controllers\School\Transport\TransportFeeCollectionController::class;
+                    Route::get('fees',                              [$TFC, 'index'])->name('fees.index');
+                    Route::get('fees/receipts/{payment}/receipt',   [$TFC, 'receipt'])->name('fees.receipt');
+                    Route::get('fees/{allocation}',                 [$TFC, 'show'])->name('fees.show');
+
+                    Route::middleware(['permission:collect_transport_fee'])->group(function () use ($TFC) {
+                        Route::post('fees/{allocation}/collect',         [$TFC, 'store'])->name('fees.store');
+                        Route::delete('fees/receipts/{payment}',         [$TFC, 'destroy'])->name('fees.receipt.destroy');
                     });
                 });
 

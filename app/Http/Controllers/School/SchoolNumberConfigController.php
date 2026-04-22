@@ -8,6 +8,7 @@ use App\Models\FeePayment;
 use App\Models\Student;
 use App\Models\StudentApplication;
 use App\Models\TransferCertificate;
+use App\Models\TransportFeePayment;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -45,10 +46,17 @@ class SchoolNumberConfigController extends Controller
                 'start_no'   => $settings['tc_start_no']   ?? 1,
                 'pad_length' => $settings['tc_pad_length'] ?? 4,
             ],
+            'transportConfig' => [
+                'prefix'     => $settings['transport_receipt_prefix']     ?? 'TR-',
+                'suffix'     => $settings['transport_receipt_suffix']     ?? '',
+                'start_no'   => $settings['transport_receipt_start_no']   ?? 1,
+                'pad_length' => $settings['transport_receipt_pad_length'] ?? 5,
+            ],
             'admissionCount'    => Student::where('school_id', $schoolId)->count(),
             'registrationCount' => StudentApplication::where('school_id', $schoolId)->count(),
             'feeCount'          => FeePayment::where('school_id', $schoolId)->count(),
             'tcCount'           => TransferCertificate::where('school_id', $schoolId)->where('status', 'issued')->count(),
+            'transportCount'    => TransportFeePayment::where('school_id', $schoolId)->count(),
             'academicYearName'  => $activeYear?->name ?? '??-??',
         ]);
     }
@@ -79,6 +87,11 @@ class SchoolNumberConfigController extends Controller
             'tc_suffix'      => 'nullable|string|max:20',
             'tc_start_no'    => 'required|integer|min:1',
             'tc_pad_length'  => 'required|integer|min:1|max:10',
+            // Transport Fee Receipt (standalone counter for transport fees)
+            'transport_prefix'     => 'nullable|string|max:20',
+            'transport_suffix'     => 'nullable|string|max:20',
+            'transport_start_no'   => 'required|integer|min:1',
+            'transport_pad_length' => 'required|integer|min:1|max:10',
         ]);
 
         $settings = $school->settings ?? [];
@@ -106,6 +119,12 @@ class SchoolNumberConfigController extends Controller
         $settings['tc_suffix']     = $validated['tc_suffix']     ?? '';
         $settings['tc_start_no']   = $validated['tc_start_no'];
         $settings['tc_pad_length'] = $validated['tc_pad_length'];
+
+        // Transport Fee Receipt
+        $settings['transport_receipt_prefix']     = $validated['transport_prefix']     ?? '';
+        $settings['transport_receipt_suffix']     = $validated['transport_suffix']     ?? '';
+        $settings['transport_receipt_start_no']   = $validated['transport_start_no'];
+        $settings['transport_receipt_pad_length'] = $validated['transport_pad_length'];
 
         $school->settings = $settings;
         $school->save();
