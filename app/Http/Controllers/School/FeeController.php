@@ -397,7 +397,8 @@ class FeeController extends Controller
         // Search & Filter
         $students = [];
         if ($request->filled('search') || $request->filled('class_id') || $request->filled('section_id')) {
-            $query = Student::where('school_id', $schoolId);
+            $query = Student::where('school_id', $schoolId)
+                ->enrolledInYear($academicYearId);
 
             if ($request->filled('search')) {
                 $query->where(function ($q) use ($request) {
