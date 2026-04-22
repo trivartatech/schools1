@@ -16,7 +16,7 @@ class CourseClassController extends Controller
     {
         $school      = app('current_school');
         $classes     = CourseClass::with('department', 'inchargeStaff.user')
-            ->withCount('sections')
+            ->withCount(['sections as sections_count' => fn($q) => $q->forCurrentYear()])
             ->where('school_id', $school->id)
             ->orderBy('numeric_value')
             ->orderBy('name')
