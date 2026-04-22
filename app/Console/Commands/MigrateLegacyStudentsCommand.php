@@ -387,7 +387,7 @@ class MigrateLegacyStudentsCommand extends Command
             $student->erp_no        = $erpNo;
             $student->first_name    = $this->nullIfBlank($rec['first_name']) ?? $rec['full_name_raw'];
             $student->last_name     = $this->nullIfBlank($rec['last_name']);
-            $student->dob           = $this->nullIfBlank($rec['dob']);
+            $student->dob           = $this->parseDob($rec['dob'] ?? null);
             $student->gender        = $this->normalizeGender($rec['gender'] ?? null);
             $student->blood_group   = $this->nullIfBlank($rec['blood_group']);
             $student->religion      = $this->nullIfBlank($rec['religion']);
@@ -694,6 +694,21 @@ class MigrateLegacyStudentsCommand extends Command
         if ($value === null) return null;
         $v = trim((string) $value);
         return $v === '' ? null : $v;
+    }
+
+    private function parseDob($value): ?string
+    {
+        $v = $this->nullIfBlank($value);
+        if ($v === null) return null;
+        try {
+            $d = Carbon::parse($v);
+            if ($d->year < 1900 || $d->year > (int) date('Y') + 1) {
+                return null;
+            }
+            return $d->format('Y-m-d');
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     private function normalizeGender(?string $g): ?string
