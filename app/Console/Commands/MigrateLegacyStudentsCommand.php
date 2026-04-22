@@ -529,7 +529,7 @@ class MigrateLegacyStudentsCommand extends Command
                 $status  = $balance == 0 ? 'paid' : ($paid > 0 ? 'partial' : 'due');
 
                 $paymentSeq++;
-                $paymentsBuffer[] = [
+                $paymentsBuffer[] = $this->paymentRow([
                     'receipt_no'        => 'MIG-' . str_replace('-', '', $year) . '-' . str_pad($paymentSeq, 6, '0', STR_PAD_LEFT),
                     'school_id'         => $schoolId,
                     'student_id'        => $studentId,
@@ -538,17 +538,12 @@ class MigrateLegacyStudentsCommand extends Command
                     'amount_due'        => $due,
                     'amount_paid'       => $paid,
                     'discount'          => $discount,
-                    'fine'              => 0,
                     'balance'           => $balance,
-                    'term'              => 'annual',
                     'payment_date'      => $paymentDate,
-                    'payment_mode'      => 'cash',
                     'status'            => $status,
                     'remarks'           => $remarks,
                     'is_carry_forward'  => false,
-                    'created_at'        => now(),
-                    'updated_at'        => now(),
-                ];
+                ]);
                 $paymentsCreated++;
 
                 $feeTotals[$year][$headName]['due']  = ($feeTotals[$year][$headName]['due']  ?? 0) + $due;
@@ -562,7 +557,7 @@ class MigrateLegacyStudentsCommand extends Command
                 $balance = max(0, $extraDue - $extraPaid);
                 $status  = $balance == 0 ? 'paid' : ($extraPaid > 0 ? 'partial' : 'due');
                 $paymentSeq++;
-                $paymentsBuffer[] = [
+                $paymentsBuffer[] = $this->paymentRow([
                     'receipt_no'       => 'MIG-' . str_replace('-', '', $year) . '-' . str_pad($paymentSeq, 6, '0', STR_PAD_LEFT),
                     'school_id'        => $schoolId,
                     'student_id'       => $studentId,
@@ -570,18 +565,12 @@ class MigrateLegacyStudentsCommand extends Command
                     'fee_head_id'      => $this->feeHeadMap['Extra Fee'],
                     'amount_due'       => $extraDue,
                     'amount_paid'      => $extraPaid,
-                    'discount'         => 0,
-                    'fine'             => 0,
                     'balance'          => $balance,
-                    'term'             => 'annual',
                     'payment_date'     => $paymentDate,
-                    'payment_mode'     => 'cash',
                     'status'           => $status,
                     'remarks'          => $remarks,
                     'is_carry_forward' => false,
-                    'created_at'       => now(),
-                    'updated_at'       => now(),
-                ];
+                ]);
                 $paymentsCreated++;
                 $feeTotals[$year]['Extra Fee']['due']  = ($feeTotals[$year]['Extra Fee']['due']  ?? 0) + $extraDue;
                 $feeTotals[$year]['Extra Fee']['paid'] = ($feeTotals[$year]['Extra Fee']['paid'] ?? 0) + $extraPaid;
@@ -597,7 +586,7 @@ class MigrateLegacyStudentsCommand extends Command
                 $sourceYearId = $prevYearName ? ($this->ayMap[$prevYearName] ?? null) : null;
 
                 $paymentSeq++;
-                $paymentsBuffer[] = [
+                $paymentsBuffer[] = $this->paymentRow([
                     'receipt_no'       => 'MIG-CF-' . str_replace('-', '', $year) . '-' . str_pad($paymentSeq, 6, '0', STR_PAD_LEFT),
                     'school_id'        => $schoolId,
                     'student_id'       => $studentId,
@@ -605,29 +594,23 @@ class MigrateLegacyStudentsCommand extends Command
                     'fee_head_id'      => $this->feeHeadMap['Tuition Fee'],
                     'amount_due'       => $oldBalance,
                     'amount_paid'      => 0,
-                    'discount'         => 0,
-                    'fine'             => 0,
                     'balance'          => $oldBalance,
-                    'term'             => 'annual',
                     'payment_date'     => $paymentDate,
-                    'payment_mode'     => 'cash',
                     'status'           => 'due',
                     'remarks'          => $remarks . ' [carry-forward of prior year dues]',
                     'is_carry_forward' => true,
                     'source_year_id'   => $sourceYearId,
-                    'created_at'       => now(),
-                    'updated_at'       => now(),
-                ];
+                ]);
                 $paymentsCreated++;
             }
 
             // Flush buffers every 500 rows to avoid giant single insert
             if (count($historiesBuffer) >= 500) {
-                DB::table('student_academic_histories')->insert($historiesBuffer);
+                $this->flushBatch('student_academic_histories', $historiesBuffer);
                 $historiesBuffer = [];
             }
             if (count($paymentsBuffer) >= 1000) {
-                DB::table('fee_payments')->insert($paymentsBuffer);
+                $this->flushBatch('fee_payments', $paymentsBuffer);
                 $paymentsBuffer = [];
             }
 
@@ -636,10 +619,10 @@ class MigrateLegacyStudentsCommand extends Command
         fclose($fp);
 
         if (!empty($historiesBuffer)) {
-            DB::table('student_academic_histories')->insert($historiesBuffer);
+            $this->flushBatch('student_academic_histories', $historiesBuffer);
         }
         if (!empty($paymentsBuffer)) {
-            DB::table('fee_payments')->insert($paymentsBuffer);
+            $this->flushBatch('fee_payments', $paymentsBuffer);
         }
 
         $bar->finish();
@@ -687,6 +670,64 @@ class MigrateLegacyStudentsCommand extends Command
         $this->line(sprintf('    sections                  : %d', DB::table('sections')->where('school_id', $schoolId)->count()));
         $this->line(sprintf('    fee_heads                 : %d', DB::table('fee_heads')->where('school_id', $schoolId)->count()));
         $this->line('');
+    }
+
+    /**
+     * Normalize a fee_payments row so every buffered row has the same 22 keys.
+     * Prevents Laravel's DB::insert() batch from hitting "column count doesn't
+     * match value count" when CF and non-CF rows mix in the same flush.
+     */
+    private function paymentRow(array $row): array
+    {
+        $defaults = [
+            'receipt_no'        => null,
+            'school_id'         => null,
+            'student_id'        => null,
+            'academic_year_id'  => null,
+            'fee_head_id'       => null,
+            'fee_structure_id'  => null,
+            'amount_due'        => 0,
+            'amount_paid'       => 0,
+            'discount'          => 0,
+            'fine'              => 0,
+            'balance'           => 0,
+            'term'              => 'annual',
+            'payment_date'      => null,
+            'payment_mode'      => 'cash',
+            'status'            => 'paid',
+            'remarks'           => null,
+            'is_carry_forward'  => false,
+            'source_payment_id' => null,
+            'source_year_id'    => null,
+            'rollover_run_id'   => null,
+            'created_at'        => now(),
+            'updated_at'        => now(),
+        ];
+        return array_merge($defaults, $row);
+    }
+
+    /**
+     * Flush a buffered insert batch with context on failure.
+     * On failure logs the table, batch size, and the keys of the first/last rows
+     * so we can diagnose column-count mismatches, FK violations, etc.
+     */
+    private function flushBatch(string $table, array $rows): void
+    {
+        try {
+            DB::table($table)->insert($rows);
+        } catch (\Throwable $e) {
+            $first = $rows[0] ?? [];
+            $last  = $rows[array_key_last($rows)] ?? [];
+            $this->error("Batch insert failed on '{$table}' (size=" . count($rows) . ')');
+            $this->error('  message: ' . $e->getMessage());
+            $this->error('  first row keys (' . count($first) . '): ' . implode(', ', array_keys($first)));
+            $this->error('  last  row keys (' . count($last)  . '): ' . implode(', ', array_keys($last)));
+            if (isset($first['receipt_no']))   $this->error('  first receipt_no: ' . $first['receipt_no']);
+            if (isset($last['receipt_no']))    $this->error('  last  receipt_no: ' . $last['receipt_no']);
+            if (isset($first['student_id']))   $this->error('  first student_id: ' . $first['student_id']);
+            if (isset($last['student_id']))    $this->error('  last  student_id: ' . $last['student_id']);
+            throw $e;
+        }
     }
 
     private function nullIfBlank($value): ?string
