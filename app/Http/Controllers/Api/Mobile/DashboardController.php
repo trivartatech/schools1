@@ -124,13 +124,13 @@ class DashboardController extends Controller
         if ($user->isTeacher()) {
             return [
                 'classes_today'  => 0,
-                'total_students' => Student::where('school_id', $school->id)->count(),
+                'total_students' => Student::where('school_id', $school->id)->enrolledInYear($yearId)->count(),
                 'pending_marks'  => 0,
                 'leave_requests' => 0,
             ];
         }
 
-        $totalStudents  = Student::where('school_id', $school->id)->where('status', 'active')->count();
+        $totalStudents  = Student::where('school_id', $school->id)->where('status', 'active')->enrolledInYear($yearId)->count();
         $markedToday    = Attendance::where('school_id', $school->id)->whereDate('date', today())->count();
         $presentToday   = Attendance::where('school_id', $school->id)->whereDate('date', today())
             ->whereIn('status', ['present', 'late', 'half_day'])->count();

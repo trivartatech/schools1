@@ -39,7 +39,7 @@ class AnalyticsDashboardController extends Controller
     {
         $days = collect(range(29, 0))->map(fn($i) => now()->subDays($i)->toDateString());
 
-        $totalEnrolled = Student::where('school_id', $schoolId)->where('status', 'active')->count();
+        $totalEnrolled = Student::where('school_id', $schoolId)->where('status', 'active')->enrolledInYear($academicYearId)->count();
 
         $records = Attendance::where('school_id', $schoolId)
             ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
@@ -202,7 +202,7 @@ class AnalyticsDashboardController extends Controller
     {
         $today = now()->toDateString();
 
-        $totalStudents = Student::where('school_id', $schoolId)->where('status', 'active')->count();
+        $totalStudents = Student::where('school_id', $schoolId)->where('status', 'active')->enrolledInYear($academicYearId)->count();
 
         $todayAttendance = Attendance::where('school_id', $schoolId)
             ->where('date', $today)

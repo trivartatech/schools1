@@ -302,10 +302,15 @@ class CommunicationDashboardController extends Controller
                 ->pluck('email');
         } elseif ($validated['audience'] === 'class' && $validated['class_id']) {
             $emails = Student::where('school_id', $schoolId)
-                ->where('class_id', $validated['class_id'])
-                ->with('parent.user:id,email')
+                ->whereHas('academicHistories', function ($q) use ($validated) {
+                    $q->where('class_id', $validated['class_id']);
+                    if (app()->bound('current_academic_year_id')) {
+                        $q->where('academic_year_id', app('current_academic_year_id'));
+                    }
+                })
+                ->with('studentParent.user:id,email')
                 ->get()
-                ->pluck('parent.user.email')
+                ->pluck('studentParent.user.email')
                 ->filter();
         }
 

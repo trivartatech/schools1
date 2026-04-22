@@ -172,7 +172,7 @@ class LibraryController extends Controller
 
         $issues   = $query->latest()->paginate(20)->withQueryString();
         $books    = LibraryBook::where('school_id', $schoolId)->where('available_copies', '>', 0)->orderBy('title')->get(['id', 'title', 'author', 'available_copies']);
-        $students = Student::where('school_id', $schoolId)->where('status', 'active')->orderBy('first_name')->get(['id', 'first_name', 'last_name', 'admission_no']);
+        $students = Student::where('school_id', $schoolId)->where('status', 'active')->enrolledInCurrentYear()->orderBy('first_name')->get(['id', 'first_name', 'last_name', 'admission_no']);
         $staff    = Staff::where('school_id', $schoolId)->where('status', '!=', 'inactive')->with('user:id,name')->get(['id', 'user_id', 'employee_id']);
 
         return Inertia::render('School/Library/Issues', [

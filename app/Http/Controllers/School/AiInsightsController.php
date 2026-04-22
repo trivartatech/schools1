@@ -41,10 +41,10 @@ class AiInsightsController extends Controller
         $monthStart = now()->startOfMonth()->toDateString();
 
         // ── Students ──────────────────────────────────────────────────────
-        $totalStudents   = Student::where('school_id', $school->id)->where('status', 'active')->count();
+        $totalStudents   = Student::where('school_id', $school->id)->where('status', 'active')->enrolledInYear($year->id)->count();
         $newThisMonth    = Student::where('school_id', $school->id)
-            ->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count();
-        $genderBreakdown = Student::where('school_id', $school->id)->where('status', 'active')
+            ->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->enrolledInYear($year->id)->count();
+        $genderBreakdown = Student::where('school_id', $school->id)->where('status', 'active')->enrolledInYear($year->id)
             ->select('gender', DB::raw('count(*) as total'))
             ->groupBy('gender')->pluck('total', 'gender')->toArray();
 

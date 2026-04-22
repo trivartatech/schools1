@@ -472,7 +472,7 @@ class AttendanceController extends Controller
                 ->where('status', 'current')
                 ->count();
         } else {
-            $enrolledCount = \App\Models\Student::where('school_id', $schoolId)->where('status', 'active')->count();
+            $enrolledCount = \App\Models\Student::where('school_id', $schoolId)->where('status', 'active')->enrolledInYear($academicYearId)->count();
         }
 
         // Normalize date helper — fixes "2026-04-10 00:00:00" datetime values from DB

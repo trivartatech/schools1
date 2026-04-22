@@ -26,7 +26,7 @@ class CallLogController extends Controller
         return Inertia::render('School/FrontOffice/CallLogs/Index', [
             'callLogs' => $query->latest()->get(),
             'staffs' => Staff::where('school_id', $schoolId)->with('user')->get(),
-            'students' => Student::where('school_id', $schoolId)->get(['id', 'first_name', 'last_name', 'admission_no'])
+            'students' => Student::where('school_id', $schoolId)->enrolledInCurrentYear()->get(['id', 'first_name', 'last_name', 'admission_no'])
         ]);
     }
 

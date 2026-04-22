@@ -92,6 +92,29 @@ class Student extends Model
         return $this->hasMany(StudentAcademicHistory::class);
     }
 
+    /**
+     * Scope: only students with an enrollment history in the given academic year.
+     * Pass null to no-op (useful when the year may or may not be bound).
+     */
+    public function scopeEnrolledInYear(Builder $query, ?int $academicYearId): Builder
+    {
+        if ($academicYearId) {
+            $query->whereHas('academicHistories', fn($h) => $h->where('academic_year_id', $academicYearId));
+        }
+        return $query;
+    }
+
+    /**
+     * Scope: only students enrolled in the current academic year (from container
+     * binding). Silently no-ops when no year is bound (e.g. CLI context) so the
+     * caller gets all students rather than an empty set.
+     */
+    public function scopeEnrolledInCurrentYear(Builder $query): Builder
+    {
+        $ayId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
+        return $query->enrolledInYear($ayId);
+    }
+
     public function currentAcademicHistory()
     {
         if (app()->bound('current_academic_year_id')) {

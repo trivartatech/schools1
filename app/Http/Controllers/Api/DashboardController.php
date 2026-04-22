@@ -98,7 +98,10 @@ class DashboardController extends Controller
             ->whereIn('status', ['present', 'late', 'half_day'])
             ->count();
         
-        $totalStudents = \App\Models\Student::where('school_id', $schoolId)->where('status', 'active')->count();
+        $totalStudents = \App\Models\Student::where('school_id', $schoolId)
+            ->where('status', 'active')
+            ->enrolledInCurrentYear()
+            ->count();
 
         return [
             'type' => 'admin',

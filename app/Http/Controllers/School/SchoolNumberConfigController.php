@@ -55,7 +55,7 @@ class SchoolNumberConfigController extends Controller
             'transportDefaults' => [
                 'standard_months' => (float) ($settings['transport_standard_months'] ?? 10),
             ],
-            'admissionCount'    => Student::where('school_id', $schoolId)->count(),
+            'admissionCount'    => Student::where('school_id', $schoolId)->enrolledInCurrentYear()->count(),
             'registrationCount' => StudentApplication::where('school_id', $schoolId)->count(),
             'feeCount'          => FeePayment::where('school_id', $schoolId)->count(),
             'tcCount'           => TransferCertificate::where('school_id', $schoolId)->where('status', 'issued')->count(),

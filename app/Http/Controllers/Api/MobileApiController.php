@@ -1277,6 +1277,7 @@ class MobileApiController extends Controller
         if ($user->isTeacher()) {
             $scope          = app(TeacherScopeService::class)->for($user);
             $studentCount   = Student::where('school_id', $school->id)
+                ->enrolledInYear($yearId)
                 ->when($scope->restricted && $scope->sectionIds->isNotEmpty(), function ($q) use ($scope) {
                     $q->whereHas('academicHistories', fn($ah) => $ah->whereIn('section_id', $scope->sectionIds));
                 })
@@ -1290,7 +1291,7 @@ class MobileApiController extends Controller
         }
 
         // Admin stats — rich KPI payload
-        $totalStudents = Student::where('school_id', $school->id)->count();
+        $totalStudents = Student::where('school_id', $school->id)->enrolledInYear($yearId)->count();
         $totalStaff    = \App\Models\Staff::where('school_id', $school->id)->count();
 
         $feeToday = (float) FeePayment::where('school_id', $school->id)
@@ -1347,12 +1348,13 @@ class MobileApiController extends Controller
     {
         // Gender breakdown
         $gender = Student::where('school_id', $schoolId)
+            ->enrolledInYear($yearId)
             ->selectRaw('LOWER(COALESCE(gender, "")) as g, COUNT(*) as c')
             ->groupBy('g')
             ->pluck('c', 'g');
         $boys      = (int) ($gender['male']   ?? 0);
         $girls     = (int) ($gender['female'] ?? 0);
-        $totalStud = (int) Student::where('school_id', $schoolId)->count();
+        $totalStud = (int) Student::where('school_id', $schoolId)->enrolledInYear($yearId)->count();
         $other     = max(0, $totalStud - $boys - $girls);
 
         // Class + section counts

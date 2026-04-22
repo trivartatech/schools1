@@ -49,6 +49,7 @@ class DisciplinaryController extends Controller
         $records  = $query->latest('incident_date')->paginate(20)->withQueryString();
 
         $students = Student::where('school_id', $schoolId)->where('status', 'active')
+            ->enrolledInCurrentYear()
             ->with(['currentAcademicHistory' => fn($q) => $q->select('id', 'student_id', 'class_id', 'section_id', 'roll_no', 'academic_year_id')])
             ->orderBy('first_name')
             ->get(['id', 'first_name', 'last_name', 'admission_no']);

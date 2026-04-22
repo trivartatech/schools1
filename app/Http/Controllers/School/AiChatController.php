@@ -45,9 +45,9 @@ class AiChatController extends Controller
             $monthEnd   = now()->endOfMonth()->toDateString();
 
             // ── STUDENTS ──────────────────────────────────────────────────
-            $totalStudents  = Student::where('school_id', $sid)->where('status', 'active')->count();
-            $newThisMonth   = Student::where('school_id', $sid)->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count();
-            $genderStats    = Student::where('school_id', $sid)->where('status', 'active')
+            $totalStudents  = Student::where('school_id', $sid)->where('status', 'active')->enrolledInYear($yid)->count();
+            $newThisMonth   = Student::where('school_id', $sid)->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->enrolledInYear($yid)->count();
+            $genderStats    = Student::where('school_id', $sid)->where('status', 'active')->enrolledInYear($yid)
                 ->select('gender', DB::raw('count(*) as c'))->groupBy('gender')
                 ->pluck('c', 'gender')->map(fn($v, $k) => "{$k}:{$v}")->implode(', ');
 
