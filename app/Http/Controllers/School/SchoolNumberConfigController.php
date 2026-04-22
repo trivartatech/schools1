@@ -52,6 +52,9 @@ class SchoolNumberConfigController extends Controller
                 'start_no'   => $settings['transport_receipt_start_no']   ?? 1,
                 'pad_length' => $settings['transport_receipt_pad_length'] ?? 5,
             ],
+            'transportDefaults' => [
+                'standard_months' => (float) ($settings['transport_standard_months'] ?? 10),
+            ],
             'admissionCount'    => Student::where('school_id', $schoolId)->count(),
             'registrationCount' => StudentApplication::where('school_id', $schoolId)->count(),
             'feeCount'          => FeePayment::where('school_id', $schoolId)->count(),
@@ -92,6 +95,8 @@ class SchoolNumberConfigController extends Controller
             'transport_suffix'     => 'nullable|string|max:20',
             'transport_start_no'   => 'required|integer|min:1',
             'transport_pad_length' => 'required|integer|min:1|max:10',
+            // Transport defaults
+            'transport_standard_months' => 'required|numeric|min:0.5|max:24',
         ]);
 
         $settings = $school->settings ?? [];
@@ -125,6 +130,9 @@ class SchoolNumberConfigController extends Controller
         $settings['transport_receipt_suffix']     = $validated['transport_suffix']     ?? '';
         $settings['transport_receipt_start_no']   = $validated['transport_start_no'];
         $settings['transport_receipt_pad_length'] = $validated['transport_pad_length'];
+
+        // Transport defaults (used by AllocationController to pro-rate stop fees)
+        $settings['transport_standard_months'] = (float) $validated['transport_standard_months'];
 
         $school->settings = $settings;
         $school->save();

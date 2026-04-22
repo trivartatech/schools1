@@ -11,10 +11,11 @@ const page = usePage();
 const formErrors = computed(() => page.props.errors || {});
 
 const props = defineProps({
-    allocations: Array,
-    routes:      Array,
-    vehicles:    Array,
-    classes:     Array,
+    allocations:    Array,
+    routes:         Array,
+    vehicles:       Array,
+    classes:        Array,
+    standardMonths: { type: Number, default: 10 },
 });
 
 const showModal   = ref(false);
@@ -23,7 +24,8 @@ const saving      = ref(false);
 
 const form = reactive({
     student_ids: [], class_id: '', section_id: '', route_id: '', stop_id: '', vehicle_id: '',
-    pickup_type: 'both', start_date: '', end_date: '', status: 'active',
+    pickup_type: 'both', months: 10, days: 0,
+    start_date: '', end_date: '', status: 'active',
 });
 
 const fetchingStudents = ref(false);
@@ -87,6 +89,21 @@ const stopFee = computed(() => {
     return stop?.fee || 0;
 });
 
+// Pro-rata term math: months + days/30, clamped to [0, 24+1)
+const monthsOpted = computed(() => {
+    const m = Math.max(0, Math.min(24, Number(form.months) || 0));
+    const d = Math.max(0, Math.min(30, Number(form.days)   || 0));
+    return Math.round((m + d / 30) * 100) / 100;
+});
+
+const computedFee = computed(() => {
+    const std = Number(props.standardMonths) > 0 ? Number(props.standardMonths) : 10;
+    const fee = (Number(stopFee.value) / std) * monthsOpted.value;
+    return Math.round(fee * 100) / 100;
+});
+
+const termTooShort = computed(() => monthsOpted.value > 0 && monthsOpted.value < 0.5);
+
 // When route changes, reset stop and auto-select vehicle
 watch(() => form.route_id, (newRouteId) => { 
     form.stop_id = ''; 
@@ -106,9 +123,13 @@ function openModal(alloc = null) {
     students.value = [];
     
     if (alloc) {
+        const total = Number(alloc.months_opted ?? props.standardMonths ?? 10);
+        const whole = Math.floor(total);
+        const extraDays = Math.round((total - whole) * 30);
         Object.assign(form, {
             student_ids: [alloc.student_id], route_id: alloc.route_id, stop_id: alloc.stop_id,
             vehicle_id:  alloc.vehicle_id || '', pickup_type: alloc.pickup_type,
+            months: whole, days: extraDays,
             start_date:  alloc.start_date || '', end_date: alloc.end_date || '', status: alloc.status,
         });
         students.value = [{
@@ -118,7 +139,8 @@ function openModal(alloc = null) {
         }];
     } else {
         Object.assign(form, { student_ids: [], route_id: '', stop_id: '', vehicle_id: '',
-            pickup_type: 'both', start_date: '', end_date: '', status: 'active', class_id: '', section_id: '' });
+            pickup_type: 'both', months: Math.floor(props.standardMonths || 10), days: 0,
+            start_date: '', end_date: '', status: 'active', class_id: '', section_id: '' });
     }
     showModal.value = true;
 }
@@ -326,10 +348,28 @@ const pickupLabel = (t) => ({ pickup: 'Pickup Only', drop: 'Drop Only', both: 'B
                             </div>
                         </div>
 
-                        <!-- Fee auto-fill -->
-                        <div v-if="stopFee > 0" style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0.75rem;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.3);border-radius:0.5rem;font-size:0.875rem;color:var(--success);margin-bottom:0.75rem;">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            <span>Transport Fee auto-loaded from stop: <strong>₹{{ stopFee }}</strong></span>
+                        <!-- Months + Days (term the student opts for) -->
+                        <div class="form-row-2">
+                            <div class="form-field">
+                                <label>Months Opted *</label>
+                                <input v-model.number="form.months" type="number" min="0" max="24" step="1" required>
+                            </div>
+                            <div class="form-field">
+                                <label>Extra Days</label>
+                                <input v-model.number="form.days" type="number" min="0" max="30" step="1">
+                            </div>
+                        </div>
+
+                        <!-- Fee preview -->
+                        <div v-if="stopFee > 0" style="padding:0.625rem 0.875rem;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.3);border-radius:0.5rem;font-size:0.8125rem;color:#065f46;margin-bottom:0.75rem;line-height:1.5;">
+                            <div>Stop fee: <strong>₹{{ stopFee }}</strong> <span style="color:#6b7280;">(for {{ standardMonths }} months)</span></div>
+                            <div>Student opts for: <strong>{{ form.months || 0 }} months{{ form.days ? ' + ' + form.days + ' days' : '' }}</strong> = <strong>{{ monthsOpted }} months</strong></div>
+                            <div style="margin-top:0.25rem;padding-top:0.25rem;border-top:1px dashed rgba(16,185,129,0.3);">
+                                Transport fee: <strong style="color:var(--success);font-size:0.95rem;">₹{{ computedFee }}</strong>
+                            </div>
+                        </div>
+                        <div v-if="termTooShort" style="padding:0.5rem 0.75rem;background:#fef3c7;border:1px solid #fcd34d;border-radius:0.5rem;font-size:0.8125rem;color:#92400e;margin-bottom:0.75rem;">
+                            Minimum term is 15 days (0.5 months).
                         </div>
 
                         <!-- Vehicle + Pickup Type -->
@@ -365,7 +405,7 @@ const pickupLabel = (t) => ({ pickup: 'Pickup Only', drop: 'Drop Only', both: 'B
 
                         <div style="display:flex;justify-content:flex-end;gap:0.75rem;padding-top:0.5rem;">
                             <Button variant="secondary" type="button" @click="showModal = false">Cancel</Button>
-                            <Button type="submit" :disabled="saving || form.student_ids.length === 0">
+                            <Button type="submit" :disabled="saving || form.student_ids.length === 0 || termTooShort || monthsOpted === 0">
                                 {{ saving ? 'Saving…' : (editingItem ? 'Update' : `Assign (${form.student_ids.length})`) }}
                             </Button>
                         </div>

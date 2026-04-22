@@ -10,6 +10,7 @@ const props = defineProps({
     feeConfig: Object,
     tcConfig:  Object,
     transportConfig: Object,
+    transportDefaults: Object,
     admissionCount: Number,
     registrationCount: Number,
     feeCount: Number,
@@ -67,6 +68,8 @@ const form = useForm({
     transport_suffix:     props.transportConfig?.suffix     ?? '',
     transport_start_no:   props.transportConfig?.start_no   ?? 1,
     transport_pad_length: props.transportConfig?.pad_length ?? 5,
+    // Transport Defaults (pro-rata fee calculation)
+    transport_standard_months: props.transportDefaults?.standard_months ?? 10,
 });
 
 // Computed previews
@@ -274,6 +277,27 @@ const submit = () => form.post('/school/settings/number-formats', { preserveScro
                         </div>
                     </div>
                 </template>
+
+                <!-- Transport Defaults -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <div class="flex items-center gap-2 mb-5 pb-3 border-b">
+                        <span class="text-lg">🚌</span>
+                        <h3 class="text-base font-bold text-gray-800">Transport Fee Defaults</h3>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Standard Term (Months)</label>
+                            <input v-model="form.transport_standard_months" type="number" step="0.5" min="0.5" max="24"
+                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none font-mono" />
+                            <p class="text-xs text-gray-400 mt-1">
+                                Stop fees are entered for this many months (default 10). If a student opts for fewer months,
+                                the fee is pro-rated:
+                                <span class="font-mono text-indigo-600">stop fee ÷ {{ form.transport_standard_months || 10 }} × months opted</span>.
+                            </p>
+                            <p v-if="form.errors.transport_standard_months" class="text-xs text-red-500 mt-1">{{ form.errors.transport_standard_months }}</p>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Save -->
                 <div class="flex justify-end">

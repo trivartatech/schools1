@@ -18,6 +18,7 @@ class TransportStudentAllocation extends Model
         'stop_id',
         'vehicle_id',
         'transport_fee',
+        'months_opted',
         'amount_paid',
         'discount',
         'fine',
@@ -32,6 +33,7 @@ class TransportStudentAllocation extends Model
 
     protected $casts = [
         'transport_fee'     => 'decimal:2',
+        'months_opted'      => 'decimal:2',
         'amount_paid'       => 'decimal:2',
         'discount'          => 'decimal:2',
         'fine'              => 'decimal:2',

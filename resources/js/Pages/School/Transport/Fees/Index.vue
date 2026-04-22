@@ -39,6 +39,17 @@ function studentName(a) {
         || '—';
 }
 
+function termLabel(a) {
+    const total = Number(a?.months_opted ?? 0);
+    if (!total) return '';
+    const m = Math.floor(total);
+    const d = Math.round((total - m) * 30);
+    if (m && d) return `${m} mo ${d} d`;
+    if (m)      return `${m} mo`;
+    if (d)      return `${d} d`;
+    return '';
+}
+
 const STATUS_COLOURS = {
     paid:    'bg-green-100 text-green-700',
     partial: 'bg-amber-100 text-amber-700',
@@ -125,7 +136,10 @@ const STATUS_COLOURS = {
                         <div class="text-sm">{{ a.route?.route_name ?? '—' }}</div>
                         <div class="text-xs text-gray-500">{{ a.stop?.stop_name ?? '' }}</div>
                     </td>
-                    <td class="text-right font-mono">{{ fmt(a.transport_fee) }}</td>
+                    <td class="text-right font-mono">
+                        {{ fmt(a.transport_fee) }}
+                        <div v-if="termLabel(a)" class="text-[10px] font-sans text-gray-400 mt-0.5">{{ termLabel(a) }}</div>
+                    </td>
                     <td class="text-right font-mono text-green-600">{{ fmt(a.amount_paid) }}</td>
                     <td class="text-right font-mono" :class="Number(a.balance) > 0 ? 'text-rose-600 font-semibold' : 'text-gray-400'">
                         {{ fmt(a.balance) }}

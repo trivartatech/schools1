@@ -15,6 +15,8 @@ class AllocationController extends Controller
 
     public function index()
     {
+        $schoolId = app('current_school_id');
+
         $allocations = TransportStudentAllocation::tenant()
             ->with([
                 'student:id,admission_no,first_name,last_name',
@@ -28,13 +30,18 @@ class AllocationController extends Controller
 
         $routes   = TransportRoute::tenant()->where('status', 'active')->with('stops')->orderBy('route_name')->get();
         $vehicles = TransportVehicle::tenant()->where('status', 'active')->orderBy('vehicle_number')->get(['id', 'vehicle_number', 'vehicle_name', 'route_id']);
-        $classes  = \App\Models\CourseClass::where('school_id', app('current_school_id'))->orderBy('sort_order')->get(['id', 'name']);
+        $classes  = \App\Models\CourseClass::where('school_id', $schoolId)->orderBy('sort_order')->get(['id', 'name']);
+
+        $school          = \App\Models\School::find($schoolId);
+        $standardMonths  = (float) ($school?->settings['transport_standard_months'] ?? 10);
+        if ($standardMonths <= 0) $standardMonths = 10.0;
 
         return Inertia::render('School/Transport/Assignments/Index', [
-            'allocations' => $allocations,
-            'routes'      => $routes,
-            'vehicles'    => $vehicles,
-            'classes'     => $classes,
+            'allocations'    => $allocations,
+            'routes'         => $routes,
+            'vehicles'       => $vehicles,
+            'classes'        => $classes,
+            'standardMonths' => $standardMonths,
         ]);
     }
 
@@ -49,13 +56,18 @@ class AllocationController extends Controller
             'stop_id'      => ['required', Rule::exists('transport_stops', 'id')->where('school_id', $schoolId)],
             'vehicle_id'   => ['nullable', Rule::exists('transport_vehicles', 'id')->where('school_id', $schoolId)],
             'pickup_type'  => 'required|in:pickup,drop,both',
+            'months'       => 'required|integer|min:0|max:24',
+            'days'         => 'nullable|integer|min:0|max:30',
             'start_date'   => 'nullable|date',
             'end_date'     => 'nullable|date|after_or_equal:start_date',
             'status'       => 'in:active,inactive',
         ]);
 
-        // Auto-fill transport fee from the selected stop
-        $stop = \App\Models\TransportStop::findOrFail($validated['stop_id']);
+        $monthsOpted = $this->composeMonthsOpted($validated['months'], $validated['days'] ?? 0);
+        abort_if($monthsOpted < 0.5, 422, 'Minimum term is 15 days.');
+
+        $stop     = \App\Models\TransportStop::findOrFail($validated['stop_id']);
+        $fee      = $this->computeFee((float) $stop->fee, $monthsOpted, $schoolId);
 
         foreach ($validated['student_ids'] as $studentId) {
             TransportStudentAllocation::create([
@@ -64,16 +76,17 @@ class AllocationController extends Controller
                 'stop_id'        => $validated['stop_id'],
                 'vehicle_id'     => $validated['vehicle_id'],
                 'pickup_type'    => $validated['pickup_type'],
-                'start_date'     => $validated['start_date'],
-                'end_date'       => $validated['end_date'],
-                'status'         => $validated['status'],
-                'school_id'      => app('current_school_id'),
-                'transport_fee'  => $stop->fee,
+                'start_date'     => $validated['start_date'] ?? null,
+                'end_date'       => $validated['end_date']   ?? null,
+                'status'         => $validated['status']     ?? 'active',
+                'school_id'      => $schoolId,
+                'transport_fee'  => $fee,
+                'months_opted'   => $monthsOpted,
                 'amount_paid'    => 0,
                 'discount'       => 0,
                 'fine'           => 0,
-                'balance'        => $stop->fee,
-                'payment_status' => $stop->fee > 0 ? 'unpaid' : 'paid',
+                'balance'        => $fee,
+                'payment_status' => $fee > 0 ? 'unpaid' : 'paid',
             ]);
         }
 
@@ -90,28 +103,64 @@ class AllocationController extends Controller
             'stop_id'     => ['required', Rule::exists('transport_stops', 'id')->where('school_id', $schoolId)],
             'vehicle_id'  => ['nullable', Rule::exists('transport_vehicles', 'id')->where('school_id', $schoolId)],
             'pickup_type' => 'required|in:pickup,drop,both',
+            'months'      => 'required|integer|min:0|max:24',
+            'days'        => 'nullable|integer|min:0|max:30',
             'start_date'  => 'nullable|date',
             'end_date'    => 'nullable|date|after_or_equal:start_date',
             'status'      => 'in:active,inactive',
         ]);
 
-        // Re-fetch fee only if stop changed
-        $stopChanged = (int) $validated['stop_id'] !== (int) $allocation->stop_id;
-        if ($stopChanged) {
-            $stop = \App\Models\TransportStop::where('id', $validated['stop_id'])
-                ->where('school_id', $schoolId)->firstOrFail();
-            $validated['transport_fee'] = $stop->fee;
-        }
+        $monthsOpted = $this->composeMonthsOpted($validated['months'], $validated['days'] ?? 0);
+        abort_if($monthsOpted < 0.5, 422, 'Minimum term is 15 days.');
 
-        $allocation->update($validated);
+        $stop = \App\Models\TransportStop::where('id', $validated['stop_id'])
+            ->where('school_id', $schoolId)->firstOrFail();
+        $fee  = $this->computeFee((float) $stop->fee, $monthsOpted, $schoolId);
 
-        // Rebalance only if the fee changed or status moved to inactive —
-        // receipts stay, but balance/payment_status need to follow the new total.
-        if ($stopChanged || $allocation->wasChanged('status')) {
+        $feeChanged = (float) $allocation->transport_fee !== $fee
+                   || (float) $allocation->months_opted  !== $monthsOpted;
+
+        $allocation->update([
+            'route_id'       => $validated['route_id'],
+            'stop_id'        => $validated['stop_id'],
+            'vehicle_id'     => $validated['vehicle_id'],
+            'pickup_type'    => $validated['pickup_type'],
+            'start_date'     => $validated['start_date'] ?? null,
+            'end_date'       => $validated['end_date']   ?? null,
+            'status'         => $validated['status']     ?? $allocation->status,
+            'transport_fee'  => $fee,
+            'months_opted'   => $monthsOpted,
+        ]);
+
+        if ($feeChanged || $allocation->wasChanged('status')) {
             $allocation->refresh()->recalculateTotals();
         }
 
         return back()->with('success', 'Allocation updated.');
+    }
+
+    /**
+     * Combine whole months + extra days into decimal months (30-day month).
+     * "5 months 15 days" → 5.50.
+     */
+    private function composeMonthsOpted(int $months, int $days): float
+    {
+        return round($months + ($days / 30), 2);
+    }
+
+    /**
+     * Compute pro-rata transport fee from stop's full-term fee:
+     *   fee = round(stop.fee / standard_months * months_opted, 2)
+     *
+     * standard_months comes from the school's settings (default 10).
+     */
+    private function computeFee(float $stopFee, float $monthsOpted, int $schoolId): float
+    {
+        $school   = \App\Models\School::find($schoolId);
+        $standard = (float) ($school?->settings['transport_standard_months'] ?? 10);
+        $standard = $standard > 0 ? $standard : 10.0;
+
+        return round(($stopFee / $standard) * $monthsOpted, 2);
     }
 
     public function destroy(TransportStudentAllocation $allocation)
