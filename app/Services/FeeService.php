@@ -273,7 +273,7 @@ class FeeService
         // 1. All active students with their class for this year
         $studentHistories = StudentAcademicHistory::where('academic_year_id', $academicYearId)
             ->whereHas('student', fn($q) => $q->where('school_id', $schoolId)->where('status', 'active'))
-            ->with('student:id,first_name,last_name,gender,school_id,photo_url')
+            ->with('student:id,first_name,last_name,gender,school_id,photo')
             ->get();
 
         if ($studentHistories->isEmpty()) {
