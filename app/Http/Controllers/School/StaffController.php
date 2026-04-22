@@ -158,7 +158,7 @@ class StaffController extends Controller
                 'email'     => $validated['email'],
                 'phone'     => $validated['phone'],
                 'username'  => $validated['username'] ?? null,
-                'user_type' => $validated['role'],
+                'user_type' => $this->roleToUserType($validated['role']),
                 'school_id' => $schoolId,
                 'password'  => \Illuminate\Support\Facades\Hash::make($validated['password'] ?? \Illuminate\Support\Str::random(10)),
                 'is_active' => true,
@@ -273,7 +273,7 @@ class StaffController extends Controller
                 'name'      => $validated['name'],
                 'phone'     => $validated['phone'],
                 'username'  => $validated['username'] ?? null,
-                'user_type' => $validated['role'],
+                'user_type' => $this->roleToUserType($validated['role']),
                 'is_active' => $validated['status'] === 'active',
             ];
             if (!empty($validated['password'])) {
@@ -307,6 +307,23 @@ class StaffController extends Controller
         ActivityLog::staff("Deleted staff member: {$userName}", $user);
 
         return redirect()->route('school.staff.index')->with('success', 'Staff member deleted successfully.');
+    }
+
+    /**
+     * Map a Spatie role slug to a valid user_type for the DB/enum.
+     * Only super_admin / school_admin / principal / teacher / accountant
+     * are in both the DB enum and the PHP UserType enum. Everything else
+     * uses `teacher` as a generic staff user_type — the Spatie role
+     * controls the actual permissions.
+     */
+    private function roleToUserType(string $role): string
+    {
+        return match ($role) {
+            'admin'      => 'school_admin',
+            'accountant' => 'accountant',
+            'teacher'    => 'teacher',
+            default      => 'teacher',
+        };
     }
 
     /**
