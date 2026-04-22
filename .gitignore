@@ -25,3 +25,7 @@ Thumbs.db
 /schools-1
 *.rar
 /.claude
+
+# Legacy-ERP source Excel dumps (contain PII — never commit)
+/importent file/
+/storage/app/migrations/
