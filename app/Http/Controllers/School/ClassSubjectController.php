@@ -35,7 +35,7 @@ class ClassSubjectController extends Controller
             ->get();
 
         $classes  = CourseClass::where('school_id', $schoolId)->with('department')->orderBy('numeric_value')->get();
-        $sections = Section::where('school_id', $schoolId)->with('courseClass')->get();
+        $sections = Section::where('school_id', $schoolId)->forCurrentYear()->with('courseClass')->get();
         $subjects = Subject::where('school_id', $schoolId)->orderBy('sort_order')->orderBy('name')->get();
 
         return Inertia::render('School/Academics/ClassSubjects', [
@@ -132,6 +132,7 @@ class ClassSubjectController extends Controller
         $schoolId = app('current_school')->id;
         $sections = Section::where('school_id', $schoolId)
             ->where('course_class_id', $classId)
+            ->forCurrentYear()
             ->get(['id', 'name']);
 
         return response()->json($sections);

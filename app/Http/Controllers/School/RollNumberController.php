@@ -34,6 +34,7 @@ class RollNumberController extends Controller
         // Load sections for selected class
         $sections = $classId
             ? Section::where('school_id', $schoolId)->where('course_class_id', $classId)
+                ->forYear($yearId)
                 ->orderBy('name')->get(['id', 'name'])
             : collect();
 

@@ -42,6 +42,7 @@ class ChatController extends Controller
         $sections = [];
         if ($user->isSuperAdmin() || $user->isAdmin() || $user->isTeacher()) {
             $sections = Section::where('school_id', $schoolId)
+                ->forCurrentYear()
                 ->with('courseClass')
                 ->get()
                 ->map(fn($s) => [

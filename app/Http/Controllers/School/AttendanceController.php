@@ -46,6 +46,7 @@ class AttendanceController extends Controller
         if ($selectedClassId) {
             $sections = Section::where('school_id', $schoolId)
                 ->where('course_class_id', $selectedClassId)
+                ->forCurrentYear()
                 ->orderBy('sort_order')
                 ->get();
         }
@@ -237,6 +238,7 @@ class AttendanceController extends Controller
         if ($selectedClassId) {
             $sections = Section::where('school_id', $schoolId)
                 ->where('course_class_id', $selectedClassId)
+                ->forCurrentYear()
                 ->orderBy('sort_order')->get();
         }
 
@@ -341,7 +343,7 @@ class AttendanceController extends Controller
 
         $classes  = CourseClass::where('school_id', $schoolId)->orderBy('sort_order')->get(['id', 'name']);
         $sections = $classId
-            ? Section::where('school_id', $schoolId)->where('course_class_id', $classId)->orderBy('sort_order')->get(['id', 'name'])
+            ? Section::where('school_id', $schoolId)->where('course_class_id', $classId)->forCurrentYear()->orderBy('sort_order')->get(['id', 'name'])
             : collect();
 
         $enrolledCount = StudentAcademicHistory::where('school_id', $schoolId)
@@ -460,7 +462,7 @@ class AttendanceController extends Controller
         }
 
         $sections = $classId
-            ? Section::where('school_id', $schoolId)->where('course_class_id', $classId)->orderBy('sort_order')->get(['id', 'name'])
+            ? Section::where('school_id', $schoolId)->where('course_class_id', $classId)->forCurrentYear()->orderBy('sort_order')->get(['id', 'name'])
             : collect();
 
         // Enrolled count for denominator

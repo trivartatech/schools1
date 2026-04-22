@@ -18,6 +18,7 @@ class SectionController extends Controller
         $school   = app('current_school');
         $sections = Section::with('courseClass.department')
             ->where('school_id', $school->id)
+            ->forCurrentYear()
             ->orderBy('course_class_id')
             ->orderBy('sort_order')
             ->orderBy('name')
@@ -50,6 +51,12 @@ class SectionController extends Controller
         $validated['sort_order']  = $validated['sort_order'] ?? 0;
         $section = Section::create($validated);
         $section->load('courseClass');
+
+        // Attach to the current academic year so it appears in this year's
+        // dropdowns. Past years are untouched.
+        if (app()->bound('current_academic_year_id')) {
+            $section->academicYears()->syncWithoutDetaching([app('current_academic_year_id')]);
+        }
 
         // Auto-create section chat group
         $chatService->ensureSectionGroup($section, $school->id);
@@ -84,8 +91,21 @@ class SectionController extends Controller
     public function destroy(Section $section)
     {
         if ($section->school_id !== app('current_school')->id) abort(403);
-        $section->delete();
-        return redirect()->back()->with('status', 'Section deleted successfully.');
+
+        // Detach from the current academic year only — past-year histories,
+        // attendance, exam records keep their section_id reference intact.
+        // If the section has no remaining year attachments, soft-delete it.
+        $currentYearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
+        if ($currentYearId) {
+            $section->academicYears()->detach($currentYearId);
+        }
+
+        if ($section->academicYears()->count() === 0) {
+            $section->delete();
+            return redirect()->back()->with('status', 'Section removed and archived.');
+        }
+
+        return redirect()->back()->with('status', 'Section removed from this academic year.');
     }
 
     public function reorder(Request $request)

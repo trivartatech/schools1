@@ -20,7 +20,7 @@ class SyllabusController extends Controller
         $schoolId = app('current_school_id');
         $scope    = app(TeacherScopeService::class)->for(auth()->user());
 
-        $classQuery = CourseClass::where('school_id', $schoolId)->with(['subjects', 'sections.subjects']);
+        $classQuery = CourseClass::where('school_id', $schoolId)->with(['subjects', 'sections' => fn($q) => $q->forCurrentYear()->with('subjects')]);
         if ($scope->restricted && $scope->classIds->isNotEmpty()) {
             $classQuery->whereIn('id', $scope->classIds);
         }
@@ -64,7 +64,7 @@ class SyllabusController extends Controller
             $progressPct = round($completed / $topics->count() * 100);
         }
 
-        $classQuery = CourseClass::where('school_id', $schoolId)->with(['subjects', 'sections.subjects']);
+        $classQuery = CourseClass::where('school_id', $schoolId)->with(['subjects', 'sections' => fn($q) => $q->forCurrentYear()->with('subjects')]);
         if ($scope->restricted && $scope->classIds->isNotEmpty()) {
             $classQuery->whereIn('id', $scope->classIds);
         }
@@ -75,7 +75,7 @@ class SyllabusController extends Controller
             'progressPct'         => $progressPct,
             'classes'             => $classQuery->orderBy('numeric_value')->get(),
             'sections'            => $request->class_id
-                ? Section::where('school_id', $schoolId)->where('course_class_id', $request->class_id)->get()
+                ? Section::where('school_id', $schoolId)->where('course_class_id', $request->class_id)->forCurrentYear()->get()
                 : [],
             'filters'             => $request->only(['class_id', 'subject_id', 'section_id']),
             'teacher_subject_ids' => $scope->subjectRestricted ? $scope->subjectIds->values() : null,

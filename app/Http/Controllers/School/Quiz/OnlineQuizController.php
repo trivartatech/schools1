@@ -34,7 +34,7 @@ class OnlineQuizController extends Controller
     {
         $schoolId = app('current_school_id');
         $subjects = Subject::where('school_id', $schoolId)->orderBy('name')->get(['id', 'name']);
-        $classes  = CourseClass::where('school_id', $schoolId)->orderBy('sort_order')->with('sections:id,course_class_id,name')->get(['id', 'name']);
+        $classes  = CourseClass::where('school_id', $schoolId)->orderBy('sort_order')->with(['sections' => fn($q) => $q->forCurrentYear()->select('id','course_class_id','name')])->get(['id', 'name']);
 
         return Inertia::render('School/Quiz/Create', compact('subjects', 'classes'));
     }
@@ -101,7 +101,7 @@ class OnlineQuizController extends Controller
         $schoolId = app('current_school_id');
         $quiz->load('questions');
         $subjects = Subject::where('school_id', $schoolId)->orderBy('name')->get(['id', 'name']);
-        $classes  = CourseClass::where('school_id', $schoolId)->orderBy('sort_order')->with('sections:id,course_class_id,name')->get(['id', 'name']);
+        $classes  = CourseClass::where('school_id', $schoolId)->orderBy('sort_order')->with(['sections' => fn($q) => $q->forCurrentYear()->select('id','course_class_id','name')])->get(['id', 'name']);
 
         return Inertia::render('School/Quiz/Create', compact('quiz', 'subjects', 'classes'));
     }

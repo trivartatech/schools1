@@ -57,6 +57,7 @@ class ExamMarkController extends Controller
             $sections = $classIds
                 ? Section::whereIn('course_class_id', $classIds)
                     ->where('school_id', $schoolId)
+                    ->forCurrentYear()
                     ->get(['id', 'course_class_id', 'name'])
                 : collect();
 

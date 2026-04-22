@@ -27,6 +27,19 @@ class CourseClass extends Model
         return $this->hasMany(Section::class);
     }
 
+    /**
+     * Sections scoped to the current academic year via the section_academic_year
+     * pivot. Use this when building UI dropdowns so sections created for past
+     * years don't leak into the current year's view.
+     */
+    public function sectionsForCurrentYear()
+    {
+        $ayId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
+        return $this->hasMany(Section::class)->when($ayId, fn($q) =>
+            $q->whereHas('academicYears', fn($ay) => $ay->where('academic_years.id', $ayId))
+        );
+    }
+
     public function inchargeStaff()
     {
         return $this->belongsTo(Staff::class, 'incharge_staff_id');

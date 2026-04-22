@@ -437,6 +437,7 @@ class MobileApiController extends Controller
         $classes = $classQuery->get(['id', 'name', 'numeric_value'])
             ->map(function ($c) use ($teacherSectionIds) {
                 $sectionQuery = \App\Models\Section::where('course_class_id', $c->id)
+                    ->forCurrentYear()
                     ->orderBy('sort_order')
                     ->orderBy('name');
                 if ($teacherSectionIds !== null) {
@@ -1359,7 +1360,7 @@ class MobileApiController extends Controller
 
         // Class + section counts
         $totalClasses  = \App\Models\CourseClass::where('school_id', $schoolId)->count();
-        $totalSections = \App\Models\Section::where('school_id', $schoolId)->count();
+        $totalSections = \App\Models\Section::where('school_id', $schoolId)->forCurrentYear()->count();
 
         // 7-day attendance trend (today going back 6 days)
         $attTrend = [];

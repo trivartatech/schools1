@@ -36,6 +36,7 @@ class ExamMarkController extends Controller
             'allowedMap'       => $scope->restricted ? $scope->allowedMap : null,
             'sections'         => \App\Models\Section::with('courseClass:id,name')
                 ->where('school_id', $schoolId)
+                ->forCurrentYear()
                 ->get(['id', 'course_class_id', 'name']),
             'scheduleSubjects' => \App\Models\ExamScheduleSubject::with(['subject', 'examAssessment.items'])
                 ->whereIn('exam_schedule_id', $schedules->pluck('id'))

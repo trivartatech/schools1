@@ -31,7 +31,7 @@ class AnnouncementController extends Controller
             ->paginate(10);
 
         $classes = CourseClass::where('school_id', app('current_school_id'))
-            ->with('sections')
+            ->with(['sections' => fn($q) => $q->forCurrentYear()])
             ->get();
 
         $templates = CommunicationTemplate::where('school_id', app('current_school_id'))

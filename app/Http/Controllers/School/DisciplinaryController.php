@@ -55,7 +55,7 @@ class DisciplinaryController extends Controller
             ->get(['id', 'first_name', 'last_name', 'admission_no']);
 
         $classes    = CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('name')->get(['id', 'name']);
-        $sections   = Section::where('school_id', $schoolId)->orderBy('name')->get(['id', 'course_class_id', 'name']);
+        $sections   = Section::where('school_id', $schoolId)->forCurrentYear()->orderBy('name')->get(['id', 'course_class_id', 'name']);
         $categories = $this->getOrSeedCategories($schoolId);
 
         $summary = [

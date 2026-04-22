@@ -32,6 +32,11 @@ class AcademicYear extends Model
         return $this->belongsTo(AcademicYear::class, 'copied_from_id');
     }
 
+    public function sections()
+    {
+        return $this->belongsToMany(Section::class, 'section_academic_year')->withTimestamps();
+    }
+
     /**
      * Scope to get only the current active year for a school.
      */

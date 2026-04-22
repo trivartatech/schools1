@@ -39,7 +39,7 @@ class ExamScheduleController extends Controller
             ->orderBy('name')->get(['id', 'name', 'code']);
 
         $classes = CourseClass::where('school_id', app('current_school_id'))
-            ->with('sections:id,course_class_id,name')
+            ->with(['sections' => fn($q) => $q->forCurrentYear()->select('id','course_class_id','name')])
             ->orderBy('numeric_value')->get(['id', 'name']);
 
         $gradingSystems = GradingSystem::where('school_id', app('current_school_id'))

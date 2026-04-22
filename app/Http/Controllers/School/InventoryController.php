@@ -56,7 +56,7 @@ class InventoryController extends Controller
 
         $staff       = Staff::where('school_id', $schoolId)->with('user:id,name')->select('id', 'user_id', 'employee_id')
                            ->get()->map(fn($s) => ['id' => $s->id, 'name' => $s->user?->name ?? 'Staff #'.$s->id]);
-        $sections    = Section::where('school_id', $schoolId)->select('id', 'name')->orderBy('name')->get();
+        $sections    = Section::where('school_id', $schoolId)->forCurrentYear()->select('id', 'name')->orderBy('name')->get();
         $departments = Department::where('school_id', $schoolId)->select('id', 'name')->orderBy('name')->get();
         $suppliers   = Supplier::where('school_id', $schoolId)->orderBy('name')->get(['id', 'name']);
         $stores      = ItemStore::where('school_id', $schoolId)->orderBy('name')->get(['id', 'name']);

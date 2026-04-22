@@ -95,6 +95,7 @@ class StudentLeaveController extends Controller
                 ->get(['id', 'name']);
 
             $sections = Section::where('school_id', $schoolId)
+                ->forCurrentYear()
                 ->orderBy('name')
                 ->get(['id', 'course_class_id', 'name']);
 

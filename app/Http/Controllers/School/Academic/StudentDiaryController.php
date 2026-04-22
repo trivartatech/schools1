@@ -162,7 +162,7 @@ class StudentDiaryController extends Controller
 
         $diaries = $query->withCount(['reads', 'completions'])->latest('date')->paginate(15)->withQueryString();
 
-        $classQuery = CourseClass::with('sections')->where('school_id', $schoolId);
+        $classQuery = CourseClass::with(['sections' => fn($q) => $q->forCurrentYear()])->where('school_id', $schoolId);
         if ($scope->restricted && $scope->classIds->isNotEmpty()) {
             $classQuery->whereIn('id', $scope->classIds);
         }
@@ -245,7 +245,7 @@ class StudentDiaryController extends Controller
         $schoolId = app('current_school_id');
         $scope    = app(TeacherScopeService::class)->for(auth()->user());
 
-        $classQuery = CourseClass::where('school_id', $schoolId)->with(['subjects', 'sections.subjects']);
+        $classQuery = CourseClass::where('school_id', $schoolId)->with(['subjects', 'sections' => fn($q) => $q->forCurrentYear()->with('subjects')]);
         if ($scope->restricted && $scope->classIds->isNotEmpty()) {
             $classQuery->whereIn('id', $scope->classIds);
         }

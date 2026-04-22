@@ -176,7 +176,7 @@ class AiChatController extends Controller
 
             // ── ACADEMICS ─────────────────────────────────────────────────
             $totalClasses  = CourseClass::where('school_id', $sid)->count();
-            $totalSections = Section::where('school_id', $sid)->count();
+            $totalSections = Section::where('school_id', $sid)->forCurrentYear()->count();
             $totalSubjects = Subject::where('school_id', $sid)->count();
 
             $assignmentsDue = Assignment::where('school_id', $sid)->where('academic_year_id', $yid)

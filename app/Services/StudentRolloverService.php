@@ -225,6 +225,16 @@ class StudentRolloverService
             'roll_no'          => null,
         ]);
 
+        // Ensure the target section shows up in the target year's dropdowns.
+        if ($targetSectionId) {
+            DB::table('section_academic_year')->insertOrIgnore([
+                'section_id'       => $targetSectionId,
+                'academic_year_id' => $targetYear->id,
+                'created_at'       => now(),
+                'updated_at'       => now(),
+            ]);
+        }
+
         $row->update(['status' => 'promoted']);
         $result['promoted']++;
         $run->logItem('students', 'student_history', $row->id, $new->id, 'success', null, [

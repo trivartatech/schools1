@@ -18,7 +18,7 @@ class TimetableController extends Controller
         $schoolId = app('current_school_id');
 
         $classes = \App\Models\CourseClass::where('school_id', $schoolId)
-            ->with(['sections' => function($q) { $q->orderBy('sort_order'); }])
+            ->with(['sections' => function($q) { $q->forCurrentYear()->orderBy('sort_order'); }])
             ->orderBy('sort_order')->get();
 
         $periods = \App\Models\Period::where('school_id', $schoolId)

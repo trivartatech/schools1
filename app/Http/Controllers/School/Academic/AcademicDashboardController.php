@@ -243,7 +243,9 @@ class AcademicDashboardController extends Controller
             'events'  => $events,
             'year'    => $year,
             'month'   => $month,
-            'classes' => CourseClass::where('school_id', $schoolId)->with('sections')->orderBy('numeric_value')->get(['id', 'name']),
+            'classes' => CourseClass::where('school_id', $schoolId)
+                ->with(['sections' => fn($q) => $q->forCurrentYear()])
+                ->orderBy('numeric_value')->get(['id', 'name']),
             'filters' => $request->only(['class_id', 'section_id']),
         ]);
     }

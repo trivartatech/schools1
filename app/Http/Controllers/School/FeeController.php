@@ -422,7 +422,9 @@ class FeeController extends Controller
             $students = $query->limit(20)->get(['id', 'first_name', 'last_name', 'admission_no', 'roll_no']);
         }
 
-        $classes = CourseClass::where('school_id', $schoolId)->with('sections')->get();
+        $classes = CourseClass::where('school_id', $schoolId)
+            ->with(['sections' => fn($q) => $q->forCurrentYear()])
+            ->get();
 
         // All concessions for the selected student
         $concessions = [];

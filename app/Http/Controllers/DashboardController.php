@@ -202,7 +202,7 @@ class DashboardController extends Controller
                     ->count();
 
                 $totalClasses  = \App\Models\CourseClass::where('school_id', $schoolId)->count();
-                $totalSections = \App\Models\Section::where('school_id', $schoolId)->count();
+                $totalSections = \App\Models\Section::where('school_id', $schoolId)->forCurrentYear()->count();
 
                 $todayFeeCollection = (float) \App\Models\FeePayment::where('school_id', $schoolId)
                     ->whereDate('payment_date', $today)
