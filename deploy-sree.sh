@@ -21,8 +21,10 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
-# Load .env
-export $(grep -v '^#' .env | grep -v '^$' | xargs -d '\n')
+# Load .env (handles quoted values with spaces)
+set -a
+source .env
+set +a
 
 # 1. Create DB if root creds provided
 if [ -n "$DB_ROOT_USERNAME" ] && [ -n "$DB_ROOT_PASSWORD" ]; then

@@ -378,10 +378,10 @@ class DashboardController extends Controller
                     ]);
 
                 // ── Birthdays Today (Students) ────────────────────────────
-                $todayMD = now()->format('m-d');
                 $birthdaysToday = \App\Models\Student::where('school_id', $schoolId)
                     ->where('status', 'active')
-                    ->whereRaw("strftime('%m-%d', dob) = ?", [$todayMD])
+                    ->whereMonth('dob', now()->month)
+                    ->whereDay('dob', now()->day)
                     ->limit(10)->get()
                     ->map(fn($s) => [
                         'name'  => $s->first_name . ' ' . $s->last_name,
@@ -418,7 +418,7 @@ class DashboardController extends Controller
                 // ── Fee Progress (Month) ──────────────────────────────────
                 $totalFeeDue = (float) \App\Models\FeePayment::where('school_id', $schoolId)
                     ->whereBetween('payment_date', [$thisMonth->toDateString(), $thisMonthEnd->toDateString()])
-                    ->sum('amount');
+                    ->sum('amount_due');
 
                 $feeProgress = [
                     'collected' => $monthFeeCollection,
