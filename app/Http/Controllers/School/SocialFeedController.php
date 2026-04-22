@@ -81,7 +81,7 @@ class SocialFeedController extends Controller
         // Classes for dropdown
         $classes = [];
         if ($user->isAdmin() || $user->isTeacher()) {
-            $classes = CourseClass::where('school_id', $schoolId)->get(['id', 'name']);
+            $classes = CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('name')->get(['id', 'name']);
         }
 
         // Per-post augmented data

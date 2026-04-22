@@ -43,7 +43,7 @@ class AlumniController extends Controller
 
         $years        = Alumni::where('school_id', $schoolId)->distinct()->orderByDesc('passout_year')->pluck('passout_year');
         $classes      = Alumni::where('school_id', $schoolId)->distinct()->orderBy('final_class')->pluck('final_class');
-        $schoolClasses = CourseClass::where('school_id', $schoolId)->orderBy('sort_order')->get(['id', 'name']);
+        $schoolClasses = CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('name')->get(['id', 'name']);
 
         return Inertia::render('School/Alumni/Index', compact('alumni', 'years', 'classes', 'schoolClasses'));
     }

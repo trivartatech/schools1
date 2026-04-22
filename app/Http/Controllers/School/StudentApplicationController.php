@@ -49,7 +49,7 @@ class StudentApplicationController extends Controller
     public function create()
     {
         $schoolId = app('current_school_id');
-        $classes  = CourseClass::where('school_id', $schoolId)->orderBy('order')->get();
+        $classes  = CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('name')->get();
         $routes   = TransportRoute::where('school_id', $schoolId)
             ->where('status', 'active')
             ->with(['stops' => fn($q) => $q->orderBy('stop_order')])
@@ -194,7 +194,7 @@ class StudentApplicationController extends Controller
         }
 
         $schoolId = app('current_school_id');
-        $classes  = CourseClass::where('school_id', $schoolId)->orderBy('order')->get();
+        $classes  = CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('name')->get();
         $routes   = TransportRoute::where('school_id', $schoolId)
             ->where('status', 'active')
             ->with(['stops' => fn($q) => $q->orderBy('stop_order')])

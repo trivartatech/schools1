@@ -30,7 +30,7 @@ class AllocationController extends Controller
 
         $routes   = TransportRoute::tenant()->where('status', 'active')->with('stops')->orderBy('route_name')->get();
         $vehicles = TransportVehicle::tenant()->where('status', 'active')->orderBy('vehicle_number')->get(['id', 'vehicle_number', 'vehicle_name', 'route_id']);
-        $classes  = \App\Models\CourseClass::where('school_id', $schoolId)->orderBy('sort_order')->get(['id', 'name']);
+        $classes  = \App\Models\CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('name')->get(['id', 'name']);
 
         $school          = \App\Models\School::find($schoolId);
         $standardMonths  = (float) ($school?->settings['transport_standard_months'] ?? 10);

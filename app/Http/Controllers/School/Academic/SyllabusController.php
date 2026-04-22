@@ -26,7 +26,7 @@ class SyllabusController extends Controller
         }
 
         return Inertia::render('School/Academic/Syllabus/Create', [
-            'classes' => $classQuery->orderBy('numeric_value')->get(),
+            'classes' => $classQuery->orderBy('numeric_value')->orderBy('name')->get(),
         ]);
     }
 
@@ -73,7 +73,7 @@ class SyllabusController extends Controller
             'topics'              => $topics,
             'statuses'            => $statuses,
             'progressPct'         => $progressPct,
-            'classes'             => $classQuery->orderBy('numeric_value')->get(),
+            'classes'             => $classQuery->orderBy('numeric_value')->orderBy('name')->get(),
             'sections'            => $request->class_id
                 ? Section::where('school_id', $schoolId)->where('course_class_id', $request->class_id)->forCurrentYear()->get()
                 : [],

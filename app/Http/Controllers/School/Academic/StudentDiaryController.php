@@ -169,7 +169,7 @@ class StudentDiaryController extends Controller
 
         return Inertia::render('School/Academic/Diary/Index', [
             'diaries'             => $diaries,
-            'classes'             => $classQuery->orderBy('numeric_value')->get(),
+            'classes'             => $classQuery->orderBy('numeric_value')->orderBy('name')->get(),
             'filters'             => $request->only(['class_id', 'section_id', 'date']),
             'teacher_subject_ids' => $scope->subjectRestricted ? $scope->subjectIds->values() : null,
             'allowed_map'         => $scope->restricted ? $scope->allowedMap : null,
@@ -251,7 +251,7 @@ class StudentDiaryController extends Controller
         }
 
         return Inertia::render('School/Academic/Diary/Create', [
-            'classes'             => $classQuery->orderBy('numeric_value')->get(),
+            'classes'             => $classQuery->orderBy('numeric_value')->orderBy('name')->get(),
             'teacher_subject_ids' => $scope->subjectRestricted ? $scope->subjectIds->values() : null,
             'allowed_map'         => $scope->restricted ? $scope->allowedMap : null,
         ]);

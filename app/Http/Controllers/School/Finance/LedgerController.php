@@ -57,7 +57,7 @@ class LedgerController extends Controller
         $totalOutflow = $expenses->sum('amount');
         $netBalance = $totalInflow - $totalOutflow;
         
-        $classes = \App\Models\CourseClass::where('school_id', $schoolId)->orderBy('sort_order')->get();
+        $classes = \App\Models\CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('name')->get();
 
         return Inertia::render('School/Finance/Ledger/DayBook', [
             'feePayments' => $feePayments,
@@ -180,7 +180,7 @@ class LedgerController extends Controller
         usort($defaulters, fn($a, $b) => $b['balance_due'] <=> $a['balance_due']);
 
         // Fetch classes for the dropdown filter
-        $classes = \App\Models\CourseClass::where('school_id', $schoolId)->orderBy('sort_order')->get();
+        $classes = \App\Models\CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('name')->get();
 
         return Inertia::render('School/Finance/Ledger/DueReport', [
             'defaulters' => collect($defaulters)->values(),
@@ -281,7 +281,7 @@ class LedgerController extends Controller
         }
 
         // Fetch classes for the dropdown filter
-        $classes = \App\Models\CourseClass::where('school_id', $schoolId)->orderBy('sort_order')->get();
+        $classes = \App\Models\CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('name')->get();
 
         return Inertia::render('School/Finance/Ledger/FeeSummaryReport', [
             'reports' => collect($reports)->values(),

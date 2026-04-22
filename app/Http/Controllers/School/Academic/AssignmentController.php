@@ -26,7 +26,7 @@ class AssignmentController extends Controller
         }
 
         return Inertia::render('School/Academic/Assignments/Create', [
-            'classes' => $classQuery->orderBy('numeric_value')->get(),
+            'classes' => $classQuery->orderBy('numeric_value')->orderBy('name')->get(),
         ]);
     }
 
@@ -58,7 +58,7 @@ class AssignmentController extends Controller
 
         return Inertia::render('School/Academic/Assignments/Index', [
             'assignments'         => $assignments,
-            'classes'             => $classQuery->orderBy('numeric_value')->get(),
+            'classes'             => $classQuery->orderBy('numeric_value')->orderBy('name')->get(),
             'filters'             => $request->only(['class_id', 'subject_id', 'status']),
             'teacher_subject_ids' => $scope->subjectRestricted ? $scope->subjectIds->values() : null,
             'allowed_map'         => $scope->restricted ? $scope->allowedMap : null,

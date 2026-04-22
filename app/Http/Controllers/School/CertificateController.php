@@ -144,7 +144,7 @@ class CertificateController extends Controller
 
         $schoolId = app('current_school_id');
         $classes  = CourseClass::where('school_id', $schoolId)
-            ->orderBy('order_index')->orderBy('name')
+            ->orderBy('numeric_value')->orderBy('name')
             ->get(['id', 'name']);
 
         return Inertia::render('School/Certificates/Generate', [

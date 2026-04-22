@@ -30,7 +30,7 @@ class AttendanceController extends Controller
 
         // ── Teacher scope: restrict class dropdown to assigned classes only ──────
         $scope = app(TeacherScopeService::class)->for($user);
-        $classQuery = CourseClass::where('school_id', $schoolId)->orderBy('sort_order');
+        $classQuery = CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('name');
         if ($scope->restricted && $scope->classIds->isNotEmpty()) {
             $classQuery->whereIn('id', $scope->classIds);
         }
@@ -209,7 +209,7 @@ class AttendanceController extends Controller
         // ── Teacher scope for report page ───────────────────────────────────
         $teacherScope = app(TeacherScopeService::class)->for($user);
 
-        $classQuery = CourseClass::where('school_id', $schoolId)->orderBy('sort_order');
+        $classQuery = CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('name');
         if ($parentStudentIds !== null) {
             $allowedClassIds = StudentAcademicHistory::where('school_id', $schoolId)
                 ->where('academic_year_id', $academicYearId)
@@ -341,7 +341,7 @@ class AttendanceController extends Controller
         $classId        = $request->get('class_id');
         $sectionId      = $request->get('section_id');
 
-        $classes  = CourseClass::where('school_id', $schoolId)->orderBy('sort_order')->get(['id', 'name']);
+        $classes  = CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('name')->get(['id', 'name']);
         $sections = $classId
             ? Section::where('school_id', $schoolId)->where('course_class_id', $classId)->forCurrentYear()->orderBy('sort_order')->get(['id', 'name'])
             : collect();
@@ -442,7 +442,7 @@ class AttendanceController extends Controller
         $academicYearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
 
         $scope = app(TeacherScopeService::class)->for($user);
-        $classQuery = CourseClass::where('school_id', $schoolId)->orderBy('sort_order');
+        $classQuery = CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('name');
         if ($scope->restricted && $scope->classIds->isNotEmpty()) {
             $classQuery->whereIn('id', $scope->classIds);
         }
@@ -515,7 +515,7 @@ class AttendanceController extends Controller
 
         // Class names (all in school, ordered)
         $classNameMap = CourseClass::where('school_id', $schoolId)
-            ->orderBy('sort_order')
+            ->orderBy('numeric_value')->orderBy('name')
             ->pluck('name', 'id');
 
         // Per-class enrollment for unmarked + % in breakdown

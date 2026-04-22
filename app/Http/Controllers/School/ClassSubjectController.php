@@ -34,7 +34,7 @@ class ClassSubjectController extends Controller
             ->select('class_subjects.*')
             ->get();
 
-        $classes  = CourseClass::where('school_id', $schoolId)->with('department')->orderBy('numeric_value')->get();
+        $classes  = CourseClass::where('school_id', $schoolId)->with('department')->orderBy('numeric_value')->orderBy('name')->get();
         $sections = Section::where('school_id', $schoolId)->forCurrentYear()->with('courseClass')->get();
         $subjects = Subject::where('school_id', $schoolId)->orderBy('sort_order')->orderBy('name')->get();
 

@@ -21,7 +21,7 @@ class ResourceController extends Controller
         return Inertia::render('School/Academic/Resources/CreateMaterial', [
             'courseClasses' => CourseClass::where('school_id', $schoolId)
                 ->with(['subjects', 'sections' => fn($q) => $q->forCurrentYear()->with('subjects')])
-                ->orderBy('numeric_value')
+                ->orderBy('numeric_value')->orderBy('name')
                 ->get(),
         ]);
     }
@@ -59,7 +59,7 @@ class ResourceController extends Controller
             'learningMaterials'=> $learningMaterials,
             'courseClasses'    => CourseClass::where('school_id', $schoolId)
                 ->with(['subjects', 'sections' => fn($q) => $q->forCurrentYear()->with('subjects')])
-                ->orderBy('numeric_value')
+                ->orderBy('numeric_value')->orderBy('name')
                 ->get(),
             'filters'       => $request->only(['class_id', 'subject_id', 'type', 'published']),
             'isManagement'  => $isManagement,

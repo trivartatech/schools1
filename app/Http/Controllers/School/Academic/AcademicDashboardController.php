@@ -259,8 +259,8 @@ class AcademicDashboardController extends Controller
         $academicYearId = app('current_academic_year_id');
 
         $classes = CourseClass::where('school_id', $schoolId)
-            ->with(['subjects', 'sections'])
-            ->orderBy('numeric_value')
+            ->with(['subjects', 'sections' => fn($q) => $q->forCurrentYear()])
+            ->orderBy('numeric_value')->orderBy('name')
             ->get();
 
         $scores = [];

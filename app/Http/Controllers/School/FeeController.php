@@ -126,7 +126,7 @@ class FeeController extends Controller
         $schoolId       = app('current_school_id');
         $academicYearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
 
-        $classes    = CourseClass::where('school_id', $schoolId)->orderBy('sort_order')->get();
+        $classes    = CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('name')->get();
         $feeHeads   = FeeHead::where('school_id', $schoolId)->with('feeGroup')->orderBy('sort_order')->get();
         $structures = FeeStructure::where('school_id', $schoolId)
             ->where('academic_year_id', $academicYearId)
@@ -252,7 +252,7 @@ class FeeController extends Controller
             ->orderByDesc('effective_from')
             ->get();
 
-        $classes   = \App\Models\CourseClass::where('school_id', $schoolId)->orderBy('sort_order')->get();
+        $classes   = \App\Models\CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('name')->get();
         $feeHeads  = FeeHead::where('school_id', $schoolId)->with('feeGroup')->get();
 
         return Inertia::render('School/Fee/StructureHistory', compact('history', 'classes', 'feeHeads'));

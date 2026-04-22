@@ -24,7 +24,7 @@ class RollNumberController extends Controller
             ->orderByDesc('start_date')->get(['id', 'name', 'is_current']);
 
         $classes = CourseClass::where('school_id', $schoolId)
-            ->orderBy('numeric_value')->get(['id', 'name']);
+            ->orderBy('numeric_value')->orderBy('name')->get(['id', 'name']);
 
         // Default filter values
         $yearId    = $request->integer('academic_year_id', $currentYearId);

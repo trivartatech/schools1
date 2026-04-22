@@ -30,7 +30,7 @@ class QuestionPaperController extends Controller
             ->get();
 
         $classes = CourseClass::where('school_id', app('current_school_id'))
-            ->orderBy('numeric_value')->get(['id', 'name']);
+            ->orderBy('numeric_value')->orderBy('name')->get(['id', 'name']);
 
         return Inertia::render('School/QuestionPaper/Index', [
             'papers'  => $papers,
@@ -43,7 +43,7 @@ class QuestionPaperController extends Controller
     public function create()
     {
         $classes = CourseClass::where('school_id', app('current_school_id'))
-            ->orderBy('numeric_value')->get(['id', 'name', 'numeric_value']);
+            ->orderBy('numeric_value')->orderBy('name')->get(['id', 'name', 'numeric_value']);
 
         return Inertia::render('School/QuestionPaper/Create', [
             'classes' => $classes,

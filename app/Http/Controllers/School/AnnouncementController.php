@@ -32,6 +32,7 @@ class AnnouncementController extends Controller
 
         $classes = CourseClass::where('school_id', app('current_school_id'))
             ->with(['sections' => fn($q) => $q->forCurrentYear()])
+            ->orderBy('numeric_value')->orderBy('name')
             ->get();
 
         $templates = CommunicationTemplate::where('school_id', app('current_school_id'))

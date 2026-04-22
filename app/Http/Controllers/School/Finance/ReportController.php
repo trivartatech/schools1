@@ -144,7 +144,7 @@ class ReportController extends Controller
             return $item;
         });
 
-        $classes = \App\Models\CourseClass::where('school_id', $schoolId)->orderBy('sort_order')->get();
+        $classes = \App\Models\CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('name')->get();
 
         return Inertia::render('School/Finance/Reports/Index', [
             'metrics' => [

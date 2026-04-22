@@ -54,7 +54,7 @@ class UserManagementController extends Controller
         return Inertia::render('School/Users/Index', [
             'users' => $users,
             'filters' => $request->only(['user_type', 'search', 'status', 'class_id', 'section_id']),
-            'classes' => CourseClass::where('school_id', $schoolId)->get(),
+            'classes' => CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('name')->get(),
         ]);
     }
 

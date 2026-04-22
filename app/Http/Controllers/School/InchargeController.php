@@ -28,7 +28,7 @@ class InchargeController extends Controller
             'sections.inchargeStaff',
         ])
         ->where('school_id', $schoolId)
-        ->orderBy('numeric_value')
+        ->orderBy('numeric_value')->orderBy('name')
         ->get();
 
         // Load class-subjects (subjects assigned to each class-section)

@@ -17,7 +17,7 @@ class BookListController extends Controller
         $schoolId = app('current_school_id');
 
         return Inertia::render('School/Academic/BookList/Create', [
-            'classes' => CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->get(),
+            'classes' => CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('name')->get(),
         ]);
     }
 
@@ -48,7 +48,7 @@ class BookListController extends Controller
 
         return Inertia::render('School/Academic/BookList/Index', [
             'books'            => $books,
-            'classes'          => CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->get(),
+            'classes'          => CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('name')->get(),
             'subjectsForClass' => $subjectsForClass,
             'filters'          => $request->only(['class_id']),
         ]);
