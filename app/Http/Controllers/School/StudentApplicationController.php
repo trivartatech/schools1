@@ -215,6 +215,8 @@ class StudentApplicationController extends Controller
             return back()->with('error', 'Only pending applications can be edited.');
         }
 
+        $schoolId = app('current_school_id');
+
         $validated = $request->validate([
             'class_id'          => ['required', Rule::exists('course_classes', 'id')->where('school_id', $schoolId)],
             'section_id'        => ['nullable', Rule::exists('sections', 'id')->where('school_id', $schoolId)],
