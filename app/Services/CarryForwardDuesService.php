@@ -185,6 +185,134 @@ class CarryForwardDuesService
     }
 
     /**
+     * Carry outstanding balances for a specific set of students (typically the
+     * batch just promoted via the UI wizard). Idempotent per (student, fee_head)
+     * — a re-run under the same RolloverRun will skip groups that already have
+     * a carry-forward row.
+     *
+     * Does NOT transition the RolloverRun state.
+     *
+     * @param  int[] $studentIds
+     * @return array{students_with_dues:int, rows_created:int, total_amount:string, skipped:int}
+     */
+    public function forStudents(RolloverRun $run, array $studentIds): array
+    {
+        $school     = $run->school;
+        $sourceYear = $run->sourceYear;
+        $targetYear = $run->targetYear;
+
+        $result = [
+            'students_with_dues' => 0,
+            'rows_created'       => 0,
+            'total_amount'       => '0.00',
+            'skipped'            => 0,
+        ];
+
+        $studentIds = array_values(array_unique(array_map('intval', $studentIds)));
+        if (empty($studentIds)) {
+            return $result;
+        }
+
+        $paymentDate = $targetYear->start_date
+            ? Carbon::parse($targetYear->start_date)->toDateString()
+            : now()->toDateString();
+
+        $totalAmount = 0.0;
+
+        DB::transaction(function () use (
+            $run, $school, $sourceYear, $targetYear, $studentIds, $paymentDate,
+            &$result, &$totalAmount
+        ) {
+            foreach ($studentIds as $studentId) {
+                $groups = $this->outstandingGroupsFor($school->id, $sourceYear->id, (int) $studentId);
+                if ($groups->isEmpty()) continue;
+
+                $createdForStudent = 0;
+
+                foreach ($groups as $g) {
+                    // Idempotency: skip if this run already wrote a carry-forward
+                    // for the same (student, fee_head).
+                    $already = FeePayment::where('school_id', $school->id)
+                        ->where('academic_year_id', $targetYear->id)
+                        ->where('student_id', $studentId)
+                        ->where('fee_head_id', $g->fee_head_id)
+                        ->where('rollover_run_id', $run->id)
+                        ->exists();
+
+                    if ($already) {
+                        $result['skipped']++;
+                        continue;
+                    }
+
+                    $firstSourcePayment = FeePayment::where('school_id', $school->id)
+                        ->where('academic_year_id', $sourceYear->id)
+                        ->where('student_id', $studentId)
+                        ->where('fee_head_id', $g->fee_head_id)
+                        ->whereIn('status', [
+                            FeePaymentStatus::Due->value,
+                            FeePaymentStatus::Partial->value,
+                        ])
+                        ->orderBy('id')
+                        ->first();
+
+                    $amount = number_format((float) $g->outstanding, 2, '.', '');
+
+                    $new = FeePayment::create([
+                        'school_id'         => $school->id,
+                        'student_id'        => $studentId,
+                        'academic_year_id'  => $targetYear->id,
+                        'fee_head_id'       => $g->fee_head_id,
+                        'fee_structure_id'  => null,
+                        'amount_due'        => $amount,
+                        'amount_paid'       => 0,
+                        'discount'          => 0,
+                        'fine'              => 0,
+                        'term'              => 'annual',
+                        'payment_date'      => $paymentDate,
+                        'payment_mode'      => 'cash',
+                        'status'            => FeePaymentStatus::Due,
+                        'is_carry_forward'  => true,
+                        'source_payment_id' => $firstSourcePayment?->id,
+                        'source_year_id'    => $sourceYear->id,
+                        'rollover_run_id'   => $run->id,
+                        'remarks'           => "Carried forward from {$sourceYear->name}",
+                    ]);
+
+                    $result['rows_created']++;
+                    $createdForStudent++;
+                    $totalAmount += (float) $amount;
+
+                    $run->logItem('fees', 'carry_forward', $firstSourcePayment?->id, $new->id, 'success', null, [
+                        'student_id'  => $studentId,
+                        'fee_head_id' => $g->fee_head_id,
+                        'amount'      => $amount,
+                        'manual'      => true,
+                    ]);
+                }
+
+                if ($createdForStudent > 0) {
+                    $result['students_with_dues']++;
+                }
+            }
+        });
+
+        $result['total_amount'] = number_format($totalAmount, 2, '.', '');
+
+        // Roll into run stats for the UI.
+        $prev = $run->stats['fees_manual'] ?? [
+            'students_with_dues' => 0, 'rows_created' => 0, 'total_amount' => 0.0, 'skipped' => 0,
+        ];
+        $run->setStat('fees_manual', [
+            'students_with_dues' => $prev['students_with_dues'] + $result['students_with_dues'],
+            'rows_created'       => $prev['rows_created']       + $result['rows_created'],
+            'total_amount'       => number_format((float) $prev['total_amount'] + $totalAmount, 2, '.', ''),
+            'skipped'            => $prev['skipped']            + $result['skipped'],
+        ]);
+
+        return $result;
+    }
+
+    /**
      * Finalize the run: mark all phases complete and freeze the source year.
      */
     public function finalize(RolloverRun $run, bool $freezeSource = true): void

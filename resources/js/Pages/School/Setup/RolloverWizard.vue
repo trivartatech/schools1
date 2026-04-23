@@ -61,27 +61,8 @@ const executeRollover = () => {
 const runBusy = ref(false)
 const dryRunResult = ref(null)
 
-const runPromoteDryRun = async (run) => {
-    runBusy.value = true
-    dryRunResult.value = null
-    try {
-        const { data } = await axios.post(
-            `/school/settings/rollover/runs/${run.id}/promote-students`,
-            { dry_run: true }
-        )
-        dryRunResult.value = { phase: 'students', ...data.summary }
-    } catch (e) {
-        alert('Dry-run failed: ' + (e?.response?.data?.message || e.message))
-    } finally {
-        runBusy.value = false
-    }
-}
-
-const runPromoteExecute = (run) => {
-    if (!confirm('Promote all students from source year into target year? This also marks graduated/detained.')) return
-    router.post(`/school/settings/rollover/runs/${run.id}/promote-students`, {}, {
-        onSuccess: () => { dryRunResult.value = null }
-    })
+const goPromoteManual = (run) => {
+    router.visit(`/school/settings/rollover/runs/${run.id}/promote-manual`)
 }
 
 const runCarryDryRun = async (run) => {
@@ -126,7 +107,7 @@ const phaseLabel = (state) => ({
 }[state] || state)
 
 const nextPhaseActionFor = (state) => {
-    if (state === 'structure_done')  return 'promote'
+    if (state === 'structure_done' || state === 'students_running') return 'promote'
     if (state === 'students_done')   return 'carry'
     if (state === 'fees_done')       return 'finalize'
     return null
@@ -175,8 +156,8 @@ const nextPhaseActionFor = (state) => {
 
             <div class="run-actions">
                 <template v-if="nextPhaseActionFor(inProgressRun.state) === 'promote'">
-                    <Button variant="secondary" :loading="runBusy" @click="runPromoteDryRun(inProgressRun)">Preview (dry-run)</Button>
-                    <Button @click="runPromoteExecute(inProgressRun)">Promote Students</Button>
+                    <Button @click="goPromoteManual(inProgressRun)">Open Promotion Wizard →</Button>
+                    <span class="run-action-note run-action-note--inline">Pick students class-by-class, section-by-section. Fees carry automatically.</span>
                 </template>
                 <template v-else-if="nextPhaseActionFor(inProgressRun.state) === 'carry'">
                     <Button variant="secondary" :loading="runBusy" @click="runCarryDryRun(inProgressRun)">Preview (dry-run)</Button>

@@ -236,6 +236,31 @@ Route::middleware('auth')->group(function () {
                 [\App\Http\Controllers\School\RolloverController::class, 'promoteStudents']
             )->middleware('permission:execute_rollover')->name('settings.rollover.promote-students');
 
+            // Manual (batch-by-batch) student promotion — driven by a dedicated UI page.
+            Route::get('settings/rollover/runs/{run}/promote-manual',
+                [\App\Http\Controllers\School\RolloverController::class, 'manualPromoteIndex']
+            )->middleware('permission:execute_rollover')->name('settings.rollover.promote-manual');
+
+            Route::get('settings/rollover/runs/{run}/classes',
+                [\App\Http\Controllers\School\RolloverController::class, 'classesForYear']
+            )->middleware('permission:execute_rollover')->name('settings.rollover.classes');
+
+            Route::get('settings/rollover/runs/{run}/sections',
+                [\App\Http\Controllers\School\RolloverController::class, 'sectionsForClass']
+            )->middleware('permission:execute_rollover')->name('settings.rollover.sections');
+
+            Route::get('settings/rollover/runs/{run}/eligible-students',
+                [\App\Http\Controllers\School\RolloverController::class, 'eligibleStudents']
+            )->middleware('permission:execute_rollover')->name('settings.rollover.eligible-students');
+
+            Route::post('settings/rollover/runs/{run}/promote-manual',
+                [\App\Http\Controllers\School\RolloverController::class, 'promoteManual']
+            )->middleware('permission:execute_rollover')->name('settings.rollover.promote-manual.submit');
+
+            Route::post('settings/rollover/runs/{run}/mark-students-done',
+                [\App\Http\Controllers\School\RolloverController::class, 'markStudentsDone']
+            )->middleware('permission:execute_rollover')->name('settings.rollover.mark-students-done');
+
             Route::post('settings/rollover/runs/{run}/carry-forward',
                 [\App\Http\Controllers\School\RolloverController::class, 'carryForward']
             )->middleware('permission:execute_rollover')->name('settings.rollover.carry-forward');

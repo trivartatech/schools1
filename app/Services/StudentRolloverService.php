@@ -262,4 +262,126 @@ class StudentRolloverService
 
         return $match?->id;
     }
+
+    /**
+     * Promote a hand-picked batch of students from source year into an explicit
+     * target class + section. Used by the UI wizard so the operator can walk
+     * through source-year classes/sections one batch at a time instead of
+     * triggering a whole-school promotion in one shot.
+     *
+     * Does NOT transition the RolloverRun state — partial runs stay at
+     * structure_done; the operator marks the students phase complete once
+     * every source class has been processed.
+     *
+     * @param  int[] $studentIds  Student.id values to promote (must be enrolled in source year).
+     * @return array{promoted:int, skipped:int, failed:int}
+     */
+    public function promoteSelected(
+        RolloverRun $run,
+        array $studentIds,
+        int $targetClassId,
+        int $targetSectionId
+    ): array {
+        $school     = $run->school;
+        $sourceYear = $run->sourceYear;
+        $targetYear = $run->targetYear;
+
+        $result = ['promoted' => 0, 'skipped' => 0, 'failed' => 0];
+
+        // Validate target class + section belong to this school and match each other.
+        $class = CourseClass::where('school_id', $school->id)->find($targetClassId);
+        if (!$class) {
+            throw new \InvalidArgumentException("Target class #{$targetClassId} does not belong to this school.");
+        }
+        $section = Section::where('school_id', $school->id)
+            ->where('course_class_id', $targetClassId)
+            ->find($targetSectionId);
+        if (!$section) {
+            throw new \InvalidArgumentException("Target section #{$targetSectionId} does not belong to the chosen class.");
+        }
+
+        $studentIds = array_values(array_unique(array_map('intval', $studentIds)));
+        if (empty($studentIds)) {
+            return $result;
+        }
+
+        $sourceRows = StudentAcademicHistory::where('school_id', $school->id)
+            ->where('academic_year_id', $sourceYear->id)
+            ->whereIn('student_id', $studentIds)
+            ->get()
+            ->keyBy('student_id');
+
+        DB::transaction(function () use (
+            $run, $school, $targetYear, $targetClassId, $targetSectionId,
+            $studentIds, $sourceRows, &$result
+        ) {
+            // Make sure the target section is visible in the target year's dropdowns.
+            DB::table('section_academic_year')->insertOrIgnore([
+                'section_id'       => $targetSectionId,
+                'academic_year_id' => $targetYear->id,
+                'created_at'       => now(),
+                'updated_at'       => now(),
+            ]);
+
+            foreach ($studentIds as $studentId) {
+                try {
+                    $sourceRow = $sourceRows->get($studentId);
+                    if (!$sourceRow) {
+                        $result['skipped']++;
+                        $run->logItem('students', 'student_history', null, null, 'skipped',
+                            "student #{$studentId} not enrolled in source year");
+                        continue;
+                    }
+
+                    $existing = StudentAcademicHistory::where('student_id', $studentId)
+                        ->where('academic_year_id', $targetYear->id)
+                        ->first();
+
+                    if ($existing) {
+                        $result['skipped']++;
+                        $run->logItem('students', 'student_history', $sourceRow->id, $existing->id,
+                            'skipped', 'already has target-year row');
+                        continue;
+                    }
+
+                    $new = StudentAcademicHistory::create([
+                        'school_id'        => $school->id,
+                        'student_id'       => $studentId,
+                        'academic_year_id' => $targetYear->id,
+                        'class_id'         => $targetClassId,
+                        'section_id'       => $targetSectionId,
+                        'status'           => 'current',
+                        'enrollment_type'  => 'Regular',
+                        'student_type'     => 'Old Student',
+                        'roll_no'          => null,
+                    ]);
+
+                    $sourceRow->update(['status' => 'promoted']);
+
+                    $result['promoted']++;
+                    $run->logItem('students', 'student_history', $sourceRow->id, $new->id, 'success', null, [
+                        'from_class_id'   => $sourceRow->class_id,
+                        'to_class_id'     => $targetClassId,
+                        'from_section_id' => $sourceRow->section_id,
+                        'to_section_id'   => $targetSectionId,
+                        'manual'          => true,
+                    ]);
+                } catch (\Throwable $e) {
+                    $result['failed']++;
+                    $run->logItem('students', 'student_history',
+                        $sourceRows->get($studentId)?->id, null, 'failed', $e->getMessage());
+                }
+            }
+        });
+
+        // Accumulate into the run's stats so the UI can show a running total.
+        $prev = $run->stats['students_manual'] ?? ['promoted' => 0, 'skipped' => 0, 'failed' => 0];
+        $run->setStat('students_manual', [
+            'promoted' => $prev['promoted'] + $result['promoted'],
+            'skipped'  => $prev['skipped']  + $result['skipped'],
+            'failed'   => $prev['failed']   + $result['failed'],
+        ]);
+
+        return $result;
+    }
 }
