@@ -117,6 +117,12 @@ class StudentController extends Controller
             });
         }
 
+        // Manual defaulter flag — accepts 1/0/"yes"/"no". `filled()` lets the
+        // filter toggle on explicitly without hijacking the unfiltered view.
+        if ($request->filled('defaulter')) {
+            $query->where('is_defaulter', $request->boolean('defaulter'));
+        }
+
         // Page size — allowlist prevents abuse, default 20 matches historical behaviour.
         $perPage = (int) $request->input('per_page', 20);
         if (! in_array($perPage, [20, 40, 60, 100], true)) {
@@ -196,7 +202,7 @@ class StudentController extends Controller
             'classes'             => $classes,
             'houses'              => $houses,
             'filters'             => array_merge(
-                $request->only(['search', 'class_id', 'section_id', 'status', 'house_id']),
+                $request->only(['search', 'class_id', 'section_id', 'status', 'house_id', 'defaulter']),
                 ['per_page' => $perPage],
             ),
             'teacher_section_ids' => $scope->restricted ? $scope->sectionIds->values() : null,
@@ -982,5 +988,30 @@ class StudentController extends Controller
             ],
             'redirect_url' => route('school.students.show', $student->id),
         ]);
+    }
+
+    /**
+     * Toggle or explicitly set the defaulter flag on a student. Used by the
+     * profile page's defaulter switch. Kept as a dedicated endpoint so the
+     * accountant role can flag defaulters without needing full student-edit
+     * permission.
+     */
+    public function toggleDefaulter(Request $request, Student $student)
+    {
+        abort_if($student->school_id !== app('current_school_id'), 403);
+
+        $validated = $request->validate([
+            'is_defaulter' => 'nullable|boolean',
+        ]);
+
+        $next = array_key_exists('is_defaulter', $validated)
+            ? (bool) $validated['is_defaulter']
+            : !$student->is_defaulter;
+
+        $student->update(['is_defaulter' => $next]);
+
+        return back()->with('success', $next
+            ? "{$student->name} flagged as defaulter."
+            : "{$student->name} unflagged.");
     }
 }

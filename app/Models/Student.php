@@ -19,7 +19,7 @@ class Student extends Model
         'first_name', 'last_name', 'dob', 'birth_place', 'mother_tongue', 'gender', 'blood_group',
         'religion', 'caste', 'category', 'aadhaar_no', 'nationality', 'address',
         'city', 'state', 'pincode', 'emergency_contact_name', 'emergency_contact_phone',
-        'admission_date', 'status', 'photo', 'uuid'
+        'admission_date', 'status', 'photo', 'uuid', 'is_defaulter'
     ];
 
     protected static function booted()
@@ -192,6 +192,7 @@ class Student extends Model
         'dob'            => 'date',
         'admission_date' => 'date',
         'status'         => StudentStatus::class,
+        'is_defaulter'   => 'boolean',
     ];
 
     protected $appends = ['photo_url', 'name'];

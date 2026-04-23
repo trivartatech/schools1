@@ -32,6 +32,7 @@ const search = ref(props.filters.search ?? '');
 const selectedClass = ref(props.filters.class_id ?? '');
 const selectedSection = ref(props.filters.section_id ?? '');
 const selectedHouse = ref(props.filters.house_id ?? '');
+const defaulterFilter = ref(props.filters.defaulter ?? '');
 const perPage = ref(Number(props.filters.per_page) || 20);
 const PER_PAGE_OPTIONS = [20, 40, 60, 100];
 
@@ -42,12 +43,13 @@ if (selectedClass.value) {
 
 // Watch filters and debounce navigation. Always resets to page 1 so the user
 // doesn't land on a page that no longer exists after filtering.
-watch([search, selectedClass, selectedSection, selectedHouse, perPage], debounce(function ([s, cls, sec, house, pp]) {
+watch([search, selectedClass, selectedSection, selectedHouse, defaulterFilter, perPage], debounce(function ([s, cls, sec, house, def, pp]) {
     router.get('/school/students', {
         search: s,
         class_id: cls,
         section_id: sec,
         house_id: house,
+        defaulter: def,
         per_page: pp,
         page: 1,
     }, {
@@ -100,7 +102,7 @@ watch([search, selectedClass, selectedSection, selectedHouse, perPage], debounce
         </div>
 
         <!-- Filters -->
-        <FilterBar :active="!!(search || selectedClass || selectedSection || selectedHouse)" @clear="search = ''; selectedClass = ''; selectedSection = ''; selectedHouse = ''">
+        <FilterBar :active="!!(search || selectedClass || selectedSection || selectedHouse || defaulterFilter !== '')" @clear="search = ''; selectedClass = ''; selectedSection = ''; selectedHouse = ''; defaulterFilter = '';">
             <div class="fb-search">
                 <svg class="fb-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/></svg>
                 <input v-model="search" type="search" placeholder="Search by name or admission no...">
@@ -116,6 +118,11 @@ watch([search, selectedClass, selectedSection, selectedHouse, perPage], debounce
             <select v-if="houses.length" v-model="selectedHouse" style="width:140px;">
                 <option value="">All Houses</option>
                 <option v-for="h in houses" :key="h.id" :value="h.id">{{ h.name }}</option>
+            </select>
+            <select v-model="defaulterFilter" style="width:150px;" title="Filter by defaulter flag">
+                <option value="">All Students</option>
+                <option value="1">Defaulters Only</option>
+                <option value="0">Non-Defaulters</option>
             </select>
             <Button variant="secondary" size="sm" as="a" :href="`/school/students/export-qr?class_id=${selectedClass}&section_id=${selectedSection}`" title="Export QR codes to Excel">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>

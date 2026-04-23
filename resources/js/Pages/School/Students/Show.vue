@@ -57,6 +57,17 @@ const saveAdmNo    = () => admNoForm.patch(`/school/students/${props.student.id}
     onSuccess: () => { editingAdmNo.value = false; },
 });
 
+// ── Defaulter Flag (manual toggle) ────────────────────────────────────────────
+const defaulterForm = useForm({ is_defaulter: !!props.student.is_defaulter });
+const toggleDefaulter = () => {
+    const next = !defaulterForm.is_defaulter;
+    if (next && !confirm(`Mark ${props.student.first_name} as a fee defaulter?`)) return;
+    defaulterForm.is_defaulter = next;
+    defaulterForm.patch(`/school/students/${props.student.id}/defaulter`, {
+        preserveScroll: true,
+    });
+};
+
 // ── Attendance Helpers ────────────────────────────────────────────────────────
 const attPct = computed(() => {
     const s = props.attendanceSummary;
@@ -193,6 +204,18 @@ watch(showIdModal, (open) => { if (open) renderIdQr(); });
                             </template>
                         </span>
                         <span class="badge badge-green">{{ student.status ?? 'Active' }}</span>
+                        <button
+                            v-if="canDo('edit', 'students')"
+                            type="button"
+                            class="defaulter-toggle"
+                            :class="{ 'defaulter-toggle--on': defaulterForm.is_defaulter, 'defaulter-toggle--busy': defaulterForm.processing }"
+                            :disabled="defaulterForm.processing"
+                            :title="defaulterForm.is_defaulter ? 'Click to unflag' : 'Flag as fee defaulter'"
+                            @click="toggleDefaulter">
+                            <span class="defaulter-dot"></span>
+                            <span>{{ defaulterForm.is_defaulter ? 'Defaulter' : 'Not Defaulter' }}</span>
+                        </button>
+                        <span v-else-if="student.is_defaulter" class="badge badge-red">Defaulter</span>
                         <span v-if="student.erp_no" class="hero-erp-no">{{ student.erp_no }}</span>
                         <span class="hero-adm-no">{{ student.admission_no }}</span>
                     </div>
@@ -2347,4 +2370,24 @@ watch(showIdModal, (open) => { if (open) renderIdQr(); });
 @media (max-width: 768px) {
     .transport-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+.defaulter-toggle {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.22rem 0.6rem; border-radius: 999px;
+    background: #f1f5f9; border: 1.5px solid #e2e8f0; color: #64748b;
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    cursor: pointer; transition: all 0.18s ease;
+    font-family: inherit;
+}
+.defaulter-toggle:hover { background: #fff1f2; color: #b91c1c; border-color: #fecaca; }
+.defaulter-toggle--on {
+    background: #fef2f2; color: #b91c1c; border-color: #fca5a5;
+}
+.defaulter-toggle--on:hover { background: #fee2e2; }
+.defaulter-toggle--busy { opacity: 0.55; cursor: wait; }
+.defaulter-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: #cbd5e1;
+    transition: background 0.18s;
+}
+.defaulter-toggle--on .defaulter-dot { background: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.18); }
 </style>

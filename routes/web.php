@@ -306,6 +306,7 @@ Route::middleware('auth')->group(function () {
             Route::put('students/{student}/health', [\App\Http\Controllers\School\StudentHealthController::class, 'update'])->name('students.health.update');
             Route::patch('students/{student}/admission-no', [\App\Http\Controllers\School\StudentController::class, 'updateAdmissionNo'])->name('students.admission-no.update');
             Route::patch('students/{student}/record', [\App\Http\Controllers\School\StudentController::class, 'updateRecord'])->name('students.record.update');
+            Route::patch('students/{student}/defaulter', [\App\Http\Controllers\School\StudentController::class, 'toggleDefaulter'])->name('students.defaulter.toggle');
 
             $R = \App\Http\Controllers\School\StudentApplicationController::class;
             Route::resource('registrations', $R)->except(['destroy']);
