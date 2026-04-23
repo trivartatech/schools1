@@ -178,6 +178,7 @@ watch([search, selectedClass, selectedSection, selectedHouse, defaulterFilter, p
                             <td style="white-space:nowrap;">{{ student.student_parent?.primary_phone || '—' }}</td>
                             <td>
                                 <span class="badge" :class="student.status === 'Active' ? 'badge-green' : 'badge-gray'">{{ student.status || 'Active' }}</span>
+                                <span v-if="student.is_defaulter" class="defaulter-pill" title="Fee defaulter" style="margin-left:6px;">Defaulter</span>
                             </td>
                             <td>
                                 <Button variant="secondary" size="xs" as="link" :href="`/school/students/${student.id}`">View</Button>
@@ -203,9 +204,12 @@ watch([search, selectedClass, selectedSection, selectedHouse, defaulterFilter, p
                 <p style="font-size:0.8125rem;color:#94a3b8;margin-top:4px;">Try adjusting your search or filters.</p>
             </div>
 
-            <Link v-for="student in students.data" :key="student.id" v-memo="[student.id, student.status, student.photo]" :href="`/school/students/${student.id}`" class="student-card">
+            <Link v-for="student in students.data" :key="student.id" v-memo="[student.id, student.status, student.photo, student.is_defaulter]" :href="`/school/students/${student.id}`" class="student-card">
                 <!-- Status dot -->
                 <div class="student-card-status" :class="student.status === 'Active' ? 'student-card-status--active' : 'student-card-status--inactive'"></div>
+
+                <!-- Defaulter ribbon -->
+                <span v-if="student.is_defaulter" class="student-card-defaulter" title="Fee defaulter">Defaulter</span>
 
                 <!-- Avatar -->
                 <div class="student-card-avatar">
@@ -365,6 +369,36 @@ watch([search, selectedClass, selectedSection, selectedHouse, defaulterFilter, p
 }
 .student-card-status--active { background: #10b981; box-shadow: 0 0 0 2px #d1fae5; }
 .student-card-status--inactive { background: #ef4444; box-shadow: 0 0 0 2px #fee2e2; }
+
+/* Defaulter ribbon (card view) — sits top-left opposite the status dot */
+.student-card-defaulter {
+    position: absolute;
+    top: 10px; left: 10px;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: #fff;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.35);
+    z-index: 1;
+}
+
+/* Defaulter pill (list view) */
+.defaulter-pill {
+    display: inline-block;
+    background: #fee2e2;
+    color: #b91c1c;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid #fecaca;
+}
 
 /* Avatar */
 .student-card-avatar {
