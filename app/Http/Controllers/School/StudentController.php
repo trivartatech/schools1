@@ -474,6 +474,17 @@ class StudentController extends Controller
                 ]);
         }
 
+        // Transport: active routes with stops + school-level standard months
+        $transportRoutes = TransportRoute::where('school_id', $schoolId)
+            ->where('status', 'active')
+            ->with(['stops' => fn($q) => $q->orderBy('stop_order')])
+            ->orderBy('route_name')
+            ->get(['id', 'route_name', 'route_code']);
+
+        $school          = \App\Models\School::find($schoolId);
+        $standardMonths  = (float) ($school?->settings['transport_standard_months'] ?? 10);
+        if ($standardMonths <= 0) $standardMonths = 10.0;
+
         return Inertia::render('School/Students/Show', [
             'student'             => $student,
             'attendanceSummary'   => $attendanceSummary,
@@ -484,6 +495,8 @@ class StudentController extends Controller
             'sections'            => $sections,
             'academicYears'       => $academicYears,
             'feePayments'         => $feePayments,
+            'transportRoutes'     => $transportRoutes,
+            'standardMonths'      => $standardMonths,
         ]);
     }
 

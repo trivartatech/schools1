@@ -28,6 +28,8 @@ const props = defineProps({
     sections:           { type: Array, default: () => [] },
     academicYears:      { type: Array, default: () => [] },
     feePayments:        { type: Array, default: () => [] },
+    transportRoutes:    { type: Array,  default: () => [] },
+    standardMonths:     { type: Number, default: 10 },
 });
 
 // ── Date Formatting ───────────────────────────────────────────────────────────
@@ -175,6 +177,49 @@ function downloadIdQr() {
 }
 
 watch(showIdModal, (open) => { if (open) renderIdQr(); });
+
+// ── Inline Assign Transport (shown when student has no allocation) ────────────
+const showAssignTransport = ref(false);
+const assignForm = useForm({
+    student_ids:  [props.student.id],
+    route_id:     '',
+    stop_id:      '',
+    vehicle_id:   '',
+    pickup_type:  'both',
+    months:       Math.floor(props.standardMonths || 10),
+    days:         0,
+    start_date:   new Date().toISOString().slice(0, 10),
+    end_date:     '',
+    status:       'active',
+});
+
+const assignRouteStops = computed(() => {
+    if (!assignForm.route_id) return [];
+    const r = props.transportRoutes.find(r => r.id == assignForm.route_id);
+    return r?.stops ?? [];
+});
+const assignSelectedStop = computed(() => assignRouteStops.value.find(s => s.id == assignForm.stop_id));
+
+const assignMonthsOpted = computed(() => {
+    const m = Math.max(0, Math.min(24, Number(assignForm.months) || 0));
+    const d = Math.max(0, Math.min(30, Number(assignForm.days)   || 0));
+    return Math.round((m + d / 30) * 100) / 100;
+});
+const assignComputedFee = computed(() => {
+    if (!assignSelectedStop.value?.fee) return 0;
+    const std = Number(props.standardMonths) > 0 ? Number(props.standardMonths) : 10;
+    return Math.round(((Number(assignSelectedStop.value.fee) / std) * assignMonthsOpted.value) * 100) / 100;
+});
+const assignTermTooShort = computed(() => assignMonthsOpted.value > 0 && assignMonthsOpted.value < 0.5);
+
+function onAssignRouteChange() { assignForm.stop_id = ''; }
+
+function submitAssignTransport() {
+    assignForm.post('/school/transport/allocations', {
+        preserveScroll: true,
+        onSuccess: () => { showAssignTransport.value = false; },
+    });
+}
 </script>
 
 <template>
@@ -960,14 +1005,110 @@ watch(showIdModal, (open) => { if (open) renderIdQr(); });
                             </div>
                         </div>
                         <div class="card-body" v-else>
-                            <div class="empty-state">
+                            <!-- Empty state (before user clicks "Assign Transport") -->
+                            <div v-if="!showAssignTransport" class="empty-state">
                                 <svg class="w-12 h-12 empty-state-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 6H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-3M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M8 6h8" />
                                 </svg>
                                 <p class="empty-state-title">No transport allocated</p>
                                 <p class="empty-state-sub">This student is not assigned to any transport route.</p>
-                                <Button size="sm" as="a" href="/school/transport/allocations" class="mt-2.5">Assign Transport</Button>
+                                <Button v-if="transportRoutes.length" size="sm" @click="showAssignTransport = true" class="mt-2.5">
+                                    Assign Transport
+                                </Button>
+                                <p v-else class="empty-state-sub" style="margin-top:8px;">
+                                    No active transport routes. Add routes in the Transport module first.
+                                </p>
                             </div>
+
+                            <!-- Inline Assign Transport form -->
+                            <form v-else @submit.prevent="submitAssignTransport" class="assign-transport-form">
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                                    <h4 style="font-size:0.95rem;font-weight:600;color:#111827;margin:0;">Assign Transport</h4>
+                                    <Button variant="secondary" size="xs" type="button" @click="showAssignTransport = false">Cancel</Button>
+                                </div>
+
+                                <div v-if="Object.keys(assignForm.errors).length" style="background:#fef2f2;border:1px solid #fecaca;border-radius:0.5rem;padding:0.65rem 0.9rem;margin-bottom:12px;">
+                                    <p v-for="(msg, key) in assignForm.errors" :key="key" style="font-size:0.8rem;color:#dc2626;margin:0.1rem 0;">{{ Array.isArray(msg) ? msg[0] : msg }}</p>
+                                </div>
+
+                                <div class="form-row form-row-3">
+                                    <div class="form-field">
+                                        <label>Route *</label>
+                                        <select v-model="assignForm.route_id" @change="onAssignRouteChange" required>
+                                            <option value="">— Select Route —</option>
+                                            <option v-for="r in transportRoutes" :key="r.id" :value="r.id">{{ r.route_name }}</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-field">
+                                        <label>Boarding Stop *</label>
+                                        <select v-model="assignForm.stop_id" :disabled="!assignForm.route_id" required>
+                                            <option value="">Select Stop</option>
+                                            <option v-for="s in assignRouteStops" :key="s.id" :value="s.id">
+                                                {{ s.stop_name }}{{ s.fee ? ' — ₹' + s.fee : '' }}
+                                            </option>
+                                        </select>
+                                        <span v-if="assignSelectedStop?.fee" class="field-hint">
+                                            Stop full-term fee: <strong>₹{{ assignSelectedStop.fee }}</strong>
+                                            <span style="color:#94a3b8;">(for {{ standardMonths }} months)</span>
+                                        </span>
+                                    </div>
+                                    <div class="form-field">
+                                        <label>Pickup Type *</label>
+                                        <select v-model="assignForm.pickup_type" required>
+                                            <option value="both">Both (Pickup &amp; Drop)</option>
+                                            <option value="pickup">Pickup Only</option>
+                                            <option value="drop">Drop Only</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div v-if="assignForm.route_id" class="form-row form-row-3" style="margin-top:0.75rem;">
+                                    <div class="form-field">
+                                        <label>Months Opted *</label>
+                                        <input v-model.number="assignForm.months" type="number" min="0" max="24" step="1" required>
+                                        <span class="field-hint" style="color:#94a3b8;">Whole months (0–24)</span>
+                                    </div>
+                                    <div class="form-field">
+                                        <label>Extra Days</label>
+                                        <input v-model.number="assignForm.days" type="number" min="0" max="30" step="1">
+                                        <span class="field-hint" style="color:#94a3b8;">0–30 days</span>
+                                    </div>
+                                    <div class="form-field">
+                                        <label>Transport Fee (auto)</label>
+                                        <div style="padding:0.5rem 0.75rem;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:0.5rem;font-size:0.9rem;color:#065f46;line-height:1.45;">
+                                            <div><strong style="font-size:1rem;">₹{{ assignComputedFee }}</strong></div>
+                                            <div style="font-size:0.75rem;color:#047857;">
+                                                {{ assignForm.months || 0 }} mo{{ assignForm.days ? ' + ' + assignForm.days + ' d' : '' }}
+                                                = {{ assignMonthsOpted }} months
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div v-if="assignTermTooShort" style="padding:0.5rem 0.75rem;background:#fef3c7;border:1px solid #fcd34d;border-radius:0.5rem;font-size:0.8125rem;color:#92400e;margin-top:0.5rem;">
+                                    Minimum term is 15 days (0.5 months).
+                                </div>
+
+                                <div class="form-row form-row-2" style="margin-top:0.75rem;">
+                                    <div class="form-field">
+                                        <label>Start Date</label>
+                                        <input v-model="assignForm.start_date" type="date">
+                                    </div>
+                                    <div class="form-field">
+                                        <label>End Date</label>
+                                        <input v-model="assignForm.end_date" type="date">
+                                    </div>
+                                </div>
+
+                                <div style="display:flex;justify-content:flex-end;gap:0.75rem;margin-top:14px;padding-top:12px;border-top:1px solid #e5e7eb;">
+                                    <Button variant="secondary" type="button" @click="showAssignTransport = false">Cancel</Button>
+                                    <Button type="submit"
+                                            :loading="assignForm.processing"
+                                            :disabled="assignForm.processing || assignTermTooShort || assignMonthsOpted === 0 || !assignForm.route_id || !assignForm.stop_id">
+                                        {{ assignForm.processing ? 'Assigning…' : 'Assign Transport' }}
+                                    </Button>
+                                </div>
+                            </form>
                         </div>
                     </div>
                 </div>
