@@ -925,9 +925,18 @@ function submitAssignTransport() {
                 <!-- ─── TAB: TRANSPORT ─────────────────────────────────────── -->
                 <div v-if="activeTab === 'transport'">
                     <div class="card">
-                        <div class="card-header">
+                        <div class="card-header" style="gap:0.5rem;flex-wrap:wrap;">
                             <span class="card-title">Transport Details</span>
-                            <Button variant="secondary" size="sm" as="a" href="/school/transport/allocations">Manage Allocations</Button>
+                            <div style="display:flex;gap:0.5rem;margin-left:auto;flex-wrap:wrap;">
+                                <Button v-if="student.transport_allocation" size="sm" as="a"
+                                        :href="`/school/transport/fees/${student.transport_allocation.id}`">
+                                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right:4px;">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
+                                    </svg>
+                                    Collect Fee
+                                </Button>
+                                <Button variant="secondary" size="sm" as="a" href="/school/transport/allocations">Manage Allocations</Button>
+                            </div>
                         </div>
                         <div class="card-body" v-if="student.transport_allocation">
                             <div class="transport-banner">
@@ -943,9 +952,19 @@ function submitAssignTransport() {
                                         <span v-if="student.transport_allocation.route?.end_location"> → {{ student.transport_allocation.route.end_location }}</span>
                                     </div>
                                 </div>
-                                <span :class="['badge', student.transport_allocation.status === 'active' ? 'badge-green' : 'badge-gray']" style="margin-left:auto;">
-                                    {{ student.transport_allocation.status }}
-                                </span>
+                                <div style="margin-left:auto;display:flex;gap:0.375rem;align-items:center;flex-wrap:wrap;">
+                                    <span :class="['badge', student.transport_allocation.status === 'active' ? 'badge-green' : 'badge-gray']">
+                                        {{ student.transport_allocation.status }}
+                                    </span>
+                                    <span :class="[
+                                        'badge',
+                                        student.transport_allocation.payment_status === 'paid'    ? 'badge-green' :
+                                        student.transport_allocation.payment_status === 'partial' ? 'badge-yellow' :
+                                        student.transport_allocation.payment_status === 'waived'  ? 'badge-gray'   : 'badge-red'
+                                    ]" style="text-transform:capitalize;">
+                                        {{ student.transport_allocation.payment_status }}
+                                    </span>
+                                </div>
                             </div>
 
                             <div class="transport-grid">
@@ -972,6 +991,16 @@ function submitAssignTransport() {
                                 <div class="transport-field">
                                     <div class="transport-field-label">Transport Fee</div>
                                     <div class="transport-field-value">₹{{ student.transport_allocation.transport_fee ?? '0' }}</div>
+                                </div>
+                                <div class="transport-field">
+                                    <div class="transport-field-label">Paid</div>
+                                    <div class="transport-field-value" style="color:#059669;">₹{{ student.transport_allocation.amount_paid ?? '0' }}</div>
+                                </div>
+                                <div class="transport-field">
+                                    <div class="transport-field-label">Outstanding</div>
+                                    <div class="transport-field-value" :style="Number(student.transport_allocation.balance) > 0 ? 'color:#dc2626;font-weight:600;' : 'color:#6b7280;'">
+                                        ₹{{ student.transport_allocation.balance ?? '0' }}
+                                    </div>
                                 </div>
                                 <div class="transport-field">
                                     <div class="transport-field-label">Start Date</div>
