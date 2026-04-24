@@ -239,7 +239,7 @@ const mappings = [
         </div>
 
         <div v-else-if="categories && categories.length === 0" class="empty-state" style="margin-top:24px;">
-            <p>No expense categories found. <Link :href="route('expense-categories.index')" style="color:#6366f1;">Add expense categories</Link> to enable per-category GL mapping.</p>
+            <p>No expense categories found. <Link :href="route('school.expense-categories.index')" style="color:#6366f1;">Add expense categories</Link> to enable per-category GL mapping.</p>
         </div>
     </SchoolLayout>
 </template>
