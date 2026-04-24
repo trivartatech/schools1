@@ -129,7 +129,10 @@ const loadTargetSections = async () => {
     loadingTargetSections.value = true
     try {
         const { data } = await axios.get(`${base}/sections`, {
-            params: { class_id: targetClassId.value },
+            params: {
+                class_id: targetClassId.value,
+                year_id:  props.run.target_year_id,
+            },
         })
         targetSections.value = data.sections
     } finally {

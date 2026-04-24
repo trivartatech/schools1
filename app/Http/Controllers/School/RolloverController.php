@@ -261,20 +261,37 @@ class RolloverController extends Controller
 
         $class = CourseClass::where('school_id', $school->id)->findOrFail($validated['class_id']);
 
-        $query = Section::where('school_id', $school->id)
+        $baseQuery = fn() => Section::where('school_id', $school->id)
             ->where('course_class_id', $class->id);
 
         if (!empty($validated['only_with_students']) && !empty($validated['year_id'])) {
-            $query->whereExists(function ($q) use ($school, $validated) {
-                $q->select(DB::raw(1))
-                    ->from('student_academic_histories')
-                    ->whereColumn('student_academic_histories.section_id', 'sections.id')
-                    ->where('student_academic_histories.school_id', $school->id)
-                    ->where('student_academic_histories.academic_year_id', $validated['year_id']);
-            });
-        }
+            // Source side: only sections that actually have students enrolled
+            // in that year — drives the "promote from" picker.
+            $sections = $baseQuery()
+                ->whereExists(function ($q) use ($school, $validated) {
+                    $q->select(DB::raw(1))
+                        ->from('student_academic_histories')
+                        ->whereColumn('student_academic_histories.section_id', 'sections.id')
+                        ->where('student_academic_histories.school_id', $school->id)
+                        ->where('student_academic_histories.academic_year_id', $validated['year_id']);
+                })
+                ->orderBy('name')
+                ->get(['id', 'name', 'course_class_id']);
+        } elseif (!empty($validated['year_id'])) {
+            // Target side: only sections linked to that year via
+            // section_academic_year pivot. If the pivot is empty (brand-new year),
+            // fall back to every section on this class so the operator can seed.
+            $sections = $baseQuery()
+                ->forYear((int) $validated['year_id'])
+                ->orderBy('name')
+                ->get(['id', 'name', 'course_class_id']);
 
-        $sections = $query->orderBy('name')->get(['id', 'name', 'course_class_id']);
+            if ($sections->isEmpty()) {
+                $sections = $baseQuery()->orderBy('name')->get(['id', 'name', 'course_class_id']);
+            }
+        } else {
+            $sections = $baseQuery()->orderBy('name')->get(['id', 'name', 'course_class_id']);
+        }
 
         return response()->json(['sections' => $sections]);
     }
