@@ -165,6 +165,11 @@ class CarryForwardDuesService
     /**
      * Outstanding-by-fee-head summary for a single student's source-year payments.
      * Returns a collection of rows { fee_head_id, outstanding, count }.
+     *
+     * IMPORTANT: carry-forward rows in the source year ARE included. This lets
+     * unpaid balances cascade across multiple years (e.g. 2024-25 dues → 2025-26
+     * carry-forward row → 2026-27 carry-forward row, if still unpaid). Excluding
+     * them here would silently drop multi-year arrears.
      */
     private function outstandingGroupsFor(int $schoolId, int $sourceYearId, int $studentId)
     {
@@ -178,7 +183,6 @@ class CarryForwardDuesService
                 FeePaymentStatus::Due->value,
                 FeePaymentStatus::Partial->value,
             ])
-            ->where('is_carry_forward', false)
             ->groupBy('fee_head_id')
             ->havingRaw('SUM(balance) > 0')
             ->get();
