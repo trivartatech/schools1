@@ -88,12 +88,14 @@ class LedgerController extends Controller
         $academicYearId = app('current_academic_year_id');
 
         // We fetch students with their fee payments and active class history
+        // Contact number is sourced from the parent row (student_parents.primary_phone);
+        // `contact_no` is NOT a column on students.
         $query = Student::where('school_id', $schoolId)
             ->whereHas('currentAcademicHistory', function ($q) use ($academicYearId) {
                 $q->where('academic_year_id', $academicYearId);
             })
             ->with(['currentAcademicHistory.courseClass', 'currentAcademicHistory.section', 'studentParent'])
-            ->select('id', 'first_name', 'last_name', 'admission_no', 'gender', 'parent_id', 'contact_no');
+            ->select('id', 'first_name', 'last_name', 'admission_no', 'gender', 'parent_id');
 
         if ($request->filled('class_id')) {
             $query->whereHas('currentAcademicHistory', function($q) use ($request, $academicYearId) {
@@ -157,11 +159,10 @@ class LedgerController extends Controller
             $balance = max(0, $totalDue - $totalPaid - $totalDiscount);
 
             if ($balance > 0) {
-                
-                $contactNo = $student->contact_no;
-                if (empty($contactNo) && $student->studentParent) {
-                    $contactNo = $student->studentParent->primary_phone ?? $student->studentParent->father_phone ?? '-';
-                }
+
+                $contactNo = $student->studentParent?->primary_phone
+                    ?? $student->studentParent?->father_phone
+                    ?? '-';
 
                 $defaulters[] = [
                     'student_id'   => $student->id,
@@ -203,7 +204,7 @@ class LedgerController extends Controller
                 $q->where('academic_year_id', $academicYearId);
             })
             ->with(['currentAcademicHistory.courseClass', 'currentAcademicHistory.section', 'studentParent'])
-            ->select('id', 'first_name', 'last_name', 'admission_no', 'gender', 'parent_id', 'contact_no');
+            ->select('id', 'first_name', 'last_name', 'admission_no', 'gender', 'parent_id');
 
         if ($request->filled('class_id')) {
             $query->whereHas('currentAcademicHistory', function($q) use ($request, $academicYearId) {
@@ -260,10 +261,9 @@ class LedgerController extends Controller
             $netPayable = max(0, $totalFeeAmount - $totalConcession);
             $balance = max(0, $netPayable - $totalPaid);
 
-            $contactNo = $student->contact_no;
-            if (empty($contactNo) && $student->studentParent) {
-                $contactNo = $student->studentParent->primary_phone ?? $student->studentParent->father_phone ?? '-';
-            }
+            $contactNo = $student->studentParent?->primary_phone
+                ?? $student->studentParent?->father_phone
+                ?? '-';
 
             $reports[] = [
                 'student_id'   => $student->id,

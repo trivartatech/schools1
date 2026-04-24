@@ -14,6 +14,7 @@ enum UserType: string
     case Accountant = 'accountant';
     case Driver          = 'driver';
     case FrontGateKeeper = 'front_gate_keeper';
+    case ItSupport       = 'it_support';
 
     public function label(): string
     {
@@ -28,6 +29,7 @@ enum UserType: string
             self::Accountant       => 'Accountant',
             self::Driver           => 'Driver',
             self::FrontGateKeeper  => 'Front Gate Keeper',
+            self::ItSupport        => 'IT Support',
         };
     }
 
@@ -84,6 +86,7 @@ enum UserType: string
             self::Accountant  => 'accountant',
             self::Driver           => 'driver',
             self::FrontGateKeeper  => 'front_gate_keeper',
+            self::ItSupport        => 'it_support',
         };
     }
 }

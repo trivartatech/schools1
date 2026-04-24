@@ -70,6 +70,25 @@ class NotificationService
             ->first();
     }
 
+    /**
+     * Safely stringify any placeholder value — handles BackedEnum, UnitEnum, null,
+     * scalars, Stringable objects, arrays, and DateTime instances so that
+     * `(string)$value` never explodes on an enum (PaymentMode, FeePaymentStatus, …).
+     */
+    protected function stringifyValue($value): string
+    {
+        if ($value === null) return '';
+        if ($value instanceof \BackedEnum) return (string) $value->value;
+        if ($value instanceof \UnitEnum)   return $value->name;
+        if ($value instanceof \DateTimeInterface) return $value->format('Y-m-d H:i:s');
+        if (is_array($value))  return json_encode($value, JSON_UNESCAPED_UNICODE);
+        if (is_object($value)) {
+            if (method_exists($value, '__toString')) return (string) $value;
+            return json_encode($value, JSON_UNESCAPED_UNICODE) ?: '';
+        }
+        return (string) $value;
+    }
+
     protected function replacePlaceholders($content, $data)
     {
         if (!isset($data['app_name'])) {
@@ -80,8 +99,8 @@ class NotificationService
             $key      = $matches[1];
             $lowerKey = strtolower($key);
 
-            if (isset($data[$key]))       return (string)$data[$key];
-            if (isset($data[$lowerKey]))  return (string)$data[$lowerKey];
+            if (isset($data[$key]))       return $this->stringifyValue($data[$key]);
+            if (isset($data[$lowerKey]))  return $this->stringifyValue($data[$lowerKey]);
             if ($lowerKey === 'app_name') return $this->school->name;
 
             return $matches[0];
@@ -90,11 +109,13 @@ class NotificationService
 
     protected function extractOrderedWhatsAppParams($templateContent, $data)
     {
-        if (empty($templateContent)) return array_values($data);
+        if (empty($templateContent)) {
+            return array_map(fn($v) => $this->stringifyValue($v), array_values($data));
+        }
 
         preg_match_all('/##([A-Za-z0-9_]+)##/', $templateContent, $matches);
         if (empty($matches[1])) {
-            return array_map(fn($v) => (string)$v, array_values($data));
+            return array_map(fn($v) => $this->stringifyValue($v), array_values($data));
         }
 
         $params = [];
@@ -103,7 +124,7 @@ class NotificationService
             if ($lowerKey === 'app_name' && !isset($data[$lowerKey]) && !isset($data[$key])) {
                 $params[] = $this->school->name;
             } else {
-                $params[] = (string)($data[$lowerKey] ?? ($data[$key] ?? ''));
+                $params[] = $this->stringifyValue($data[$lowerKey] ?? ($data[$key] ?? ''));
             }
         }
         return $params;

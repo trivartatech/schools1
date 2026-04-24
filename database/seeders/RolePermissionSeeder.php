@@ -184,7 +184,7 @@ class RolePermissionSeeder extends Seeder
             // Service
             'librarian', 'nurse',
             // System
-            'auditor',
+            'auditor', 'it_support',
         ];
 
         $roleLabels = [
@@ -208,6 +208,7 @@ class RolePermissionSeeder extends Seeder
             'librarian'         => ['Librarian',            'Manages library resources and student book access'],
             'nurse'             => ['Nurse / Medical',      'School nurse — views student health records'],
             'auditor'           => ['Auditor',              'Read-only access to all modules for compliance auditing'],
+            'it_support'        => ['IT Support',           'Technical support — troubleshoots system and user issues'],
         ];
 
         foreach ($roleNames as $name) {

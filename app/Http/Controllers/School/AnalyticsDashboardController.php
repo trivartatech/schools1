@@ -84,7 +84,7 @@ class AnalyticsDashboardController extends Controller
                 DB::raw('SUM(amount_paid) as collected'),
                 DB::raw('COUNT(*) as payments')
             )
-            ->groupBy('month')
+            ->groupByRaw($monthFmt)
             ->pluck(null, 'month');
 
         // Total fee structure target for this academic year
@@ -179,8 +179,8 @@ class AnalyticsDashboardController extends Controller
                 DB::raw('COUNT(*) as count'),
                 DB::raw("$daysExpr as days")
             )
-            ->groupBy('month')
-            ->orderBy('month')
+            ->groupByRaw($monthExpr)
+            ->orderByRaw($monthExpr)
             ->get();
 
         $months = collect(range(1, 12))->map(fn($m) => [

@@ -60,22 +60,24 @@ class ReportController extends Controller
         $expenseDateFormatter = $dbDriver === 'sqlite' ? "strftime('%Y-%m', expense_date)" : "DATE_FORMAT(expense_date, '%Y-%m')";
         $payrollDateFormatter = $dbDriver === 'sqlite' ? "strftime('%Y-%m', payment_date)" : "DATE_FORMAT(payment_date, '%Y-%m')";
 
+        // Grouping by the alias `month` breaks under MySQL sql_mode=only_full_group_by.
+        // We group by the exact raw expression instead, which is always safe.
         $monthlyIncomeQuery = (clone $feeQuery)
             ->selectRaw("$dateFormatter as month, SUM(amount_paid) as total")
-            ->groupBy('month')
+            ->groupByRaw($dateFormatter)
             ->pluck('total', 'month');
 
         $monthlyExpensesQuery = Expense::where('school_id', $schoolId)
             ->whereBetween('expense_date', [$startDate, $endDate])
             ->selectRaw("$expenseDateFormatter as month, SUM(amount) as total")
-            ->groupBy('month')
+            ->groupByRaw($expenseDateFormatter)
             ->pluck('total', 'month');
 
         $monthlyPayrollQuery = Payroll::where('school_id', $schoolId)
             ->where('status', 'paid')
             ->whereBetween('payment_date', [$startDate, $endDate])
             ->selectRaw("$payrollDateFormatter as month, SUM(net_salary) as total")
-            ->groupBy('month')
+            ->groupByRaw($payrollDateFormatter)
             ->pluck('total', 'month');
 
         // Extract all unique months
