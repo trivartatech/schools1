@@ -361,7 +361,9 @@ class FeeController extends Controller
 
                 $adhocDue = $payments->filter(function ($p) use ($existingHeadIds) {
                     if ($p->feeHead?->is_hostel_fee ?? false) return false; // handled above
-                    if (!in_array($p->status, ['due', 'partial'])) return false;
+                    // status is cast to FeePaymentStatus enum — compare via ->value, not the enum instance
+                    $statusVal = is_object($p->status) ? $p->status->value : $p->status;
+                    if (!in_array($statusVal, ['due', 'partial'])) return false;
                     // Carry-forward: always include
                     if ((bool) $p->is_carry_forward) return true;
                     // Adhoc: only if head isn't part of current-year structure

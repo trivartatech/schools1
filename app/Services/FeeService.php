@@ -104,19 +104,22 @@ class FeeService
         // NOTE: carry-forward rows are EXCLUDED here — they often share fee_head_id with
         // current-year structure heads (e.g. last year's Tuition → this year's Tuition) and
         // would get dropped by the structure filter. We count them in their own bucket below.
+        // `status` is cast to FeePaymentStatus enum — compare via ->value, not the enum instance.
         $structureHeadIds = $structures->pluck('fee_head_id')->unique();
         $adhocFeesTotal = $payments->filter(function($p) use ($structureHeadIds) {
             if ((bool) $p->is_carry_forward) return false;
             if ($p->feeHead?->is_hostel_fee ?? false) return false;
+            $statusVal = is_object($p->status) ? $p->status->value : $p->status;
             return !in_array($p->fee_head_id, $structureHeadIds->toArray()) &&
-                   in_array($p->status, ['due', 'partial', 'paid']);
+                   in_array($statusVal, ['due', 'partial', 'paid']);
         })->sum('amount_due');
 
         // D2. Carry-forward bucket — always counts, regardless of fee_head_id
         // These are previous-year unpaid balances rolled forward into the current year.
         $carryForwardDue = $payments->filter(function($p) {
+            $statusVal = is_object($p->status) ? $p->status->value : $p->status;
             return (bool) $p->is_carry_forward
-                && in_array($p->status, ['due', 'partial', 'paid']);
+                && in_array($statusVal, ['due', 'partial', 'paid']);
         })->sum('amount_due');
 
         $totalDue = $classTotal + $transportFee + $hostelFee + $adhocFeesTotal + $carryForwardDue;
@@ -234,8 +237,9 @@ class FeeService
         $adhocList = $payments->filter(function($p) use ($structureHeadIds) {
             if ((bool) $p->is_carry_forward) return false;
             if ($p->feeHead?->is_hostel_fee ?? false) return false;
+            $statusVal = is_object($p->status) ? $p->status->value : $p->status;
             return !in_array($p->fee_head_id, $structureHeadIds->toArray()) &&
-                   in_array($p->status, ['due', 'partial', 'paid']);
+                   in_array($statusVal, ['due', 'partial', 'paid']);
         });
 
         foreach ($adhocList as $adhoc) {
@@ -264,8 +268,9 @@ class FeeService
         // E. Carry-forward rows — previous-year balances rolled into the current year.
         // Shown distinctly so the breakdown doesn't hide them under a current-year head name.
         $carryForwardList = $payments->filter(function($p) {
+            $statusVal = is_object($p->status) ? $p->status->value : $p->status;
             return (bool) $p->is_carry_forward
-                && in_array($p->status, ['due', 'partial', 'paid']);
+                && in_array($statusVal, ['due', 'partial', 'paid']);
         });
 
         foreach ($carryForwardList as $cf) {
