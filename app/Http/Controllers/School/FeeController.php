@@ -352,13 +352,20 @@ class FeeController extends Controller
                 }
                 // ────────────────────────────────────────────────────────────────────
 
-                // ── Other ad-hoc due payments (non-hostel) ───────────────────────────
+                // ── Other ad-hoc due payments (non-hostel) + carry-forward rows ──────
+                // Carry-forward rows are previous-year balances and must always be shown,
+                // regardless of whether their fee_head_id matches a current-year structure
+                // (last year's Tuition often matches this year's Tuition, so the head filter
+                // would otherwise drop them silently).
                 $existingHeadIds = $structures->pluck('fee_head_id')->unique();
 
                 $adhocDue = $payments->filter(function ($p) use ($existingHeadIds) {
                     if ($p->feeHead?->is_hostel_fee ?? false) return false; // handled above
-                    return in_array($p->status, ['due', 'partial'])
-                        && !$existingHeadIds->contains($p->fee_head_id);
+                    if (!in_array($p->status, ['due', 'partial'])) return false;
+                    // Carry-forward: always include
+                    if ((bool) $p->is_carry_forward) return true;
+                    // Adhoc: only if head isn't part of current-year structure
+                    return !$existingHeadIds->contains($p->fee_head_id);
                 });
 
                 $adhocScheduleItems = $adhocDue->map(fn($p) => [

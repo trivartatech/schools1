@@ -101,14 +101,25 @@ class FeeService
         )->sum('amount');
 
         // D. Ad-hoc fees (payments not in class structures)
+        // NOTE: carry-forward rows are EXCLUDED here — they often share fee_head_id with
+        // current-year structure heads (e.g. last year's Tuition → this year's Tuition) and
+        // would get dropped by the structure filter. We count them in their own bucket below.
         $structureHeadIds = $structures->pluck('fee_head_id')->unique();
         $adhocFeesTotal = $payments->filter(function($p) use ($structureHeadIds) {
+            if ((bool) $p->is_carry_forward) return false;
             if ($p->feeHead?->is_hostel_fee ?? false) return false;
             return !in_array($p->fee_head_id, $structureHeadIds->toArray()) &&
                    in_array($p->status, ['due', 'partial', 'paid']);
         })->sum('amount_due');
 
-        $totalDue = $classTotal + $transportFee + $hostelFee + $adhocFeesTotal;
+        // D2. Carry-forward bucket — always counts, regardless of fee_head_id
+        // These are previous-year unpaid balances rolled forward into the current year.
+        $carryForwardDue = $payments->filter(function($p) {
+            return (bool) $p->is_carry_forward
+                && in_array($p->status, ['due', 'partial', 'paid']);
+        })->sum('amount_due');
+
+        $totalDue = $classTotal + $transportFee + $hostelFee + $adhocFeesTotal + $carryForwardDue;
 
         // D. Payments/Discounts/Fines (Real Money) — class + hostel + adhoc only
         $totalPaid     = $payments->sum('amount_paid');
@@ -140,7 +151,11 @@ class FeeService
         foreach ($structures as $s) {
             if ($s->feeHead?->is_hostel_fee) continue;
 
-            $p = $payments->where('fee_head_id', $s->fee_head_id)->where('term', $s->term);
+            // Exclude carry-forward payments — they belong to previous-year balances,
+            // not to current-year class fee terms, even if they share fee_head_id.
+            $p = $payments->where('fee_head_id', $s->fee_head_id)
+                          ->where('term', $s->term)
+                          ->filter(fn($row) => !((bool) $row->is_carry_forward));
             $pPaid = $p->sum('amount_paid');
             $pDiscount = $p->sum('discount');
             $pFine = $p->sum('fine');
@@ -215,7 +230,9 @@ class FeeService
         }
 
         // D. Adhoc Fees (Arrears, special charges, existing but not in structure)
+        // Exclude carry-forward — those are shown in their own section below.
         $adhocList = $payments->filter(function($p) use ($structureHeadIds) {
+            if ((bool) $p->is_carry_forward) return false;
             if ($p->feeHead?->is_hostel_fee ?? false) return false;
             return !in_array($p->fee_head_id, $structureHeadIds->toArray()) &&
                    in_array($p->status, ['due', 'partial', 'paid']);
@@ -244,17 +261,50 @@ class FeeService
             ];
         }
 
+        // E. Carry-forward rows — previous-year balances rolled into the current year.
+        // Shown distinctly so the breakdown doesn't hide them under a current-year head name.
+        $carryForwardList = $payments->filter(function($p) {
+            return (bool) $p->is_carry_forward
+                && in_array($p->status, ['due', 'partial', 'paid']);
+        });
+
+        foreach ($carryForwardList as $cf) {
+            $cfBal = (float) $cf->balance;
+
+            if ($cfBal <= 0) {
+                $cfStatus = 'paid';
+            } elseif ((float) $cf->amount_paid > 0 || (float) $cf->discount > 0) {
+                $cfStatus = 'partial';
+            } else {
+                $cfStatus = 'unpaid';
+            }
+
+            $feeHeadsArr[] = [
+                'fee_head_id'      => $cf->fee_head_id,
+                'head_name'        => ($cf->feeHead->name ?? 'Previous Year Dues') . ' (Carry Forward)',
+                'term'             => $cf->term,
+                'amount_due'       => $cf->amount_due,
+                'amount_paid'      => $cf->amount_paid,
+                'discount'         => $cf->discount,
+                'balance'          => $cfBal,
+                'status'           => $cfStatus,
+                'is_carry_forward' => true,
+                'source_year_id'   => $cf->source_year_id ?? null,
+            ];
+        }
+
         return [
-            'total_due'      => $totalDue,
-            'paid'           => $totalPaid,
-            'discount'       => $totalDiscount,
-            'fine'           => $totalFine,
-            'balance'        => $balance,
-            'class_fees'     => $classTotal,
-            'transport_fee'  => $transportFee,
-            'hostel_fee'     => $hostelFee,
-            'adhoc_fees'     => $adhocFeesTotal,
-            'fee_heads'      => $feeHeadsArr,
+            'total_due'         => $totalDue,
+            'paid'              => $totalPaid,
+            'discount'          => $totalDiscount,
+            'fine'              => $totalFine,
+            'balance'           => $balance,
+            'class_fees'        => $classTotal,
+            'transport_fee'     => $transportFee,
+            'hostel_fee'        => $hostelFee,
+            'adhoc_fees'        => $adhocFeesTotal,
+            'carry_forward'     => $carryForwardDue,
+            'fee_heads'         => $feeHeadsArr,
         ];
     }
 
@@ -333,23 +383,30 @@ class FeeService
             $studentDues[$ha->student_id] = ($studentDues[$ha->student_id] ?? 0) + $hFee;
         }
 
-        // 7. Add adhoc fees (payments for fee heads not in any structure)
+        // 7. Add adhoc fees (payments for fee heads not in any structure) + carry-forward dues
+        // Fetch once and split into (a) carry-forward (always counts) and (b) adhoc (head not in structure).
         $structureHeadTermKeys = $structures->map(fn($s) => $s->fee_head_id . '|' . $s->term)->unique()->all();
 
-        $adhocPayments = \App\Models\FeePayment::where('school_id', $schoolId)
+        $nonStructurePayments = \App\Models\FeePayment::where('school_id', $schoolId)
             ->where('academic_year_id', $academicYearId)
             ->whereIn('student_id', $studentIds)
             ->whereIn('status', ['due', 'partial', 'paid'])
             ->with('feeHead')
-            ->get()
-            ->filter(function ($p) use ($structureHeadTermKeys) {
-                if ($p->feeHead?->is_hostel_fee ?? false) return false;
-                $key = $p->fee_head_id . '|' . $p->term;
-                return !in_array($key, $structureHeadTermKeys);
-            });
+            ->get();
 
-        foreach ($adhocPayments as $ap) {
-            $studentDues[$ap->student_id] = ($studentDues[$ap->student_id] ?? 0) + (float) $ap->amount_due;
+        foreach ($nonStructurePayments as $p) {
+            // Carry-forward rows are previous-year balances — always add, regardless of head match.
+            if ((bool) $p->is_carry_forward) {
+                $studentDues[$p->student_id] = ($studentDues[$p->student_id] ?? 0) + (float) $p->amount_due;
+                continue;
+            }
+
+            if ($p->feeHead?->is_hostel_fee ?? false) continue;
+
+            $key = $p->fee_head_id . '|' . $p->term;
+            if (!in_array($key, $structureHeadTermKeys)) {
+                $studentDues[$p->student_id] = ($studentDues[$p->student_id] ?? 0) + (float) $p->amount_due;
+            }
         }
 
         // 8. Total paid + discount per student
