@@ -5,9 +5,10 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
 
 const props = defineProps({
-    application: Object,
-    classes: Array,
-    routes:  { type: Array, default: () => [] },
+    application:    Object,
+    classes:        Array,
+    routes:         { type: Array,  default: () => [] },
+    standardMonths: { type: Number, default: 10 },
 });
 
 const form = useForm({
@@ -56,6 +57,8 @@ const form = useForm({
     transport_route_id:    props.application.transport_route_id    ?? '',
     transport_stop_id:     props.application.transport_stop_id     ?? '',
     transport_pickup_type: props.application.transport_pickup_type ?? 'both',
+    transport_months:      props.application.transport_months ?? Math.floor(props.standardMonths || 10),
+    transport_days:        props.application.transport_days   ?? 0,
 });
 
 const sections = ref(
@@ -78,6 +81,18 @@ const routeStops = computed(() => {
 });
 const selectedStop = computed(() => routeStops.value.find(s => s.id == form.transport_stop_id));
 const onRouteChange = () => { form.transport_stop_id = ''; };
+
+// Pro-rata transport fee preview
+const transportMonthsOpted = computed(() => {
+    const m = Math.max(0, Math.min(24, Number(form.transport_months) || 0));
+    const d = Math.max(0, Math.min(30, Number(form.transport_days)   || 0));
+    return Math.round((m + d / 30) * 100) / 100;
+});
+const transportComputedFee = computed(() => {
+    if (!selectedStop.value?.fee) return 0;
+    const std = Number(props.standardMonths) > 0 ? Number(props.standardMonths) : 10;
+    return Math.round(((Number(selectedStop.value.fee) / std) * transportMonthsOpted.value) * 100) / 100;
+});
 
 const submit = () => {
     form.post(`/school/registrations/${props.application.id}`, {
@@ -350,7 +365,8 @@ const submit = () => {
                                     </option>
                                 </select>
                                 <p v-if="selectedStop?.fee" class="text-xs text-indigo-600 mt-1 font-medium">
-                                    Transport fee: ₹{{ selectedStop.fee }}/month
+                                    Stop full-term fee: ₹{{ selectedStop.fee }}
+                                    <span class="text-gray-400 font-normal">(for {{ standardMonths }} months)</span>
                                 </p>
                             </div>
                             <div>
@@ -361,6 +377,30 @@ const submit = () => {
                                     <option value="pickup">Pickup Only</option>
                                     <option value="drop">Drop Only</option>
                                 </select>
+                            </div>
+                        </div>
+                        <div v-if="form.transport_route_id" class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Months Opted *</label>
+                                <input v-model.number="form.transport_months" type="number" min="0" max="24" step="1"
+                                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none">
+                                <p class="text-xs text-gray-400 mt-1">Whole months (0–24)</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Extra Days</label>
+                                <input v-model.number="form.transport_days" type="number" min="0" max="30" step="1"
+                                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-yellow-400 focus:outline-none">
+                                <p class="text-xs text-gray-400 mt-1">0–30 days</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Transport Fee (auto)</label>
+                                <div class="px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-900 leading-snug">
+                                    <div class="font-bold">₹{{ transportComputedFee }}</div>
+                                    <div class="text-xs text-emerald-700">
+                                        {{ form.transport_months || 0 }} mo<template v-if="form.transport_days"> + {{ form.transport_days }} d</template>
+                                        = {{ transportMonthsOpted }} months
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </template>

@@ -221,9 +221,14 @@ class StudentController extends Controller
             ->with(['stops' => fn($q) => $q->orderBy('stop_order')])
             ->get();
 
+        $school         = \App\Models\School::find($schoolId);
+        $standardMonths = (float) ($school?->settings['transport_standard_months'] ?? 10);
+        if ($standardMonths <= 0) $standardMonths = 10.0;
+
         return Inertia::render('School/Students/Create', [
-            'classes' => $classes,
-            'routes'  => $routes,
+            'classes'        => $classes,
+            'routes'         => $routes,
+            'standardMonths' => $standardMonths,
         ]);
     }
 
@@ -245,18 +250,36 @@ class StudentController extends Controller
         $student = DB::transaction(function () use ($validated, $schoolId, $academicYearId, $admissionService) {
             $student = $admissionService->admitStudent($validated, $schoolId, $academicYearId);
 
-            // Create transport allocation if selected
+            // Create transport allocation if selected (with pro-rata fee)
             if (!empty($validated['transport_route_id']) && !empty($validated['transport_stop_id'])) {
                 $stop = TransportStop::find($validated['transport_stop_id']);
+
+                $school   = \App\Models\School::find($schoolId);
+                $standard = (float) ($school?->settings['transport_standard_months'] ?? 10);
+                if ($standard <= 0) $standard = 10.0;
+
+                $months = (int) ($validated['transport_months'] ?? (int) round($standard));
+                $days   = (int) ($validated['transport_days']   ?? 0);
+                $monthsOpted = round($months + ($days / 30), 2);
+                if ($monthsOpted <= 0) $monthsOpted = $standard;
+
+                $fee = round(((float) ($stop?->fee ?? 0) / $standard) * $monthsOpted, 2);
+
                 TransportStudentAllocation::create([
-                    'school_id'    => $schoolId,
-                    'student_id'   => $student->id,
-                    'route_id'     => $validated['transport_route_id'],
-                    'stop_id'      => $validated['transport_stop_id'],
-                    'transport_fee'=> $stop?->fee ?? 0,
-                    'pickup_type'  => $validated['transport_pickup_type'] ?? 'both',
-                    'start_date'   => now()->format('Y-m-d'),
-                    'status'       => 'active',
+                    'school_id'      => $schoolId,
+                    'student_id'     => $student->id,
+                    'route_id'       => $validated['transport_route_id'],
+                    'stop_id'        => $validated['transport_stop_id'],
+                    'transport_fee'  => $fee,
+                    'months_opted'   => $monthsOpted,
+                    'pickup_type'    => $validated['transport_pickup_type'] ?? 'both',
+                    'start_date'     => now()->format('Y-m-d'),
+                    'status'         => 'active',
+                    'amount_paid'    => 0,
+                    'discount'       => 0,
+                    'fine'           => 0,
+                    'balance'        => $fee,
+                    'payment_status' => $fee > 0 ? 'unpaid' : 'paid',
                 ]);
             }
 

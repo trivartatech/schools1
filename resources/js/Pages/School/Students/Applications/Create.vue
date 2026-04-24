@@ -5,8 +5,9 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 
 const props = defineProps({
-    classes: Array,
-    routes:  { type: Array, default: () => [] },
+    classes:        Array,
+    routes:         { type: Array,  default: () => [] },
+    standardMonths: { type: Number, default: 10 },
 });
 
 const form = useForm({
@@ -31,6 +32,8 @@ const form = useForm({
     transport_route_id: '',
     transport_stop_id: '',
     transport_pickup_type: 'both',
+    transport_months: Math.floor(props.standardMonths || 10),
+    transport_days:   0,
 });
 
 const sections = ref([]);
@@ -55,6 +58,18 @@ const routeStops = computed(() => {
 });
 const selectedStop = computed(() => routeStops.value.find(s => s.id == form.transport_stop_id));
 const onRouteChange = () => { form.transport_stop_id = ''; };
+
+// Pro-rata transport fee preview
+const transportMonthsOpted = computed(() => {
+    const m = Math.max(0, Math.min(24, Number(form.transport_months) || 0));
+    const d = Math.max(0, Math.min(30, Number(form.transport_days)   || 0));
+    return Math.round((m + d / 30) * 100) / 100;
+});
+const transportComputedFee = computed(() => {
+    if (!selectedStop.value?.fee) return 0;
+    const std = Number(props.standardMonths) > 0 ? Number(props.standardMonths) : 10;
+    return Math.round(((Number(selectedStop.value.fee) / std) * transportMonthsOpted.value) * 100) / 100;
+});
 
 const submit = () => {
     form.post('/school/registrations', { forceFormData: true });
@@ -380,7 +395,10 @@ const submit = () => {
                                     {{ s.stop_name }}{{ s.fee ? ' — ₹' + s.fee : '' }}
                                 </option>
                             </select>
-                            <span v-if="selectedStop?.fee" class="field-hint">Transport fee: <strong>₹{{ selectedStop.fee }}</strong>/month</span>
+                            <span v-if="selectedStop?.fee" class="field-hint">
+                                Stop full-term fee: <strong>₹{{ selectedStop.fee }}</strong>
+                                <span style="color:#94a3b8;">(for {{ standardMonths }} months)</span>
+                            </span>
                         </div>
                         <div class="form-field">
                             <label>Pickup Type</label>
@@ -389,6 +407,29 @@ const submit = () => {
                                 <option value="pickup">Pickup Only</option>
                                 <option value="drop">Drop Only</option>
                             </select>
+                        </div>
+                    </div>
+
+                    <div v-if="form.transport_route_id" class="form-row form-row-3" style="margin-top:0.75rem;">
+                        <div class="form-field">
+                            <label>Months Opted *</label>
+                            <input v-model.number="form.transport_months" type="number" min="0" max="24" step="1">
+                            <span class="field-hint" style="color:#94a3b8;">Whole months (0–24)</span>
+                        </div>
+                        <div class="form-field">
+                            <label>Extra Days</label>
+                            <input v-model.number="form.transport_days" type="number" min="0" max="30" step="1">
+                            <span class="field-hint" style="color:#94a3b8;">0–30 days</span>
+                        </div>
+                        <div class="form-field">
+                            <label>Transport Fee (auto)</label>
+                            <div style="padding:0.5rem 0.75rem;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:0.5rem;font-size:0.9rem;color:#065f46;line-height:1.45;">
+                                <div><strong style="font-size:1rem;">₹{{ transportComputedFee }}</strong></div>
+                                <div style="font-size:0.75rem;color:#047857;">
+                                    {{ form.transport_months || 0 }} mo{{ form.transport_days ? ' + ' + form.transport_days + ' d' : '' }}
+                                    = {{ transportMonthsOpted }} months
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

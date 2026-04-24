@@ -55,9 +55,14 @@ class StudentApplicationController extends Controller
             ->with(['stops' => fn($q) => $q->orderBy('stop_order')])
             ->get();
 
+        $school         = \App\Models\School::find($schoolId);
+        $standardMonths = (float) ($school?->settings['transport_standard_months'] ?? 10);
+        if ($standardMonths <= 0) $standardMonths = 10.0;
+
         return Inertia::render('School/Students/Applications/Create', [
-            'classes' => $classes,
-            'routes'  => $routes,
+            'classes'        => $classes,
+            'routes'         => $routes,
+            'standardMonths' => $standardMonths,
         ]);
     }
 
@@ -108,6 +113,8 @@ class StudentApplicationController extends Controller
             'transport_route_id'       => 'nullable|exists:transport_routes,id',
             'transport_stop_id'        => 'nullable|exists:transport_stops,id',
             'transport_pickup_type'    => 'nullable|in:pickup,drop,both',
+            'transport_months'         => 'nullable|integer|min:0|max:24',
+            'transport_days'           => 'nullable|integer|min:0|max:30',
         ]);
 
         $photoPath = null;
@@ -166,15 +173,33 @@ class StudentApplicationController extends Controller
             // Create transport allocation if route/stop was selected in the application
             if ($registration->transport_route_id && $registration->transport_stop_id) {
                 $stop = \App\Models\TransportStop::find($registration->transport_stop_id);
+
+                $school   = \App\Models\School::find($schoolId);
+                $standard = (float) ($school?->settings['transport_standard_months'] ?? 10);
+                if ($standard <= 0) $standard = 10.0;
+
+                $months      = (int) ($registration->transport_months ?? (int) round($standard));
+                $days        = (int) ($registration->transport_days   ?? 0);
+                $monthsOpted = round($months + ($days / 30), 2);
+                if ($monthsOpted <= 0) $monthsOpted = $standard;
+
+                $fee = round(((float) ($stop?->fee ?? 0) / $standard) * $monthsOpted, 2);
+
                 TransportStudentAllocation::create([
-                    'school_id'    => $schoolId,
-                    'student_id'   => $student->id,
-                    'route_id'     => $registration->transport_route_id,
-                    'stop_id'      => $registration->transport_stop_id,
-                    'transport_fee'=> $stop?->fee ?? 0,
-                    'pickup_type'  => $registration->transport_pickup_type ?? 'both',
-                    'start_date'   => now()->format('Y-m-d'),
-                    'status'       => 'active',
+                    'school_id'      => $schoolId,
+                    'student_id'     => $student->id,
+                    'route_id'       => $registration->transport_route_id,
+                    'stop_id'        => $registration->transport_stop_id,
+                    'transport_fee'  => $fee,
+                    'months_opted'   => $monthsOpted,
+                    'pickup_type'    => $registration->transport_pickup_type ?? 'both',
+                    'start_date'     => now()->format('Y-m-d'),
+                    'status'         => 'active',
+                    'amount_paid'    => 0,
+                    'discount'       => 0,
+                    'fine'           => 0,
+                    'balance'        => $fee,
+                    'payment_status' => $fee > 0 ? 'unpaid' : 'paid',
                 ]);
             }
 
@@ -201,10 +226,15 @@ class StudentApplicationController extends Controller
             ->get();
         $registration->load(['courseClass', 'section']);
 
+        $school         = \App\Models\School::find($schoolId);
+        $standardMonths = (float) ($school?->settings['transport_standard_months'] ?? 10);
+        if ($standardMonths <= 0) $standardMonths = 10.0;
+
         return Inertia::render('School/Students/Applications/Edit', [
-            'application' => $registration,
-            'classes'     => $classes,
-            'routes'      => $routes,
+            'application'    => $registration,
+            'classes'        => $classes,
+            'routes'         => $routes,
+            'standardMonths' => $standardMonths,
         ]);
     }
 
@@ -259,6 +289,8 @@ class StudentApplicationController extends Controller
             'transport_route_id'       => 'nullable|exists:transport_routes,id',
             'transport_stop_id'        => 'nullable|exists:transport_stops,id',
             'transport_pickup_type'    => 'nullable|in:pickup,drop,both',
+            'transport_months'         => 'nullable|integer|min:0|max:24',
+            'transport_days'           => 'nullable|integer|min:0|max:30',
         ]);
 
         if ($request->hasFile('photo')) {
