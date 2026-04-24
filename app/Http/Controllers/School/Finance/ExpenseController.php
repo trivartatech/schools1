@@ -19,7 +19,7 @@ class ExpenseController extends Controller
 
         $query = Expense::where('school_id', $schoolId)
                     ->where('academic_year_id', $academicYearId)
-                    ->with(['category', 'recordedBy:id,first_name,last_name,name', 'glTransaction:id,transaction_no']);
+                    ->with(['category', 'recordedBy:id,name', 'glTransaction:id,transaction_no']);
 
         if ($request->filled('category_id')) {
             $query->where('expense_category_id', $request->category_id);

@@ -299,7 +299,7 @@ class FeeController extends Controller
 
                 $payments = FeePayment::where('student_id', $student->id)
                     ->where('academic_year_id', $academicYearId)
-                    ->with(['feeHead', 'collectedBy:id,first_name,last_name,name', 'glTransaction:id,transaction_no'])
+                    ->with(['feeHead', 'collectedBy:id,name', 'glTransaction:id,transaction_no'])
                     ->get();
 
                 // ── Extract configured hostel term before stripping it ───────────────
@@ -432,7 +432,7 @@ class FeeController extends Controller
             $concessions = \App\Models\FeeConcession::where('school_id', $schoolId)
                 ->where('academic_year_id', $academicYearId)
                 ->where('student_id', $student->id)
-                ->with('createdBy:id,first_name,last_name,name')
+                ->with('createdBy:id,name')
                 ->withCount('payments')
                 ->get();
         }
