@@ -573,19 +573,23 @@ const statusBadge = (status) => {
                                         </button>
                                     </div>
                                     <!-- Actions -->
-                                    <div class="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div class="flex items-center gap-2 mt-2">
                                         <a :href="`/school/fee/collect/${p.id}/receipt`" target="_blank"
-                                           class="p-1 hover:bg-gray-100 rounded transition" style="color: var(--text-muted)" title="Print Receipt">
+                                           class="p-1.5 rounded border border-gray-200 bg-white hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-600 transition shadow-sm" style="color: var(--text-secondary)" title="Print Receipt">
                                             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                                             </svg>
                                         </a>
-                                        <Button variant="secondary" @click="editPayment(p)" style="color: var(--text-muted)" title="Edit Payment">
+                                        <button @click="editPayment(p)"
+                                                class="p-1.5 rounded border border-gray-200 bg-white hover:bg-amber-50 hover:border-amber-300 hover:text-amber-600 transition shadow-sm"
+                                                style="color: var(--text-secondary)" title="Edit Payment">
                                             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                             </svg>
-                                        </Button>
-                                        <button @click="removePayment(p.id)" class="p-1 hover:bg-red-50 rounded transition" style="color: var(--text-muted)" title="Delete Payment">
+                                        </button>
+                                        <button @click="removePayment(p.id)"
+                                                class="p-1.5 rounded border border-gray-200 bg-white hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition shadow-sm"
+                                                style="color: var(--text-secondary)" title="Delete Payment">
                                             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                             </svg>
@@ -620,11 +624,12 @@ const statusBadge = (status) => {
 }
 .fee-gl-pending {
     display: inline-flex; align-items: center;
-    font-size: 0.68rem; font-weight: 600;
-    color: #92400e; background: #fef3c7;
-    border: 1px solid #fde68a; border-radius: 8px;
-    padding: 2px 7px; white-space: nowrap;
-    cursor: pointer; transition: background 0.15s;
+    font-size: 0.68rem; font-weight: 700;
+    color: #ffffff; background: #d97706;
+    border: 1px solid #b45309; border-radius: 8px;
+    padding: 3px 9px; white-space: nowrap;
+    cursor: pointer; transition: background 0.15s, transform 0.1s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
 }
-.fee-gl-pending:hover { background: #fde68a; }
+.fee-gl-pending:hover { background: #b45309; transform: translateY(-1px); }
 </style>
