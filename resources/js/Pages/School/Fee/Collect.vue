@@ -132,11 +132,13 @@ const prefill = (s) => {
     feeForm.fee_head_id = s.fee_head_id;
     feeForm.term        = s.term;
 
-    if (s.source === 'payment') {
-        // Transport / ad-hoc fee: balance pre-computed on server.
-        // Always create a NEW receipt (do NOT update the master due record).
+    if (s.source === 'payment' || s.source === 'carry_forward') {
+        // Ad-hoc / hostel / carry-forward fee: balance is pre-computed on the
+        // server (so we don't re-calculate from current-year payments that
+        // aren't related to this head). Always create a NEW receipt — the
+        // master due record tracks the balance via amount_paid increments.
         feeForm.amount_due          = Number(s.balance || s.amount || 0).toFixed(2);
-        feeForm.existing_payment_id = null;  // ← always create new receipt
+        feeForm.existing_payment_id = null;
     } else {
         feeForm.existing_payment_id = null;
         // Normal fee structure: calculate remaining from payment history
@@ -363,13 +365,21 @@ const statusBadge = (status) => {
                         </div>
                         <div v-for="s in structures" :key="s.id"
                              class="flex items-center justify-between px-4 py-3 border-b last:border-0 transition"
-                             style="border-color: var(--border)"
+                             :style="{
+                                borderColor: 'var(--border)',
+                                background: s.source === 'carry_forward' && s.status !== 'paid' ? '#fffbeb' : ''
+                             }"
                              :class="s.status === 'paid' ? 'opacity-60 cursor-not-allowed' : 'hover:bg-green-50 cursor-pointer group'"
                              @click="s.status !== 'paid' && prefill(s)">
                             <div>
                                 <div class="flex items-center gap-1.5 flex-wrap">
                                     <p class="text-sm font-medium" style="color: var(--text-primary)">{{ s.fee_head?.name }}</p>
-                                    <span v-if="s.source === 'payment' && s.status === 'paid'" class="badge badge-green text-[10px]">✓ paid</span>
+                                    <span v-if="s.source === 'carry_forward'" class="badge text-[10px]"
+                                          style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;"
+                                          :title="s.source_year_name ? `Outstanding balance carried from ${s.source_year_name}` : 'Outstanding balance carried from previous academic year'">
+                                        ⏮ Previous Year{{ s.source_year_name ? ' · ' + s.source_year_name : '' }}
+                                    </span>
+                                    <span v-else-if="s.source === 'payment' && s.status === 'paid'" class="badge badge-green text-[10px]">✓ paid</span>
                                     <span v-else-if="s.source === 'payment' && s.fee_head?.is_hostel_fee" class="badge badge-purple text-[10px]">Hostel</span>
                                     <span v-if="s.is_optional" class="badge badge-purple text-[10px]">Optional</span>
                                     <span v-if="s.fee_head?.is_taxable" class="badge badge-red text-[10px]" title="Includes GST">GST {{ s.fee_head?.gst_percent }}%</span>
@@ -381,10 +391,13 @@ const statusBadge = (status) => {
                             </div>
                             <div class="text-right">
                                 <span class="text-sm font-semibold"
-                                      :class="s.status === 'paid' ? 'text-green-600' : (s.source === 'payment' ? 'text-red-600' : '')">
-                                    {{ $page.props.school.currency }}{{ Number(s.source === 'payment' ? (s.balance ?? s.amount) : getInclusiveAmount(s)).toLocaleString('en-IN') }}
+                                      :class="s.status === 'paid'
+                                          ? 'text-green-600'
+                                          : (s.source === 'payment' || s.source === 'carry_forward' ? 'text-red-600' : '')">
+                                    {{ $page.props.school.currency }}{{ Number((s.source === 'payment' || s.source === 'carry_forward') ? (s.balance ?? s.amount) : getInclusiveAmount(s)).toLocaleString('en-IN') }}
                                 </span>
-                                <p v-if="s.source === 'payment' && s.status !== 'paid'" class="text-[10px] text-red-400">Balance due</p>
+                                <p v-if="s.source === 'carry_forward' && s.status !== 'paid'" class="text-[10px]" style="color:#b45309;">Old balance due</p>
+                                <p v-else-if="s.source === 'payment' && s.status !== 'paid'" class="text-[10px] text-red-400">Balance due</p>
                                 <p v-if="s.status === 'paid'" class="text-[10px] text-green-500">Fully paid ✓</p>
                                 <p v-else class="text-xs text-green-600 opacity-0 group-hover:opacity-100 transition">Click to fill →</p>
                             </div>

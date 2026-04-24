@@ -299,7 +299,7 @@ class FeeController extends Controller
 
                 $payments = FeePayment::where('student_id', $student->id)
                     ->where('academic_year_id', $academicYearId)
-                    ->with(['feeHead', 'collectedBy:id,name', 'glTransaction:id,transaction_no'])
+                    ->with(['feeHead', 'collectedBy:id,name', 'glTransaction:id,transaction_no', 'sourceYear:id,name'])
                     ->get();
 
                 // ── Extract configured hostel term before stripping it ───────────────
@@ -374,6 +374,7 @@ class FeeController extends Controller
                     'status'           => $p->status,
                     'is_carry_forward' => (bool) $p->is_carry_forward,
                     'source_year_id'   => $p->source_year_id,
+                    'source_year_name' => $p->sourceYear?->name,
                 ])->values();
 
                 // Merge everything: class structures + transport + hostel + other adhoc
@@ -381,12 +382,20 @@ class FeeController extends Controller
                     ->map(fn($s) => is_array($s) ? $s : array_merge($s->toArray(), ['source' => 'structure']))
                     ->concat($adhocScheduleItems);
 
-                // ── Payment History: hide auto-created due records only (amount_paid=0) ─
-                // Actual receipts (amount_paid > 0) always show in history.
+                // ── Payment History: hide placeholder due rows (amount_paid = 0) ─────
+                // These synthetic rows represent what's *owed*, not what's been
+                // *paid*, so they belong in the Fee Schedule above, not in the
+                // Payment History list. This now covers:
+                //   - auto-created hostel dues
+                //   - carry-forward dues from previous academic years
+                //   - any other system-generated due placeholder
+                // Once a payment is actually recorded (amount_paid > 0) the row
+                // shows up in history as expected.
                 $payments = $payments->filter(function ($p) {
-                    $isHostel   = $p->feeHead?->is_hostel_fee ?? false;
-                    $isBlankDue = $p->status === \App\Enums\FeePaymentStatus::Due && (float) $p->amount_paid === 0.0;
-                    return !($isHostel && $isBlankDue);
+                    $isBlankDue     = $p->status === \App\Enums\FeePaymentStatus::Due && (float) $p->amount_paid === 0.0;
+                    $isHostel       = $p->feeHead?->is_hostel_fee ?? false;
+                    $isCarryForward = (bool) $p->is_carry_forward;
+                    return !($isBlankDue && ($isHostel || $isCarryForward));
                 })->values();
                 // ─────────────────────────────────────────────────────────────────────
 
