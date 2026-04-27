@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Expense;
 use App\Models\FeePayment;
 use App\Models\Student;
+use App\Models\TransportFeePayment;
 use App\Services\DueReportService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -47,6 +48,26 @@ class LedgerController extends Controller
 
         $feePayments = $feeQuery->get();
 
+        // Inflows (Transport Fee Collections) — same date filter; class filter
+        // applies via the student's current academic history.
+        $transportQuery = TransportFeePayment::where('school_id', $schoolId)
+            ->whereDate('payment_date', '>=', $startDate)
+            ->whereDate('payment_date', '<=', $endDate)
+            ->where('amount_paid', '>', 0)
+            ->with(['student.currentAcademicHistory.courseClass', 'student.currentAcademicHistory.section', 'allocation.route', 'allocation.stop']);
+
+        if ($request->filled('class_id')) {
+            $transportQuery->whereHas('student.currentAcademicHistory', function ($q) use ($request, $academicYearId) {
+                $q->where('class_id', $request->class_id);
+                if ($request->filled('section_id')) {
+                    $q->where('section_id', $request->section_id);
+                }
+                $q->where('academic_year_id', $academicYearId);
+            });
+        }
+
+        $transportPayments = $transportQuery->get();
+
         // Outflows (Expenses)
         $expenses = Expense::where('school_id', $schoolId)
             ->whereDate('expense_date', '>=', $startDate)
@@ -54,20 +75,25 @@ class LedgerController extends Controller
             ->with(['category'])
             ->get();
 
-        $totalInflow = $feePayments->sum('amount_paid');
-        $totalOutflow = $expenses->sum('amount');
-        $netBalance = $totalInflow - $totalOutflow;
-        
+        $totalTuitionInflow   = (float) $feePayments->sum('amount_paid');
+        $totalTransportInflow = (float) $transportPayments->sum('amount_paid');
+        $totalInflow          = $totalTuitionInflow + $totalTransportInflow;
+        $totalOutflow         = (float) $expenses->sum('amount');
+        $netBalance           = $totalInflow - $totalOutflow;
+
         $classes = \App\Models\CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('name')->get();
 
         return Inertia::render('School/Finance/Ledger/DayBook', [
-            'feePayments' => $feePayments,
-            'expenses' => $expenses,
-            'classes' => $classes,
+            'feePayments'       => $feePayments,
+            'transportPayments' => $transportPayments,
+            'expenses'          => $expenses,
+            'classes'           => $classes,
             'summary' => [
-                'total_inflow' => $totalInflow,
-                'total_outflow' => $totalOutflow,
-                'net_balance' => $netBalance,
+                'total_inflow'           => $totalInflow,
+                'total_tuition_inflow'   => $totalTuitionInflow,
+                'total_transport_inflow' => $totalTransportInflow,
+                'total_outflow'          => $totalOutflow,
+                'net_balance'            => $netBalance,
             ],
             'filters' => [
                 'start_date' => $startDate,

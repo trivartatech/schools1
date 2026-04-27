@@ -14,11 +14,13 @@ use App\Models\Hostel;
 use App\Models\HostelStudent;
 use App\Models\Leave;
 use App\Models\Payroll;
+use App\Models\TransportFeePayment;
 use App\Models\User;
 use App\Observers\ExpenseGLObserver;
 use App\Observers\FeePaymentGLObserver;
 use App\Observers\HostelStudentObserver;
 use App\Observers\PayrollGLObserver;
+use App\Observers\TransportFeePaymentGLObserver;
 use App\Listeners\RoleChangeAuditListener;
 use App\Observers\UserObserver;
 use App\Services\ChatService;
@@ -91,6 +93,7 @@ class AppServiceProvider extends ServiceProvider
 
         // GL Auto-posting observers — fire only when school has configured ledger mappings
         FeePayment::observe(FeePaymentGLObserver::class);
+        TransportFeePayment::observe(TransportFeePaymentGLObserver::class);
         Expense::observe(ExpenseGLObserver::class);
         Payroll::observe(PayrollGLObserver::class);
 

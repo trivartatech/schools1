@@ -216,6 +216,9 @@ const barChartData = computed(() => {
                     <div class="kpi-content">
                         <p class="kpi-label">Total Fee Collected</p>
                         <h3 class="kpi-value text-blue-700">{{ formatCurrency(metrics.total_fees_collected) }}</h3>
+                        <p v-if="metrics.total_transport_fees_collected !== undefined" class="kpi-sub">
+                            Tuition {{ formatCurrency(metrics.total_tuition_fees_collected) }} · Transport {{ formatCurrency(metrics.total_transport_fees_collected) }}
+                        </p>
                     </div>
                 </div>
 
@@ -377,6 +380,12 @@ const barChartData = computed(() => {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+.kpi-sub {
+    margin-top: 4px;
+    font-size: 0.7rem;
+    color: #64748b;
+    line-height: 1.3;
 }
 
 @media print {

@@ -11,6 +11,7 @@ const school = useSchoolStore();
 
 const props = defineProps({
     feePayments: Array,
+    transportPayments: { type: Array, default: () => [] },
     expenses: Array,
     summary: Object,
     classes: Array,
@@ -77,7 +78,7 @@ const formatCurrency = (amount) => {
         <div class="page-header">
             <div>
                 <h1 class="page-header-title">Day Book Ledger</h1>
-                <p class="page-header-sub">Daily summary of cash inflows (Fees) and outflows (Expenses)</p>
+                <p class="page-header-sub">Daily summary of cash inflows (tuition + transport fees) and outflows (expenses)</p>
             </div>
             <div class="flex gap-2">
                 <Button variant="secondary" onclick="window.print()">🖨️ Print</Button>
@@ -156,28 +157,44 @@ const formatCurrency = (amount) => {
                     <h2 class="card-title" style="color: #14532d;">Inflows (Fee Collections)</h2>
                     <span class="font-bold" style="color: #14532d;">{{ formatCurrency(summary.total_inflow) }}</span>
                 </div>
+                <div class="px-4 py-2 text-xs flex flex-wrap gap-4 border-b" style="background:#f7fef9;color:#15803d;border-color:#bbf7d0;">
+                    <span>Tuition: <strong>{{ formatCurrency(summary.total_tuition_inflow) }}</strong></span>
+                    <span>Transport: <strong>{{ formatCurrency(summary.total_transport_inflow) }}</strong></span>
+                </div>
                 <div class="overflow-x-auto">
                     <Table>
                         <thead>
                             <tr>
                                 <th>Receipt</th>
                                 <th>Student</th>
+                                <th>Type</th>
                                 <th>Paid By</th>
                                 <th class="text-right">Amount</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="fp in feePayments" :key="fp.id">
+                            <tr v-for="fp in feePayments" :key="`f-${fp.id}`">
                                 <td>
                                     <span class="font-mono text-xs">{{ fp.receipt_no }}</span>
                                     <div class="text-xs" style="color: var(--text-muted)">{{ fp.fee_head?.name }}</div>
                                 </td>
                                 <td class="font-medium">{{ fp.student?.first_name }} {{ fp.student?.last_name }}</td>
+                                <td><span class="badge-type tuition">Tuition</span></td>
                                 <td class="capitalize" style="color: var(--text-secondary)">{{ fp.payment_mode }}</td>
                                 <td class="text-right font-bold" style="color: var(--success)">{{ formatCurrency(fp.amount_paid) }}</td>
                             </tr>
-                            <tr v-if="feePayments.length === 0">
-                                <td colspan="4" class="py-8 text-center italic" style="color: var(--text-muted)">No receipts for this date.</td>
+                            <tr v-for="tp in transportPayments" :key="`t-${tp.id}`">
+                                <td>
+                                    <span class="font-mono text-xs">{{ tp.receipt_no }}</span>
+                                    <div class="text-xs" style="color: var(--text-muted)">{{ tp.allocation?.route?.route_name }}<span v-if="tp.allocation?.stop?.stop_name"> · {{ tp.allocation.stop.stop_name }}</span></div>
+                                </td>
+                                <td class="font-medium">{{ tp.student?.first_name }} {{ tp.student?.last_name }}</td>
+                                <td><span class="badge-type transport">Transport</span></td>
+                                <td class="capitalize" style="color: var(--text-secondary)">{{ tp.payment_mode }}</td>
+                                <td class="text-right font-bold" style="color: var(--success)">{{ formatCurrency(tp.amount_paid) }}</td>
+                            </tr>
+                            <tr v-if="feePayments.length === 0 && transportPayments.length === 0">
+                                <td colspan="5" class="py-8 text-center italic" style="color: var(--text-muted)">No receipts for this date.</td>
                             </tr>
                         </tbody>
                     </Table>
@@ -223,6 +240,18 @@ const formatCurrency = (amount) => {
 </template>
 
 <style scoped>
+.badge-type {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.badge-type.tuition   { background: #d1fae5; color: #047857; }
+.badge-type.transport { background: #cffafe; color: #0891b2; }
+
 @media print {
     body { background-color: white !important; }
     .page-header { display: none; }

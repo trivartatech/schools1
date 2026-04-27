@@ -23,6 +23,7 @@ class GlConfigController extends Controller
     private const KEYS = [
         'gl_cash_ledger_id',
         'gl_fee_income_ledger_id',
+        'gl_transport_fee_income_ledger_id',
         'gl_expense_ledger_id',
         'gl_payroll_ledger_id',
     ];
@@ -67,10 +68,11 @@ class GlConfigController extends Controller
         $schoolId = app('current_school_id');
 
         $data = $request->validate([
-            'gl_cash_ledger_id'       => 'nullable|integer',
-            'gl_fee_income_ledger_id' => 'nullable|integer',
-            'gl_expense_ledger_id'    => 'nullable|integer',
-            'gl_payroll_ledger_id'    => 'nullable|integer',
+            'gl_cash_ledger_id'                 => 'nullable|integer',
+            'gl_fee_income_ledger_id'           => 'nullable|integer',
+            'gl_transport_fee_income_ledger_id' => 'nullable|integer',
+            'gl_expense_ledger_id'              => 'nullable|integer',
+            'gl_payroll_ledger_id'              => 'nullable|integer',
         ]);
 
         // Verify each provided ledger belongs to this school
@@ -131,6 +133,13 @@ class GlConfigController extends Controller
             ['ledger_type_id' => $incomeType->id, 'is_system' => true, 'is_active' => true, 'opening_balance' => 0, 'opening_balance_type' => 'credit']
         );
 
+        // Ensure Transport Fee Income ledger (separated so transport revenue
+        // shows on its own row in the P&L; falls back to Fee Income if unmapped)
+        $transportIncomeLedger = Ledger::firstOrCreate(
+            ['school_id' => $schoolId, 'name' => 'Transport Fee Income'],
+            ['ledger_type_id' => $incomeType->id, 'is_system' => true, 'is_active' => true, 'opening_balance' => 0, 'opening_balance_type' => 'credit']
+        );
+
         // Ensure Expense ledger
         $expenseLedger = Ledger::firstOrCreate(
             ['school_id' => $schoolId, 'name' => 'General Expenses'],
@@ -152,6 +161,13 @@ class GlConfigController extends Controller
         $currentIncome = $settings['gl_fee_income_ledger_id'] ?? null;
         if (! $currentIncome || ! Ledger::where('id', $currentIncome)->where('school_id', $schoolId)->where('ledger_type_id', $incomeType->id)->exists()) {
             $settings['gl_fee_income_ledger_id'] = $feeIncomeLedger->id;
+            $changed = true;
+        }
+
+        // Fix transport fee income ledger: must be an Income-type ledger
+        $currentTransport = $settings['gl_transport_fee_income_ledger_id'] ?? null;
+        if (! $currentTransport || ! Ledger::where('id', $currentTransport)->where('school_id', $schoolId)->where('ledger_type_id', $incomeType->id)->exists()) {
+            $settings['gl_transport_fee_income_ledger_id'] = $transportIncomeLedger->id;
             $changed = true;
         }
 

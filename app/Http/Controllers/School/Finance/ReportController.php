@@ -7,6 +7,7 @@ use App\Models\Expense;
 use App\Models\FeePayment;
 use App\Models\Payroll;
 use App\Models\FeeHead;
+use App\Models\TransportFeePayment;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -37,7 +38,23 @@ class ReportController extends Controller
             });
         }
 
-        $totalFees = (clone $feeQuery)->sum('amount_paid');
+        $totalTuitionFees = (clone $feeQuery)->sum('amount_paid');
+
+        // 1b. Total Transport Fee Collected (same date / class / section filters)
+        $transportQuery = TransportFeePayment::where('school_id', $schoolId)
+            ->whereBetween('payment_date', [$startDate, $endDate]);
+        if ($request->filled('class_id')) {
+            $transportQuery->whereHas('student.currentAcademicHistory', function($q) use ($request, $academicYearId) {
+                $q->where('class_id', $request->class_id);
+                if ($request->filled('section_id')) {
+                    $q->where('section_id', $request->section_id);
+                }
+                $q->where('academic_year_id', $academicYearId);
+            });
+        }
+        $totalTransportFees = (float) (clone $transportQuery)->sum('amount_paid');
+
+        $totalFees = (float) $totalTuitionFees + $totalTransportFees;
 
         // 2. Total Expenses
         $totalExpenses = Expense::where('school_id', $schoolId)
@@ -62,10 +79,23 @@ class ReportController extends Controller
 
         // Grouping by the alias `month` breaks under MySQL sql_mode=only_full_group_by.
         // We group by the exact raw expression instead, which is always safe.
-        $monthlyIncomeQuery = (clone $feeQuery)
+        $monthlyTuitionIncome = (clone $feeQuery)
             ->selectRaw("$dateFormatter as month, SUM(amount_paid) as total")
             ->groupByRaw($dateFormatter)
             ->pluck('total', 'month');
+
+        $monthlyTransportIncome = (clone $transportQuery)
+            ->selectRaw("$dateFormatter as month, SUM(amount_paid) as total")
+            ->groupByRaw($dateFormatter)
+            ->pluck('total', 'month');
+
+        // Combine the two income streams by month (same key format → same month bucket)
+        $monthlyIncomeQuery = collect($monthlyTuitionIncome->keys())
+            ->merge($monthlyTransportIncome->keys())
+            ->unique()
+            ->mapWithKeys(fn($m) => [
+                $m => (float) ($monthlyTuitionIncome[$m] ?? 0) + (float) ($monthlyTransportIncome[$m] ?? 0),
+            ]);
 
         $monthlyExpensesQuery = Expense::where('school_id', $schoolId)
             ->whereBetween('expense_date', [$startDate, $endDate])
@@ -129,6 +159,16 @@ class ReportController extends Controller
             ->orderByDesc('total')
             ->get();
 
+        // Surface transport collection as its own row in the breakdown so it
+        // doesn't get hidden under "Tuition Fee" or vanish from the chart.
+        if ($totalTransportFees > 0) {
+            $feesByHead->push((object) [
+                'name'  => 'Transport Fee',
+                'total' => $totalTransportFees,
+            ]);
+            $feesByHead = $feesByHead->sortByDesc('total')->values();
+        }
+
         // Breakdown: Top Expenses Category
         $topExpenseCategories = DB::table('expenses')
             ->leftJoin('expense_categories', 'expenses.expense_category_id', '=', 'expense_categories.id')
@@ -150,10 +190,12 @@ class ReportController extends Controller
 
         return Inertia::render('School/Finance/Reports/Index', [
             'metrics' => [
-                'total_fees_collected' => (float)$totalFees,
-                'total_expenses' => (float)$totalExpenses,
-                'total_payroll' => (float)$totalPayroll,
-                'net_revenue' => (float)$netRevenue,
+                'total_fees_collected'           => (float) $totalFees,
+                'total_tuition_fees_collected'   => (float) $totalTuitionFees,
+                'total_transport_fees_collected' => (float) $totalTransportFees,
+                'total_expenses'                 => (float) $totalExpenses,
+                'total_payroll'                  => (float) $totalPayroll,
+                'net_revenue'                    => (float) $netRevenue,
             ],
             'chartData' => $chartData,
             'feesByHead' => $feesByHead,

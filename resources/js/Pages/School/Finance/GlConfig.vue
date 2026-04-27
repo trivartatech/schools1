@@ -16,10 +16,11 @@ const props = defineProps({
 
 // ── Global GL settings form ────────────────────────────────────────────────
 const form = useForm({
-    gl_cash_ledger_id       : props.settings.gl_cash_ledger_id       ?? '',
-    gl_fee_income_ledger_id : props.settings.gl_fee_income_ledger_id ?? '',
-    gl_expense_ledger_id    : props.settings.gl_expense_ledger_id    ?? '',
-    gl_payroll_ledger_id    : props.settings.gl_payroll_ledger_id    ?? '',
+    gl_cash_ledger_id                 : props.settings.gl_cash_ledger_id                 ?? '',
+    gl_fee_income_ledger_id           : props.settings.gl_fee_income_ledger_id           ?? '',
+    gl_transport_fee_income_ledger_id : props.settings.gl_transport_fee_income_ledger_id ?? '',
+    gl_expense_ledger_id              : props.settings.gl_expense_ledger_id              ?? '',
+    gl_payroll_ledger_id              : props.settings.gl_payroll_ledger_id              ?? '',
 });
 
 function save() {
@@ -79,9 +80,16 @@ const mappings = [
     {
         key   : 'gl_fee_income_ledger_id',
         label : 'Fee Income Account',
-        desc  : 'Credited when a fee payment is received.',
+        desc  : 'Credited when a tuition / regular fee payment is received.',
         color : '#059669',
         bg    : '#d1fae5',
+    },
+    {
+        key   : 'gl_transport_fee_income_ledger_id',
+        label : 'Transport Fee Income Account',
+        desc  : 'Credited when a transport fee receipt is collected. Falls back to Fee Income if blank.',
+        color : '#0891b2',
+        bg    : '#cffafe',
     },
     {
         key   : 'gl_expense_ledger_id',
@@ -167,6 +175,13 @@ const mappings = [
                         <div class="flow-text">
                             <strong>Fee Payment Collected</strong><br/>
                             Dr Cash/Bank &nbsp;→&nbsp; Cr Fee Income
+                        </div>
+                    </div>
+                    <div class="flow-item">
+                        <div class="flow-icon transport">🚌</div>
+                        <div class="flow-text">
+                            <strong>Transport Fee Collected</strong><br/>
+                            Dr Cash/Bank &nbsp;→&nbsp; Cr Transport Fee Income
                         </div>
                     </div>
                     <div class="flow-item">
@@ -283,9 +298,10 @@ const mappings = [
     width:42px;height:42px;border-radius:12px;
     display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;
 }
-.flow-icon.fee { background:#d1fae5;color:#059669; }
-.flow-icon.exp { background:#fee2e2;color:#dc2626; }
-.flow-icon.pay { background:#fef3c7;color:#d97706; }
+.flow-icon.fee       { background:#d1fae5;color:#059669; }
+.flow-icon.transport { background:#cffafe;color:#0891b2; }
+.flow-icon.exp       { background:#fee2e2;color:#dc2626; }
+.flow-icon.pay       { background:#fef3c7;color:#d97706; }
 .flow-text { font-size:0.82rem;color:#374151;line-height:1.6; }
 
 /* Per-category section */
