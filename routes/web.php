@@ -1186,6 +1186,7 @@ Route::middleware('auth')->group(function () {
             Route::get('diary',        \App\Http\Controllers\School\Export\DiaryExportController::class)       ->name('diary');
             Route::get('book-list',    \App\Http\Controllers\School\Export\BookListExportController::class)    ->name('book-list');
             Route::get('ledgers',      \App\Http\Controllers\School\Export\LedgerExportController::class)      ->name('ledgers');
+            Route::get('due-report',   \App\Http\Controllers\School\Export\DueReportExportController::class) ->name('due-report');
         });
 
     });
