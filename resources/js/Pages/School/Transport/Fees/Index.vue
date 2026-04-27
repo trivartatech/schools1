@@ -1,6 +1,7 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
+import axios from 'axios';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
 import Table from '@/Components/ui/Table.vue';
@@ -11,15 +12,41 @@ const school = useSchoolStore();
 const props = defineProps({
     allocations: Object,
     routes:      Array,
+    classes:     Array,
     filters:     Object,
     summary:     Object,
 });
 
 const filters = ref({
-    search:   props.filters?.search   ?? '',
-    status:   props.filters?.status   ?? '',
-    route_id: props.filters?.route_id ?? '',
+    search:     props.filters?.search     ?? '',
+    status:     props.filters?.status     ?? '',
+    route_id:   props.filters?.route_id   ?? '',
+    class_id:   props.filters?.class_id   ?? '',
+    section_id: props.filters?.section_id ?? '',
 });
+
+const sections = ref([]);
+
+function loadSections(classId) {
+    if (!classId) {
+        sections.value = [];
+        filters.value.section_id = '';
+        return Promise.resolve();
+    }
+    return axios.get(`/school/classes/${classId}/sections`)
+        .then(res => {
+            sections.value = res.data || [];
+            if (!sections.value.find(s => s.id == filters.value.section_id)) {
+                filters.value.section_id = '';
+            }
+        });
+}
+
+onMounted(() => {
+    if (filters.value.class_id) loadSections(filters.value.class_id);
+});
+
+watch(() => filters.value.class_id, (v) => { loadSections(v); });
 
 let debounceTimer = null;
 watch(filters, (v) => {
@@ -37,6 +64,14 @@ function studentName(a) {
     return a?.student?.user?.name
         || [a?.student?.first_name, a?.student?.last_name].filter(Boolean).join(' ')
         || '—';
+}
+
+function studentClassSection(a) {
+    const h = a?.student?.current_academic_history;
+    if (!h) return '—';
+    const cls = h.course_class?.name ?? '';
+    const sec = h.section?.name ?? '';
+    return [cls, sec].filter(Boolean).join(' - ') || '—';
 }
 
 function termLabel(a) {
@@ -111,6 +146,17 @@ const STATUS_COLOURS = {
                 <option value="">All routes</option>
                 <option v-for="r in routes" :key="r.id" :value="r.id">{{ r.route_name }}</option>
             </select>
+            <select v-model="filters.class_id"
+                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+                <option value="">All classes</option>
+                <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+            </select>
+            <select v-if="filters.class_id && sections.length > 0"
+                    v-model="filters.section_id"
+                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+                <option value="">All sections</option>
+                <option v-for="s in sections" :key="s.id" :value="s.id">{{ s.name }}</option>
+            </select>
         </div>
 
         <!-- Table -->
@@ -130,7 +176,7 @@ const STATUS_COLOURS = {
                 <tr v-for="a in allocations.data" :key="a.id">
                     <td>
                         <div class="font-medium text-gray-900">{{ studentName(a) }}</div>
-                        <div class="text-xs text-gray-500">{{ a.student?.admission_no }}</div>
+                        <div class="text-xs text-gray-500">{{ studentClassSection(a) }}</div>
                     </td>
                     <td>
                         <div class="text-sm">{{ a.route?.route_name ?? '—' }}</div>

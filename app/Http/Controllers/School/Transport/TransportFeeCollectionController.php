@@ -19,12 +19,16 @@ class TransportFeeCollectionController extends Controller
      */
     public function index(Request $request)
     {
-        $schoolId = app('current_school_id');
+        $schoolId       = app('current_school_id');
+        $academicYearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
 
         $allocations = TransportStudentAllocation::tenant()
             ->with([
                 'student:id,admission_no,first_name,last_name',
                 'student.user:id,name',
+                'student.currentAcademicHistory:id,student_id,academic_year_id,class_id,section_id',
+                'student.currentAcademicHistory.courseClass:id,name',
+                'student.currentAcademicHistory.section:id,name',
                 'route:id,route_name,route_code',
                 'stop:id,stop_name,fee',
             ])
@@ -36,8 +40,19 @@ class TransportFeeCollectionController extends Controller
                       ->orWhere('admission_no', 'like', $needle);
                 });
             })
-            ->when($request->filled('status'), fn($q) => $q->where('payment_status', $request->status))
+            ->when($request->filled('status'),   fn($q) => $q->where('payment_status', $request->status))
             ->when($request->filled('route_id'), fn($q) => $q->where('route_id', $request->route_id))
+            ->when($request->filled('class_id'), function ($q) use ($request, $academicYearId) {
+                $q->whereHas('student.currentAcademicHistory', function ($h) use ($request, $academicYearId) {
+                    $h->where('class_id', $request->class_id);
+                    if ($request->filled('section_id')) {
+                        $h->where('section_id', $request->section_id);
+                    }
+                    if ($academicYearId) {
+                        $h->where('academic_year_id', $academicYearId);
+                    }
+                });
+            })
             ->orderBy('payment_status') // unpaid first
             ->orderBy('created_at', 'desc')
             ->paginate(25)
@@ -47,6 +62,11 @@ class TransportFeeCollectionController extends Controller
             ->where('status', 'active')
             ->orderBy('route_name')
             ->get(['id', 'route_name', 'route_code']);
+
+        $classes = \App\Models\CourseClass::where('school_id', $schoolId)
+            ->orderBy('numeric_value')
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
         $summary = [
             'total_due'     => (float) TransportStudentAllocation::tenant()->sum('balance'),
@@ -59,7 +79,8 @@ class TransportFeeCollectionController extends Controller
         return Inertia::render('School/Transport/Fees/Index', [
             'allocations' => $allocations,
             'routes'      => $routes,
-            'filters'     => $request->only(['search', 'status', 'route_id']),
+            'classes'     => $classes,
+            'filters'     => $request->only(['search', 'status', 'route_id', 'class_id', 'section_id']),
             'summary'     => $summary,
         ]);
     }
