@@ -90,7 +90,7 @@ class LedgerController extends Controller
         $schoolId       = app('current_school_id');
         $academicYearId = app('current_academic_year_id');
 
-        $status = in_array($request->status, ['all', 'defaulter', 'paid'], true)
+        $status = in_array($request->status, ['all', 'defaulter', 'not_defaulter'], true)
             ? $request->status
             : 'all';
 

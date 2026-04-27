@@ -137,7 +137,7 @@ const goToPage = (p) => {
 
 const stats = computed(() => {
     const d = props.defaulters || [];
-    const defaulters = d.filter(r => Number(r.total_balance) > 0).length;
+    const defaulters = d.filter(r => r.is_defaulter).length;
     const outstanding = d.reduce((s, r) => s + Number(r.total_balance || 0), 0);
     const collected = d.reduce((s, r) => s + Number(r.paid_fee || 0) + Number(r.transport_paid || 0), 0);
     return { total: d.length, defaulters, outstanding, collected };
@@ -228,11 +228,11 @@ const formatCurrency = (amount) =>
             </div>
 
             <div class="form-field">
-                <label>Status</label>
-                <select v-model="filterForm.status" @change="fetchReport" style="width:170px;">
+                <label>Defaulter Flag</label>
+                <select v-model="filterForm.status" @change="fetchReport" style="width:190px;">
                     <option value="all">All Students</option>
                     <option value="defaulter">Defaulters Only</option>
-                    <option value="paid">Fully Paid Only</option>
+                    <option value="not_defaulter">Non-Defaulters Only</option>
                 </select>
             </div>
 
@@ -289,7 +289,10 @@ const formatCurrency = (amount) =>
                     </thead>
                     <tbody>
                         <tr v-for="row in pagedRows" :key="row.student_id">
-                            <td class="font-medium">{{ row.name }}</td>
+                            <td class="font-medium">
+                                {{ row.name }}
+                                <span v-if="row.is_defaulter" class="defaulter-pill" title="Manually flagged as defaulter">Defaulter</span>
+                            </td>
                             <td class="text-sm">{{ row.class }}</td>
                             <td class="text-sm font-mono">{{ row.father_contact }}</td>
                             <td class="text-sm font-mono">{{ row.mother_contact }}</td>
@@ -478,6 +481,21 @@ const formatCurrency = (amount) =>
     background: #dcfce7;
     border-radius: 999px;
     padding: 2px 10px;
+}
+
+.defaulter-pill {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #991b1b;
+    background: #fee2e2;
+    border: 1px solid #fecaca;
+    border-radius: 999px;
+    padding: 1px 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    vertical-align: middle;
 }
 
 .empty-row {

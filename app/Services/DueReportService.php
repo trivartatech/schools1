@@ -15,7 +15,11 @@ use App\Models\StudentAcademicHistory;
 class DueReportService
 {
     /**
-     * @param  string  $status  'all' | 'defaulter' | 'paid'
+     * Status filter values mirror the manual flag on `students.is_defaulter`,
+     * which the user toggles from the student profile page (the "Defaulter /
+     * Not Defaulter" pill). It is intentionally NOT derived from total_balance.
+     *
+     * @param  string  $status  'all' | 'defaulter' | 'not_defaulter'
      * @return array<int, array<string, mixed>>
      */
     public function rowsFor(
@@ -33,7 +37,9 @@ class DueReportService
                 'studentParent',
                 'transportAllocation',
             ])
-            ->select('id', 'first_name', 'last_name', 'admission_no', 'gender', 'parent_id')
+            ->select('id', 'first_name', 'last_name', 'admission_no', 'gender', 'parent_id', 'is_defaulter')
+            ->when($status === 'defaulter',     fn($q) => $q->where('is_defaulter', true))
+            ->when($status === 'not_defaulter', fn($q) => $q->where('is_defaulter', false))
             ->when($classId, fn($q) => $q->whereHas('currentAcademicHistory', function ($q2) use ($classId, $sectionId, $academicYearId) {
                 $q2->where('class_id', $classId)->where('academic_year_id', $academicYearId);
                 if ($sectionId) $q2->where('section_id', $sectionId);
@@ -88,9 +94,6 @@ class DueReportService
 
             $totalBalance = $feeDue + $transportDue;
 
-            if ($status === 'defaulter' && $totalBalance <= 0) continue;
-            if ($status === 'paid'      && $totalBalance >  0) continue;
-
             $className = trim(
                 ($history->courseClass?->name ?? '') . ' - ' . ($history->section?->name ?? ''),
                 ' -'
@@ -109,6 +112,7 @@ class DueReportService
                 'transport_paid' => $transportPaid,
                 'transport_due'  => $transportDue,
                 'total_balance'  => $totalBalance,
+                'is_defaulter'   => (bool) $student->is_defaulter,
             ];
         }
 
