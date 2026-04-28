@@ -96,23 +96,25 @@ const feeMixSegments = computed(() => [
 const feeMixTotal   = computed(() => feeMixSegments.value.reduce((s, x) => s + x.value, 0))
 const feeMixHasData = computed(() => feeMixTotal.value > 0)
 
-// Attendance breakdown — list view (replaces the donut)
-const attendanceRows = computed(() => {
-    const total = +k.value.total_students || 0
+// Attendance breakdown — shared row builder used by both Student & Staff lists
+function buildAttendanceRows(src, total) {
+    const t = +total || 0
     const rows = [
-        { label: 'Present',  count: +donut.value.present  || 0, color: '#10b981' },
-        { label: 'Absent',   count: +donut.value.absent   || 0, color: '#ef4444' },
-        { label: 'Half Day', count: +donut.value.half_day || 0, color: '#f97316' },
-        { label: 'Late',     count: +donut.value.late     || 0, color: '#f59e0b' },
-        { label: 'On Leave', count: +donut.value.leave    || 0, color: '#8b5cf6' },
+        { label: 'Present',  count: +src.present  || 0, color: '#10b981' },
+        { label: 'Absent',   count: +src.absent   || 0, color: '#ef4444' },
+        { label: 'Half Day', count: +src.half_day || 0, color: '#f97316' },
+        { label: 'Late',     count: +src.late     || 0, color: '#f59e0b' },
+        { label: 'On Leave', count: +src.leave    || 0, color: '#8b5cf6' },
     ]
-    return rows.map(r => ({
-        ...r,
-        total,
-        pct: total > 0 ? Math.min(100, Math.round(r.count / total * 100)) : 0,
-    }))
-})
+    return rows.map(r => ({ ...r, total: t, pct: t > 0 ? Math.min(100, Math.round(r.count / t * 100)) : 0 }))
+}
+
+const attendanceRows = computed(() => buildAttendanceRows(donut.value, k.value.total_students))
 const attendanceMarked = computed(() => attendanceRows.value.reduce((s, r) => s + r.count, 0))
+
+const staffAtt = computed(() => d.value.staff_attendance || {})
+const staffAttendanceRows = computed(() => buildAttendanceRows(staffAtt.value, k.value.total_staff))
+const staffAttendanceMarked = computed(() => staffAttendanceRows.value.reduce((s, r) => s + r.count, 0))
 
 const hostelPct = computed(() => {
     const cap = +k.value.hostel_capacity || 0
@@ -121,8 +123,10 @@ const hostelPct = computed(() => {
 })
 
 // ── view toggles ───────────────────────────────────────────
-const financeView = ref('rvp')          // 'rvp' (Receipt vs Payment) | 'csum' (Course-wise summary)
-const activityTab = ref('payments')
+const financeView    = ref('rvp')         // 'rvp' (Receipt vs Payment) | 'csum' (Course-wise summary)
+const cashflowView   = ref('income')      // 'income' | 'expense'
+const attendanceView = ref('students')    // 'students' | 'staff'
+const activityTab    = ref('payments')
 const recentPayments  = computed(() => d.value.recent_payments || [])
 const recentAdmissions = computed(() => d.value.recent_admissions || [])
 const todayVisitors   = computed(() => d.value.today_visitors || [])
@@ -158,7 +162,7 @@ const upcomingEvents = computed(() => {
 </script>
 
 <template>
-    <div class="space-y-5">
+    <div class="space-y-6">
 
         <!-- ─ Greeting & date ─────────────────────────────────────── -->
         <header class="flex flex-wrap items-center justify-between gap-3">
@@ -382,80 +386,123 @@ const upcomingEvents = computed(() => {
             </template>
         </section>
 
-        <!-- ─ Income / Expense / Attendance donuts ────────────────── -->
-        <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <!-- ─ Cash flow toggle (Income ↔ Expense) + Attendance toggle (Students ↔ Staff) ─ -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-            <!-- Income semi-donut -->
+            <!-- Cash flow: Income / Expense -->
             <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                <SectionHeader
-                    :title="`Income — ${monthLabel}`"
-                    subtitle="Non-fee income from ledger"
-                    actionLabel="Ledger"
-                    actionHref="/school/finance/transactions"
-                />
-                <DonutChart
-                    v-if="incomeSegments.length"
-                    :segments="incomeSegments" :semi="true"
-                    :height="180"
-                    :centerValue="fmtCompact(incomeTotal)"
-                    centerLabel="this month"
-                />
-                <p v-else class="text-sm text-gray-400 italic py-12 text-center">No non-fee income recorded</p>
-                <div v-if="incomeSegments.length" class="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
-                    <div v-for="seg in incomeSegments" :key="seg.label" class="flex items-center gap-1.5 min-w-0">
-                        <span class="w-2 h-2 rounded-full flex-shrink-0" :style="{ background: seg.color }" />
-                        <span class="text-gray-600 truncate">{{ seg.label }}</span>
-                        <span class="ml-auto font-semibold text-gray-900 tabular-nums whitespace-nowrap">{{ fmtCompact(seg.value) }}</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Expense semi-donut -->
-            <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                <SectionHeader
-                    :title="`Expense — ${monthLabel}`"
-                    subtitle="Spending by category"
-                    actionLabel="All expenses"
-                    actionHref="/school/expenses"
-                />
-                <DonutChart
-                    v-if="expenseSegments.length"
-                    :segments="expenseSegments" :semi="true"
-                    :height="180"
-                    :centerValue="fmtCompact(expenseTotal)"
-                    centerLabel="this month"
-                />
-                <p v-else class="text-sm text-gray-400 italic py-12 text-center">No expenses recorded</p>
-                <div v-if="expenseSegments.length" class="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
-                    <div v-for="seg in expenseSegments" :key="seg.label" class="flex items-center gap-1.5 min-w-0">
-                        <span class="w-2 h-2 rounded-full flex-shrink-0" :style="{ background: seg.color }" />
-                        <span class="text-gray-600 truncate">{{ seg.label }}</span>
-                        <span class="ml-auto font-semibold text-gray-900 tabular-nums whitespace-nowrap">{{ fmtCompact(seg.value) }}</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Student Attendance — list breakdown -->
-            <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                <div class="flex items-start justify-between mb-3">
+                <div class="flex items-start justify-between mb-3 flex-wrap gap-2">
                     <div>
-                        <h2 class="text-base font-semibold text-gray-900 tracking-tight flex items-center gap-1.5">
-                            Student Attendance
-                            <span class="text-gray-400 text-sm">👥</span>
+                        <h2 class="text-base font-semibold text-gray-900 tracking-tight">
+                            {{ cashflowView === 'income' ? 'Income' : 'Expense' }} — {{ monthLabel }}
                         </h2>
                         <p class="text-xs text-gray-500 mt-0.5">
-                            {{ attendanceMarked }} of {{ k.total_students || 0 }} marked today
+                            {{ cashflowView === 'income' ? 'Non-fee income from ledger' : 'Spending by category' }}
                         </p>
                     </div>
-                    <Link
-                        href="/school/attendance/report"
-                        class="w-7 h-7 inline-flex items-center justify-center rounded-md bg-gray-50 text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 transition"
-                        title="Open report"
-                    >↗</Link>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <div class="inline-flex bg-gray-100 rounded-lg p-1 text-xs font-medium">
+                            <button
+                                v-for="t in [
+                                    { id: 'income',  label: 'Income' },
+                                    { id: 'expense', label: 'Expense' },
+                                ]"
+                                :key="t.id"
+                                @click="cashflowView = t.id"
+                                :class="[
+                                    'px-3 py-1 rounded-md transition',
+                                    cashflowView === t.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                                ]"
+                            >{{ t.label }}</button>
+                        </div>
+                        <Link
+                            :href="cashflowView === 'income' ? '/school/finance/transactions' : '/school/expenses'"
+                            class="text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                        >
+                            {{ cashflowView === 'income' ? 'Ledger' : 'All' }} →
+                        </Link>
+                    </div>
+                </div>
+
+                <template v-if="cashflowView === 'income'">
+                    <DonutChart
+                        v-if="incomeSegments.length"
+                        :segments="incomeSegments" :semi="true"
+                        :height="180"
+                        :centerValue="fmtCompact(incomeTotal)"
+                        centerLabel="this month"
+                    />
+                    <p v-else class="text-sm text-gray-400 italic py-12 text-center">No non-fee income recorded</p>
+                    <div v-if="incomeSegments.length" class="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                        <div v-for="seg in incomeSegments" :key="seg.label" class="flex items-center gap-1.5 min-w-0">
+                            <span class="w-2 h-2 rounded-full flex-shrink-0" :style="{ background: seg.color }" />
+                            <span class="text-gray-600 truncate">{{ seg.label }}</span>
+                            <span class="ml-auto font-semibold text-gray-900 tabular-nums whitespace-nowrap">{{ fmtCompact(seg.value) }}</span>
+                        </div>
+                    </div>
+                </template>
+
+                <template v-else>
+                    <DonutChart
+                        v-if="expenseSegments.length"
+                        :segments="expenseSegments" :semi="true"
+                        :height="180"
+                        :centerValue="fmtCompact(expenseTotal)"
+                        centerLabel="this month"
+                    />
+                    <p v-else class="text-sm text-gray-400 italic py-12 text-center">No expenses recorded</p>
+                    <div v-if="expenseSegments.length" class="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                        <div v-for="seg in expenseSegments" :key="seg.label" class="flex items-center gap-1.5 min-w-0">
+                            <span class="w-2 h-2 rounded-full flex-shrink-0" :style="{ background: seg.color }" />
+                            <span class="text-gray-600 truncate">{{ seg.label }}</span>
+                            <span class="ml-auto font-semibold text-gray-900 tabular-nums whitespace-nowrap">{{ fmtCompact(seg.value) }}</span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Attendance: Students / Staff -->
+            <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                <div class="flex items-start justify-between mb-3 flex-wrap gap-2">
+                    <div>
+                        <h2 class="text-base font-semibold text-gray-900 tracking-tight flex items-center gap-1.5">
+                            {{ attendanceView === 'students' ? 'Student Attendance' : 'Staff Attendance' }}
+                            <span class="text-gray-400 text-sm">{{ attendanceView === 'students' ? '👥' : '🧑‍🏫' }}</span>
+                        </h2>
+                        <p class="text-xs text-gray-500 mt-0.5">
+                            <template v-if="attendanceView === 'students'">
+                                {{ attendanceMarked }} of {{ k.total_students || 0 }} marked today
+                            </template>
+                            <template v-else>
+                                {{ staffAttendanceMarked }} of {{ k.total_staff || 0 }} marked today
+                            </template>
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <div class="inline-flex bg-gray-100 rounded-lg p-1 text-xs font-medium">
+                            <button
+                                v-for="t in [
+                                    { id: 'students', label: 'Students' },
+                                    { id: 'staff',    label: 'Staff' },
+                                ]"
+                                :key="t.id"
+                                @click="attendanceView = t.id"
+                                :class="[
+                                    'px-3 py-1 rounded-md transition',
+                                    attendanceView === t.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                                ]"
+                            >{{ t.label }}</button>
+                        </div>
+                        <Link
+                            :href="attendanceView === 'students' ? '/school/attendance/report' : '/school/staff-attendance'"
+                            class="text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                        >Report →</Link>
+                    </div>
                 </div>
 
                 <ul class="divide-y divide-gray-100">
-                    <li v-for="row in attendanceRows" :key="row.label" class="py-2.5 first:pt-1 last:pb-1">
+                    <li v-for="row in (attendanceView === 'students' ? attendanceRows : staffAttendanceRows)"
+                        :key="row.label" class="py-2.5 first:pt-1 last:pb-1">
                         <div class="flex items-baseline justify-between gap-2 mb-1">
                             <span class="text-sm font-medium text-gray-700">{{ row.label }}</span>
                             <span class="text-xs text-gray-500 tabular-nums whitespace-nowrap">

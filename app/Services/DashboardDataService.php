@@ -49,6 +49,7 @@ class DashboardDataService
             'fee_trend'            => $this->stackedFeeTrend($schoolId, $academicYearId),
             'admission_trend'      => $this->admissionTrend($schoolId, $academicYearId),
             'attendance_donut'     => $this->attendanceDonut($schoolId, $today, $academicYearId),
+            'staff_attendance'     => $this->staffAttendanceBreakdown($schoolId, $today),
             'class_attendance'     => $this->classAttendance($schoolId, $today, $academicYearId),
             'fee_mix_today'        => $this->feeMixToday($schoolId, $today, $academicYearId),
             'fee_summary'          => $this->feeSummary($schoolId, $academicYearId, $today, $thisMonth, $thisMonthEnd),
@@ -284,6 +285,23 @@ class DashboardDataService
         $row = Attendance::where('school_id', $schoolId)
             ->where('date', $today->toDateString())
             ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
+            ->selectRaw('status, count(*) as count')
+            ->groupBy('status')->pluck('count', 'status')->toArray();
+        return [
+            'present'  => $row['present']  ?? 0,
+            'absent'   => $row['absent']   ?? 0,
+            'late'     => $row['late']     ?? 0,
+            'half_day' => $row['half_day'] ?? 0,
+            'leave'    => $row['leave']    ?? 0,
+        ];
+    }
+
+    // Staff attendance breakdown — same shape as student attendance, no academic
+    // year filter (StaffAttendance is school-scoped only).
+    private function staffAttendanceBreakdown(int $schoolId, Carbon $today): array
+    {
+        $row = StaffAttendance::where('school_id', $schoolId)
+            ->where('date', $today->toDateString())
             ->selectRaw('status, count(*) as count')
             ->groupBy('status')->pluck('count', 'status')->toArray();
         return [
