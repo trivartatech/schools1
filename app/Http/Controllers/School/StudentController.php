@@ -15,6 +15,8 @@ use App\Models\TransportRoute;
 use App\Models\TransportStop;
 use App\Models\TransportStudentAllocation;
 use App\Models\StudentParent;
+use App\Models\DisciplinaryRecord;
+use App\Models\DisciplinaryCategory;
 use App\Models\User;
 use App\Models\House;
 use App\Services\AdmissionService;
@@ -520,20 +522,51 @@ class StudentController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'code', 'unit_price', 'current_stock']);
 
+        // ── Disciplinary records & categories ─────────────────────────
+        $disciplinaryRecords = DisciplinaryRecord::where('school_id', $schoolId)
+            ->where('student_id', $student->id)
+            ->with('reportedBy:id,name', 'reviewedBy:id,name')
+            ->orderByDesc('incident_date')->orderByDesc('id')
+            ->get()
+            ->map(fn ($r) => [
+                'id'                => $r->id,
+                'incident_date'     => $r->incident_date?->toDateString(),
+                'category'          => $r->category,
+                'severity'          => $r->severity,
+                'status'            => $r->status,
+                'consequence'       => $r->consequence,
+                'consequence_from'  => $r->consequence_from?->toDateString(),
+                'consequence_to'    => $r->consequence_to?->toDateString(),
+                'description'       => $r->description,
+                'action_taken'      => $r->action_taken,
+                'parent_notified'   => (bool) $r->parent_notified,
+                'student_statement' => $r->student_statement,
+                'notes'             => $r->notes,
+                'reported_by_name'  => $r->reportedBy?->name,
+                'reviewed_by_name'  => $r->reviewedBy?->name,
+            ])
+            ->values();
+
+        $disciplinaryCategories = DisciplinaryCategory::where('school_id', $schoolId)
+            ->orderBy('sort_order')->orderBy('name')
+            ->get(['id', 'name', 'short_code']);
+
         return Inertia::render('School/Students/Show', [
-            'student'             => $student,
-            'attendanceSummary'   => $attendanceSummary,
-            'monthlyAttendance'   => $monthlyAttendance,
-            'examMarks'           => $examMarksData,
-            'siblings'            => $siblings,
-            'classes'             => $classes,
-            'sections'            => $sections,
-            'academicYears'       => $academicYears,
-            'feePayments'         => $feePayments,
-            'transportRoutes'     => $transportRoutes,
-            'standardMonths'      => $standardMonths,
-            'availableHostelBeds' => $availableHostelBeds,
-            'stationaryItems'     => $stationaryItems,
+            'student'                => $student,
+            'attendanceSummary'      => $attendanceSummary,
+            'monthlyAttendance'      => $monthlyAttendance,
+            'examMarks'              => $examMarksData,
+            'siblings'               => $siblings,
+            'classes'                => $classes,
+            'sections'               => $sections,
+            'academicYears'          => $academicYears,
+            'feePayments'            => $feePayments,
+            'transportRoutes'        => $transportRoutes,
+            'standardMonths'         => $standardMonths,
+            'availableHostelBeds'    => $availableHostelBeds,
+            'stationaryItems'        => $stationaryItems,
+            'disciplinaryRecords'    => $disciplinaryRecords,
+            'disciplinaryCategories' => $disciplinaryCategories,
         ]);
     }
 

@@ -32,6 +32,8 @@ const props = defineProps({
     standardMonths:     { type: Number, default: 10 },
     availableHostelBeds:{ type: Array,  default: () => [] },
     stationaryItems:    { type: Array,  default: () => [] },
+    disciplinaryRecords:    { type: Array, default: () => [] },
+    disciplinaryCategories: { type: Array, default: () => [] },
 });
 
 // ── Date Formatting ───────────────────────────────────────────────────────────
@@ -53,6 +55,7 @@ const tabs = [
     { key: 'transport',   label: 'Transport',   icon: '🚌' },
     { key: 'stationary',  label: 'Stationary',  icon: '📚' },
     { key: 'hostel',      label: 'Hostel',      icon: '🏠' },
+    { key: 'disciplinary', label: 'Disciplinary', icon: '⚖️' },
 ];
 
 // ── Inline Admission No Edit ──────────────────────────────────────────────────
@@ -302,6 +305,83 @@ function submitAssignHostel() {
             onSuccess: () => { showAssignHostel.value = false; },
         });
 }
+
+// ── Disciplinary Records ──────────────────────────────────────────────────────
+const showDiscModal  = ref(false);
+const editingDiscId  = ref(null);
+
+const discForm = useForm({
+    incident_date: new Date().toISOString().split('T')[0],
+    category: '', severity: 'minor', description: '',
+    action_taken: '', status: 'open',
+    consequence: '', consequence_from: '', consequence_to: '',
+    parent_notified: false, student_statement: '', notes: '',
+});
+
+const discSeverityColor = { minor: '#d97706', moderate: '#f97316', major: '#dc2626' };
+const discStatusBadge   = { open: 'badge-amber', under_review: 'badge-blue', resolved: 'badge-green', escalated: 'badge-red' };
+
+const discCategoryByName = computed(() => {
+    const m = {};
+    (props.disciplinaryCategories || []).forEach(c => { m[c.name] = c; });
+    return m;
+});
+const fmtDiscCategory = (name) => {
+    if (!name) return '—';
+    const c = discCategoryByName.value[name];
+    return c?.short_code ? `${name} (${c.short_code})` : name;
+};
+
+const openAddDisc = () => {
+    editingDiscId.value = null;
+    discForm.reset();
+    discForm.incident_date = new Date().toISOString().split('T')[0];
+    discForm.severity = 'minor';
+    discForm.status = 'open';
+    discForm.parent_notified = false;
+    showDiscModal.value = true;
+};
+
+const openEditDisc = (r) => {
+    editingDiscId.value = r.id;
+    Object.assign(discForm, {
+        incident_date:    r.incident_date ?? '',
+        category:         r.category ?? '',
+        severity:         r.severity ?? 'minor',
+        description:      r.description ?? '',
+        action_taken:     r.action_taken ?? '',
+        status:           r.status ?? 'open',
+        consequence:      r.consequence ?? '',
+        consequence_from: r.consequence_from ?? '',
+        consequence_to:   r.consequence_to ?? '',
+        parent_notified:  !!r.parent_notified,
+        student_statement: r.student_statement ?? '',
+        notes:            r.notes ?? '',
+    });
+    showDiscModal.value = true;
+};
+
+const saveDisc = () => {
+    if (editingDiscId.value) {
+        discForm.put(`/school/disciplinary/${editingDiscId.value}`, {
+            preserveScroll: true,
+            onSuccess: () => { showDiscModal.value = false; },
+        });
+    } else {
+        discForm
+            .transform(d => ({ ...d, student_id: props.student.id }))
+            .post('/school/disciplinary', {
+                preserveScroll: true,
+                onSuccess: () => { showDiscModal.value = false; },
+            });
+    }
+};
+
+const deleteDisc = (id) => {
+    if (confirm('Delete this disciplinary record?')) {
+        router.delete(`/school/disciplinary/${id}`, { preserveScroll: true });
+    }
+};
 </script>
 
 <template>
@@ -1682,6 +1762,68 @@ function submitAssignHostel() {
                     </div>
                 </div>
 
+                <!-- ─── TAB: DISCIPLINARY ──────────────────────────────────── -->
+                <div v-if="activeTab === 'disciplinary'">
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Disciplinary Records</span>
+                            <span v-if="disciplinaryRecords.length" class="badge-count" style="margin-left:8px;">{{ disciplinaryRecords.length }}</span>
+                            <Button size="sm" style="margin-left:auto;" @click="openAddDisc">+ Add Incident</Button>
+                        </div>
+                        <div class="card-body" style="padding:0;">
+                            <div v-if="disciplinaryRecords.length === 0" class="empty-state" style="padding:32px;">
+                                <div class="empty-state-icon">⚖️</div>
+                                <p class="empty-state-title">No disciplinary records for this student.</p>
+                            </div>
+                            <div v-else class="payment-table-wrap">
+                                <table class="payment-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Category</th>
+                                            <th>Severity</th>
+                                            <th>Status</th>
+                                            <th>Consequence</th>
+                                            <th>Reported By</th>
+                                            <th style="text-align:right;">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="r in disciplinaryRecords" :key="r.id">
+                                            <td style="white-space:nowrap;">{{ formatDate(r.incident_date) }}</td>
+                                            <td>
+                                                <div style="font-weight:600;color:#1e293b;">{{ fmtDiscCategory(r.category) }}</div>
+                                                <div v-if="r.description" style="font-size:11px;color:#94a3b8;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ r.description }}</div>
+                                            </td>
+                                            <td>
+                                                <span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;text-transform:capitalize;"
+                                                      :style="{ background: discSeverityColor[r.severity] + '18', color: discSeverityColor[r.severity] }">
+                                                    {{ r.severity }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="badge" :class="discStatusBadge[r.status]" style="text-transform:capitalize;">
+                                                    {{ r.status?.replace('_', ' ') }}
+                                                </span>
+                                            </td>
+                                            <td style="text-transform:capitalize;color:#64748b;">
+                                                {{ r.consequence ? r.consequence.replace('_', ' ') : '—' }}
+                                            </td>
+                                            <td style="font-size:13px;color:#64748b;">{{ r.reported_by_name || '—' }}</td>
+                                            <td style="text-align:right;">
+                                                <div style="display:inline-flex;gap:6px;">
+                                                    <Button variant="secondary" size="xs" @click="openEditDisc(r)">Edit</Button>
+                                                    <Button variant="danger" size="xs" @click="deleteDisc(r.id)">Del</Button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div><!-- /tab-content -->
         </div><!-- /student-show-wrap -->
 
@@ -1858,6 +2000,121 @@ function submitAssignHostel() {
                         </Button>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- ══ DISCIPLINARY ADD / EDIT MODAL ═══════════════════════════════════ -->
+        <div v-if="showDiscModal" class="modal-overlay">
+            <div class="modal-card" style="max-width:560px;">
+                <div class="modal-header">
+                    <h3 class="modal-title">{{ editingDiscId ? 'Edit' : 'Add' }} Disciplinary Record</h3>
+                    <button @click="showDiscModal = false" class="modal-close">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+                <form @submit.prevent="saveDisc">
+                    <div class="modal-body">
+                        <div class="modal-two-col">
+                            <div>
+                                <label class="modal-field-label">Incident Date *</label>
+                                <input v-model="discForm.incident_date" type="date" required class="modal-input" />
+                                <p v-if="discForm.errors.incident_date" class="form-error">{{ discForm.errors.incident_date }}</p>
+                            </div>
+                            <div>
+                                <label class="modal-field-label">Category *</label>
+                                <select v-model="discForm.category" required class="modal-select">
+                                    <option value="">Select category</option>
+                                    <option v-for="c in disciplinaryCategories" :key="c.id" :value="c.name">
+                                        {{ c.name }}{{ c.short_code ? ` (${c.short_code})` : '' }}
+                                    </option>
+                                </select>
+                                <p v-if="discForm.errors.category" class="form-error">{{ discForm.errors.category }}</p>
+                            </div>
+                        </div>
+
+                        <div class="modal-two-col" style="margin-top:12px;">
+                            <div>
+                                <label class="modal-field-label">Severity *</label>
+                                <select v-model="discForm.severity" required class="modal-select">
+                                    <option value="minor">Minor</option>
+                                    <option value="moderate">Moderate</option>
+                                    <option value="major">Major</option>
+                                </select>
+                            </div>
+                            <div v-if="editingDiscId">
+                                <label class="modal-field-label">Status *</label>
+                                <select v-model="discForm.status" class="modal-select">
+                                    <option value="open">Open</option>
+                                    <option value="under_review">Under Review</option>
+                                    <option value="resolved">Resolved</option>
+                                    <option value="escalated">Escalated</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="modal-field" style="margin-top:12px;">
+                            <label class="modal-field-label">Description *</label>
+                            <textarea v-model="discForm.description" rows="3" required class="modal-input modal-textarea" placeholder="Describe the incident in detail…"></textarea>
+                            <p v-if="discForm.errors.description" class="form-error">{{ discForm.errors.description }}</p>
+                        </div>
+
+                        <div class="modal-field">
+                            <label class="modal-field-label">Action Taken</label>
+                            <input v-model="discForm.action_taken" type="text" class="modal-input" placeholder="Optional — what action was taken?" />
+                        </div>
+
+                        <div class="modal-field">
+                            <label class="modal-field-label">Consequence</label>
+                            <select v-model="discForm.consequence" class="modal-select">
+                                <option value="">— None —</option>
+                                <option value="warning">Warning</option>
+                                <option value="detention">Detention</option>
+                                <option value="parent_call">Parent Call</option>
+                                <option value="suspension">Suspension</option>
+                                <option value="expulsion">Expulsion</option>
+                                <option value="none">None</option>
+                            </select>
+                        </div>
+
+                        <div v-if="discForm.consequence === 'suspension' || discForm.consequence === 'detention'" class="modal-two-col">
+                            <div>
+                                <label class="modal-field-label">Period From</label>
+                                <input v-model="discForm.consequence_from" type="date" class="modal-input" />
+                            </div>
+                            <div>
+                                <label class="modal-field-label">Period To</label>
+                                <input v-model="discForm.consequence_to" type="date" class="modal-input" />
+                            </div>
+                        </div>
+
+                        <div v-if="editingDiscId" class="modal-field">
+                            <label class="toggle-row">
+                                <span class="toggle-label">Parent Notified</span>
+                                <div class="toggle-wrap" @click="discForm.parent_notified = !discForm.parent_notified">
+                                    <div class="toggle-track" :class="discForm.parent_notified ? 'toggle-track--on' : ''"></div>
+                                    <div class="toggle-thumb" :class="discForm.parent_notified ? 'toggle-thumb--on' : ''"></div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div v-if="editingDiscId" class="modal-field">
+                            <label class="modal-field-label">Student Statement</label>
+                            <textarea v-model="discForm.student_statement" rows="2" class="modal-input modal-textarea"></textarea>
+                        </div>
+
+                        <div v-if="editingDiscId" class="modal-field">
+                            <label class="modal-field-label">Internal Notes</label>
+                            <textarea v-model="discForm.notes" rows="2" class="modal-input modal-textarea"></textarea>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid #e5e7eb;background:#f9fafb;border-radius:0 0 12px 12px;">
+                        <Button variant="secondary" type="button" @click="showDiscModal = false">Cancel</Button>
+                        <Button type="submit" :loading="discForm.processing">
+                            {{ editingDiscId ? 'Update Record' : 'Save Record' }}
+                        </Button>
+                    </div>
+                </form>
             </div>
         </div>
 
