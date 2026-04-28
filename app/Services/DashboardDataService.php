@@ -212,9 +212,12 @@ class DashboardDataService
         $out = [];
         for ($i = 5; $i >= 0; $i--) {
             $m = now()->subMonths($i);
+            // Mirror Day Book (LedgerController@dayBook): any payment row with
+            // money actually received counts — including partial collections,
+            // which would be rejected by status='paid'.
             $tuition = (float) FeePayment::where('school_id', $schoolId)
                 ->whereYear('payment_date', $m->year)->whereMonth('payment_date', $m->month)
-                ->where('status', 'paid')->sum('amount_paid');
+                ->where('amount_paid', '>', 0)->sum('amount_paid');
             $transport = (float) TransportFeePayment::where('school_id', $schoolId)
                 ->whereYear('payment_date', $m->year)->whereMonth('payment_date', $m->month)->sum('amount_paid');
             $hostel = (float) HostelFeePayment::where('school_id', $schoolId)
@@ -287,7 +290,7 @@ class DashboardDataService
     {
         $tuition = (float) FeePayment::where('school_id', $schoolId)
             ->whereDate('payment_date', $today->toDateString())
-            ->where('status', 'paid')->sum('amount_paid');
+            ->where('amount_paid', '>', 0)->sum('amount_paid');
         $transport = (float) TransportFeePayment::where('school_id', $schoolId)
             ->whereDate('payment_date', $today->toDateString())->sum('amount_paid');
         $hostel = (float) HostelFeePayment::where('school_id', $schoolId)
@@ -492,23 +495,27 @@ class DashboardDataService
     // ───────────────────────────────────────────────────────────────
     // Helpers
     // ───────────────────────────────────────────────────────────────
+    // Mirrors Day Book (LedgerController@dayBook): rows with amount_paid > 0
+    // are real money received, regardless of whether the parent bill is
+    // 'paid' or still 'partial'. Filtering by status='paid' silently drops
+    // installment payments toward a not-yet-fully-cleared bill.
     private function feeSumOnDay(int $schoolId, Carbon $day): float
     {
         $d = $day->toDateString();
-        return (float) FeePayment::where('school_id', $schoolId)->whereDate('payment_date', $d)->where('status', 'paid')->sum('amount_paid')
-            + (float) TransportFeePayment::where('school_id', $schoolId)->whereDate('payment_date', $d)->sum('amount_paid')
-            + (float) HostelFeePayment::where('school_id', $schoolId)->whereDate('payment_date', $d)->sum('amount_paid')
-            + (float) StationaryFeePayment::where('school_id', $schoolId)->whereDate('payment_date', $d)->sum('amount_paid');
+        return (float) FeePayment::where('school_id', $schoolId)->whereDate('payment_date', $d)->where('amount_paid', '>', 0)->sum('amount_paid')
+            + (float) TransportFeePayment::where('school_id', $schoolId)->whereDate('payment_date', $d)->where('amount_paid', '>', 0)->sum('amount_paid')
+            + (float) HostelFeePayment::where('school_id', $schoolId)->whereDate('payment_date', $d)->where('amount_paid', '>', 0)->sum('amount_paid')
+            + (float) StationaryFeePayment::where('school_id', $schoolId)->whereDate('payment_date', $d)->where('amount_paid', '>', 0)->sum('amount_paid');
     }
 
     private function feeSumInRange(int $schoolId, Carbon $start, Carbon $end): float
     {
         $s = $start->toDateString();
         $e = $end->toDateString();
-        return (float) FeePayment::where('school_id', $schoolId)->whereBetween('payment_date', [$s, $e])->where('status', 'paid')->sum('amount_paid')
-            + (float) TransportFeePayment::where('school_id', $schoolId)->whereBetween('payment_date', [$s, $e])->sum('amount_paid')
-            + (float) HostelFeePayment::where('school_id', $schoolId)->whereBetween('payment_date', [$s, $e])->sum('amount_paid')
-            + (float) StationaryFeePayment::where('school_id', $schoolId)->whereBetween('payment_date', [$s, $e])->sum('amount_paid');
+        return (float) FeePayment::where('school_id', $schoolId)->whereBetween('payment_date', [$s, $e])->where('amount_paid', '>', 0)->sum('amount_paid')
+            + (float) TransportFeePayment::where('school_id', $schoolId)->whereBetween('payment_date', [$s, $e])->where('amount_paid', '>', 0)->sum('amount_paid')
+            + (float) HostelFeePayment::where('school_id', $schoolId)->whereBetween('payment_date', [$s, $e])->where('amount_paid', '>', 0)->sum('amount_paid')
+            + (float) StationaryFeePayment::where('school_id', $schoolId)->whereBetween('payment_date', [$s, $e])->where('amount_paid', '>', 0)->sum('amount_paid');
     }
 
     private function deltaPct(float $current, float $previous): ?float
