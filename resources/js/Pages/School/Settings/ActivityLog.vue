@@ -5,6 +5,7 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
 import debounce from 'lodash/debounce';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const props = defineProps({
     logs: { type: Object, default: () => ({}) },
@@ -97,28 +98,30 @@ const viewDetails = (log) => {
             <!-- ── Main Content ─────────────────────────────────────── -->
             <section class="gc-content">
                 
-                <!-- ── Header & Filters ─────────────────────────────── -->
+                <!-- ── Header ─────────────────────────────── -->
                 <div class="al-header">
                     <div>
                         <h1 class="al-title">Activity Log</h1>
                         <p class="al-subtitle">Audit trail of system events and user actions.</p>
                     </div>
-                    <div class="al-filters">
-                        <select v-model="filterForm.log_name" class="gc-input al-filter-select">
-                            <option value="">All Categories</option>
-                            <option v-for="name in availableLogNames" :key="name" :value="name">
-                                {{ name.charAt(0).toUpperCase() + name.slice(1) }}
-                            </option>
-                        </select>
-                        <input v-model="filterForm.date" type="date" class="gc-input al-filter-date" />
-                        <div class="al-search-wrapper">
-                            <input v-model="filterForm.search" type="text" placeholder="Search logs..." class="gc-input al-search" />
-                            <svg class="al-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </div>
-                    </div>
                 </div>
+
+                <!-- ── Filters ─────────────────────────────── -->
+                <FilterBar :active="!!(filterForm.search || filterForm.log_name || filterForm.date)" @clear="resetFilters">
+                    <div class="fb-search">
+                        <svg class="fb-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input v-model="filterForm.search" type="search" placeholder="Search logs..." />
+                    </div>
+                    <select v-model="filterForm.log_name" style="width:160px;">
+                        <option value="">All Categories</option>
+                        <option v-for="name in availableLogNames" :key="name" :value="name">
+                            {{ name.charAt(0).toUpperCase() + name.slice(1) }}
+                        </option>
+                    </select>
+                    <input v-model="filterForm.date" type="date" style="width:160px;" />
+                </FilterBar>
 
                 <!-- ── Logs Table ───────────────────────────────────── -->
                 <div class="gc-card">
@@ -327,33 +330,6 @@ const viewDetails = (log) => {
     font-size: 0.8125rem;
     color: #64748b;
     margin: 2px 0 0;
-}
-
-.al-filters {
-    display: flex;
-    gap: 10px;
-}
-
-.al-filter-select { width: 150px; }
-.al-filter-date { width: 140px; }
-
-.al-search-wrapper {
-    position: relative;
-    width: 240px;
-}
-
-.al-search {
-    padding-left: 32px !important;
-}
-
-.al-search-icon {
-    position: absolute;
-    left: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 14px;
-    height: 14px;
-    color: #94a3b8;
 }
 
 .al-badge {

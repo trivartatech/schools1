@@ -6,6 +6,7 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref } from 'vue';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const school = useSchoolStore();
 
@@ -77,26 +78,17 @@ const totalCount = () => Object.values(props.counts).reduce((a, b) => a + b, 0);
         </div>
 
         <!-- Filters -->
-        <div class="card mb-6">
-            <div class="card-body">
-                <div class="flex gap-3 flex-wrap items-end">
-                    <div class="form-field min-w-[200px]">
-                        <label>Search Student</label>
-                        <input v-model="filterForm.search" @keyup.enter="applyFilters"
-                               type="text" placeholder="Name or admission no…" class="input">
-                    </div>
-                    <div class="form-field min-w-[160px]">
-                        <label>Class</label>
-                        <select v-model="filterForm.class_id" @change="applyFilters">
-                            <option value="">All Classes</option>
-                            <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
-                        </select>
-                    </div>
-                    <Button size="sm" @click="applyFilters">Filter</Button>
-                    <Button variant="secondary" size="sm" @click="filterForm = { status: '', search: '', class_id: '' }; applyFilters()">Reset</Button>
-                </div>
+        <FilterBar :active="!!(filterForm.search || filterForm.class_id)" @clear="filterForm.search = ''; filterForm.class_id = ''; applyFilters()">
+            <div class="fb-search">
+                <svg class="fb-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/></svg>
+                <input v-model="filterForm.search" @keyup.enter="applyFilters" type="search" placeholder="Search student name or admission no…">
             </div>
-        </div>
+            <select v-model="filterForm.class_id" @change="applyFilters" style="width:160px;">
+                <option value="">All Classes</option>
+                <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+            </select>
+            <Button size="sm" @click="applyFilters">Filter</Button>
+        </FilterBar>
 
         <!-- Table -->
         <div class="card overflow-hidden">

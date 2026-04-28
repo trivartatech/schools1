@@ -9,6 +9,7 @@ import ExportDropdown from '@/Components/ExportDropdown.vue';
 import axios from 'axios';
 import Table from '@/Components/ui/Table.vue';
 import { useConfirm } from '@/Composables/useConfirm';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const confirm = useConfirm();
 
@@ -115,20 +116,15 @@ const grouped = computed(() => {
         </PageHeader>
 
         <!-- Filter -->
-        <div class="card mb-6">
-            <div class="card-body">
-                <div class="flex gap-4 items-end">
-                    <div class="form-field flex-1">
-                        <label>Filter by Class</label>
-                        <select v-model="filterClassId" @change="applyFilter">
-                            <option value="">All Classes</option>
-                            <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
-                        </select>
-                    </div>
-                    <Button variant="secondary" @click="filterClassId = ''; applyFilter()">Reset</Button>
-                </div>
+        <FilterBar :active="!!filterClassId" @clear="filterClassId = ''; applyFilter()">
+            <div class="form-field">
+                <label>Class</label>
+                <select v-model="filterClassId" @change="applyFilter" style="width:200px;">
+                    <option value="">All Classes</option>
+                    <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </select>
             </div>
-        </div>
+        </FilterBar>
 
         <!-- Books grouped by class -->
         <div v-if="books.length > 0" class="space-y-6">

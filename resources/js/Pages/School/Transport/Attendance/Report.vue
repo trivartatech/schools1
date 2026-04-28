@@ -5,6 +5,7 @@ import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const props = defineProps({
     records: Array,
@@ -69,28 +70,24 @@ const { formatDate } = useFormat();
             </PageHeader>
 
             <!-- Filters -->
-            <div class="card filter-card">
-                <div class="filter-row">
-                    <div class="form-field">
-                        <label>From</label>
-                        <input v-model="from" type="date">
-                    </div>
-                    <div class="form-field">
-                        <label>To</label>
-                        <input v-model="to" type="date">
-                    </div>
-                    <div class="form-field">
-                        <label>Route</label>
-                        <select v-model="routeId">
-                            <option value="">All Routes</option>
-                            <option v-for="r in routes" :key="r.id" :value="r.id">{{ r.route_name }}</option>
-                        </select>
-                    </div>
-                    <div class="form-field" style="align-self: flex-end;">
-                        <Button @click="applyFilters">Apply</Button>
-                    </div>
+            <FilterBar :active="!!(from || to || routeId)" @clear="from = ''; to = ''; routeId = ''; applyFilters()">
+                <div class="form-field">
+                    <label>From</label>
+                    <input v-model="from" type="date" style="width:160px;">
                 </div>
-            </div>
+                <div class="form-field">
+                    <label>To</label>
+                    <input v-model="to" type="date" style="width:160px;">
+                </div>
+                <div class="form-field">
+                    <label>Route</label>
+                    <select v-model="routeId" style="width:180px;">
+                        <option value="">All Routes</option>
+                        <option v-for="r in routes" :key="r.id" :value="r.id">{{ r.route_name }}</option>
+                    </select>
+                </div>
+                <Button @click="applyFilters">Apply</Button>
+            </FilterBar>
 
             <!-- KPI Cards -->
             <div class="summary-grid">
@@ -201,20 +198,6 @@ const { formatDate } = useFormat();
 </template>
 
 <style scoped>
-.filter-card {
-    margin-bottom: 1.5rem;
-}
-.filter-row {
-    display: flex;
-    align-items: flex-end;
-    gap: 1rem;
-    flex-wrap: wrap;
-}
-.filter-row .form-field {
-    flex: 1;
-    min-width: 150px;
-}
-
 .summary-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -258,7 +241,7 @@ const { formatDate } = useFormat();
 
 @media print {
     .btn { display: none !important; }
-    .filter-card { display: none !important; }
+    .fb { display: none !important; }
     .kpi-card { border: 2px solid #e2e8f0; break-inside: avoid; }
 }
 </style>

@@ -6,6 +6,7 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
 import { useConfirm } from '@/Composables/useConfirm';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const confirm = useConfirm();
 
@@ -167,12 +168,12 @@ const typeBadge = (c) => c.type === 'percentage'
             </PageHeader>
 
             <!-- Search -->
-            <div class="card">
-                <div class="card-body">
-                    <input v-model="search" type="text" placeholder="Search student name, admission no, or concession name…"
-                           class="form-field w-full">
+            <FilterBar :active="!!search" @clear="search = ''">
+                <div class="fb-search">
+                    <svg class="fb-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/></svg>
+                    <input v-model="search" type="search" placeholder="Search student name, admission no, or concession name…">
                 </div>
-            </div>
+            </FilterBar>
 
             <!-- Table -->
             <div class="card overflow-hidden">

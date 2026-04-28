@@ -8,6 +8,7 @@ import PageHeader from '@/Components/ui/PageHeader.vue';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
 import { useConfirm } from '@/Composables/useConfirm';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const school = useSchoolStore();
 const confirm = useConfirm();
@@ -151,34 +152,31 @@ const STATUS_COLOURS = {
         </div>
 
         <!-- Filters -->
-        <div class="bg-white rounded-xl border border-gray-200 p-3 mb-4 flex flex-wrap gap-3 items-center">
-            <input v-model="filters.search" type="text" placeholder="Search by name or admission no."
-                   class="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1 min-w-[200px]">
-            <select v-model="filters.status"
-                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+        <FilterBar :active="!!(filters.search || filters.status || filters.hostel_id || filters.class_id || filters.section_id)" @clear="filters.search = ''; filters.status = ''; filters.hostel_id = ''; filters.class_id = ''; filters.section_id = ''">
+            <div class="fb-search">
+                <svg class="fb-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/></svg>
+                <input v-model="filters.search" type="search" placeholder="Search by name or admission no.">
+            </div>
+            <select v-model="filters.status" style="width:140px;">
                 <option value="">All statuses</option>
                 <option value="unpaid">Unpaid</option>
                 <option value="partial">Partial</option>
                 <option value="paid">Paid</option>
                 <option value="waived">Waived</option>
             </select>
-            <select v-model="filters.hostel_id"
-                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+            <select v-model="filters.hostel_id" style="width:160px;">
                 <option value="">All hostels</option>
                 <option v-for="h in hostels" :key="h.id" :value="h.id">{{ h.name }}</option>
             </select>
-            <select v-model="filters.class_id"
-                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+            <select v-model="filters.class_id" style="width:140px;">
                 <option value="">All classes</option>
                 <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
-            <select v-if="filters.class_id && sections.length > 0"
-                    v-model="filters.section_id"
-                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+            <select v-if="filters.class_id && sections.length > 0" v-model="filters.section_id" style="width:140px;">
                 <option value="">All sections</option>
                 <option v-for="s in sections" :key="s.id" :value="s.id">{{ s.name }}</option>
             </select>
-        </div>
+        </FilterBar>
 
         <!-- Table -->
         <Table :empty="allocations.data.length === 0" empty-text="No hostel allocations match the current filter.">

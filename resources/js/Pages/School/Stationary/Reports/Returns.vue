@@ -5,6 +5,7 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import Table from '@/Components/ui/Table.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const props = defineProps({
     returns: Array,
@@ -76,21 +77,17 @@ const refundBadge = (m) => ({
         </div>
 
         <!-- Filters -->
-        <div class="card" style="margin-bottom: 1rem;">
-            <div class="card-body" style="padding: 0.75rem 1rem; display: flex; gap: 0.625rem; align-items: end; flex-wrap: wrap;">
-                <div>
-                    <label style="display:block;font-size:0.74rem;font-weight:600;color:#475569;margin-bottom:0.25rem;">From</label>
-                    <input v-model="from" type="date"
-                           style="border: 1px solid var(--border, #e5e7eb); border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.875rem;" />
-                </div>
-                <div>
-                    <label style="display:block;font-size:0.74rem;font-weight:600;color:#475569;margin-bottom:0.25rem;">To</label>
-                    <input v-model="to" type="date"
-                           style="border: 1px solid var(--border, #e5e7eb); border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.875rem;" />
-                </div>
-                <Button variant="secondary" size="sm" @click="applyFilters">Apply</Button>
+        <FilterBar :active="!!(from || to)" @clear="from = ''; to = ''; applyFilters()">
+            <div class="form-field">
+                <label>From</label>
+                <input v-model="from" type="date" style="width:160px;" />
             </div>
-        </div>
+            <div class="form-field">
+                <label>To</label>
+                <input v-model="to" type="date" style="width:160px;" />
+            </div>
+            <Button variant="secondary" size="sm" @click="applyFilters">Apply</Button>
+        </FilterBar>
 
         <!-- Table -->
         <div class="card">

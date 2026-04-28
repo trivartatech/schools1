@@ -4,6 +4,7 @@ import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import Table from '@/Components/ui/Table.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 import { Line } from 'vue-chartjs';
 import {
     Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -127,24 +128,22 @@ const lastSevenAvg = computed(() => {
         <PageHeader title="Attendance Forecast" />
 
         <!-- Filters -->
-        <div class="card" style="margin-bottom:20px;">
-            <div class="card-body" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
-                <div class="form-field" style="min-width:160px;margin:0;">
-                    <label>Class</label>
-                    <select v-model="selectedClass" @change="onClassChange">
-                        <option value="">All Classes</option>
-                        <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
-                    </select>
-                </div>
-                <div class="form-field" style="min-width:140px;margin:0;">
-                    <label>Section</label>
-                    <select v-model="selectedSection" @change="applyFilter" :disabled="!selectedClass">
-                        <option value="">All Sections</option>
-                        <option v-for="s in sections" :key="s.id" :value="s.id">{{ s.name }}</option>
-                    </select>
-                </div>
+        <FilterBar :active="!!(selectedClass || selectedSection)" @clear="selectedClass = ''; selectedSection = ''; applyFilter()">
+            <div class="form-field">
+                <label>Class</label>
+                <select v-model="selectedClass" @change="onClassChange" style="width:160px;">
+                    <option value="">All Classes</option>
+                    <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </select>
             </div>
-        </div>
+            <div class="form-field">
+                <label>Section</label>
+                <select v-model="selectedSection" @change="applyFilter" :disabled="!selectedClass" style="width:140px;">
+                    <option value="">All Sections</option>
+                    <option v-for="s in sections" :key="s.id" :value="s.id">{{ s.name }}</option>
+                </select>
+            </div>
+        </FilterBar>
 
         <!-- KPI Cards -->
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px;">

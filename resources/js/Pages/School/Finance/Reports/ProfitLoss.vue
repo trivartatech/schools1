@@ -6,6 +6,7 @@ import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
 import StatementsTabNav from '@/Components/finance/StatementsTabNav.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const props = defineProps({
     income        : Array,
@@ -58,19 +59,17 @@ const fmtCur = (n) => '₹' + fmt(n);
         </PageHeader>
 
         <!-- Date filter -->
-        <div class="card" style="margin-bottom:16px;">
-            <div class="card-body" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
-                <div>
-                    <label class="filter-label">From</label>
-                    <input type="date" v-model="from" class="filter-input" />
-                </div>
-                <div>
-                    <label class="filter-label">To</label>
-                    <input type="date" v-model="to" class="filter-input" />
-                </div>
-                <Button size="sm" @click="apply">Apply</Button>
+        <FilterBar :active="false">
+            <div class="form-field">
+                <label>From</label>
+                <input type="date" v-model="from" style="width:160px;" />
             </div>
-        </div>
+            <div class="form-field">
+                <label>To</label>
+                <input type="date" v-model="to" style="width:160px;" />
+            </div>
+            <Button size="sm" @click="apply">Apply</Button>
+        </FilterBar>
 
         <!-- Net result banner -->
         <div class="net-banner" :class="netSurplus >= 0 ? 'surplus' : 'deficit'">
@@ -127,13 +126,6 @@ const fmtCur = (n) => '₹' + fmt(n);
 </template>
 
 <style scoped>
-.filter-label { display:block;font-size:0.78rem;font-weight:600;color:#374151;margin-bottom:4px; }
-.filter-input {
-    border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 12px;
-    font-size:0.84rem;outline:none;font-family:inherit;color:#1e293b;
-}
-.filter-input:focus { border-color:#6366f1; }
-
 .net-banner {
     display:flex;justify-content:space-between;align-items:center;
     padding:18px 24px;border-radius:14px;margin-bottom:20px;
@@ -164,5 +156,5 @@ const fmtCur = (n) => '₹' + fmt(n);
 .empty-cell  { text-align:center;color:#94a3b8;padding:30px; }
 
 @media (max-width:768px) { .pl-layout { grid-template-columns:1fr; } }
-@media print { .btn,.filter-input,.card:first-of-type { display:none; } }
+@media print { .btn,.fb { display:none; } }
 </style>

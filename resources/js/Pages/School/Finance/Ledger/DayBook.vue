@@ -7,6 +7,7 @@ import axios from 'axios';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const school = useSchoolStore();
 
@@ -86,34 +87,31 @@ const formatCurrency = (amount) => {
         </PageHeader>
 
         <!-- Filters -->
-        <div class="card mb-6 print:hidden">
-            <div class="card-body flex flex-wrap gap-4 items-end">
-                <div class="w-full sm:w-auto">
-                    <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary)">From Date</label>
-                    <input type="date" v-model="filterForm.start_date" class="rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                </div>
-                <div class="w-full sm:w-auto">
-                    <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary)">To Date</label>
-                    <input type="date" v-model="filterForm.end_date" class="rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                </div>
-                <div class="w-full sm:w-auto">
-                    <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary)">Filter by Class</label>
-                    <select v-model="filterForm.class_id" @change="fetchSections" class="rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500 w-40">
-                        <option value="">All Classes</option>
-                        <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
-                    </select>
-                </div>
-                <div class="w-full sm:w-auto" v-if="filterForm.class_id && sections.length > 0">
-                    <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary)">Filter by Section</label>
-                    <select v-model="filterForm.section_id" class="rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500 w-40">
-                        <option value="">All Sections</option>
-                        <option v-for="s in sections" :key="s.id" :value="s.id">{{ s.name }}</option>
-                    </select>
-                </div>
-                <Button size="sm" @click="fetchDayBook">🔍 Search</Button>
-                <Button variant="secondary" size="sm" v-if="filterForm.start_date || filterForm.end_date || filterForm.class_id" @click="resetFilter">Clear</Button>
+        <FilterBar class="print:hidden" :active="!!(filterForm.start_date || filterForm.end_date || filterForm.class_id || filterForm.section_id)" @clear="resetFilter">
+            <div class="form-field">
+                <label>From Date</label>
+                <input type="date" v-model="filterForm.start_date" style="width:160px;" />
             </div>
-        </div>
+            <div class="form-field">
+                <label>To Date</label>
+                <input type="date" v-model="filterForm.end_date" style="width:160px;" />
+            </div>
+            <div class="form-field">
+                <label>Class</label>
+                <select v-model="filterForm.class_id" @change="fetchSections" style="width:160px;">
+                    <option value="">All Classes</option>
+                    <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </select>
+            </div>
+            <div class="form-field" v-if="filterForm.class_id && sections.length > 0">
+                <label>Section</label>
+                <select v-model="filterForm.section_id" style="width:160px;">
+                    <option value="">All Sections</option>
+                    <option v-for="s in sections" :key="s.id" :value="s.id">{{ s.name }}</option>
+                </select>
+            </div>
+            <Button size="sm" @click="fetchDayBook">Search</Button>
+        </FilterBar>
 
         <!-- Summary Cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 print:hidden">

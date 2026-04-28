@@ -5,6 +5,7 @@ import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref, computed } from 'vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const props = defineProps({
     materials: Object,     // paginated LearningMaterial[]
@@ -159,32 +160,27 @@ const typeMetaViewer = (type) => ({
         <!-- ── Materials Tab ── -->
         <div v-show="activeTab === 'materials'">
             <!-- Filters -->
-            <div class="card mb-6">
-                <div class="card-body">
-                    <div class="flex flex-wrap gap-3 items-end">
-                        <div class="form-field min-w-[150px]">
-                            <label>Subject</label>
-                            <select v-model="filterForm.subject_id" @change="applyFilters">
-                                <option value="">All Subjects</option>
-                                <option v-for="s in subjects" :key="s.id" :value="s.id">{{ s.name }}</option>
-                            </select>
-                        </div>
-                        <div class="form-field min-w-[130px]">
-                            <label>Type</label>
-                            <select v-model="filterForm.type" @change="applyFilters">
-                                <option value="">All Types</option>
-                                <option value="pdf">PDF</option>
-                                <option value="ppt">PPT</option>
-                                <option value="video">Video</option>
-                                <option value="image">Image</option>
-                                <option value="doc">Document</option>
-                                <option value="link">Link</option>
-                            </select>
-                        </div>
-                        <Button variant="secondary" size="sm" @click="filterForm = {subject_id:'',type:''}; applyFilters()">Reset</Button>
-                    </div>
+            <FilterBar :active="!!(filterForm.subject_id || filterForm.type)" @clear="filterForm.subject_id = ''; filterForm.type = ''; applyFilters()">
+                <div class="form-field">
+                    <label>Subject</label>
+                    <select v-model="filterForm.subject_id" @change="applyFilters" style="width:180px;">
+                        <option value="">All Subjects</option>
+                        <option v-for="s in subjects" :key="s.id" :value="s.id">{{ s.name }}</option>
+                    </select>
                 </div>
-            </div>
+                <div class="form-field">
+                    <label>Type</label>
+                    <select v-model="filterForm.type" @change="applyFilters" style="width:140px;">
+                        <option value="">All Types</option>
+                        <option value="pdf">PDF</option>
+                        <option value="ppt">PPT</option>
+                        <option value="video">Video</option>
+                        <option value="image">Image</option>
+                        <option value="doc">Document</option>
+                        <option value="link">Link</option>
+                    </select>
+                </div>
+            </FilterBar>
 
             <!-- Grouped by Chapter -->
             <div v-if="Object.keys(groupedMaterials).length > 0" class="space-y-6">

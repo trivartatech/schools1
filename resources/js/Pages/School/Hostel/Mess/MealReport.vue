@@ -5,6 +5,7 @@ import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const props = defineProps({
     hostels: Array, report: Array, filters: Object,
@@ -54,17 +55,15 @@ const messColor = (type) => ({ 'Veg': '#22c55e', 'Non-Veg': '#ef4444', 'Custom':
     </PageHeader>
 
     <!-- Filters -->
-    <div class="card" style="margin-bottom:16px;">
-        <div class="card-body" style="display:flex;gap:12px;align-items:flex-end;">
-            <div class="form-field" style="min-width:180px;">
-                <label>Hostel</label>
-                <select v-model="selHostel" @change="apply">
-                    <option value="">All Hostels</option>
-                    <option v-for="h in hostels" :key="h.id" :value="h.id">{{ h.name }}</option>
-                </select>
-            </div>
+    <FilterBar :active="!!selHostel" @clear="selHostel = ''; apply()">
+        <div class="form-field">
+            <label>Hostel</label>
+            <select v-model="selHostel" @change="apply" style="width:200px;">
+                <option value="">All Hostels</option>
+                <option v-for="h in hostels" :key="h.id" :value="h.id">{{ h.name }}</option>
+            </select>
         </div>
-    </div>
+    </FilterBar>
 
     <!-- Summary Cards -->
     <div class="stats-row" v-if="report.length">

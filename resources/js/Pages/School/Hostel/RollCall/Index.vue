@@ -5,6 +5,7 @@ import { ref, computed } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const props = defineProps({
     hostels: Array, students: Array, attendance: Object, stats: Object,
@@ -86,31 +87,26 @@ const statusBtns = [
     </PageHeader>
 
     <!-- Filters -->
-    <div class="card" style="margin-bottom:16px;">
-        <div class="card-body">
-            <div class="form-row form-row-4" style="align-items:flex-end;">
-                <div class="form-field">
-                    <label>Hostel</label>
-                    <select v-model="selHostel" @change="apply">
-                        <option value="">Select Hostel</option>
-                        <option v-for="h in hostels" :key="h.id" :value="h.id">{{ h.name }} ({{ h.type }})</option>
-                    </select>
-                </div>
-                <div class="form-field">
-                    <label>Date</label>
-                    <input type="date" v-model="selDate" @change="apply" />
-                </div>
-                <div class="form-field">
-                    <label>Slot</label>
-                    <select v-model="selSlot" @change="apply">
-                        <option value="night">Night Check</option>
-                        <option value="morning">Morning Check</option>
-                    </select>
-                </div>
-                <div></div>
-            </div>
+    <FilterBar :active="false">
+        <div class="form-field">
+            <label>Hostel</label>
+            <select v-model="selHostel" @change="apply" style="width:200px;">
+                <option value="">Select Hostel</option>
+                <option v-for="h in hostels" :key="h.id" :value="h.id">{{ h.name }} ({{ h.type }})</option>
+            </select>
         </div>
-    </div>
+        <div class="form-field">
+            <label>Date</label>
+            <input type="date" v-model="selDate" @change="apply" style="width:160px;" />
+        </div>
+        <div class="form-field">
+            <label>Slot</label>
+            <select v-model="selSlot" @change="apply" style="width:160px;">
+                <option value="night">Night Check</option>
+                <option value="morning">Morning Check</option>
+            </select>
+        </div>
+    </FilterBar>
 
     <template v-if="selHostel && students.length > 0">
         <!-- Stats -->

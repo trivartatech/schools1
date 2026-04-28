@@ -9,6 +9,7 @@ import { computed, ref, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 import Table from '@/Components/ui/Table.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend);
 
@@ -173,36 +174,31 @@ const barChartData = computed(() => {
             </PageHeader>
 
             <!-- Filters -->
-            <div class="card mb-6 print:hidden">
-                <div class="card-body flex flex-wrap gap-4 items-end">
-                    <div class="form-field">
-                        <label>From Date</label>
-                        <input type="date" v-model="filterForm.start_date" />
-                    </div>
-                    <div class="form-field">
-                        <label>To Date</label>
-                        <input type="date" v-model="filterForm.end_date" />
-                    </div>
-                    <div class="form-field">
-                        <label>Filter by Class</label>
-                        <select v-model="filterForm.class_id" @change="fetchSections" class="w-40">
-                            <option value="">All Classes</option>
-                            <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
-                        </select>
-                    </div>
-                    <div v-if="filterForm.class_id && sections.length > 0" class="form-field">
-                        <label>Filter by Section</label>
-                        <select v-model="filterForm.section_id" class="w-40">
-                            <option value="">All Sections</option>
-                            <option v-for="s in sections" :key="s.id" :value="s.id">{{ s.name }}</option>
-                        </select>
-                    </div>
-                    <Button size="sm" @click="fetchReport">🔍 Search</Button>
-                    <Button variant="secondary" size="sm" v-if="filterForm.start_date || filterForm.end_date || filterForm.class_id" @click="resetFilter">
-                        Clear Filters
-                    </Button>
+            <FilterBar class="print:hidden" :active="!!(filterForm.start_date || filterForm.end_date || filterForm.class_id || filterForm.section_id)" @clear="resetFilter">
+                <div class="form-field">
+                    <label>From Date</label>
+                    <input type="date" v-model="filterForm.start_date" style="width:160px;" />
                 </div>
-            </div>
+                <div class="form-field">
+                    <label>To Date</label>
+                    <input type="date" v-model="filterForm.end_date" style="width:160px;" />
+                </div>
+                <div class="form-field">
+                    <label>Class</label>
+                    <select v-model="filterForm.class_id" @change="fetchSections" style="width:160px;">
+                        <option value="">All Classes</option>
+                        <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+                    </select>
+                </div>
+                <div v-if="filterForm.class_id && sections.length > 0" class="form-field">
+                    <label>Section</label>
+                    <select v-model="filterForm.section_id" style="width:160px;">
+                        <option value="">All Sections</option>
+                        <option v-for="s in sections" :key="s.id" :value="s.id">{{ s.name }}</option>
+                    </select>
+                </div>
+                <Button size="sm" @click="fetchReport">Search</Button>
+            </FilterBar>
 
             <!-- KPI Cards -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">

@@ -4,6 +4,7 @@ import PageHeader from '@/Components/ui/PageHeader.vue';
 import { Head, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useConfirm } from '@/Composables/useConfirm';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const confirm = useConfirm();
 
@@ -296,22 +297,22 @@ const subjectsByClass = computed(() => {
                 <!-- ── Tab 2: Subject Incharge ── -->
                 <div v-if="activeTab === 'subject'" class="tab-content">
                     <!-- Filters -->
-                    <div class="subject-filters">
-                        <div class="form-field" style="min-width:160px;">
-                            <label>Filter by Class</label>
-                            <select v-model="selectedClass" @change="selectedSection = ''">
+                    <FilterBar :active="!!(selectedClass || selectedSection)" @clear="selectedClass = ''; selectedSection = ''">
+                        <div class="form-field">
+                            <label>Class</label>
+                            <select v-model="selectedClass" @change="selectedSection = ''" style="width:200px;">
                                 <option value="">All Classes</option>
                                 <option v-for="cls in classes" :key="cls.id" :value="cls.id">Class {{ cls.name }}</option>
                             </select>
                         </div>
-                        <div class="form-field" style="min-width:160px;">
-                            <label>Filter by Section</label>
-                            <select v-model="selectedSection" :disabled="!selectedClass">
+                        <div class="form-field">
+                            <label>Section</label>
+                            <select v-model="selectedSection" :disabled="!selectedClass" style="width:160px;">
                                 <option value="">All Sections</option>
                                 <option v-for="sec in sectionsForSelectedClass" :key="sec.id" :value="sec.id">{{ sec.name }}</option>
                             </select>
                         </div>
-                    </div>
+                    </FilterBar>
 
                     <div v-if="filteredClassSubjects.length === 0" class="empty-board">
                         No subjects found. Assign subjects to classes first via Academic Structure → Assign Subjects.
@@ -588,19 +589,6 @@ const subjectsByClass = computed(() => {
     letter-spacing: 0.05em;
 }
 .no-sections { font-size: 0.775rem; color: #cbd5e1; padding: 12px 16px; }
-
-/* ── Subject filters ── */
-.subject-filters {
-    display: flex;
-    gap: 12px;
-    align-items: flex-end;
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 12px 16px;
-    margin-bottom: 4px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-}
 
 /* ── Subjects grid ── */
 .subjects-grid {

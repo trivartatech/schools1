@@ -5,6 +5,7 @@ import Table from '@/Components/ui/Table.vue';
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const props = defineProps({
     report: Array,
@@ -78,18 +79,22 @@ const pct = (v, total) => total > 0 ? Math.round((v / total) * 100) : 0;
             <div class="stat-card stat-amber"><div class="stat-label">Total Late Days</div><div class="stat-value">{{ summary.total_late }}</div></div>
         </div>
 
-        <div class="card">
-            <div class="toolbar">
-                <input v-model="search" type="text" placeholder="Search staff..." class="search-input" />
-                <div class="legend">
-                    <span class="legend-item"><span class="legend-dot" style="background:#22c55e;"></span>Present</span>
-                    <span class="legend-item"><span class="legend-dot" style="background:#ef4444;"></span>Absent</span>
-                    <span class="legend-item"><span class="legend-dot" style="background:#eab308;"></span>Late</span>
-                    <span class="legend-item"><span class="legend-dot" style="background:#f97316;"></span>Half Day</span>
-                    <span class="legend-item"><span class="legend-dot" style="background:#3b82f6;"></span>Leave</span>
-                    <span class="legend-item"><span class="legend-dot" style="background:#6366f1;"></span>Holiday</span>
-                </div>
+        <FilterBar :active="!!search" @clear="search = ''">
+            <div class="fb-search">
+                <svg class="fb-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/></svg>
+                <input v-model="search" type="search" placeholder="Search staff..." />
             </div>
+            <div class="legend">
+                <span class="legend-item"><span class="legend-dot" style="background:#22c55e;"></span>Present</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#ef4444;"></span>Absent</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#eab308;"></span>Late</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#f97316;"></span>Half Day</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#3b82f6;"></span>Leave</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#6366f1;"></span>Holiday</span>
+            </div>
+        </FilterBar>
+
+        <div class="card">
 
             <Table class="report-table">
                 <thead>
@@ -140,9 +145,6 @@ const pct = (v, total) => total > 0 ? Math.round((v / total) * 100) : 0;
 .stat-red   { border-left:4px solid #ef4444; }
 .stat-amber { border-left:4px solid #f59e0b; }
 
-.toolbar { display:flex; flex-wrap:wrap; gap:12px; align-items:center; padding:14px 18px; border-bottom:1px solid #f1f5f9; }
-.search-input { border:1.5px solid #e2e8f0; border-radius:8px; padding:7px 12px; font-size:.84rem; outline:none; font-family:inherit; min-width:180px; }
-.search-input:focus { border-color:#6366f1; }
 .legend { display:flex; gap:12px; flex-wrap:wrap; margin-left:auto; }
 .legend-item { display:flex; align-items:center; gap:4px; font-size:.72rem; color:#64748b; font-weight:500; }
 .legend-dot { width:10px; height:10px; border-radius:50%; }

@@ -6,6 +6,7 @@ import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
 import StatementsTabNav from '@/Components/finance/StatementsTabNav.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const props = defineProps({
     rows       : Array,
@@ -54,15 +55,13 @@ const fmtCur = (n) => '₹' + fmt(n);
         </PageHeader>
 
         <!-- Filter -->
-        <div class="card" style="margin-bottom:16px;">
-            <div class="card-body" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
-                <div>
-                    <label class="filter-label">As of Date</label>
-                    <input type="date" v-model="asOf" class="filter-input" />
-                </div>
-                <Button size="sm" @click="apply">Apply</Button>
+        <FilterBar :active="false">
+            <div class="form-field">
+                <label>As of Date</label>
+                <input type="date" v-model="asOf" style="width:160px;" />
             </div>
-        </div>
+            <Button size="sm" @click="apply">Apply</Button>
+        </FilterBar>
 
         <!-- Balance status banner -->
         <div class="balance-banner" :class="isBalanced ? 'banner-ok' : 'banner-err'">
@@ -115,14 +114,6 @@ const fmtCur = (n) => '₹' + fmt(n);
 .banner-ok  { background: #d1fae5; color: #065f46; }
 .banner-err { background: #fee2e2; color: #991b1b; }
 
-.filter-label { display:block;font-size:0.78rem;font-weight:600;color:#374151;margin-bottom:4px; }
-.filter-input {
-    border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 12px;
-    font-size:0.84rem;outline:none;font-family:inherit;color:#1e293b;
-    transition:border-color 0.15s;
-}
-.filter-input:focus { border-color:#6366f1; }
-
 .totals-row td { background:#f1f5f9;font-weight:700;border-top:2px solid #e2e8f0; }
 .font-bold  { font-weight:700; }
 .font-medium { font-weight:500; }
@@ -139,6 +130,6 @@ const fmtCur = (n) => '₹' + fmt(n);
 }
 
 @media print {
-    .btn, .filter-input, .card:first-of-type { display:none; }
+    .btn, .fb { display:none; }
 }
 </style>

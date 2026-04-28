@@ -5,6 +5,7 @@ import { ref, computed } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const school = useSchoolStore();
 
@@ -116,13 +117,12 @@ const updateStatus = (complaint, newStatus) => {
         </div>
         </Transition>
 
-        <!-- STATUS TABS -->
-        <div class="tab-bar">
-            <button v-for="tab in tabs" :key="tab" @click="activeTab = tab"
-                    class="tab-item" :class="{ 'tab-active': activeTab === tab }">
-                {{ tab }}
-            </button>
-        </div>
+        <!-- STATUS FILTER -->
+        <FilterBar :active="activeTab !== 'All'" @clear="activeTab = 'All'">
+            <select v-model="activeTab" style="width:180px;">
+                <option v-for="tab in tabs" :key="tab" :value="tab">{{ tab }}</option>
+            </select>
+        </FilterBar>
 
         <!-- COMPLAINT LIST -->
         <div style="display: flex; flex-direction: column; gap: 1rem;">
@@ -203,30 +203,3 @@ const updateStatus = (complaint, newStatus) => {
     </SchoolLayout>
 </template>
 
-<style scoped>
-/* Tab bar */
-.tab-bar {
-    display: flex;
-    border-bottom: 2px solid var(--border);
-    margin-bottom: 1.5rem;
-    font-size: .875rem;
-    font-weight: 500;
-    gap: .25rem;
-}
-.tab-item {
-    padding: .75rem 1.25rem;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-    background: none;
-    border-top: none;
-    border-left: none;
-    border-right: none;
-    cursor: pointer;
-    color: var(--text-muted);
-    transition: color .15s;
-}
-.tab-active {
-    border-bottom-color: var(--accent);
-    color: var(--accent);
-}
-</style>

@@ -7,6 +7,7 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useDelete } from '@/Composables/useDelete';
 import { useConfirm } from '@/Composables/useConfirm';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const school = useSchoolStore();
 const confirm = useConfirm();
@@ -272,29 +273,28 @@ const statusBadge = (status) => {
             </PageHeader>
 
             <!-- Student search -->
-            <div class="card">
-                <div class="card-body">
-                    <div class="flex gap-3 flex-wrap">
-                        <select v-model="selectedClassId" @change="selectedSectionId=''" class="rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500 w-36">
-                            <option value="">All Classes</option>
-                            <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
-                        </select>
-                        <select v-model="selectedSectionId" :disabled="!selectedClassId" class="rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500 w-36 disabled:bg-gray-100 disabled:text-gray-400">
-                            <option value="">All Sections</option>
-                            <option v-for="s in sections" :key="s.id" :value="s.id">{{ s.name }}</option>
-                        </select>
-                        <input v-model="searchQuery" @keyup.enter="search" type="text"
-                               placeholder="Search by name or admission number..."
-                               class="flex-1 rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500 min-w-[200px]">
-                        <Button variant="success" @click="search">Search</Button>
-                    </div>
-                    <div v-if="students?.length" class="mt-3 divide-y rounded-lg overflow-hidden" style="border: 1px solid var(--border)">
-                        <button v-for="s in students" :key="s.id" @click="selectStudent(s.id)"
-                                class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-green-50 text-left transition">
-                            <span class="text-sm font-medium" style="color: var(--text-primary)">{{ s.first_name }} {{ s.last_name }}</span>
-                            <span class="text-xs" style="color: var(--text-muted)">{{ s.admission_no }} · Roll {{ s.roll_no }}</span>
-                        </button>
-                    </div>
+            <FilterBar :active="!!(searchQuery || selectedClassId || selectedSectionId)" @clear="searchQuery = ''; selectedClassId = ''; selectedSectionId = ''; search()">
+                <div class="fb-search">
+                    <svg class="fb-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/></svg>
+                    <input v-model="searchQuery" @keyup.enter="search" type="search" placeholder="Search by name or admission number...">
+                </div>
+                <select v-model="selectedClassId" @change="selectedSectionId=''" style="width:160px;">
+                    <option value="">All Classes</option>
+                    <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </select>
+                <select v-model="selectedSectionId" :disabled="!selectedClassId" style="width:140px;">
+                    <option value="">All Sections</option>
+                    <option v-for="s in sections" :key="s.id" :value="s.id">{{ s.name }}</option>
+                </select>
+                <Button variant="success" @click="search">Search</Button>
+            </FilterBar>
+            <div v-if="students?.length" class="card mb-4">
+                <div class="divide-y rounded-lg overflow-hidden" style="border: 1px solid var(--border)">
+                    <button v-for="s in students" :key="s.id" @click="selectStudent(s.id)"
+                            class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-green-50 text-left transition">
+                        <span class="text-sm font-medium" style="color: var(--text-primary)">{{ s.first_name }} {{ s.last_name }}</span>
+                        <span class="text-xs" style="color: var(--text-muted)">{{ s.admission_no }} · Roll {{ s.roll_no }}</span>
+                    </button>
                 </div>
             </div>
 

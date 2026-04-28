@@ -6,6 +6,7 @@ import { router, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const school = useSchoolStore();
 
@@ -113,19 +114,17 @@ const fmtCur = (n) => '₹' + fmt(n);
         </div>
 
         <!-- Date filter -->
-        <div class="card" style="margin-bottom:16px;">
-            <div class="card-body" style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
-                <div>
-                    <label class="filter-label">From</label>
-                    <input type="date" v-model="from" class="filter-input" />
-                </div>
-                <div>
-                    <label class="filter-label">To</label>
-                    <input type="date" v-model="to" class="filter-input" />
-                </div>
-                <Button size="sm" @click="applyFilter">Apply</Button>
+        <FilterBar :active="false">
+            <div class="form-field">
+                <label>From</label>
+                <input type="date" v-model="from" style="width:160px;" />
             </div>
-        </div>
+            <div class="form-field">
+                <label>To</label>
+                <input type="date" v-model="to" style="width:160px;" />
+            </div>
+            <Button size="sm" @click="applyFilter">Apply</Button>
+        </FilterBar>
 
         <!-- Ledger Book table -->
         <div class="card overflow-hidden">
@@ -219,14 +218,6 @@ const fmtCur = (n) => '₹' + fmt(n);
 .banner-label { font-size: 0.72rem; color: rgba(255,255,255,0.7); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
 .banner-value { font-size: 1.2rem; font-weight: 800; color: #fff; margin-top: 4px; }
 .dr-cr        { font-size: 0.68rem; font-weight: 700; margin-left: 3px; opacity: 0.7; }
-
-.filter-label  { display: block; font-size: 0.78rem; font-weight: 600; color: #374151; margin-bottom: 4px; }
-.filter-input  {
-    border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 7px 12px;
-    font-size: 0.84rem; outline: none; font-family: inherit; color: #1e293b;
-    transition: border-color 0.15s;
-}
-.filter-input:focus { border-color: #6366f1; }
 
 .opening-row td { background: #f8fafc; color: #64748b; font-style: italic; }
 .totals-row td  { background: #f1f5f9; font-weight: 700; border-top: 2px solid #e2e8f0; }

@@ -6,6 +6,7 @@ import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
 import { useConfirm } from '@/Composables/useConfirm';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const confirm = useConfirm();
 
@@ -143,18 +144,21 @@ const fmt = (n) => String(n).padStart(2, '0');
             <div class="stat-card stat-amber"><div class="stat-label">Unmarked</div><div class="stat-value">{{ summary.unmarked }}</div></div>
         </div>
 
-        <div class="card">
-            <!-- Toolbar -->
-            <div class="toolbar">
-                <input type="date" v-model="selectedDate" @change="changeDate" class="date-input" />
-                <input v-model="search" type="text" placeholder="Search staff..." class="search-input" />
-                <div class="mark-all-group">
-                    <span class="mark-all-label">Mark All:</span>
-                    <button v-for="opt in statusOptions.slice(0, 4)" :key="opt.value"
-                            class="mark-all-btn" :style="{ background: opt.active, color: '#fff' }"
-                            @click="markAll(opt.value)">{{ opt.label }}</button>
-                </div>
+        <FilterBar :active="!!search" @clear="search = ''">
+            <input type="date" v-model="selectedDate" @change="changeDate" style="width:160px;" />
+            <div class="fb-search">
+                <svg class="fb-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/></svg>
+                <input v-model="search" type="search" placeholder="Search staff..." />
             </div>
+            <div class="mark-all-group">
+                <span class="mark-all-label">Mark All:</span>
+                <button v-for="opt in statusOptions.slice(0, 4)" :key="opt.value"
+                        class="mark-all-btn" :style="{ background: opt.active, color: '#fff' }"
+                        @click="markAll(opt.value)">{{ opt.label }}</button>
+            </div>
+        </FilterBar>
+
+        <div class="card">
 
             <!-- Table -->
             <Table class="att-table" size="sm" :empty="filtered.length === 0" empty-text="No staff found.">
@@ -236,11 +240,7 @@ const fmt = (n) => String(n).padStart(2, '0');
 .stat-blue  { border-left:4px solid #3b82f6; }
 .stat-amber { border-left:4px solid #f59e0b; }
 
-.toolbar { display:flex; flex-wrap:wrap; gap:12px; align-items:center; padding:14px 18px; border-bottom:1px solid #f1f5f9; }
-.date-input, .search-input { border:1.5px solid #e2e8f0; border-radius:8px; padding:7px 12px; font-size:.84rem; outline:none; font-family:inherit; }
-.date-input:focus, .search-input:focus { border-color:#6366f1; }
-.search-input { flex:1; min-width:180px; }
-.mark-all-group { display:flex; align-items:center; gap:6px; margin-left:auto; }
+.mark-all-group { display:flex; align-items:center; gap:6px; }
 .mark-all-label { font-size:.75rem; font-weight:600; color:#64748b; }
 .mark-all-btn { border:none; border-radius:6px; padding:5px 10px; font-size:.72rem; font-weight:700; cursor:pointer; transition:opacity .15s; }
 .mark-all-btn:hover { opacity:.85; }

@@ -18,6 +18,7 @@ import EmptyState from '@/Components/ui/EmptyState.vue';
 import Button from '@/Components/ui/Button.vue';
 import Table from '@/Components/ui/Table.vue';
 import SortableTh from '@/Components/ui/SortableTh.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 import { useConfirm } from '@/Composables/useConfirm';
 import { useToast } from '@/Composables/useToast';
 import { useTableSort } from '@/Composables/useTableSort';
@@ -61,6 +62,20 @@ async function tryConfirmCustom() {
         cancelLabel: 'Review again',
     });
     toast[ok ? 'success' : 'info'](ok ? 'Submitted' : 'Returned to review');
+}
+
+// ── FilterBar demo state ─────────────────────────────────────────
+const fbSearch = ref('');
+const fbClass = ref('');
+const fbStatus = ref('');
+const fbHouse = ref('');
+const fbDefaulter = ref('');
+const fbActive = computed(() =>
+    !!(fbSearch.value || fbClass.value || fbStatus.value || fbHouse.value || fbDefaulter.value)
+);
+function fbClear() {
+    fbSearch.value = ''; fbClass.value = ''; fbStatus.value = '';
+    fbHouse.value = ''; fbDefaulter.value = '';
 }
 
 // ── Sortable Table demo ─────────────────────────────────────────
@@ -211,6 +226,52 @@ const sortedStudents = computed(() => sortRows(sampleStudents.value));
                 description="No activity yet today."
             />
         </div>
+
+        <!-- ─── FilterBar — canonical single-row filter pattern ─────────── -->
+        <h2 class="section-heading">FilterBar — search + filters in one row</h2>
+        <p style="font-size:0.8rem;color:var(--text-muted);margin:-6px 0 8px;">
+            Always one row. Overflows horizontally on narrow screens (drag to scroll).
+            Clear button appears when any filter is active.
+        </p>
+        <FilterBar :active="fbActive" @clear="fbClear">
+            <div class="fb-search">
+                <svg class="fb-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/></svg>
+                <input v-model="fbSearch" type="search" placeholder="Search by name or admission no...">
+            </div>
+            <select v-model="fbClass" style="width:160px;">
+                <option value="">All Classes</option>
+                <option value="6">Grade 6</option>
+                <option value="7">Grade 7</option>
+                <option value="8">Grade 8</option>
+                <option value="9">Grade 9</option>
+                <option value="10">Grade 10</option>
+            </select>
+            <select v-model="fbStatus" style="width:140px;">
+                <option value="">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+            </select>
+            <select v-model="fbHouse" style="width:140px;">
+                <option value="">All Houses</option>
+                <option value="red">Red</option>
+                <option value="blue">Blue</option>
+                <option value="green">Green</option>
+                <option value="yellow">Yellow</option>
+            </select>
+            <select v-model="fbDefaulter" style="width:160px;">
+                <option value="">All Students</option>
+                <option value="1">Defaulters Only</option>
+                <option value="0">Non-Defaulters</option>
+            </select>
+        </FilterBar>
+
+        <h2 class="section-heading">FilterBar — minimal (one search input)</h2>
+        <FilterBar :active="!!fbSearch" @clear="fbSearch = ''">
+            <div class="fb-search">
+                <svg class="fb-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/></svg>
+                <input v-model="fbSearch" type="search" placeholder="Search...">
+            </div>
+        </FilterBar>
 
         <!-- ─── Table — sortable columns ─────────────────────────────────── -->
         <h2 class="section-heading">Table with sortable columns</h2>

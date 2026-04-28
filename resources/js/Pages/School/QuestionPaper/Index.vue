@@ -5,6 +5,7 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import Table from '@/Components/ui/Table.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 import axios from 'axios';
 import { useSchoolStore } from '@/stores/useSchoolStore';
 import { useConfirm } from '@/Composables/useConfirm';
@@ -82,25 +83,23 @@ const DIFFICULTY_LABEL = {
         </PageHeader>
 
         <!-- Filters -->
-        <div class="card" style="margin-bottom:20px;">
-            <div class="card-body" style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px;">
-                <div style="flex:1;min-width:150px;">
-                    <label>Class</label>
-                    <select v-model="classId">
-                        <option value="">All Classes</option>
-                        <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
-                    </select>
-                </div>
-                <div style="flex:1;min-width:150px;">
-                    <label>Subject</label>
-                    <select v-model="subjectId" :disabled="!subjects.length">
-                        <option value="">All Subjects</option>
-                        <option v-for="s in subjects" :key="s.id" :value="s.id">{{ s.name }}</option>
-                    </select>
-                </div>
-                <Button variant="secondary" @click="applyFilter">Filter</Button>
+        <FilterBar :active="!!(classId || subjectId)" @clear="classId = ''; subjectId = ''; applyFilter()">
+            <div class="form-field">
+                <label>Class</label>
+                <select v-model="classId" style="width:160px;">
+                    <option value="">All Classes</option>
+                    <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </select>
             </div>
-        </div>
+            <div class="form-field">
+                <label>Subject</label>
+                <select v-model="subjectId" :disabled="!subjects.length" style="width:180px;">
+                    <option value="">All Subjects</option>
+                    <option v-for="s in subjects" :key="s.id" :value="s.id">{{ s.name }}</option>
+                </select>
+            </div>
+            <Button variant="secondary" @click="applyFilter">Filter</Button>
+        </FilterBar>
 
         <!-- Papers Table -->
         <div class="card" style="overflow:hidden;">

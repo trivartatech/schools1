@@ -5,6 +5,7 @@ import { ref, watch } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const school = useSchoolStore();
 
@@ -97,21 +98,12 @@ const barColors = [
         </PageHeader>
 
         <!-- Date Picker -->
-        <div class="card mb-6">
-            <div class="card-body" style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
-                <div class="form-field" style="margin-bottom: 0;">
-                    <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted);">Report Date</label>
-                    <input
-                        type="date"
-                        v-model="selectedDate"
-                        style="width: 14rem;"
-                    />
-                </div>
-                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 1.25rem;">
-                    Select a date to view the front office activity summary.
-                </div>
+        <FilterBar :active="false">
+            <div class="form-field">
+                <label>Report Date</label>
+                <input type="date" v-model="selectedDate" style="width:200px;" />
             </div>
-        </div>
+        </FilterBar>
 
         <!-- ── Day's Fee Collection (Tuition + Transport + Hostel) ── -->
         <div class="card mb-4">

@@ -8,6 +8,7 @@ import PageHeader from '@/Components/ui/PageHeader.vue';
 import Tabs from '@/Components/ui/Tabs.vue';
 import EmptyState from '@/Components/ui/EmptyState.vue';
 import Table from '@/Components/ui/Table.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const props = defineProps({
     users: { type: Array, default: () => [] },
@@ -189,23 +190,22 @@ const formatDuration = (minutes) => {
             <!-- Users Tab -->
             <template #tab-users>
                 <!-- Filters -->
-                <div class="filters-row">
-                    <div class="search-wrap">
-                        <svg class="search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <FilterBar :active="!!(searchQuery || filterType)" @clear="searchQuery = ''; filterType = ''">
+                    <div class="fb-search">
+                        <svg class="fb-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                         </svg>
                         <input
                             v-model="searchQuery"
                             type="search"
-                            class="search-input"
                             placeholder="Search by name, email, or role…"
                             id="user-search-input" />
                     </div>
-                    <select v-model="filterType" class="type-filter" id="user-type-filter">
+                    <select v-model="filterType" id="user-type-filter" style="width:160px;">
                         <option value="">All Roles</option>
                         <option v-for="t in availableTypes" :key="t" :value="t">{{ labelFor(t) }}</option>
                     </select>
-                </div>
+                </FilterBar>
 
                 <!-- User Grid -->
                 <div v-if="filteredUsers.length > 0" class="user-grid">
@@ -359,42 +359,6 @@ const formatDuration = (minutes) => {
 .security-card-icon svg { width: 18px; height: 18px; color: #fff; }
 .security-card-title { font-size: 0.875rem; font-weight: 700; color: #4c1d95; margin-bottom: 3px; }
 .security-card-text { font-size: 0.8rem; color: #5b21b6; line-height: 1.5; }
-
-/* ── Filters ── */
-.filters-row {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-}
-.search-wrap { position: relative; flex: 1; min-width: 200px; }
-.search-icon {
-    position: absolute;
-    left: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 16px;
-    height: 16px;
-    color: #94a3b8;
-    pointer-events: none;
-}
-.search-input {
-    width: 100%;
-    padding: 9px 12px 9px 36px !important;
-    border-radius: 9px !important;
-    border: 1.5px solid #e2e8f0 !important;
-    font-size: 0.875rem;
-}
-.type-filter {
-    padding: 9px 12px;
-    border-radius: 9px;
-    border: 1.5px solid #e2e8f0;
-    font-size: 0.875rem;
-    color: #374151;
-    background: #fff;
-    min-width: 160px;
-    cursor: pointer;
-}
 
 /* ── User Grid ── */
 .user-grid {

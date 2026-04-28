@@ -8,6 +8,7 @@ import { usePermissions } from '@/Composables/usePermissions';
 import { useToast } from '@/Composables/useToast';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const { can } = usePermissions();
 const toast = useToast();
@@ -279,11 +280,18 @@ const filteredVisitors = computed(() => {
         </div>
         </Transition>
 
+        <!-- Filters -->
+        <FilterBar :active="!!searchLog" @clear="searchLog = ''">
+            <div class="fb-search">
+                <svg class="fb-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/></svg>
+                <input v-model="searchLog" type="search" placeholder="Search visitors..." />
+            </div>
+        </FilterBar>
+
         <!-- VISITOR LIST TABLE -->
         <div class="card">
             <div class="card-header" style="display: flex; align-items: center; justify-content: space-between;">
                 <h3 class="card-title">Today's Visitors</h3>
-                <input v-model="searchLog" type="text" placeholder="Search visitors..." style="width: 16rem;">
             </div>
             <div class="card-body" style="padding: 0;">
                 <div style="overflow-x: auto;">

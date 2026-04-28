@@ -5,6 +5,7 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import Table from '@/Components/ui/Table.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const props = defineProps({ defaulters: Array });
 
@@ -55,12 +56,12 @@ function fmt(n) {
             </div>
         </div>
 
-        <div class="card" style="margin-bottom: 1rem;">
-            <div class="card-body" style="padding: 0.75rem 1rem;">
-                <input v-model="search" type="text" placeholder="Search by name or admission no…"
-                       style="width: 100%; max-width: 24rem; border: 1px solid var(--border, #e5e7eb); border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.875rem;" />
+        <FilterBar :active="!!search" @clear="search = ''">
+            <div class="fb-search">
+                <svg class="fb-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/></svg>
+                <input v-model="search" type="search" placeholder="Search by name or admission no…" />
             </div>
-        </div>
+        </FilterBar>
 
         <div class="card">
             <div style="overflow-x:auto;">

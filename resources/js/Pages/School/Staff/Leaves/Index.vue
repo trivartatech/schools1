@@ -8,6 +8,7 @@ import { useDelete } from '@/Composables/useDelete';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
 import { useConfirm } from '@/Composables/useConfirm';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const school = useSchoolStore();
 const confirm = useConfirm();
@@ -188,26 +189,24 @@ const rejected = computed(() => (props.leaves?.data || []).filter(l => l.status 
         </div>
 
         <!-- Filters -->
-        <div class="card" style="margin-bottom:20px;">
-            <div class="card-body" style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;">
-                <div class="form-field" style="min-width:160px;">
-                    <label>Filter by Status</label>
-                    <select v-model="statusFilter" @change="applyFilters">
-                        <option value="">All Statuses</option>
-                        <option value="pending">Pending</option>
-                        <option value="approved">Approved</option>
-                        <option value="rejected">Rejected</option>
-                    </select>
-                </div>
-                <div class="form-field" style="min-width:160px;">
-                    <label>Filter by Type</label>
-                    <select v-model="typeFilter" @change="applyFilters">
-                        <option value="">All Types</option>
-                        <option v-for="lt in leaveTypes" :key="lt.id" :value="lt.id">{{ lt.name }}</option>
-                    </select>
-                </div>
+        <FilterBar :active="!!(statusFilter || typeFilter)" @clear="statusFilter = ''; typeFilter = ''; applyFilters()">
+            <div class="form-field">
+                <label>Status</label>
+                <select v-model="statusFilter" @change="applyFilters" style="width:160px;">
+                    <option value="">All Statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                </select>
             </div>
-        </div>
+            <div class="form-field">
+                <label>Type</label>
+                <select v-model="typeFilter" @change="applyFilters" style="width:180px;">
+                    <option value="">All Types</option>
+                    <option v-for="lt in leaveTypes" :key="lt.id" :value="lt.id">{{ lt.name }}</option>
+                </select>
+            </div>
+        </FilterBar>
 
         <!-- Leave Table -->
         <div class="card">

@@ -6,6 +6,7 @@ import { Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const school = useSchoolStore();
 
@@ -83,21 +84,14 @@ function formatCurrency(value) {
         </div>
 
         <!-- Search / Filter -->
-        <div class="card" style="margin-bottom: 1rem;">
-            <div class="card-body" style="padding: 0.75rem 1rem;">
-                <div class="search-bar">
-                    <svg class="w-4 h-4 search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                    </svg>
-                    <input
-                        v-model="search"
-                        type="text"
-                        placeholder="Search by student name..."
-                        class="search-input"
-                    />
-                </div>
+        <FilterBar :active="!!search" @clear="search = ''">
+            <div class="fb-search">
+                <svg class="fb-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                <input v-model="search" type="search" placeholder="Search by student name..." />
             </div>
-        </div>
+        </FilterBar>
 
         <!-- Defaulters Table -->
         <div class="card">
@@ -210,36 +204,6 @@ function formatCurrency(value) {
     font-size: 1.25rem;
     font-weight: 700;
     color: #111827;
-}
-
-.search-bar {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-.search-icon {
-    position: absolute;
-    left: 0.75rem;
-    color: #9ca3af;
-    pointer-events: none;
-}
-.search-input {
-    width: 100%;
-    max-width: 20rem;
-    padding: 0.5rem 0.75rem 0.5rem 2.25rem;
-    border: 1px solid var(--border, #e5e7eb);
-    border-radius: 0.375rem;
-    font-size: 0.875rem;
-    background: var(--surface, #fff);
-    color: var(--text-primary, #111827);
-    outline: none;
-    transition: border-color 0.15s;
-}
-.search-input:focus {
-    border-color: var(--accent, #6366f1);
-}
-.search-input::placeholder {
-    color: #9ca3af;
 }
 
 .empty-state {

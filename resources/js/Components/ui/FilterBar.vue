@@ -49,14 +49,25 @@ defineEmits(['clear'])
     border-radius: 14px;
     padding: 10px 16px;
     margin-bottom: 20px;
+    /* Single-row design: when filters overflow on narrow screens,
+       scroll horizontally instead of wrapping to multiple rows. */
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .fb-row {
     display: flex;
     align-items: center;
     gap: 10px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;          /* enforce single row */
     min-height: 38px;
+    width: max-content;          /* let the row size to its contents so overflow-x scrolls cleanly */
+    min-width: 100%;             /* but always fill the container */
+}
+
+/* Inputs and selects must not shrink below their natural width */
+.fb-row :deep(> *) {
+    flex-shrink: 0;
 }
 
 /* ── Normalize every input & select inside the bar ─────────── */

@@ -4,6 +4,7 @@ import { Link, router, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
 import { useConfirm } from '@/Composables/useConfirm';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const confirm = useConfirm();
 
@@ -125,30 +126,28 @@ const channelBadge = (channel) => ({
         </div>
 
         <!-- Date + mode picker -->
-        <div class="card mb-3">
-            <div class="card-body" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
-                <div>
-                    <label class="dmr-label">Date</label>
-                    <input v-model="selectedDate" type="date" class="dmr-input" />
-                </div>
-                <div>
-                    <label class="dmr-label">Mode</label>
-                    <select v-model="selectedMode" class="dmr-input">
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly digest</option>
-                    </select>
-                </div>
-                <div style="margin-left:auto;font-size:.8125rem;color:#64748b;">
-                    <template v-if="admin_contacts.length === 0">
-                        ⚠ No admin numbers configured —
-                        <Link href="/school/settings/admin-contacts">add at Admin Numbers settings</Link>
-                    </template>
-                    <template v-else-if="lastSentAtLabel">
-                        Last sent: {{ lastSentAtLabel }}
-                    </template>
-                </div>
+        <FilterBar :active="false">
+            <div class="form-field">
+                <label>Date</label>
+                <input v-model="selectedDate" type="date" style="width:160px;" />
             </div>
-        </div>
+            <div class="form-field">
+                <label>Mode</label>
+                <select v-model="selectedMode" style="width:160px;">
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly digest</option>
+                </select>
+            </div>
+            <div style="margin-left:auto;font-size:.8125rem;color:#64748b;">
+                <template v-if="admin_contacts.length === 0">
+                    ⚠ No admin numbers configured —
+                    <Link href="/school/settings/admin-contacts">add at Admin Numbers settings</Link>
+                </template>
+                <template v-else-if="lastSentAtLabel">
+                    Last sent: {{ lastSentAtLabel }}
+                </template>
+            </div>
+        </FilterBar>
 
         <!-- KPI strip -->
         <div class="kpi-strip">
@@ -561,9 +560,6 @@ const channelBadge = (channel) => ({
 .dmr-title { font-size: 1.5rem; font-weight: 700; color: #0f172a; margin: 0; }
 .dmr-sub { color: #64748b; margin: 4px 0 0; font-size: .9rem; }
 .dmr-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-
-.dmr-label { font-size: .75rem; color: #475569; font-weight: 500; display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .04em; }
-.dmr-input { padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: .875rem; min-width: 130px; }
 
 .kpi-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
 .kpi-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; }

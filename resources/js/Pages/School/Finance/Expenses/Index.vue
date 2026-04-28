@@ -9,6 +9,7 @@ import debounce from 'lodash/debounce';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
 import { useConfirm } from '@/Composables/useConfirm';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const school = useSchoolStore();
 const confirm = useConfirm();
@@ -235,28 +236,23 @@ const formatCurrency = (amount) => {
         <div v-if="activeTab === 'list'" class="space-y-6">
 
             <!-- Filters -->
-            <div class="card">
-                <div class="card-body flex flex-wrap gap-4 items-end">
-                    <div class="w-full sm:w-auto">
-                        <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary)">Category</label>
-                        <select v-model="filterForm.category_id" @change="fetchFiltered" class="rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500 w-48">
-                            <option value="">All Categories</option>
-                            <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-                        </select>
-                    </div>
-                    <div class="w-full sm:w-auto">
-                        <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary)">From Date</label>
-                        <input type="date" v-model="filterForm.from_date" @change="fetchFiltered" class="rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                    </div>
-                    <div class="w-full sm:w-auto">
-                        <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary)">To Date</label>
-                        <input type="date" v-model="filterForm.to_date" @change="fetchFiltered" class="rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500" />
-                    </div>
-                    <Button variant="secondary" size="sm" @click="resetFilters" v-if="filterForm.category_id || filterForm.from_date || filterForm.to_date">
-                        Clear Filters
-                    </Button>
+            <FilterBar :active="!!(filterForm.category_id || filterForm.from_date || filterForm.to_date)" @clear="resetFilters">
+                <div class="form-field">
+                    <label>Category</label>
+                    <select v-model="filterForm.category_id" @change="fetchFiltered" style="width:200px;">
+                        <option value="">All Categories</option>
+                        <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+                    </select>
                 </div>
-            </div>
+                <div class="form-field">
+                    <label>From Date</label>
+                    <input type="date" v-model="filterForm.from_date" @change="fetchFiltered" style="width:160px;" />
+                </div>
+                <div class="form-field">
+                    <label>To Date</label>
+                    <input type="date" v-model="filterForm.to_date" @change="fetchFiltered" style="width:160px;" />
+                </div>
+            </FilterBar>
 
             <!-- Table -->
             <div class="card overflow-hidden">

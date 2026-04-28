@@ -5,6 +5,7 @@ import { router, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref, computed } from 'vue';
 import Table from '@/Components/ui/Table.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const props = defineProps({
     scores:  Array,   // [{ class_name, subject_name, syllabus_pct, grading_pct, avg_marks, diary_week, health_score, total_topics, total_assignments }]
@@ -61,20 +62,15 @@ const pctBar = (val) => (val === null || val === undefined) ? 0 : Math.min(val, 
         </div>
 
         <!-- Filter -->
-        <div class="card mb-6">
-            <div class="card-body">
-                <div class="flex gap-4 items-end">
-                    <div class="form-field min-w-[180px]">
-                        <label>Filter by Class</label>
-                        <select v-model="filterForm.class_id" @change="applyFilters">
-                            <option value="">All Classes</option>
-                            <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
-                        </select>
-                    </div>
-                    <Button variant="secondary" size="sm" @click="filterForm.class_id = ''; applyFilters()">Reset</Button>
-                </div>
+        <FilterBar :active="!!filterForm.class_id" @clear="filterForm.class_id = ''; applyFilters()">
+            <div class="form-field">
+                <label>Class</label>
+                <select v-model="filterForm.class_id" @change="applyFilters" style="width:200px;">
+                    <option value="">All Classes</option>
+                    <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </select>
             </div>
-        </div>
+        </FilterBar>
 
         <!-- Score table -->
         <div class="card overflow-hidden">

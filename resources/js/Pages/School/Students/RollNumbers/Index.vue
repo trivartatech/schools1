@@ -4,6 +4,7 @@ import Modal from '@/Components/ui/Modal.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import EmptyState from '@/Components/ui/EmptyState.vue';
 import Table from '@/Components/ui/Table.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref, computed, watch } from 'vue';
@@ -226,36 +227,32 @@ const doPrint = () => {
             </PageHeader>
 
             <!-- ── Filters ── -->
-            <div class="card mb-6">
-                <div class="card-body">
-                    <div class="flex gap-4 flex-wrap items-end">
-                        <div class="form-field min-w-[180px]">
-                            <label>Academic Year</label>
-                            <select v-model="filters.academic_year_id" @change="applyFilters">
-                                <option value="">— Select year —</option>
-                                <option v-for="y in academicYears" :key="y.id" :value="y.id">
-                                    {{ y.name }}{{ y.is_current ? ' (Current)' : '' }}
-                                </option>
-                            </select>
-                        </div>
-                        <div class="form-field min-w-[150px]">
-                            <label>Class</label>
-                            <select v-model="filters.class_id" :disabled="!filters.academic_year_id">
-                                <option value="">— Select class —</option>
-                                <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
-                            </select>
-                        </div>
-                        <div class="form-field min-w-[140px]">
-                            <label>Section</label>
-                            <select v-model="filters.section_id" @change="applyFilters"
-                                    :disabled="!filters.class_id || sections.length === 0">
-                                <option value="">All Sections</option>
-                                <option v-for="s in sections" :key="s.id" :value="s.id">{{ s.name }}</option>
-                            </select>
-                        </div>
-                    </div>
+            <FilterBar :active="!!(filters.academic_year_id || filters.class_id || filters.section_id)" @clear="filters.academic_year_id = ''; filters.class_id = ''; filters.section_id = ''; applyFilters()">
+                <div class="form-field">
+                    <label>Academic Year</label>
+                    <select v-model="filters.academic_year_id" @change="applyFilters" style="width:180px;">
+                        <option value="">— Select year —</option>
+                        <option v-for="y in academicYears" :key="y.id" :value="y.id">
+                            {{ y.name }}{{ y.is_current ? ' (Current)' : '' }}
+                        </option>
+                    </select>
                 </div>
-            </div>
+                <div class="form-field">
+                    <label>Class</label>
+                    <select v-model="filters.class_id" :disabled="!filters.academic_year_id" style="width:160px;">
+                        <option value="">— Select class —</option>
+                        <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label>Section</label>
+                    <select v-model="filters.section_id" @change="applyFilters"
+                            :disabled="!filters.class_id || sections.length === 0" style="width:140px;">
+                        <option value="">All Sections</option>
+                        <option v-for="s in sections" :key="s.id" :value="s.id">{{ s.name }}</option>
+                    </select>
+                </div>
+            </FilterBar>
 
             <!-- ── No class selected ── -->
             <div v-if="!filters.class_id" class="card">

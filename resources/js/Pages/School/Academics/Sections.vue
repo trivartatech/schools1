@@ -8,6 +8,7 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue'
 import SlidePanel from '@/Components/SlidePanel.vue'
 import { useDelete } from '@/Composables/useDelete'
 import Table from '@/Components/ui/Table.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const props = defineProps({ sections: Array, classes: Array })
 
@@ -160,13 +161,12 @@ const destroy = (id) => del(`/school/sections/${id}`, 'Delete this section?')
         </PageHeader>
 
         <!-- Class filter -->
-        <div class="filter-bar">
-            <label class="filter-label">Filter by Class:</label>
-            <select v-model="filterClassId" class="filter-select">
+        <FilterBar :active="!!filterClassId" @clear="filterClassId = ''">
+            <select v-model="filterClassId" style="width:200px;">
                 <option value="">All Classes</option>
                 <option v-for="cls in sortedClasses" :key="cls.id" :value="cls.id">{{ cls.name }}</option>
             </select>
-        </div>
+        </FilterBar>
 
         <!-- Per-class tables -->
         <div v-for="cls in visibleClasses" :key="cls.id" class="class-group">
@@ -255,22 +255,6 @@ const destroy = (id) => del(`/school/sections/${id}`, 'Delete this section?')
     font-size: 1.25rem;
     user-select: none;
     line-height: 1;
-}
-.filter-bar {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 1.25rem;
-}
-.filter-label { font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); }
-.filter-select {
-    border: 1.5px solid var(--border);
-    border-radius: 8px;
-    padding: 6px 12px;
-    font-size: 0.84rem;
-    outline: none;
-    color: var(--text-primary);
-    min-width: 180px;
 }
 .class-group {
     margin-bottom: 1.5rem;

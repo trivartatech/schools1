@@ -6,6 +6,7 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import Table from '@/Components/ui/Table.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const props = defineProps({
     allocations: Object,
@@ -98,32 +99,27 @@ const STATUS_BADGE = {
         </div>
 
         <!-- Filters -->
-        <div class="card" style="margin-bottom: 1rem;">
-            <div class="card-body" style="padding: 0.75rem 1rem;">
-                <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:0.625rem;">
-                    <input v-model="filters.search" type="text" placeholder="Search by name or admission no…"
-                           style="border: 1px solid var(--border, #e5e7eb); border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.875rem;" />
-                    <select v-model="filters.status"
-                            style="border: 1px solid var(--border, #e5e7eb); border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.875rem; background: white;">
-                        <option value="">All Status</option>
-                        <option value="unpaid">Unpaid</option>
-                        <option value="partial">Partial</option>
-                        <option value="paid">Paid</option>
-                        <option value="waived">Waived</option>
-                    </select>
-                    <select v-model="filters.class_id"
-                            style="border: 1px solid var(--border, #e5e7eb); border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.875rem; background: white;">
-                        <option value="">All Classes</option>
-                        <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
-                    </select>
-                    <select v-model="filters.section_id" :disabled="!sections.length"
-                            style="border: 1px solid var(--border, #e5e7eb); border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.875rem; background: white;">
-                        <option value="">{{ sections.length ? 'All Sections' : '—' }}</option>
-                        <option v-for="s in sections" :key="s.id" :value="s.id">{{ s.name }}</option>
-                    </select>
-                </div>
+        <FilterBar :active="!!(filters.search || filters.status || filters.class_id || filters.section_id)" @clear="filters.search = ''; filters.status = ''; filters.class_id = ''; filters.section_id = ''">
+            <div class="fb-search">
+                <svg class="fb-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/></svg>
+                <input v-model="filters.search" type="search" placeholder="Search by name or admission no…" />
             </div>
-        </div>
+            <select v-model="filters.status" style="width:140px;">
+                <option value="">All Status</option>
+                <option value="unpaid">Unpaid</option>
+                <option value="partial">Partial</option>
+                <option value="paid">Paid</option>
+                <option value="waived">Waived</option>
+            </select>
+            <select v-model="filters.class_id" style="width:160px;">
+                <option value="">All Classes</option>
+                <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+            </select>
+            <select v-model="filters.section_id" :disabled="!sections.length" style="width:140px;">
+                <option value="">{{ sections.length ? 'All Sections' : '—' }}</option>
+                <option v-for="s in sections" :key="s.id" :value="s.id">{{ s.name }}</option>
+            </select>
+        </FilterBar>
 
         <!-- Table -->
         <div class="card">
