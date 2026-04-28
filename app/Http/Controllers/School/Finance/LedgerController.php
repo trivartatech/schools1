@@ -145,6 +145,96 @@ class LedgerController extends Controller
     }
 
     /**
+     * Send Fee Due Reminder
+     * Triggers SMS / WhatsApp / Voice reminders to parents of selected students.
+     * Channels actually fired depend on which fee_due_reminder templates the
+     * school has configured as active. Recomputes balance server-side so the
+     * amount in the message is always current.
+     */
+    public function sendDueReminder(Request $request)
+    {
+        $validated = $request->validate([
+            'student_ids'   => 'required|array|min:1',
+            'student_ids.*' => 'integer|exists:students,id',
+            'due_date'      => 'nullable|string|max:50',
+        ]);
+
+        $schoolId       = app('current_school_id');
+        $academicYearId = app('current_academic_year_id');
+        $school         = app('current_school');
+        $dueDate        = $validated['due_date'] ?? now()->format('d-M-Y');
+
+        $students = Student::where('school_id', $schoolId)
+            ->whereIn('id', $validated['student_ids'])
+            ->whereHas('currentAcademicHistory', fn($q) => $q->where('academic_year_id', $academicYearId))
+            ->with(['currentAcademicHistory.courseClass', 'currentAcademicHistory.section', 'studentParent'])
+            ->get();
+
+        $feeStructures = \App\Models\FeeStructure::where('school_id', $schoolId)
+            ->where('academic_year_id', $academicYearId)
+            ->get();
+
+        $studentIds = $students->pluck('id');
+
+        $paymentTotals = FeePayment::where('school_id', $schoolId)
+            ->where('academic_year_id', $academicYearId)
+            ->whereIn('student_id', $studentIds)
+            ->selectRaw('student_id, SUM(amount_paid) as total_paid, SUM(discount) as total_discount')
+            ->groupBy('student_id')
+            ->get()
+            ->keyBy('student_id');
+
+        $historyCounts = \App\Models\StudentAcademicHistory::whereIn('student_id', $studentIds)
+            ->selectRaw('student_id, count(*) as count')
+            ->groupBy('student_id')
+            ->pluck('count', 'student_id');
+
+        $notifier = new \App\Services\NotificationService($school);
+
+        $sent = 0;
+        $skippedNoPhone = 0;
+        $skippedNoBalance = 0;
+
+        foreach ($students as $student) {
+            $history = $student->currentAcademicHistory;
+            if (!$history) { $skippedNoBalance++; continue; }
+
+            $studentType = ($historyCounts[$student->id] ?? 1) > 1 ? 'old' : 'new';
+            $gender      = strtolower($student->gender);
+
+            $totalDue = $feeStructures->filter(function ($s) use ($history, $studentType, $gender) {
+                if ($s->class_id != $history->class_id) return false;
+                if ($s->student_type !== 'all' && $s->student_type !== $studentType) return false;
+                if ($s->gender !== 'all' && strtolower($s->gender) !== $gender) return false;
+                return true;
+            })->sum('amount');
+
+            $pt        = $paymentTotals->get($student->id);
+            $totalPaid = (float) ($pt->total_paid     ?? 0);
+            $discount  = (float) ($pt->total_discount ?? 0);
+            $balance   = max(0, $totalDue - $totalPaid - $discount);
+
+            if ($balance <= 0) { $skippedNoBalance++; continue; }
+
+            $parent = $student->studentParent;
+            if (!$parent || !$parent->primary_phone) { $skippedNoPhone++; continue; }
+
+            $notifier->notifyFeeDue($student, number_format($balance, 2, '.', ''), $dueDate);
+            $sent++;
+        }
+
+        return response()->json([
+            'success'             => true,
+            'sent'                => $sent,
+            'skipped_no_phone'    => $skippedNoPhone,
+            'skipped_no_balance'  => $skippedNoBalance,
+            'message'             => "Reminders queued for {$sent} parent(s)."
+                                   . ($skippedNoPhone ? " {$skippedNoPhone} skipped (no phone)." : '')
+                                   . ($skippedNoBalance ? " {$skippedNoBalance} skipped (no balance)." : ''),
+        ]);
+    }
+
+    /**
      * Fee Summary Report
      * Shows S.No, Admission No, Student, Father, Class, Total Due, Concession, Payable, Paid, Balance.
      */

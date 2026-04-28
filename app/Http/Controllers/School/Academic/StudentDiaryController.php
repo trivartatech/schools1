@@ -311,7 +311,7 @@ class StudentDiaryController extends Controller
                 $school = app('current_school');
                 if ($school && class_exists(\App\Services\NotificationService::class)) {
                     $notificationService = new \App\Services\NotificationService($school);
-                    $notificationService->notifyDiaryEntry($firstDiary);
+                    $notificationService->notifyDiary($firstDiary);
                 }
             } catch (\Throwable $e) {
                 Log::error('Diary notification failed', [

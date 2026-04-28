@@ -79,19 +79,29 @@ class MobileApiController extends Controller
     {
         $user    = $request->user();
         $school  = app('current_school');
+        $yearId  = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
         $search  = $request->input('search', '');
         $classId = $request->input('class_id');
         $secId   = $request->input('section_id');
         $gender  = $request->input('gender');
         $perPage = 20;
 
+        // Inner-join to student_academic_histories for the CURRENT year only.
+        // Without the year filter the join returned one row per academic
+        // history record, so a student enrolled for 4 years showed up 4 times
+        // in search results. The inner join also drops students who aren't
+        // enrolled this year (graduated / transferred out), which is what the
+        // admin "Students" screen actually wants.
         $query = Student::where('students.school_id', $school->id)
             ->select('students.id', 'students.first_name', 'students.last_name',
                 'students.admission_no', 'students.roll_no', 'students.gender',
                 'students.status', 'students.photo',
                 'cc.name as class_name', 'sec.name as section_name',
                 'sah.class_id', 'sah.section_id', 'u.phone')
-            ->leftJoin('student_academic_histories as sah', 'sah.student_id', '=', 'students.id')
+            ->join('student_academic_histories as sah', function ($j) use ($yearId) {
+                $j->on('sah.student_id', '=', 'students.id');
+                if ($yearId) $j->where('sah.academic_year_id', '=', $yearId);
+            })
             ->leftJoin('course_classes as cc', 'cc.id', '=', 'sah.class_id')
             ->leftJoin('sections as sec', 'sec.id', '=', 'sah.section_id')
             ->leftJoin('users as u', 'u.id', '=', 'students.user_id');
@@ -886,6 +896,378 @@ class MobileApiController extends Controller
         ]);
     }
 
+    // ── Transport attendance (driver app) ─────────────────────────────────────
+
+    /**
+     * GET /mobile/transport/attendance/students
+     *
+     * Returns the student roster for a route + date + trip type, with each
+     * student's current attendance status (if already marked). Drivers see
+     * only routes assigned to vehicles they drive.
+     */
+    public function transportAttendanceStudents(Request $request): JsonResponse
+    {
+        $user      = $request->user();
+        $school    = app('current_school');
+        $routeId   = $request->integer('route_id');
+        $date      = $request->input('date', now()->toDateString());
+        $tripType  = $request->input('trip_type', 'pickup');
+
+        if (!$routeId) {
+            return response()->json(['students' => []]);
+        }
+
+        // Drivers can only see routes their vehicles run on
+        $role = $user->user_type instanceof \App\Enums\UserType ? $user->user_type->value : (string) $user->user_type;
+        if (in_array($role, ['driver', 'conductor'])) {
+            $staffId = \App\Models\Staff::where('user_id', $user->id)->where('school_id', $school->id)->value('id');
+            $allowed = \App\Models\TransportVehicle::where('school_id', $school->id)
+                ->where(function ($q) use ($staffId) {
+                    $q->where('driver_id', $staffId)->orWhere('conductor_id', $staffId);
+                })
+                ->where('route_id', $routeId)
+                ->exists();
+            if (!$allowed) return response()->json(['students' => []]);
+        }
+
+        $allocations = TransportStudentAllocation::where('school_id', $school->id)
+            ->where('route_id', $routeId)
+            ->where('status', 'active')
+            ->whereIn('pickup_type', [$tripType, 'both'])
+            ->with([
+                'student:id,first_name,last_name,admission_no,user_id',
+                'student.user:id,name',
+                'stop:id,stop_name,stop_order',
+            ])
+            ->get();
+
+        $existing = \App\Models\TransportAttendance::where('school_id', $school->id)
+            ->where('route_id', $routeId)
+            ->where('date', $date)
+            ->where('trip_type', $tripType)
+            ->get()
+            ->keyBy('student_id');
+
+        $students = $allocations->map(function ($a) use ($existing) {
+            $att      = $existing->get($a->student_id);
+            $student  = $a->student;
+            $name     = $student?->user?->name
+                     ?? trim(($student?->first_name ?? '') . ' ' . ($student?->last_name ?? ''));
+            return [
+                'student_id'   => $a->student_id,
+                'name'         => $name ?: '—',
+                'admission_no' => $student?->admission_no ?? '—',
+                'stop_name'    => $a->stop?->stop_name ?? '—',
+                'stop_order'   => $a->stop?->stop_order ?? 0,
+                'vehicle_id'   => $a->vehicle_id,
+                'status'       => $att?->status,         // null if not yet marked
+                'boarded_at'   => $att?->boarded_at,
+                'notes'        => $att?->notes,
+            ];
+        })->sortBy('stop_order')->values();
+
+        return response()->json(['students' => $students]);
+    }
+
+    /**
+     * POST /mobile/transport/attendance/mark
+     *
+     * Bulk-saves transport attendance for a route + date + trip. Mirrors the
+     * web TransportAttendanceController::store but returns JSON so the mobile
+     * app can show a confirmation. Triggers parent push/SMS via NotificationService.
+     */
+    public function transportAttendanceMark(Request $request): JsonResponse
+    {
+        $user   = $request->user();
+        $school = app('current_school');
+
+        $validated = $request->validate([
+            'route_id'             => 'required|integer',
+            'date'                 => 'required|date',
+            'trip_type'            => 'required|in:pickup,drop',
+            'records'              => 'required|array|min:1',
+            'records.*.student_id' => 'required|integer',
+            'records.*.status'     => 'required|in:present,absent,late',
+            'records.*.boarded_at' => 'nullable',
+            'records.*.notes'      => 'nullable|string|max:255',
+        ]);
+
+        // Driver/conductor scope check
+        $role = $user->user_type instanceof \App\Enums\UserType ? $user->user_type->value : (string) $user->user_type;
+        if (in_array($role, ['driver', 'conductor'])) {
+            $staffId = \App\Models\Staff::where('user_id', $user->id)->where('school_id', $school->id)->value('id');
+            $allowed = \App\Models\TransportVehicle::where('school_id', $school->id)
+                ->where(function ($q) use ($staffId) {
+                    $q->where('driver_id', $staffId)->orWhere('conductor_id', $staffId);
+                })
+                ->where('route_id', $validated['route_id'])
+                ->exists();
+            if (!$allowed) return response()->json(['message' => 'Not assigned to this route.'], 403);
+        }
+
+        $vehicle = \App\Models\TransportVehicle::where('school_id', $school->id)
+            ->where('route_id', $validated['route_id'])->first();
+
+        $stopsByStudent = TransportStudentAllocation::where('school_id', $school->id)
+            ->where('route_id', $validated['route_id'])
+            ->where('status', 'active')
+            ->with('stop:id,stop_name')
+            ->get()
+            ->keyBy('student_id');
+
+        $saved = 0;
+        foreach ($validated['records'] as $rec) {
+            \App\Models\TransportAttendance::updateOrCreate(
+                [
+                    'school_id'  => $school->id,
+                    'student_id' => $rec['student_id'],
+                    'date'       => $validated['date'],
+                    'trip_type'  => $validated['trip_type'],
+                ],
+                [
+                    'route_id'   => $validated['route_id'],
+                    'vehicle_id' => $vehicle?->id,
+                    'status'     => $rec['status'],
+                    'boarded_at' => $rec['boarded_at'] ?? null,
+                    'notes'      => $rec['notes'] ?? null,
+                    'marked_by'  => $user->id,
+                ]
+            );
+            $saved++;
+        }
+
+        // Fire parent notifications (non-fatal — failures are logged)
+        try {
+            $notifier = new \App\Services\NotificationService($school);
+            $studentIds = collect($validated['records'])->pluck('student_id');
+            $students = \App\Models\Student::whereIn('id', $studentIds)
+                ->with(['user:id,name', 'studentParent.user'])
+                ->get()->keyBy('id');
+            foreach ($validated['records'] as $rec) {
+                $student  = $students->get($rec['student_id']);
+                $stopName = $stopsByStudent->get($rec['student_id'])?->stop?->stop_name;
+                if ($student) {
+                    $notifier->notifyTransportAttendance($student, $rec['status'], $validated['trip_type'], $stopName);
+                }
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Transport attendance push failed: ' . $e->getMessage());
+        }
+
+        return response()->json(['success' => true, 'saved' => $saved]);
+    }
+
+    // ── Front gate keeper (gate passes + visitor log) ────────────────────────
+
+    /**
+     * GET /mobile/front-office/gate/stats
+     * Today's counts for the gate keeper dashboard.
+     */
+    public function gateStats(Request $request): JsonResponse
+    {
+        $school = app('current_school');
+        $today  = now()->toDateString();
+
+        $exitsToday = \App\Models\GatePass::where('school_id', $school->id)
+            ->whereDate('exit_time', $today)->count();
+        $entriesToday = \App\Models\GatePass::where('school_id', $school->id)
+            ->whereDate('return_time', $today)->count();
+        $openPasses = \App\Models\GatePass::where('school_id', $school->id)
+            ->whereIn('status', ['Approved', 'Exited'])->count();
+
+        $visitorsIn = \App\Models\VisitorLog::where('school_id', $school->id)
+            ->whereDate('in_time', $today)
+            ->whereNull('out_time')->count();
+        $visitorsToday = \App\Models\VisitorLog::where('school_id', $school->id)
+            ->whereDate('in_time', $today)->count();
+
+        return response()->json([
+            'entries_today'  => $entriesToday,
+            'exits_today'    => $exitsToday,
+            'visitors_in'    => $visitorsIn,
+            'visitors_today' => $visitorsToday,
+            'open_passes'    => $openPasses,
+        ]);
+    }
+
+    /**
+     * GET /mobile/front-office/gate-passes/verify/{token}
+     * Resolve a gate pass by its QR token. Includes the next valid action
+     * (exit / entry) for the current status so the mobile UI doesn't have
+     * to encode the state machine.
+     */
+    public function verifyGatePass(Request $request, string $token): JsonResponse
+    {
+        $school = app('current_school');
+
+        $pass = \App\Models\GatePass::where('school_id', $school->id)
+            ->where('qr_code_token', $token)
+            ->with([
+                'user',
+                'requestedBy',
+                'verifiedBy:id,name',
+            ])
+            ->first();
+
+        if (!$pass) {
+            return response()->json(['valid' => false, 'message' => 'Gate pass not found.'], 404);
+        }
+
+        // Resolve the holder name from the polymorphic user relationship
+        $holderName = $pass->user?->name
+            ?? $pass->user?->first_name
+            ?? $pass->picked_up_by_name
+            ?? '—';
+
+        return response()->json([
+            'valid'        => true,
+            'id'           => $pass->id,
+            'status'       => strtolower($pass->status),                  // pending|approved|exited|returned|rejected
+            'pass_type'    => $pass->pass_type,
+            'holder_name'  => $holderName,
+            'reason'       => $pass->reason,
+            'relationship' => $pass->relationship,
+            'exit_time'    => optional($pass->exit_time)->toDateTimeString(),
+            'return_time'  => optional($pass->return_time)->toDateTimeString(),
+            'verified_by'  => $pass->verifiedBy?->name,
+            'next_action'  => match ($pass->status) {
+                'Approved' => 'exit',     // student is on campus → leaving
+                'Exited'   => 'entry',    // student is outside  → returning
+                default    => null,        // Pending / Rejected / Returned → no action
+            },
+        ]);
+    }
+
+    /**
+     * POST /mobile/front-office/gate-passes/{id}/exit
+     * Records exit_time. Status transitions Approved → Exited.
+     */
+    public function gatePassExit(Request $request, int $id): JsonResponse
+    {
+        return $this->gatePassTransition($id, 'Exited');
+    }
+
+    /**
+     * POST /mobile/front-office/gate-passes/{id}/entry
+     * Records return_time. Status transitions Exited → Returned.
+     */
+    public function gatePassEntry(Request $request, int $id): JsonResponse
+    {
+        return $this->gatePassTransition($id, 'Returned');
+    }
+
+    private function gatePassTransition(int $id, string $newStatus): JsonResponse
+    {
+        $school = app('current_school');
+        $pass   = \App\Models\GatePass::where('school_id', $school->id)->find($id);
+        if (!$pass) return response()->json(['message' => 'Gate pass not found.'], 404);
+
+        $allowed = match ($pass->status) {
+            'Pending'  => ['Approved', 'Rejected'],
+            'Approved' => ['Exited', 'Rejected'],
+            'Exited'   => ['Returned'],
+            default    => [],
+        };
+        if (!in_array($newStatus, $allowed)) {
+            return response()->json([
+                'message' => "Cannot change status from {$pass->status} to {$newStatus}.",
+            ], 422);
+        }
+
+        $pass->status = $newStatus;
+        if ($newStatus === 'Exited')   $pass->exit_time   = now();
+        if ($newStatus === 'Returned') $pass->return_time = now();
+        $pass->save();
+
+        return response()->json([
+            'success' => true,
+            'status'  => strtolower($newStatus),
+        ]);
+    }
+
+    /**
+     * GET /mobile/front-office/visitors
+     * List visitor logs. ?today=1 restricts to today only.
+     * Default sort: most recent first (newest in_time on top).
+     */
+    public function visitorList(Request $request): JsonResponse
+    {
+        $school = app('current_school');
+
+        $query = \App\Models\VisitorLog::where('school_id', $school->id);
+
+        if ($request->boolean('today')) {
+            $today = now()->toDateString();
+            $query->whereDate('in_time', $today);
+        }
+
+        $visitors = $query->orderByDesc('in_time')
+            ->limit(100)
+            ->get(['id', 'name', 'phone', 'purpose', 'in_time', 'out_time', 'badge_number', 'photo_path'])
+            ->map(fn ($v) => [
+                'id'           => $v->id,
+                'name'         => $v->name,
+                'phone'        => $v->phone,
+                'purpose'      => $v->purpose,
+                'badge_number' => $v->badge_number,
+                'entry_time'   => optional($v->in_time)->format('H:i'),
+                'exit_time'    => optional($v->out_time)->format('H:i'),
+                'in_time'      => optional($v->in_time)->toDateTimeString(),
+                'out_time'     => optional($v->out_time)->toDateTimeString(),
+            ])
+            ->values();
+
+        return response()->json([
+            'data'  => $visitors,
+            'total' => $visitors->count(),
+        ]);
+    }
+
+    /**
+     * POST /mobile/front-office/visitors
+     * Log a walk-in visitor (in_time = now).
+     */
+    public function logVisitor(Request $request): JsonResponse
+    {
+        $user   = $request->user();
+        $school = app('current_school');
+
+        $validated = $request->validate([
+            'name'     => 'required|string|max:255',
+            'phone'    => 'nullable|string|max:20',
+            'purpose'  => 'required|in:Meeting,Admission,Delivery,Other',
+            'notes'    => 'nullable|string|max:1000',
+            'badge_number' => 'nullable|string|max:50',
+        ]);
+
+        $visitor = new \App\Models\VisitorLog($validated);
+        $visitor->school_id = $school->id;
+        $visitor->academic_year_id = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
+        $visitor->in_time = now();
+        $visitor->save();
+
+        return response()->json([
+            'success' => true,
+            'id'      => $visitor->id,
+            'message' => 'Visitor logged.',
+        ], 201);
+    }
+
+    /**
+     * POST /mobile/front-office/visitors/{id}/exit
+     * Sets out_time = now.
+     */
+    public function visitorExit(Request $request, int $id): JsonResponse
+    {
+        $school  = app('current_school');
+        $visitor = \App\Models\VisitorLog::where('school_id', $school->id)->find($id);
+        if (!$visitor) return response()->json(['message' => 'Visitor not found.'], 404);
+        if ($visitor->out_time) return response()->json(['message' => 'Visitor already exited.'], 422);
+
+        $visitor->update(['out_time' => now()]);
+        return response()->json(['success' => true, 'out_time' => $visitor->out_time->toDateTimeString()]);
+    }
+
     // ── Announcements ─────────────────────────────────────────────────────────
 
     public function announcements(Request $request): JsonResponse
@@ -1046,25 +1428,78 @@ class MobileApiController extends Controller
 
     public function exams(Request $request): JsonResponse
     {
-        $user      = $request->user();
-        $school    = app('current_school');
-        $yearId    = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
-        $studentId = $this->resolveStudentId($user, $request);
-        $history   = $studentId ? StudentAcademicHistory::where('student_id', $studentId)
-            ->where('academic_year_id', $yearId)->first() : null;
+        $user   = $request->user();
+        $school = app('current_school');
+        $yearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
 
-        $schedules = collect();
-        if ($history) {
-            $schedules = ExamSchedule::where('school_id', $school->id)
-                ->where('academic_year_id', $yearId)
-                ->where('course_class_id', $history->class_id)
-                ->where('status', 'published')
-                ->with(['examType:id,name,code', 'scheduleSubjects.subject:id,name'])
-                ->orderByDesc('created_at')
-                ->get();
+        $role = $user->user_type instanceof \App\Enums\UserType ? $user->user_type->value : (string) $user->user_type;
+        $isStaff = in_array($role, ['admin', 'super_admin', 'school_admin', 'principal', 'teacher']);
+
+        $query = ExamSchedule::where('school_id', $school->id)
+            ->where('academic_year_id', $yearId)
+            ->with([
+                'examType:id,name,code',
+                'courseClass:id,name',
+                'sections:id,name',
+                'scheduleSubjects' => fn($q) => $q->where('is_enabled', true)->orderBy('exam_date')->orderBy('exam_time'),
+                'scheduleSubjects.subject:id,name',
+            ]);
+
+        if ($isStaff && $role === 'teacher') {
+            // Teachers see schedules for classes they're assigned to (incharge or timetable)
+            $scope = app(\App\Services\TeacherScopeService::class)->for($user);
+            if ($scope->restricted) {
+                $classIds = array_keys($scope->allowedMap ?? []);
+                $query->whereIn('course_class_id', $classIds ?: [0]);
+            }
+            // Teachers see drafts too (their own work) — but only published from other teachers
+            // Keeping it simple: teachers see only published, same as parents/students. Admins see everything.
+            $query->where('status', 'published');
+        } elseif ($isStaff) {
+            // Admin / school admin / principal — see everything (drafts included so they can review)
+            // No additional filter
+        } else {
+            // Parent / student — scope to their child's class + published only
+            $studentId = $this->resolveStudentId($user, $request);
+            $history   = $studentId ? StudentAcademicHistory::where('student_id', $studentId)
+                ->where('academic_year_id', $yearId)->first() : null;
+            if (!$history) {
+                return response()->json(['schedules' => []]);
+            }
+            $query->where('course_class_id', $history->class_id)
+                  ->where('status', 'published');
         }
 
-        return response()->json(['schedules' => $schedules]);
+        $schedules = $query->orderByDesc('created_at')->get();
+
+        // Flatten the response — mobile UIs work better with denormalised rows.
+        // Each row is one subject paper with everything the screen needs.
+        $rows = $schedules->flatMap(function ($schedule) {
+            return $schedule->scheduleSubjects->map(function ($paper) use ($schedule) {
+                return [
+                    'id'                 => $paper->id,
+                    'schedule_id'        => $schedule->id,
+                    'exam_name'          => $schedule->examType?->name,
+                    'exam_code'          => $schedule->examType?->code,
+                    'class_name'         => $schedule->courseClass?->name,
+                    'section_names'      => $schedule->sections->pluck('name')->implode(', '),
+                    'subject_id'         => $paper->subject_id,
+                    'subject_name'       => $paper->subject?->name,
+                    'exam_date'          => $paper->exam_date ? \Carbon\Carbon::parse($paper->exam_date)->format('Y-m-d') : null,
+                    'exam_time'          => $paper->exam_time,                       // "HH:MM:SS" string
+                    'duration_minutes'   => $paper->duration_minutes,
+                    'writing_marks'      => $paper->writing_marks,
+                    'passing_marks'      => $paper->passing_marks,
+                    'is_co_scholastic'   => (bool) $paper->is_co_scholastic,
+                    'status'             => $schedule->status,
+                ];
+            });
+        })->values();
+
+        return response()->json([
+            'schedules' => $schedules, // legacy shape, keep for older clients
+            'papers'    => $rows,      // new flattened shape used by ExamScheduleScreen
+        ]);
     }
 
     // ── Profile ───────────────────────────────────────────────────────────────
@@ -1185,12 +1620,28 @@ class MobileApiController extends Controller
 
     public function registerDevice(Request $request): JsonResponse
     {
+        // Accept either an Expo push token (preferred) or a raw FCM token.
+        // The mobile app uses Expo Push; FCM stays supported for any future
+        // client that doesn't go through Expo's relay.
         $validated = $request->validate([
-            'fcm_token'   => 'required|string',
-            'device_type' => 'required|in:mobile,tablet',
-            'platform'    => 'required|in:android,ios',
+            'expo_push_token' => 'nullable|string',
+            'fcm_token'       => 'nullable|string',
+            'device_type'     => 'nullable|in:mobile,tablet',
+            'platform'        => 'nullable|in:android,ios,web',
         ]);
-        $request->user()->update(['fcm_token' => $validated['fcm_token']]);
+
+        if (empty($validated['expo_push_token']) && empty($validated['fcm_token'])) {
+            return response()->json([
+                'message' => 'Either expo_push_token or fcm_token is required.',
+            ], 422);
+        }
+
+        $update = ['push_token_updated_at' => now()];
+        if (!empty($validated['expo_push_token'])) $update['expo_push_token'] = $validated['expo_push_token'];
+        if (!empty($validated['fcm_token']))       $update['fcm_token']       = $validated['fcm_token'];
+        if (!empty($validated['platform']))        $update['device_platform'] = $validated['platform'];
+
+        $request->user()->update($update);
         return response()->json(['success' => true]);
     }
 
@@ -4278,6 +4729,9 @@ class MobileApiController extends Controller
             'attachments'      => $attachments,
         ]);
 
+        try { (new \App\Services\NotificationService($school))->notifyDiary($diary); }
+        catch (\Throwable $e) { \Illuminate\Support\Facades\Log::warning('Diary push failed: ' . $e->getMessage()); }
+
         return response()->json(['message' => 'Diary entry created.', 'id' => $diary->id], 201);
     }
 
@@ -4345,6 +4799,8 @@ class MobileApiController extends Controller
                 'attachments'      => $attachments,
             ]);
             $ids[] = $a->id;
+            try { (new \App\Services\NotificationService($school))->notifyAssignment($a); }
+            catch (\Throwable $e) { \Illuminate\Support\Facades\Log::warning('Assignment push failed: ' . $e->getMessage()); }
         }
 
         return response()->json(['message' => 'Assignment created for ' . count($ids) . ' section(s).'], 201);

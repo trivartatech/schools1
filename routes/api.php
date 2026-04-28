@@ -110,7 +110,26 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     Route::get('/fees/{id}',                  [$MA, 'feeDetail'])->whereNumber('id')->name('api.mobile.fees.detail');
     Route::get('/exams',                      [$MA, 'exams'])->name('api.mobile.exams');
     Route::get('/transport/live',             [$MA, 'transport'])->name('api.mobile.transport');
+
+    // Driver tracking (used by the mobile driver app)
+    $DT = \App\Http\Controllers\Api\Transport\DriverTrackingController::class;
+    Route::get ('/transport/driver/vehicles',         [$DT, 'assignedVehicles'])->name('api.mobile.driver.vehicles');
+    Route::post('/transport/driver-tracking/update',  [$DT, 'update'])->name('api.mobile.driver-tracking.update');
+    Route::post('/transport/driver-tracking/stop',    [$DT, 'stop'])->name('api.mobile.driver-tracking.stop');
+
+    // Transport attendance (driver marks students boarded / dropped)
+    Route::get ('/transport/attendance/students',     [$MA, 'transportAttendanceStudents'])->name('api.mobile.transport.attendance.students');
+    Route::post('/transport/attendance/mark',         [$MA, 'transportAttendanceMark'])->name('api.mobile.transport.attendance.mark');
     Route::get('/announcements',              [$MA, 'announcements'])->name('api.mobile.announcements');
+
+    // Front gate keeper — gate passes + visitor log
+    Route::get ('/front-office/gate/stats',                       [$MA, 'gateStats'])->name('api.mobile.front-office.gate.stats');
+    Route::get ('/front-office/gate-passes/verify/{token}',       [$MA, 'verifyGatePass'])->where('token', '[A-Za-z0-9_\-]+')->name('api.mobile.front-office.gate-passes.verify');
+    Route::post('/front-office/gate-passes/{id}/exit',            [$MA, 'gatePassExit'])->whereNumber('id')->name('api.mobile.front-office.gate-passes.exit');
+    Route::post('/front-office/gate-passes/{id}/entry',           [$MA, 'gatePassEntry'])->whereNumber('id')->name('api.mobile.front-office.gate-passes.entry');
+    Route::get ('/front-office/visitors',                          [$MA, 'visitorList'])->name('api.mobile.front-office.visitors');
+    Route::post('/front-office/visitors',                          [$MA, 'logVisitor'])->name('api.mobile.front-office.visitors.log');
+    Route::post('/front-office/visitors/{id}/exit',                [$MA, 'visitorExit'])->whereNumber('id')->name('api.mobile.front-office.visitors.exit');
 
     // Multi-child (parent)
     Route::get('/children',                   [$MA, 'children'])->name('api.mobile.children');

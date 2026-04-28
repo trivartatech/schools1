@@ -146,7 +146,7 @@ class AssignmentController extends Controller
         }
 
         foreach ($validated['section_ids'] as $sectionId) {
-            Assignment::create([
+            $assignment = Assignment::create([
                 'school_id'       => $schoolId,
                 'academic_year_id'=> $academicYearId,
                 'class_id'        => $validated['class_id'],
@@ -160,6 +160,8 @@ class AssignmentController extends Controller
                 'status'          => $validated['status'] ?? 'published',
                 'attachments'     => $attachments,
             ]);
+            try { (new \App\Services\NotificationService(app('current_school')))->notifyAssignment($assignment); }
+            catch (\Throwable $e) { \Illuminate\Support\Facades\Log::warning('Assignment push failed: ' . $e->getMessage()); }
         }
 
         return back()->with('success', 'Assignment created successfully.');

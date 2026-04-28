@@ -425,6 +425,7 @@ Route::middleware('auth')->group(function () {
             $LC = \App\Http\Controllers\School\Finance\LedgerController::class;
             Route::get('finance/day-book', [$LC, 'dayBook'])->name('finance.day-book');
             Route::get('finance/due-report', [$LC, 'dueReport'])->name('finance.due-report');
+            Route::post('finance/due-report/send-reminder', [$LC, 'sendDueReminder'])->name('finance.due-report.send-reminder');
             Route::get('finance/fee-summary', [$LC, 'feeSummaryReport'])->name('finance.fee-summary');
             Route::get('finance/reports', [\App\Http\Controllers\School\Finance\ReportController::class, 'index'])->name('finance.reports.index');
         });

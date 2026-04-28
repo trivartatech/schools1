@@ -20,6 +20,7 @@ class User extends Authenticatable
         'name', 'username', 'email', 'phone',
         'password', 'avatar', 'user_type',
         'is_active', 'fcm_token',
+        'expo_push_token', 'device_platform', 'push_token_updated_at',
     ];
 
     protected $hidden = [
@@ -30,12 +31,13 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at'   => 'datetime',
-            'phone_verified_at'   => 'datetime',
-            'last_login_at'       => 'datetime',
-            'password'            => 'hashed',
-            'is_active'           => 'boolean',
-            'user_type'           => UserType::class,
+            'email_verified_at'      => 'datetime',
+            'phone_verified_at'      => 'datetime',
+            'last_login_at'          => 'datetime',
+            'push_token_updated_at'  => 'datetime',
+            'password'               => 'hashed',
+            'is_active'              => 'boolean',
+            'user_type'              => UserType::class,
         ];
     }
 

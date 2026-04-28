@@ -14,15 +14,22 @@ class NotificationService
 {
     protected $school;
     protected ?FirebaseService $firebase;
+    protected ?ExpoPushService $expo;
 
     public function __construct(?School $school = null)
     {
         $this->school = $school ?? (app()->bound('current_school') ? app('current_school') : null);
         $this->firebase = app(FirebaseService::class);
+        $this->expo     = app(ExpoPushService::class);
     }
 
     /**
-     * Send a push notification to a user — saves to DB + sends via FCM.
+     * Send a push notification to a user — always saves to DB, then dispatches
+     * to whatever push transports the user is registered with (Expo, FCM, or
+     * both).
+     *
+     * The data payload includes `type` and `id` so the mobile app can deep-link
+     * to the right screen on tap.
      */
     protected function sendPushToUser(?User $user, array $notiData): void
     {
@@ -30,25 +37,31 @@ class NotificationService
 
         $eventType = $notiData['event_type'] ?? null;
 
-        // Check push preference (default: enabled)
+        // Respect the user's per-channel preference (default: enabled)
         if ($eventType && !\App\Models\NotificationPreference::isEnabled($user->id, $eventType, 'push')) {
             return;
         }
 
-        // Save to DB via Laravel notification system
+        // 1. Save to DB so the in-app inbox shows it even if push fails / device offline
         $user->notify(new \App\Notifications\CommunicationPortalNotification($notiData));
 
-        // Send via FCM (non-blocking — failures are logged, not thrown)
+        $title = $notiData['title']   ?? ($this->school->name ?? 'EduConnect');
+        $body  = $notiData['message'] ?? '';
+        $data  = array_filter([
+            'type'      => $notiData['type']      ?? 'general',
+            'id'        => $notiData['id']        ?? null,
+            'entity_id' => $notiData['entity_id'] ?? null,
+        ], fn($v) => $v !== null);
+
+        // 2. Expo Push (preferred — what the React Native app uses)
+        if ($user->expo_push_token) {
+            $this->expo->sendToUser($user, $title, $body, $data);
+        }
+
+        // 3. Direct FCM (kept for any non-Expo client; never fires until
+        //    FIREBASE_CREDENTIALS is configured)
         if ($this->firebase->isEnabled() && $user->fcm_token) {
-            $this->firebase->sendToUser(
-                $user,
-                $notiData['title'] ?? 'EduConnect',
-                $notiData['message'] ?? '',
-                array_filter([
-                    'type' => $notiData['type'] ?? 'general',
-                    'id'   => $notiData['id'] ?? null,
-                ])
-            );
+            $this->firebase->sendToUser($user, $title, $body, $data);
         }
     }
 
@@ -468,8 +481,9 @@ class NotificationService
         $parent = $student->studentParent;
         if (!$parent || !$parent->primary_phone) return;
 
-        $smsTemplate = $this->getTemplate('sms', 'fee_due_reminder');
-        $waTemplate  = $this->getTemplate('whatsapp', 'fee_due_reminder');
+        $smsTemplate   = $this->getTemplate('sms', 'fee_due_reminder');
+        $waTemplate    = $this->getTemplate('whatsapp', 'fee_due_reminder');
+        $voiceTemplate = $this->getTemplate('voice', 'fee_due_reminder');
 
         $data = [
             'name'        => $student->name,
@@ -488,6 +502,147 @@ class NotificationService
             $orderedParams = $this->extractOrderedWhatsAppParams($waTemplate->content, $data);
             $this->sendWhatsApp($parent->primary_phone, $waTemplate->template_id, $orderedParams, $parent->user_id, $waTemplate->language_code ?? 'en');
         }
+
+        if ($voiceTemplate) {
+            $message = $this->replacePlaceholders($voiceTemplate->content, $data);
+            $this->sendVoiceCall($parent->primary_phone, $voiceTemplate->audio_url, $message, $parent->user_id);
+        }
+
+        $pushTemplate = $this->getTemplate('push', 'fee_due_reminder');
+        if ($pushTemplate) {
+            $message = $this->replacePlaceholders($pushTemplate->content, $data);
+            $notiData = [
+                'type'       => 'fee_due',
+                'event_type' => 'fee_due_reminder',
+                'title'      => $this->replacePlaceholders($pushTemplate->subject ?? 'Fee Due Reminder', $data),
+                'message'    => $message,
+                'sender'     => $this->school->name,
+                'entity_id'  => $student->id,
+            ];
+            $this->sendPushToUser($parent->user ?? null, $notiData);
+            $this->sendPushToUser($student->user ?? null, $notiData);
+        }
+    }
+
+    /**
+     * Diary entry created — notifies parents (and the student if logged in).
+     */
+    public function notifyDiary($diary)
+    {
+        $pushTemplate = $this->getTemplate('push', 'diary_created');
+        if (!$pushTemplate) return;
+
+        // Resolve target students. Diary entries can be class-wide or specific.
+        $studentIds = $this->resolveDiaryRecipients($diary);
+        if (empty($studentIds)) return;
+
+        $students = \App\Models\Student::whereIn('id', $studentIds)
+            ->with(['studentParent.user', 'user', 'currentAcademicHistory.courseClass', 'currentAcademicHistory.section'])
+            ->get();
+
+        foreach ($students as $student) {
+            $data = [
+                'name'        => $student->name,
+                'subject'     => $diary->subject ?? 'General',
+                'date'        => optional($diary->entry_date ?? $diary->created_at)->format('d-M-Y'),
+                'course_name' => $student->currentAcademicHistory?->courseClass?->name ?? '',
+                'batch_name'  => $student->currentAcademicHistory?->section?->name ?? '',
+                'app_name'    => $this->school->name,
+            ];
+
+            $notiData = [
+                'type'       => 'diary',
+                'event_type' => 'diary_created',
+                'title'      => $this->replacePlaceholders($pushTemplate->subject ?? 'New Diary Entry', $data),
+                'message'    => $this->replacePlaceholders($pushTemplate->content, $data),
+                'sender'     => $this->school->name,
+                'entity_id'  => $diary->id,
+            ];
+
+            $this->sendPushToUser($student->studentParent?->user ?? null, $notiData);
+            $this->sendPushToUser($student->user ?? null, $notiData);
+        }
+    }
+
+    /**
+     * Assignment created — notifies parents and students of the target class/section.
+     */
+    public function notifyAssignment($assignment)
+    {
+        $pushTemplate = $this->getTemplate('push', 'assignment_created');
+        if (!$pushTemplate) return;
+
+        $studentIds = $this->resolveAssignmentRecipients($assignment);
+        if (empty($studentIds)) return;
+
+        $students = \App\Models\Student::whereIn('id', $studentIds)
+            ->with(['studentParent.user', 'user', 'currentAcademicHistory.courseClass', 'currentAcademicHistory.section'])
+            ->get();
+
+        $dueDate = optional($assignment->due_date ?? null)->format('d-M-Y') ?? '—';
+
+        foreach ($students as $student) {
+            $data = [
+                'name'        => $student->name,
+                'title'       => $assignment->title ?? 'New Assignment',
+                'subject'     => $assignment->subject ?? 'General',
+                'due_date'    => $dueDate,
+                'course_name' => $student->currentAcademicHistory?->courseClass?->name ?? '',
+                'batch_name'  => $student->currentAcademicHistory?->section?->name ?? '',
+                'app_name'    => $this->school->name,
+            ];
+
+            $notiData = [
+                'type'       => 'assignment',
+                'event_type' => 'assignment_created',
+                'title'      => $this->replacePlaceholders($pushTemplate->subject ?? 'New Assignment', $data),
+                'message'    => $this->replacePlaceholders($pushTemplate->content, $data),
+                'sender'     => $this->school->name,
+                'entity_id'  => $assignment->id,
+            ];
+
+            $this->sendPushToUser($student->studentParent?->user ?? null, $notiData);
+            $this->sendPushToUser($student->user ?? null, $notiData);
+        }
+    }
+
+    /**
+     * Resolve diary recipients. Diaries can target a class+section combo
+     * (broadcast) or a specific student via student_id.
+     */
+    protected function resolveDiaryRecipients($diary): array
+    {
+        if (!empty($diary->student_id)) {
+            return [$diary->student_id];
+        }
+
+        $academicYearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
+
+        return \App\Models\StudentAcademicHistory::query()
+            ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
+            ->when($diary->class_id, fn($q) => $q->where('class_id', $diary->class_id))
+            ->when($diary->section_id ?? null, fn($q) => $q->where('section_id', $diary->section_id))
+            ->pluck('student_id')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Resolve assignment recipients — class + section based.
+     */
+    protected function resolveAssignmentRecipients($assignment): array
+    {
+        $academicYearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
+
+        return \App\Models\StudentAcademicHistory::query()
+            ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
+            ->when($assignment->class_id, fn($q) => $q->where('class_id', $assignment->class_id))
+            ->when($assignment->section_id ?? null, fn($q) => $q->where('section_id', $assignment->section_id))
+            ->pluck('student_id')
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**

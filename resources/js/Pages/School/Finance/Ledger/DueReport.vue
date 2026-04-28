@@ -160,6 +160,37 @@ const toIndex   = computed(() => Math.min(currentPage.value * perPage.value, sor
 
 const formatCurrency = (amount) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(Number(amount) || 0);
+
+// ── Reminder dispatch ────────────────────────────────────────────────────────
+const sendingFor  = ref(null);   // student_id while a single send is in flight
+const sendingBulk = ref(false);
+
+async function sendReminder(studentIds, label) {
+    try {
+        const { data } = await axios.post(
+            route('school.finance.due-report.send-reminder'),
+            { student_ids: studentIds }
+        );
+        alert(data.message ?? `Reminders sent to ${label}.`);
+    } catch (e) {
+        alert(e.response?.data?.message ?? 'Could not send reminders.');
+    }
+}
+
+async function sendOne(row) {
+    sendingFor.value = row.student_id;
+    await sendReminder([row.student_id], row.name);
+    sendingFor.value = null;
+}
+
+async function sendAll() {
+    const targets = (props.defaulters || []).filter(d => Number(d.total_balance || 0) > 0);
+    if (targets.length === 0) return;
+    if (!confirm(`Send fee due reminders to ${targets.length} parent(s)? This will trigger SMS / WhatsApp / Voice based on your active templates.`)) return;
+    sendingBulk.value = true;
+    await sendReminder(targets.map(d => d.student_id), `${targets.length} parent(s)`);
+    sendingBulk.value = false;
+}
 </script>
 
 <template>
@@ -171,6 +202,13 @@ const formatCurrency = (amount) =>
                 <p class="page-header-sub">All students for the current academic year, with regular and transport fee balances.</p>
             </div>
             <div class="flex items-center gap-3">
+                <Button
+                    variant="primary"
+                    :disabled="sendingBulk || defaulters.length === 0"
+                    @click="sendAll"
+                >
+                    {{ sendingBulk ? 'Sending…' : `📣 Send All Reminders${defaulters.length ? ` (${defaulters.length})` : ''}` }}
+                </Button>
                 <ExportDropdown
                     :base-url="`/school/export/due-report`"
                     :params="{
@@ -306,14 +344,25 @@ const formatCurrency = (amount) =>
                                 :class="{ 'balance-zero': Number(row.total_balance) === 0 }">
                                 {{ formatCurrency(row.total_balance) }}
                             </td>
-                            <td class="text-center">
-                                <Button
-                                    v-if="Number(row.total_balance) > 0"
-                                    size="xs"
-                                    as="a"
-                                    :href="`/school/fee/collect?student_id=${row.student_id}`"
-                                >Pay Now</Button>
-                                <span v-else class="paid-badge">PAID</span>
+                            <td class="text-center print:hidden">
+                                <div class="flex items-center justify-center gap-2">
+                                    <Button
+                                        v-if="Number(row.total_balance) > 0"
+                                        size="xs"
+                                        as="a"
+                                        :href="`/school/fee/collect?student_id=${row.student_id}`"
+                                    >Pay Now</Button>
+                                    <span v-else class="paid-badge">PAID</span>
+                                    <Button
+                                        v-if="Number(row.total_balance) > 0"
+                                        size="xs"
+                                        variant="secondary"
+                                        :disabled="sendingFor === row.student_id"
+                                        @click="sendOne(row)"
+                                    >
+                                        {{ sendingFor === row.student_id ? '…' : '📣 Remind' }}
+                                    </Button>
+                                </div>
                             </td>
                         </tr>
                         <tr v-if="sortedRows.length === 0">

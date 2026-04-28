@@ -28,9 +28,15 @@ class VehicleController extends Controller
 
         $routes = TransportRoute::tenant()->active()->orderBy('route_name')->get(['id', 'route_name', 'route_code']);
 
-        // Only staff with Driver designation
+        // Drivers are identified by users.user_type = 'driver'. Falling back to
+        // the legacy designation match catches any older deployments where the
+        // user_type wasn't set but a "Driver" designation was — that way both
+        // patterns work.
         $drivers = Staff::tenant()
-            ->whereHas('designation', fn($q) => $q->whereRaw('LOWER(name) = ?', ['driver']))
+            ->where(function ($q) {
+                $q->whereHas('user', fn($u) => $u->where('user_type', 'driver'))
+                  ->orWhereHas('designation', fn($d) => $d->whereRaw('LOWER(name) = ?', ['driver']));
+            })
             ->with('user:id,name,phone')
             ->get(['id', 'user_id']);
 

@@ -42,11 +42,32 @@ class CommunicationTemplateController extends Controller
         'fee_due_reminder' => [
             'name'      => 'Fee Due Reminder',
             'variables' => ['name', 'amount', 'date', 'course_name', 'batch_name'],
-            'channels'  => ['sms', 'whatsapp'],
+            'channels'  => ['sms', 'whatsapp', 'voice', 'push'],
             'defaults'  => [
                 'sms'      => 'Dear Parent, fee of Rs.##AMOUNT## is due for ##NAME## (##COURSE_NAME##) by ##DATE##. Please pay at the earliest.',
                 'whatsapp' => 'Dear Parent, fee of Rs.##AMOUNT## is due for ##NAME## (##COURSE_NAME##) by ##DATE##. Please pay at the earliest.',
+                'voice'    => 'Dear parent, fee of rupees ##AMOUNT## is due for ##NAME## by ##DATE##. Please pay at the earliest.',
+                'push'     => 'Fee of Rs.##AMOUNT## is due for ##NAME## by ##DATE##.',
             ],
+            'subjects'  => ['push' => 'Fee Due - ##NAME##'],
+        ],
+        'diary_created' => [
+            'name'      => 'New Diary Entry',
+            'variables' => ['name', 'subject', 'date', 'course_name', 'batch_name', 'app_name'],
+            'channels'  => ['push'],
+            'defaults'  => [
+                'push' => 'A new diary entry has been added for ##NAME## (##SUBJECT##) on ##DATE##.',
+            ],
+            'subjects'  => ['push' => 'New Diary Entry - ##NAME##'],
+        ],
+        'assignment_created' => [
+            'name'      => 'New Assignment',
+            'variables' => ['name', 'title', 'subject', 'due_date', 'course_name', 'batch_name', 'app_name'],
+            'channels'  => ['push'],
+            'defaults'  => [
+                'push' => '##TITLE## (##SUBJECT##) for ##NAME##. Due ##DUE_DATE##.',
+            ],
+            'subjects'  => ['push' => 'New Assignment - ##TITLE##'],
         ],
         'otp' => [
             'name'      => 'Login OTP',
@@ -98,6 +119,15 @@ class CommunicationTemplateController extends Controller
                 ]
             );
         }
+
+        // Backfill is_system on rows that exist with a system slug but were
+        // created before the flag was being set (or were imported / migrated
+        // from another deployment). Without this, the UI still shows a Delete
+        // button for these legacy rows.
+        CommunicationTemplate::where('school_id', $schoolId)
+            ->whereIn('slug', array_keys(self::SYSTEM_TRIGGERS))
+            ->where('is_system', false)
+            ->update(['is_system' => true]);
 
         $templates = CommunicationTemplate::where('school_id', $schoolId)
             ->where('type', $type)
@@ -162,8 +192,11 @@ class CommunicationTemplateController extends Controller
     public function destroy(CommunicationTemplate $template)
     {
         if ($template->school_id !== app('current_school_id')) abort(403);
-        
-        if ($template->is_system) {
+
+        // Belt-and-braces: block deletion if the row carries the system flag
+        // OR if its slug is one of the predefined triggers. The slug check
+        // catches legacy rows that exist without is_system=true set.
+        if ($template->is_system || array_key_exists($template->slug, self::SYSTEM_TRIGGERS)) {
             return back()->with('error', 'System templates cannot be deleted.');
         }
 
