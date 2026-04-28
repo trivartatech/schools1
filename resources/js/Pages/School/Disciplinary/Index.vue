@@ -88,30 +88,40 @@ const browsedStudents = computed(() => {
 });
 
 const bulkForm = useForm({
-    student_ids: [], categories: [],
+    assignments: [],   // [{ student_id, category }]
     incident_date: TODAY, severity: 'minor', description: '',
     action_taken: '', consequence: '', consequence_from: '', consequence_to: '',
 });
 
-const allBrowsedSelected = computed(() =>
-    browsedStudents.value.length > 0 &&
-    browsedStudents.value.every(s => bulkForm.student_ids.includes(s.id))
-);
+const isAssigned = (sid, cat) =>
+    bulkForm.assignments.some(a => a.student_id === sid && a.category === cat);
 
-const toggleSelectAll = () => {
-    if (allBrowsedSelected.value) {
-        const visibleIds = new Set(browsedStudents.value.map(s => s.id));
-        bulkForm.student_ids = bulkForm.student_ids.filter(id => !visibleIds.has(id));
+const toggleAssignment = (sid, cat) => {
+    const idx = bulkForm.assignments.findIndex(a => a.student_id === sid && a.category === cat);
+    if (idx >= 0) bulkForm.assignments.splice(idx, 1);
+    else bulkForm.assignments.push({ student_id: sid, category: cat });
+};
+
+const toggleCategoryForAll = (cat) => {
+    const allHave = browsedStudents.value.length > 0 &&
+        browsedStudents.value.every(s => isAssigned(s.id, cat));
+    if (allHave) {
+        bulkForm.assignments = bulkForm.assignments.filter(a => a.category !== cat
+            || !browsedStudents.value.some(s => s.id === a.student_id));
     } else {
-        const next = new Set(bulkForm.student_ids);
-        browsedStudents.value.forEach(s => next.add(s.id));
-        bulkForm.student_ids = [...next];
+        browsedStudents.value.forEach(s => {
+            if (!isAssigned(s.id, cat)) bulkForm.assignments.push({ student_id: s.id, category: cat });
+        });
     }
 };
 
-const recordsPreviewCount = computed(() =>
-    bulkForm.student_ids.length * bulkForm.categories.length
-);
+const allHaveCategory = (cat) =>
+    browsedStudents.value.length > 0 &&
+    browsedStudents.value.every(s => isAssigned(s.id, cat));
+
+const recordsPreviewCount = computed(() => bulkForm.assignments.length);
+const distinctStudentCount = computed(() =>
+    new Set(bulkForm.assignments.map(a => a.student_id)).size);
 
 const openAdd = () => {
     browseClass.value = ''; browseSection.value = '';
@@ -327,14 +337,14 @@ const fmtCategory = (name) => {
                 <div class="card-body add-filter-bar">
                     <div class="add-filter-field">
                         <label class="add-filter-label">Class</label>
-                        <select v-model="browseClass" @change="browseSection = ''; bulkForm.student_ids = [];">
+                        <select v-model="browseClass" @change="browseSection = ''; bulkForm.assignments = [];">
                             <option value="">— Select Class —</option>
                             <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
                         </select>
                     </div>
                     <div class="add-filter-field">
                         <label class="add-filter-label">Section</label>
-                        <select v-model="browseSection" :disabled="!browseClass" @change="bulkForm.student_ids = [];">
+                        <select v-model="browseSection" :disabled="!browseClass" @change="bulkForm.assignments = [];">
                             <option value="">All Sections</option>
                             <option v-for="s in filteredSections" :key="s.id" :value="s.id">{{ s.name }}</option>
                         </select>
@@ -357,25 +367,10 @@ const fmtCategory = (name) => {
             </div>
 
             <template v-else>
-                <!-- Categories chip selector -->
-                <div class="card" style="margin-bottom:16px;">
-                    <div class="card-body" style="padding:14px 18px;">
-                        <div class="bulk-section-label">Categories *</div>
-                        <div class="cat-chip-row">
-                            <label v-for="c in categories" :key="c.id" class="cat-chip"
-                                   :class="{ 'cat-chip-selected': bulkForm.categories.includes(c.name) }">
-                                <input type="checkbox" :value="c.name" v-model="bulkForm.categories" class="cat-chip-input" />
-                                <span class="cat-chip-code">{{ c.short_code || c.name }}</span>
-                            </label>
-                        </div>
-                        <span v-if="bulkForm.errors.categories" class="field-error">{{ bulkForm.errors.categories }}</span>
-                    </div>
-                </div>
-
                 <!-- Common incident fields -->
                 <div class="card" style="margin-bottom:16px;">
                     <div class="card-body" style="padding:14px 18px;">
-                        <div class="bulk-section-label">Incident Details</div>
+                        <div class="bulk-section-label">Incident Details (applied to every record)</div>
                         <div class="bulk-grid">
                             <div class="form-field">
                                 <label>Date *</label>
@@ -418,39 +413,51 @@ const fmtCategory = (name) => {
                     </div>
                 </div>
 
-                <!-- Student list with checkboxes -->
+                <!-- Student list with inline category chips -->
                 <div class="card" style="overflow:hidden;">
                     <div class="student-list-header">
-                        <span class="col-check">
-                            <input type="checkbox" :checked="allBrowsedSelected" @change="toggleSelectAll" />
-                        </span>
                         <span class="col-num">#</span>
                         <span class="col-student">Student</span>
+                        <span class="col-chips">
+                            <span class="chips-header-label">Categories — click a code to apply / clear for all visible students</span>
+                            <span class="chips-header-row">
+                                <button v-for="c in categories" :key="c.id" type="button"
+                                        class="cat-chip cat-chip-header"
+                                        :class="{ 'cat-chip-selected': allHaveCategory(c.name) }"
+                                        @click="toggleCategoryForAll(c.name)">
+                                    {{ c.short_code || c.name }}
+                                </button>
+                            </span>
+                        </span>
                         <span class="col-roll">Roll No</span>
                     </div>
                     <div class="student-list">
-                        <label v-for="(s, idx) in browsedStudents" :key="s.id"
-                               :class="['student-item', 'student-item-row', { 'item-active': bulkForm.student_ids.includes(s.id) }]">
-                            <span class="col-check">
-                                <input type="checkbox" :value="s.id" v-model="bulkForm.student_ids" />
-                            </span>
+                        <div v-for="(s, idx) in browsedStudents" :key="s.id"
+                             :class="['student-item', { 'item-active': bulkForm.assignments.some(a => a.student_id === s.id) }]">
                             <span class="col-num item-num">{{ idx + 1 }}</span>
                             <span class="col-student item-info">
                                 <span class="item-name">{{ s.first_name }} {{ s.last_name }}</span>
                                 <span class="item-adm">{{ s.admission_no }}</span>
                             </span>
+                            <span class="col-chips">
+                                <button v-for="c in categories" :key="c.id" type="button"
+                                        class="cat-chip"
+                                        :class="{ 'cat-chip-selected': isAssigned(s.id, c.name) }"
+                                        @click="toggleAssignment(s.id, c.name)">
+                                    {{ c.short_code || c.name }}
+                                </button>
+                            </span>
                             <span class="col-roll" style="font-size:.85rem;color:#64748b;">{{ s.current_academic_history?.roll_no || '—' }}</span>
-                        </label>
+                        </div>
                     </div>
-                    <span v-if="bulkForm.errors.student_ids" class="field-error" style="display:block;padding:10px 18px;">{{ bulkForm.errors.student_ids }}</span>
+                    <span v-if="bulkForm.errors.assignments" class="field-error" style="display:block;padding:10px 18px;">{{ bulkForm.errors.assignments }}</span>
                 </div>
 
                 <!-- Sticky save bar -->
                 <div class="bulk-save-bar">
                     <div class="bulk-summary">
-                        <strong>{{ bulkForm.student_ids.length }}</strong> student{{ bulkForm.student_ids.length !== 1 ? 's' : '' }}
-                        × <strong>{{ bulkForm.categories.length }}</strong> categor{{ bulkForm.categories.length !== 1 ? 'ies' : 'y' }}
-                        = <strong>{{ recordsPreviewCount }}</strong> record{{ recordsPreviewCount !== 1 ? 's' : '' }}
+                        <strong>{{ distinctStudentCount }}</strong> student{{ distinctStudentCount !== 1 ? 's' : '' }}
+                        · <strong>{{ recordsPreviewCount }}</strong> record{{ recordsPreviewCount !== 1 ? 's' : '' }} to create
                     </div>
                     <div style="display:flex;gap:10px;">
                         <button type="button" class="btn-outline" @click="backToList">Cancel</button>
@@ -704,20 +711,22 @@ const fmtCategory = (name) => {
 
 /* ── Student list ── */
 .col-check   { width:36px;flex-shrink:0;display:flex;align-items:center;justify-content:center; }
-.col-num     { width:44px;text-align:center;flex-shrink:0; }
-.col-student { flex:1; }
-.col-roll    { width:100px;flex-shrink:0; }
+.col-num     { width:36px;text-align:center;flex-shrink:0; }
+.col-student { width:200px;flex-shrink:0; }
+.col-chips   { flex:1;min-width:0; }
+.col-roll    { width:80px;flex-shrink:0;text-align:right; }
 .col-action  { width:150px;flex-shrink:0; }
 
 .student-list-header {
-    display:flex;align-items:center;padding:10px 20px;
+    display:flex;align-items:flex-start;gap:14px;padding:12px 20px;
     border-bottom:2px solid #e2e8f0;background:#f8fafc;
     font-size:.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em;
 }
 .student-item {
-    display:flex;align-items:center;padding:14px 20px;
+    display:flex;align-items:center;gap:14px;padding:12px 20px;
     border-bottom:1px solid #f1f5f9;transition:background .12s;
 }
+.student-item .col-chips { display:flex;flex-wrap:wrap;gap:5px; }
 .student-item-row { cursor:pointer; }
 .student-item:hover { background:#f8fafc; }
 .student-item.item-active { background:#eff6ff;border-left:3px solid #3b82f6;padding-left:17px; }
@@ -737,20 +746,25 @@ const fmtCategory = (name) => {
     font-size:.72rem;font-weight:700;color:#64748b;text-transform:uppercase;
     letter-spacing:.05em;margin-bottom:10px;
 }
-.cat-chip-row { display:flex;flex-wrap:wrap;gap:8px; }
 .cat-chip {
-    display:inline-flex;align-items:center;gap:6px;
-    padding:6px 12px;border-radius:8px;border:1px solid #e2e8f0;
-    background:#fff;cursor:pointer;user-select:none;transition:all .12s;
-}
-.cat-chip:hover { border-color:#bfdbfe;background:#f8fafc; }
-.cat-chip-input { margin:0;cursor:pointer; }
-.cat-chip-code {
+    display:inline-flex;align-items:center;justify-content:center;
+    padding:4px 9px;border-radius:6px;border:1px solid #e2e8f0;
+    background:#fff;cursor:pointer;user-select:none;transition:all .1s;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size:.75rem;font-weight:700;letter-spacing:.04em;color:#1e293b;
+    font-size:.7rem;font-weight:700;letter-spacing:.04em;color:#475569;
+    line-height:1.2;white-space:nowrap;
 }
-.cat-chip-selected { background:#eff6ff;border-color:#3b82f6; }
-.cat-chip-selected .cat-chip-code { color:#1d4ed8; }
+.cat-chip:hover { border-color:#bfdbfe;background:#f8fafc;color:#1e293b; }
+.cat-chip-selected,
+.cat-chip-selected:hover { background:#3b82f6;border-color:#3b82f6;color:#fff; }
+.cat-chip-header {
+    background:#f8fafc;color:#64748b;border-color:#e2e8f0;
+}
+.chips-header-label {
+    display:block;font-size:.65rem;font-weight:600;color:#94a3b8;
+    text-transform:none;letter-spacing:0;margin-bottom:4px;
+}
+.chips-header-row { display:flex;flex-wrap:wrap;gap:5px; }
 
 .bulk-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:14px; }
 .bulk-grid-full { grid-column:1/-1; }

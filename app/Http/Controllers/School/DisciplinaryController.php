@@ -120,10 +120,9 @@ class DisciplinaryController extends Controller
         $schoolId = app('current_school_id');
 
         $validated = $request->validate([
-            'student_ids'      => 'required|array|min:1',
-            'student_ids.*'    => [Rule::exists('students', 'id')->where('school_id', $schoolId)],
-            'categories'       => 'required|array|min:1',
-            'categories.*'     => 'string|max:100',
+            'assignments'              => 'required|array|min:1',
+            'assignments.*.student_id' => ['required', Rule::exists('students', 'id')->where('school_id', $schoolId)],
+            'assignments.*.category'   => 'required|string|max:100',
             'incident_date'    => 'required|date',
             'severity'         => 'required|in:minor,moderate,major',
             'description'      => 'required|string',
@@ -133,9 +132,8 @@ class DisciplinaryController extends Controller
             'consequence_to'   => 'nullable|date|after_or_equal:consequence_from',
         ]);
 
-        $rows  = [];
-        $now   = now();
-        $base  = [
+        $now  = now();
+        $base = [
             'school_id'         => $schoolId,
             'reported_by'       => auth()->id(),
             'status'            => 'open',
@@ -150,11 +148,10 @@ class DisciplinaryController extends Controller
             'updated_at'        => $now,
         ];
 
-        foreach ($validated['student_ids'] as $sid) {
-            foreach ($validated['categories'] as $cat) {
-                $rows[] = $base + ['student_id' => $sid, 'category' => $cat];
-            }
-        }
+        $rows = array_map(
+            fn ($a) => $base + ['student_id' => $a['student_id'], 'category' => $a['category']],
+            $validated['assignments']
+        );
 
         DisciplinaryRecord::insert($rows);
 
