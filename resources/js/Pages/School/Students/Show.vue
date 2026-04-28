@@ -310,76 +310,78 @@ function submitAssignHostel() {
 
             <!-- ══ HERO CARD ═══════════════════════════════════════════════════ -->
             <div class="hero-card">
-                <div class="hero-avatar-wrap">
-                    <img v-if="student.photo"
-                         :src="`/storage/${student.photo}`"
-                         alt="Student Photo"
-                         class="hero-avatar" />
-                    <div v-else class="hero-avatar hero-avatar-fallback">
-                        {{ student.first_name?.charAt(0) }}{{ student.last_name?.charAt(0) ?? '' }}
+                <div class="hero-top">
+                    <div class="hero-avatar-wrap">
+                        <img v-if="student.photo"
+                             :src="`/storage/${student.photo}`"
+                             alt="Student Photo"
+                             class="hero-avatar" />
+                        <div v-else class="hero-avatar hero-avatar-fallback">
+                            {{ student.first_name?.charAt(0) }}{{ student.last_name?.charAt(0) ?? '' }}
+                        </div>
+                        <span class="hero-status-dot"></span>
                     </div>
-                    <span class="hero-status-dot"></span>
+
+                    <div class="hero-info">
+                        <h1 class="hero-name">{{ student.first_name }} {{ student.last_name }}</h1>
+
+                        <div v-if="student.current_academic_history" class="hero-subtitle">
+                            <svg class="hero-subtitle-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M12 14l9-5-9-5-9 5 9 5z M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                            </svg>
+                            <span class="hero-subtitle-class">
+                                {{ student.current_academic_history.course_class?.name ?? 'Unassigned class' }}
+                            </span>
+                            <span v-if="student.current_academic_history.section" class="hero-subtitle-part">
+                                Section {{ student.current_academic_history.section.name }}
+                            </span>
+                            <span v-if="student.current_academic_history.roll_no" class="hero-subtitle-part">
+                                Roll {{ student.current_academic_history.roll_no }}
+                            </span>
+                        </div>
+
+                        <div class="hero-meta">
+                            <span class="badge badge-green">{{ student.status ?? 'Active' }}</span>
+                            <button
+                                v-if="canDo('edit', 'students')"
+                                type="button"
+                                class="defaulter-toggle"
+                                :class="{ 'defaulter-toggle--on': defaulterForm.is_defaulter, 'defaulter-toggle--busy': defaulterForm.processing }"
+                                :disabled="defaulterForm.processing"
+                                :title="defaulterForm.is_defaulter ? 'Click to unflag' : 'Flag as fee defaulter'"
+                                @click="toggleDefaulter">
+                                <span class="defaulter-dot"></span>
+                                <span>{{ defaulterForm.is_defaulter ? 'Defaulter' : 'Not Defaulter' }}</span>
+                            </button>
+                            <span v-else-if="student.is_defaulter" class="badge badge-red">Defaulter</span>
+                            <span v-if="student.erp_no" class="hero-erp-no">ERP {{ student.erp_no }}</span>
+                            <span class="hero-adm-no">Adm {{ student.admission_no }}</span>
+                        </div>
+                    </div>
+
+                    <div class="hero-actions">
+                        <Button size="sm" as="link" v-if="canDo('edit', 'students')" :href="`/school/students/${student.id}/edit`">
+                            ✏️ Edit
+                        </Button>
+                        <Button variant="secondary" size="sm" @click="showIdModal = true">
+                            🪪 ID Card
+                        </Button>
+                        <Button variant="secondary" size="sm" as="link" v-if="canRequestEditStudent" :href="`/school/students/${student.id}/request-edit`">
+                            📝 Request Update
+                        </Button>
+                        <Button variant="secondary" size="sm" as="link" href="/school/students">
+                            ← Back
+                        </Button>
+                        <Button variant="danger" size="sm" v-if="canDo('delete', 'students')" @click="deleteStudent(student.id)">
+                            🗑️ Delete
+                        </Button>
+                    </div>
                 </div>
 
-                <div class="hero-info">
-                    <h1 class="hero-name">{{ student.first_name }} {{ student.last_name }}</h1>
-
-                    <div v-if="student.current_academic_history" class="hero-subtitle">
-                        <svg class="hero-subtitle-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M12 14l9-5-9-5-9 5 9 5z M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                        </svg>
-                        <span class="hero-subtitle-class">
-                            {{ student.current_academic_history.course_class?.name ?? 'Unassigned class' }}
-                        </span>
-                        <span v-if="student.current_academic_history.section" class="hero-subtitle-part">
-                            Section {{ student.current_academic_history.section.name }}
-                        </span>
-                        <span v-if="student.current_academic_history.roll_no" class="hero-subtitle-part">
-                            Roll {{ student.current_academic_history.roll_no }}
-                        </span>
-                    </div>
-
-                    <div class="hero-meta">
-                        <span class="badge badge-green">{{ student.status ?? 'Active' }}</span>
-                        <button
-                            v-if="canDo('edit', 'students')"
-                            type="button"
-                            class="defaulter-toggle"
-                            :class="{ 'defaulter-toggle--on': defaulterForm.is_defaulter, 'defaulter-toggle--busy': defaulterForm.processing }"
-                            :disabled="defaulterForm.processing"
-                            :title="defaulterForm.is_defaulter ? 'Click to unflag' : 'Flag as fee defaulter'"
-                            @click="toggleDefaulter">
-                            <span class="defaulter-dot"></span>
-                            <span>{{ defaulterForm.is_defaulter ? 'Defaulter' : 'Not Defaulter' }}</span>
-                        </button>
-                        <span v-else-if="student.is_defaulter" class="badge badge-red">Defaulter</span>
-                        <span v-if="student.erp_no" class="hero-erp-no">ERP {{ student.erp_no }}</span>
-                        <span class="hero-adm-no">Adm {{ student.admission_no }}</span>
-                    </div>
-
-                    <div v-if="canRequestEditStudent" class="hero-notice">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        Submit a request to edit any information, or use Edit Profile.
-                    </div>
-                </div>
-
-                <div class="hero-actions">
-                    <Button size="sm" as="link" v-if="canDo('edit', 'students')" :href="`/school/students/${student.id}/edit`">
-                        ✏️ Edit
-                    </Button>
-                    <Button variant="secondary" size="sm" @click="showIdModal = true">
-                        🪪 ID Card
-                    </Button>
-                    <Button variant="secondary" size="sm" as="link" v-if="canRequestEditStudent" :href="`/school/students/${student.id}/request-edit`">
-                        📝 Request Update
-                    </Button>
-                    <Button variant="secondary" size="sm" as="link" href="/school/students">
-                        ← Back
-                    </Button>
-                    <Button variant="danger" size="sm" v-if="canDo('delete', 'students')" @click="deleteStudent(student.id)">
-                        🗑️ Delete
-                    </Button>
+                <div v-if="canRequestEditStudent" class="hero-notice">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    Submit a request to edit any information, or use Edit Profile.
                 </div>
             </div>
 
@@ -1877,17 +1879,24 @@ function submitAssignHostel() {
 .hero-card {
     background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
     border-radius: var(--radius-lg, 14px);
-    padding: 28px 32px;
+    padding: 18px 24px;
     display: flex;
-    align-items: center;
-    gap: 24px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 12px;
     box-shadow: 0 4px 24px rgba(99,102,241,0.18);
+}
+
+.hero-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 22px;
+    flex-wrap: wrap;
 }
 
 .hero-avatar-wrap {
     position: relative;
     flex-shrink: 0;
+    align-self: center;
 }
 
 .hero-avatar {
@@ -1929,7 +1938,7 @@ function submitAssignHostel() {
     font-size: 22px;
     font-weight: 800;
     color: #fff;
-    margin: 0 0 8px;
+    margin: 0 0 6px;
     line-height: 1.2;
 }
 
@@ -1945,7 +1954,7 @@ function submitAssignHostel() {
     flex-wrap: wrap;
     align-items: center;
     gap: 8px 14px;
-    margin: 0 0 10px;
+    margin: 0 0 8px;
     color: rgba(255,255,255,0.92);
     font-size: 14px;
     font-weight: 600;
@@ -1999,16 +2008,16 @@ function submitAssignHostel() {
 }
 
 .hero-notice {
-    margin-top: 10px;
+    margin-top: 0;
     display: flex;
     align-items: center;
     gap: 6px;
     font-size: 12px;
-    color: rgba(255,255,255,0.75);
+    color: rgba(255,255,255,0.78);
     background: rgba(255,255,255,0.1);
     border: 1px solid rgba(255,255,255,0.15);
     border-radius: 8px;
-    padding: 6px 12px;
+    padding: 7px 12px;
 }
 
 .hero-actions {
