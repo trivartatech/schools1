@@ -24,7 +24,7 @@ class DueReportExportController extends Controller
         if (is_string($feeTypesIn)) {
             $feeTypesIn = array_filter(array_map('trim', explode(',', $feeTypesIn)));
         }
-        $feeTypes = array_values(array_intersect(['regular', 'transport', 'hostel'], (array) $feeTypesIn));
+        $feeTypes = array_values(array_intersect(['regular', 'transport', 'hostel', 'stationary'], (array) $feeTypesIn));
 
         $rows = $service->rowsFor(
             $schoolId,
@@ -49,6 +49,7 @@ class DueReportExportController extends Controller
             'total_fee', 'paid_fee', 'fee_due',
             'transport_fee', 'transport_paid', 'transport_due',
             'hostel_fee', 'hostel_paid', 'hostel_due',
+            'stationary_fee', 'stationary_paid', 'stationary_due',
             'total_balance',
         ];
         $textKeys    = ['name', 'class', 'father_contact', 'mother_contact'];
@@ -78,6 +79,9 @@ class DueReportExportController extends Controller
             'Hostel Fee',
             'Hostel Fee Paid',
             'Hostel Fee Due',
+            'Stationary Fee',
+            'Stationary Fee Paid',
+            'Stationary Fee Due',
             'Total Fee Balance',
         ];
 
@@ -95,6 +99,9 @@ class DueReportExportController extends Controller
             number_format($r['hostel_fee'], 2),
             number_format($r['hostel_paid'], 2),
             number_format($r['hostel_due'], 2),
+            number_format($r['stationary_fee'], 2),
+            number_format($r['stationary_paid'], 2),
+            number_format($r['stationary_due'], 2),
             number_format($r['total_balance'], 2),
         ], $rows);
 
@@ -114,6 +121,9 @@ class DueReportExportController extends Controller
             number_format($totals['hostel_fee'], 2),
             number_format($totals['hostel_paid'], 2),
             number_format($totals['hostel_due'], 2),
+            number_format($totals['stationary_fee'], 2),
+            number_format($totals['stationary_paid'], 2),
+            number_format($totals['stationary_due'], 2),
             number_format($totals['total_balance'], 2),
         ];
 

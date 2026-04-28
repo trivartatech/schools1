@@ -9,6 +9,7 @@ use App\Models\Correspondence;
 use App\Models\FeePayment;
 use App\Models\GatePass;
 use App\Models\HostelFeePayment;
+use App\Models\StationaryFeePayment;
 use App\Models\TransportFeePayment;
 use App\Models\VisitorLog;
 use Carbon\Carbon;
@@ -130,11 +131,18 @@ class DashboardController extends Controller
             ->selectRaw('COUNT(*) as receipt_count, COALESCE(SUM(amount_paid), 0) as total')
             ->first();
 
+        $stationaryToday = StationaryFeePayment::where('school_id', $schoolId)
+            ->whereDate('payment_date', $date)
+            ->where('amount_paid', '>', 0)
+            ->selectRaw('COUNT(*) as receipt_count, COALESCE(SUM(amount_paid), 0) as total')
+            ->first();
+
         $collection = [
-            'tuition'   => ['receipts' => (int) $tuitionToday->receipt_count,   'total' => (float) $tuitionToday->total],
-            'transport' => ['receipts' => (int) $transportToday->receipt_count, 'total' => (float) $transportToday->total],
-            'hostel'    => ['receipts' => (int) $hostelToday->receipt_count,    'total' => (float) $hostelToday->total],
-            'grand_total' => (float) $tuitionToday->total + (float) $transportToday->total + (float) $hostelToday->total,
+            'tuition'    => ['receipts' => (int) $tuitionToday->receipt_count,    'total' => (float) $tuitionToday->total],
+            'transport'  => ['receipts' => (int) $transportToday->receipt_count,  'total' => (float) $transportToday->total],
+            'hostel'     => ['receipts' => (int) $hostelToday->receipt_count,     'total' => (float) $hostelToday->total],
+            'stationary' => ['receipts' => (int) $stationaryToday->receipt_count, 'total' => (float) $stationaryToday->total],
+            'grand_total' => (float) $tuitionToday->total + (float) $transportToday->total + (float) $hostelToday->total + (float) $stationaryToday->total,
         ];
 
         return Inertia::render('School/FrontOffice/DailyReport', [

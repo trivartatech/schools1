@@ -14,12 +14,16 @@ use App\Models\Hostel;
 use App\Models\HostelFeePayment;
 use App\Models\Leave;
 use App\Models\Payroll;
+use App\Models\StationaryFeePayment;
+use App\Models\StationaryReturn;
 use App\Models\TransportFeePayment;
 use App\Models\User;
 use App\Observers\ExpenseGLObserver;
 use App\Observers\FeePaymentGLObserver;
 use App\Observers\HostelFeePaymentGLObserver;
 use App\Observers\PayrollGLObserver;
+use App\Observers\StationaryFeePaymentGLObserver;
+use App\Observers\StationaryReturnGLObserver;
 use App\Observers\TransportFeePaymentGLObserver;
 use App\Listeners\RoleChangeAuditListener;
 use App\Observers\UserObserver;
@@ -95,6 +99,8 @@ class AppServiceProvider extends ServiceProvider
         FeePayment::observe(FeePaymentGLObserver::class);
         TransportFeePayment::observe(TransportFeePaymentGLObserver::class);
         HostelFeePayment::observe(HostelFeePaymentGLObserver::class);
+        StationaryFeePayment::observe(StationaryFeePaymentGLObserver::class);
+        StationaryReturn::observe(StationaryReturnGLObserver::class);
         Expense::observe(ExpenseGLObserver::class);
         Payroll::observe(PayrollGLObserver::class);
 

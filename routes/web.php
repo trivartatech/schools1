@@ -10,6 +10,7 @@ Route::get('/', [\App\Http\Controllers\PublicController::class, 'home']);
 Route::get('/verify-receipt/{receipt_no}', [\App\Http\Controllers\PublicController::class, 'verifyReceipt'])->name('verify-receipt');
 Route::get('/verify-transport-receipt/{receipt_no}', [\App\Http\Controllers\PublicController::class, 'verifyTransportReceipt'])->name('verify-transport-receipt');
 Route::get('/verify-hostel-receipt/{receipt_no}', [\App\Http\Controllers\PublicController::class, 'verifyHostelReceipt'])->name('verify-hostel-receipt');
+Route::get('/verify-stationary-receipt/{receipt_no}', [\App\Http\Controllers\PublicController::class, 'verifyStationaryReceipt'])->name('verify-stationary-receipt');
 Route::get('/school/hostel/gate-passes/verify/{token}', [\App\Http\Controllers\PublicController::class, 'verifyGatePass'])->name('gate-pass.verify-public');
 Route::get('/school/hostel/visitors/verify/{token}', [\App\Http\Controllers\PublicController::class, 'verifyVisitorPass'])->name('visitor-pass.verify-public');
 Route::get('/verify/certificate/{token}', [\App\Http\Controllers\PublicController::class, 'verifyCertificate'])->name('certificate.verify-public');
@@ -1114,6 +1115,84 @@ Route::middleware('auth')->group(function () {
                     // Live vehicle locations JSON endpoint
                     $GC = \App\Http\Controllers\Api\Transport\GpsLogController::class;
                     Route::get('live-data', [$GC, 'live'])->name('live.data');
+                });
+            });
+        });
+
+        // Stationary Module — kit allocation, fee collection, issuance, returns
+        Route::middleware(['school.management', 'permission:view_stationary'])->group(function () {
+            Route::group(['prefix' => 'stationary', 'as' => 'stationary.'], function () {
+
+                // Dashboard + module reports
+                $SDC = \App\Http\Controllers\School\Stationary\StationaryDashboardController::class;
+                Route::get('/', [$SDC, 'index'])->name('dashboard');
+                Route::get('reports/fee-defaulters',     [$SDC, 'feeDefaulters'])->name('reports.fee-defaulters');
+                Route::get('reports/collection-pending', [$SDC, 'collectionPending'])->name('reports.collection-pending');
+                Route::get('reports/returns',            [$SDC, 'returnsReport'])->name('reports.returns');
+
+                // Items
+                Route::middleware(['permission:view_stationary_items'])->group(function () {
+                    $IC = \App\Http\Controllers\School\Stationary\ItemController::class;
+                    Route::get('items', [$IC, 'index'])->name('items.index');
+
+                    Route::middleware(['permission:create_stationary_items'])->group(function () use ($IC) {
+                        Route::post('items', [$IC, 'store'])->name('items.store');
+                    });
+                    Route::middleware(['permission:edit_stationary_items'])->group(function () use ($IC) {
+                        Route::put('items/{item}', [$IC, 'update'])->name('items.update');
+                    });
+                    Route::middleware(['permission:delete_stationary_items'])->group(function () use ($IC) {
+                        Route::delete('items/{item}', [$IC, 'destroy'])->name('items.destroy');
+                    });
+                });
+
+                // Student Allocations
+                Route::middleware(['permission:view_stationary_allocations'])->group(function () {
+                    $AC = \App\Http\Controllers\School\Stationary\AllocationController::class;
+                    Route::get('allocations',                      [$AC, 'index'])->name('allocations.index');
+                    Route::get('allocations/students-by-class',    [$AC, 'studentsByClass'])->name('allocations.students-by-class');
+                    Route::get('allocations/{allocation}',         [$AC, 'show'])->name('allocations.show');
+
+                    Route::middleware(['permission:create_stationary_allocations'])->group(function () use ($AC) {
+                        Route::post('allocations',                 [$AC, 'store'])->name('allocations.store');
+                    });
+                    Route::middleware(['permission:edit_stationary_allocations'])->group(function () use ($AC) {
+                        Route::put('allocations/{allocation}',     [$AC, 'update'])->name('allocations.update');
+                    });
+                    Route::middleware(['permission:delete_stationary_allocations'])->group(function () use ($AC) {
+                        Route::delete('allocations/{allocation}',  [$AC, 'destroy'])->name('allocations.destroy');
+                    });
+
+                    // Issuance log endpoints (nested under allocation)
+                    $ISC = \App\Http\Controllers\School\Stationary\IssuanceController::class;
+                    Route::get('allocations/{allocation}/issuances', [$ISC, 'index'])->name('issuances.index');
+
+                    Route::middleware(['permission:issue_stationary_items'])->group(function () use ($ISC) {
+                        Route::post('allocations/{allocation}/issuances', [$ISC, 'store'])->name('issuances.store');
+                        Route::delete('issuances/{issuance}',             [$ISC, 'destroy'])->name('issuances.destroy');
+                    });
+
+                    // Return log endpoints (nested under allocation)
+                    $RC = \App\Http\Controllers\School\Stationary\ReturnController::class;
+                    Route::get('allocations/{allocation}/returns', [$RC, 'index'])->name('returns.index');
+
+                    Route::middleware(['permission:accept_stationary_returns'])->group(function () use ($RC) {
+                        Route::post('allocations/{allocation}/returns', [$RC, 'store'])->name('returns.store');
+                        Route::delete('returns/{return}',               [$RC, 'destroy'])->name('returns.destroy');
+                    });
+                });
+
+                // Fee Collection (standalone — no link to Finance FeePayment)
+                Route::middleware(['permission:view_stationary_allocations'])->group(function () {
+                    $SFC = \App\Http\Controllers\School\Stationary\StationaryFeeCollectionController::class;
+                    Route::get('fees',                              [$SFC, 'index'])->name('fees.index');
+                    Route::get('fees/receipts/{payment}/receipt',   [$SFC, 'receipt'])->name('fees.receipt');
+                    Route::get('fees/{allocation}',                 [$SFC, 'show'])->name('fees.show');
+
+                    Route::middleware(['permission:collect_stationary_fee'])->group(function () use ($SFC) {
+                        Route::post('fees/{allocation}/collect',    [$SFC, 'store'])->name('fees.store');
+                        Route::delete('fees/receipts/{payment}',    [$SFC, 'destroy'])->name('fees.receipt.destroy');
+                    });
                 });
             });
         });

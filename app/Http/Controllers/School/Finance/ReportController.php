@@ -8,6 +8,7 @@ use App\Models\FeePayment;
 use App\Models\HostelFeePayment;
 use App\Models\Payroll;
 use App\Models\FeeHead;
+use App\Models\StationaryFeePayment;
 use App\Models\TransportFeePayment;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -69,7 +70,21 @@ class ReportController extends Controller
         }
         $totalHostelFees = (float) (clone $hostelQuery)->sum('amount_paid');
 
-        $totalFees = (float) $totalTuitionFees + $totalTransportFees + $totalHostelFees;
+        // 1d. Total Stationary Fee Collected (same date / class / section filters)
+        $stationaryQuery = StationaryFeePayment::where('school_id', $schoolId)
+            ->whereBetween('payment_date', [$startDate, $endDate]);
+        if ($request->filled('class_id')) {
+            $stationaryQuery->whereHas('student.currentAcademicHistory', function($q) use ($request, $academicYearId) {
+                $q->where('class_id', $request->class_id);
+                if ($request->filled('section_id')) {
+                    $q->where('section_id', $request->section_id);
+                }
+                $q->where('academic_year_id', $academicYearId);
+            });
+        }
+        $totalStationaryFees = (float) (clone $stationaryQuery)->sum('amount_paid');
+
+        $totalFees = (float) $totalTuitionFees + $totalTransportFees + $totalHostelFees + $totalStationaryFees;
 
         // 2. Total Expenses
         $totalExpenses = Expense::where('school_id', $schoolId)
@@ -109,15 +124,22 @@ class ReportController extends Controller
             ->groupByRaw($dateFormatter)
             ->pluck('total', 'month');
 
+        $monthlyStationaryIncome = (clone $stationaryQuery)
+            ->selectRaw("$dateFormatter as month, SUM(amount_paid) as total")
+            ->groupByRaw($dateFormatter)
+            ->pluck('total', 'month');
+
         // Combine the income streams by month (same key format → same month bucket)
         $monthlyIncomeQuery = collect($monthlyTuitionIncome->keys())
             ->merge($monthlyTransportIncome->keys())
             ->merge($monthlyHostelIncome->keys())
+            ->merge($monthlyStationaryIncome->keys())
             ->unique()
             ->mapWithKeys(fn($m) => [
                 $m => (float) ($monthlyTuitionIncome[$m] ?? 0)
                     + (float) ($monthlyTransportIncome[$m] ?? 0)
-                    + (float) ($monthlyHostelIncome[$m] ?? 0),
+                    + (float) ($monthlyHostelIncome[$m] ?? 0)
+                    + (float) ($monthlyStationaryIncome[$m] ?? 0),
             ]);
 
         $monthlyExpensesQuery = Expense::where('school_id', $schoolId)
@@ -201,6 +223,15 @@ class ReportController extends Controller
             $feesByHead = $feesByHead->sortByDesc('total')->values();
         }
 
+        // Same treatment for stationary collection.
+        if ($totalStationaryFees > 0) {
+            $feesByHead->push((object) [
+                'name'  => 'Stationary Fee',
+                'total' => $totalStationaryFees,
+            ]);
+            $feesByHead = $feesByHead->sortByDesc('total')->values();
+        }
+
         // Breakdown: Top Expenses Category
         $topExpenseCategories = DB::table('expenses')
             ->leftJoin('expense_categories', 'expenses.expense_category_id', '=', 'expense_categories.id')
@@ -222,10 +253,11 @@ class ReportController extends Controller
 
         return Inertia::render('School/Finance/Reports/Index', [
             'metrics' => [
-                'total_fees_collected'           => (float) $totalFees,
-                'total_tuition_fees_collected'   => (float) $totalTuitionFees,
-                'total_transport_fees_collected' => (float) $totalTransportFees,
-                'total_hostel_fees_collected'    => (float) $totalHostelFees,
+                'total_fees_collected'             => (float) $totalFees,
+                'total_tuition_fees_collected'     => (float) $totalTuitionFees,
+                'total_transport_fees_collected'   => (float) $totalTransportFees,
+                'total_hostel_fees_collected'      => (float) $totalHostelFees,
+                'total_stationary_fees_collected'  => (float) $totalStationaryFees,
                 'total_expenses'                 => (float) $totalExpenses,
                 'total_payroll'                  => (float) $totalPayroll,
                 'net_revenue'                    => (float) $netRevenue,

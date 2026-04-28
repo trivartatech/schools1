@@ -7,6 +7,7 @@ use App\Enums\RolloverState;
 use App\Models\FeePayment;
 use App\Models\HostelStudent;
 use App\Models\RolloverRun;
+use App\Models\StationaryStudentAllocation;
 use App\Models\TransportStudentAllocation;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -341,13 +342,15 @@ class CarryForwardDuesService
      * or hostel fees as of the year-end cutover.
      *
      * @return array{
-     *   transport: array{allocations:int, total:string},
-     *   hostel:    array{allocations:int, total:string},
+     *   transport:  array{allocations:int, total:string},
+     *   hostel:     array{allocations:int, total:string},
+     *   stationary: array{allocations:int, total:string},
      * }
      */
     private function carryAuxiliaryBalances(RolloverRun $run, bool $dryRun): array
     {
         $schoolId = $run->school_id;
+        $sourceYearId = $run->source_year_id ?? null;
 
         $transportRows = TransportStudentAllocation::where('school_id', $schoolId)
             ->where('status', 'active')
@@ -359,8 +362,19 @@ class CarryForwardDuesService
             ->where('balance', '>', 0)
             ->get(['id', 'student_id', 'balance']);
 
-        $transportTotal = (float) $transportRows->sum('balance');
-        $hostelTotal    = (float) $hostelRows->sum('balance');
+        $stationaryQuery = StationaryStudentAllocation::where('school_id', $schoolId)
+            ->where('status', 'active')
+            ->where('balance', '>', 0);
+        // Stationary allocations are scoped per academic year, so only carry the source year's
+        // outstanding rows. (Transport/hostel allocations span years, hence no year filter.)
+        if ($sourceYearId) {
+            $stationaryQuery->where('academic_year_id', $sourceYearId);
+        }
+        $stationaryRows = $stationaryQuery->get(['id', 'student_id', 'balance']);
+
+        $transportTotal  = (float) $transportRows->sum('balance');
+        $hostelTotal     = (float) $hostelRows->sum('balance');
+        $stationaryTotal = (float) $stationaryRows->sum('balance');
 
         if (! $dryRun) {
             foreach ($transportRows as $row) {
@@ -377,6 +391,13 @@ class CarryForwardDuesService
                     'note'       => 'Allocation persists across years — no new row created',
                 ]);
             }
+            foreach ($stationaryRows as $row) {
+                $run->logItem('fees', 'carry_forward_stationary', $row->id, $row->id, 'success', null, [
+                    'student_id' => $row->student_id,
+                    'balance'    => number_format((float) $row->balance, 2, '.', ''),
+                    'note'       => 'Stationary allocation is year-scoped; new-year allocation is created when admin re-allocates',
+                ]);
+            }
         }
 
         return [
@@ -387,6 +408,10 @@ class CarryForwardDuesService
             'hostel' => [
                 'allocations' => $hostelRows->count(),
                 'total'       => number_format($hostelTotal, 2, '.', ''),
+            ],
+            'stationary' => [
+                'allocations' => $stationaryRows->count(),
+                'total'       => number_format($stationaryTotal, 2, '.', ''),
             ],
         ];
     }

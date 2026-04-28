@@ -245,8 +245,16 @@ class DashboardController extends Controller
                     ->whereBetween('payment_date', [$thisMonth->toDateString(), $thisMonthEnd->toDateString()])
                     ->sum('amount_paid');
 
-                $todayFeeCollection = $todayTuitionFee + $todayTransportFee + $todayHostelFee;
-                $monthFeeCollection = $monthTuitionFee + $monthTransportFee + $monthHostelFee;
+                $todayStationaryFee = (float) \App\Models\StationaryFeePayment::where('school_id', $schoolId)
+                    ->whereDate('payment_date', $today)
+                    ->sum('amount_paid');
+
+                $monthStationaryFee = (float) \App\Models\StationaryFeePayment::where('school_id', $schoolId)
+                    ->whereBetween('payment_date', [$thisMonth->toDateString(), $thisMonthEnd->toDateString()])
+                    ->sum('amount_paid');
+
+                $todayFeeCollection = $todayTuitionFee + $todayTransportFee + $todayHostelFee + $todayStationaryFee;
+                $monthFeeCollection = $monthTuitionFee + $monthTransportFee + $monthHostelFee + $monthStationaryFee;
 
                 $schoolPending = $this->feeService->getSchoolPendingFees($schoolId, $academicYearId);
                 $pendingFees = $schoolPending['pending_fees'];
@@ -548,12 +556,14 @@ class DashboardController extends Controller
                         'total_sections'     => $totalSections,
                         'today_fee'          => $todayFeeCollection,
                         'month_fee'          => $monthFeeCollection,
-                        'today_fee_tuition'  => $todayTuitionFee,
-                        'today_fee_transport'=> $todayTransportFee,
-                        'today_fee_hostel'   => $todayHostelFee,
-                        'month_fee_tuition'  => $monthTuitionFee,
-                        'month_fee_transport'=> $monthTransportFee,
-                        'month_fee_hostel'   => $monthHostelFee,
+                        'today_fee_tuition'   => $todayTuitionFee,
+                        'today_fee_transport' => $todayTransportFee,
+                        'today_fee_hostel'    => $todayHostelFee,
+                        'today_fee_stationary'=> $todayStationaryFee,
+                        'month_fee_tuition'   => $monthTuitionFee,
+                        'month_fee_transport' => $monthTransportFee,
+                        'month_fee_hostel'    => $monthHostelFee,
+                        'month_fee_stationary'=> $monthStationaryFee,
                         'pending_fees'       => $pendingFees,
                         'active_routes'      => $activeRoutes,
                         'hostel_occupied'    => $hostelOccupied,

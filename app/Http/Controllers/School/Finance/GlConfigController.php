@@ -25,6 +25,7 @@ class GlConfigController extends Controller
         'gl_fee_income_ledger_id',
         'gl_transport_fee_income_ledger_id',
         'gl_hostel_fee_income_ledger_id',
+        'gl_stationary_fee_income_ledger_id',
         'gl_expense_ledger_id',
         'gl_payroll_ledger_id',
     ];
@@ -69,12 +70,13 @@ class GlConfigController extends Controller
         $schoolId = app('current_school_id');
 
         $data = $request->validate([
-            'gl_cash_ledger_id'                 => 'nullable|integer',
-            'gl_fee_income_ledger_id'           => 'nullable|integer',
-            'gl_transport_fee_income_ledger_id' => 'nullable|integer',
-            'gl_hostel_fee_income_ledger_id'    => 'nullable|integer',
-            'gl_expense_ledger_id'              => 'nullable|integer',
-            'gl_payroll_ledger_id'              => 'nullable|integer',
+            'gl_cash_ledger_id'                  => 'nullable|integer',
+            'gl_fee_income_ledger_id'            => 'nullable|integer',
+            'gl_transport_fee_income_ledger_id'  => 'nullable|integer',
+            'gl_hostel_fee_income_ledger_id'     => 'nullable|integer',
+            'gl_stationary_fee_income_ledger_id' => 'nullable|integer',
+            'gl_expense_ledger_id'               => 'nullable|integer',
+            'gl_payroll_ledger_id'               => 'nullable|integer',
         ]);
 
         // Verify each provided ledger belongs to this school
@@ -148,6 +150,12 @@ class GlConfigController extends Controller
             ['ledger_type_id' => $incomeType->id, 'is_system' => true, 'is_active' => true, 'opening_balance' => 0, 'opening_balance_type' => 'credit']
         );
 
+        // Ensure Stationary Fee Income ledger (same treatment as Transport / Hostel)
+        $stationaryIncomeLedger = Ledger::firstOrCreate(
+            ['school_id' => $schoolId, 'name' => 'Stationary Fee Income'],
+            ['ledger_type_id' => $incomeType->id, 'is_system' => true, 'is_active' => true, 'opening_balance' => 0, 'opening_balance_type' => 'credit']
+        );
+
         // Ensure Expense ledger
         $expenseLedger = Ledger::firstOrCreate(
             ['school_id' => $schoolId, 'name' => 'General Expenses'],
@@ -183,6 +191,13 @@ class GlConfigController extends Controller
         $currentHostel = $settings['gl_hostel_fee_income_ledger_id'] ?? null;
         if (! $currentHostel || ! Ledger::where('id', $currentHostel)->where('school_id', $schoolId)->where('ledger_type_id', $incomeType->id)->exists()) {
             $settings['gl_hostel_fee_income_ledger_id'] = $hostelIncomeLedger->id;
+            $changed = true;
+        }
+
+        // Fix stationary fee income ledger: must be an Income-type ledger
+        $currentStationary = $settings['gl_stationary_fee_income_ledger_id'] ?? null;
+        if (! $currentStationary || ! Ledger::where('id', $currentStationary)->where('school_id', $schoolId)->where('ledger_type_id', $incomeType->id)->exists()) {
+            $settings['gl_stationary_fee_income_ledger_id'] = $stationaryIncomeLedger->id;
             $changed = true;
         }
 

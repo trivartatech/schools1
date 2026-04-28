@@ -9,6 +9,8 @@ use App\Models\Ledger;
 use App\Models\LedgerType;
 use App\Models\Payroll;
 use App\Models\School;
+use App\Models\StationaryFeePayment;
+use App\Models\StationaryReturn;
 use App\Models\Transaction;
 use App\Models\TransactionLine;
 use App\Models\TransportFeePayment;
@@ -245,6 +247,180 @@ class GlPostingService
         });
     }
 
+    // ── Stationary Fee Payment ────────────────────────────────────────────────
+
+    /**
+     * Dr  Cash/Bank ledger                    (gl_cash_ledger_id)
+     * Cr  Stationary Fee Income ledger        (gl_stationary_fee_income_ledger_id)
+     *
+     * Falls back to the regular Fee Income ledger if no dedicated stationary
+     * income ledger is configured. Idempotent: returns null if the receipt is
+     * already posted, has zero amount, or GL is not configured.
+     */
+    public function postStationaryFeePayment(StationaryFeePayment $payment): ?Transaction
+    {
+        if ($payment->gl_transaction_id)         return null; // already posted
+        if ((float) $payment->amount_paid <= 0)  return null;
+
+        $settings        = $this->settings($payment->school_id);
+        $cashLedgerId    = $settings['gl_cash_ledger_id'] ?? null;
+        $incomeLedgerId  = $settings['gl_stationary_fee_income_ledger_id']
+                        ?? $settings['gl_fee_income_ledger_id']
+                        ?? null;
+
+        if (! $cashLedgerId || ! $incomeLedgerId)  return null; // not configured
+        if ($cashLedgerId === $incomeLedgerId)     return null; // misconfigured
+
+        $this->assertLedgersExist($payment->school_id, [$cashLedgerId, $incomeLedgerId]);
+
+        $payment->loadMissing('student');
+        $studentName = $payment->student
+            ? trim(($payment->student->first_name ?? '') . ' ' . ($payment->student->last_name ?? ''))
+            : null;
+
+        return DB::transaction(function () use ($payment, $cashLedgerId, $incomeLedgerId, $studentName) {
+            $tx = $this->createTransaction([
+                'school_id'        => $payment->school_id,
+                'academic_year_id' => $payment->academic_year_id,
+                'date'             => $payment->getRawOriginal('payment_date'),
+                'type'             => 'receipt',
+                'narration'        => 'Stationary fee receipt — ' . $payment->receipt_no
+                                    . ($studentName ? ' (' . $studentName . ')' : ''),
+                'reference_no'     => $payment->receipt_no,
+                'created_by'       => $payment->collected_by,
+            ], [
+                ['ledger_id' => $cashLedgerId,   'type' => 'debit',  'amount' => $payment->amount_paid, 'description' => 'Stationary fee collected'],
+                ['ledger_id' => $incomeLedgerId, 'type' => 'credit', 'amount' => $payment->amount_paid, 'description' => 'Stationary fee income'],
+            ]);
+
+            $payment->updateQuietly(['gl_transaction_id' => $tx->id]);
+
+            return $tx;
+        });
+    }
+
+    /**
+     * Reverse the GL entry for a stationary fee receipt that has been voided
+     * (soft-deleted). Mirrors reverseTransportFeePayment().
+     */
+    public function reverseStationaryFeePayment(StationaryFeePayment $payment): ?Transaction
+    {
+        if (! $payment->gl_transaction_id) return null;
+
+        $oldTx = Transaction::with('lines')->find($payment->gl_transaction_id);
+        if (! $oldTx || $oldTx->status !== 'posted') return null;
+
+        return DB::transaction(function () use ($payment, $oldTx) {
+            $reversalLines = $oldTx->lines->map(fn($l) => [
+                'ledger_id'   => $l->ledger_id,
+                'type'        => $l->type === 'debit' ? 'credit' : 'debit',
+                'amount'      => $l->amount,
+                'description' => 'Reversal: ' . $l->description,
+            ])->all();
+
+            $reversal = $this->createTransaction([
+                'school_id'        => $oldTx->school_id,
+                'academic_year_id' => $oldTx->academic_year_id,
+                'date'             => now()->toDateString(),
+                'type'             => 'journal',
+                'narration'        => 'Reversal of ' . $oldTx->transaction_no . ' (void stationary receipt)',
+                'reversal_of'      => $oldTx->id,
+                'created_by'       => auth()->id(),
+            ], $reversalLines);
+
+            $oldTx->update(['status' => 'void']);
+            $payment->updateQuietly(['gl_transaction_id' => null]);
+
+            return $reversal;
+        });
+    }
+
+    /**
+     * Refund posted when a stationary return is recorded with refund_mode in
+     * {cash, cheque} and refund_amount > 0.
+     *
+     * Dr  Stationary Fee Income ledger    (gl_stationary_fee_income_ledger_id)
+     * Cr  Cash/Bank ledger                (gl_cash_ledger_id)
+     */
+    public function postStationaryRefund(StationaryReturn $return): ?Transaction
+    {
+        if ($return->gl_transaction_id)                                  return null; // already posted
+        if ((float) $return->refund_amount <= 0)                         return null;
+        if (! in_array($return->refund_mode, ['cash', 'cheque'], true))  return null;
+
+        $settings        = $this->settings($return->school_id);
+        $cashLedgerId    = $settings['gl_cash_ledger_id'] ?? null;
+        $incomeLedgerId  = $settings['gl_stationary_fee_income_ledger_id']
+                        ?? $settings['gl_fee_income_ledger_id']
+                        ?? null;
+
+        if (! $cashLedgerId || ! $incomeLedgerId)  return null;
+        if ($cashLedgerId === $incomeLedgerId)     return null;
+
+        $this->assertLedgersExist($return->school_id, [$cashLedgerId, $incomeLedgerId]);
+
+        $return->loadMissing('student');
+        $studentName = $return->student
+            ? trim(($return->student->first_name ?? '') . ' ' . ($return->student->last_name ?? ''))
+            : null;
+
+        return DB::transaction(function () use ($return, $cashLedgerId, $incomeLedgerId, $studentName) {
+            $tx = $this->createTransaction([
+                'school_id'        => $return->school_id,
+                'academic_year_id' => null,
+                'date'             => $return->returned_at?->toDateString() ?? now()->toDateString(),
+                'type'             => 'payment',
+                'narration'        => 'Stationary refund — return #' . $return->id
+                                    . ($studentName ? ' (' . $studentName . ')' : ''),
+                'reference_no'     => 'STARET-' . $return->id,
+                'created_by'       => $return->accepted_by,
+            ], [
+                ['ledger_id' => $incomeLedgerId, 'type' => 'debit',  'amount' => $return->refund_amount, 'description' => 'Stationary refund'],
+                ['ledger_id' => $cashLedgerId,   'type' => 'credit', 'amount' => $return->refund_amount, 'description' => 'Cash/bank paid for refund'],
+            ]);
+
+            $return->updateQuietly(['gl_transaction_id' => $tx->id]);
+
+            return $tx;
+        });
+    }
+
+    /**
+     * Reverse the refund GL entry when a stationary return is voided
+     * (soft-deleted). Mirrors reverseStationaryFeePayment().
+     */
+    public function reverseStationaryRefund(StationaryReturn $return): ?Transaction
+    {
+        if (! $return->gl_transaction_id) return null;
+
+        $oldTx = Transaction::with('lines')->find($return->gl_transaction_id);
+        if (! $oldTx || $oldTx->status !== 'posted') return null;
+
+        return DB::transaction(function () use ($return, $oldTx) {
+            $reversalLines = $oldTx->lines->map(fn($l) => [
+                'ledger_id'   => $l->ledger_id,
+                'type'        => $l->type === 'debit' ? 'credit' : 'debit',
+                'amount'      => $l->amount,
+                'description' => 'Reversal: ' . $l->description,
+            ])->all();
+
+            $reversal = $this->createTransaction([
+                'school_id'        => $oldTx->school_id,
+                'academic_year_id' => $oldTx->academic_year_id,
+                'date'             => now()->toDateString(),
+                'type'             => 'journal',
+                'narration'        => 'Reversal of ' . $oldTx->transaction_no . ' (void stationary refund)',
+                'reversal_of'      => $oldTx->id,
+                'created_by'       => auth()->id(),
+            ], $reversalLines);
+
+            $oldTx->update(['status' => 'void']);
+            $return->updateQuietly(['gl_transaction_id' => null]);
+
+            return $reversal;
+        });
+    }
+
     // ── Expense ───────────────────────────────────────────────────────────────
 
     /**
@@ -396,13 +572,14 @@ class GlPostingService
         $school   = School::find($schoolId);
         $settings = $school?->settings ?? [];
 
-        $needsCash      = empty($settings['gl_cash_ledger_id']);
-        $needsIncome    = empty($settings['gl_fee_income_ledger_id']);
-        $needsTransport = empty($settings['gl_transport_fee_income_ledger_id']);
-        $needsHostel    = empty($settings['gl_hostel_fee_income_ledger_id']);
-        $needsExpense   = empty($settings['gl_expense_ledger_id']);
+        $needsCash       = empty($settings['gl_cash_ledger_id']);
+        $needsIncome     = empty($settings['gl_fee_income_ledger_id']);
+        $needsTransport  = empty($settings['gl_transport_fee_income_ledger_id']);
+        $needsHostel     = empty($settings['gl_hostel_fee_income_ledger_id']);
+        $needsStationary = empty($settings['gl_stationary_fee_income_ledger_id']);
+        $needsExpense    = empty($settings['gl_expense_ledger_id']);
 
-        if (! $needsCash && ! $needsIncome && ! $needsTransport && ! $needsHostel && ! $needsExpense) {
+        if (! $needsCash && ! $needsIncome && ! $needsTransport && ! $needsHostel && ! $needsStationary && ! $needsExpense) {
             return $settings;
         }
 
@@ -433,6 +610,13 @@ class GlPostingService
             $incomeType   = LedgerType::firstOrCreate(['school_id' => $schoolId, 'name' => 'Income'],         ['nature' => 'credit', 'is_system' => true]);
             $hostelLedger = Ledger::firstOrCreate(['school_id' => $schoolId, 'name' => 'Hostel Fee Income'], ['ledger_type_id' => $incomeType->id, 'is_system' => true, 'is_active' => true, 'opening_balance' => 0, 'opening_balance_type' => 'credit']);
             $settings['gl_hostel_fee_income_ledger_id'] = $hostelLedger->id;
+            $changed = true;
+        }
+
+        if ($needsStationary) {
+            $incomeType    = LedgerType::firstOrCreate(['school_id' => $schoolId, 'name' => 'Income'],             ['nature' => 'credit', 'is_system' => true]);
+            $statLedger    = Ledger::firstOrCreate(['school_id' => $schoolId, 'name' => 'Stationary Fee Income'], ['ledger_type_id' => $incomeType->id, 'is_system' => true, 'is_active' => true, 'opening_balance' => 0, 'opening_balance_type' => 'credit']);
+            $settings['gl_stationary_fee_income_ledger_id'] = $statLedger->id;
             $changed = true;
         }
 

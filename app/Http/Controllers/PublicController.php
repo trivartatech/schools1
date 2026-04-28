@@ -7,6 +7,7 @@ use App\Models\FeePayment;
 use App\Models\HostelFeePayment;
 use App\Models\HostelLeaveRequest;
 use App\Models\HostelVisitor;
+use App\Models\StationaryFeePayment;
 use App\Models\TransportFeePayment;
 use Inertia\Inertia;
 
@@ -54,6 +55,19 @@ class PublicController extends Controller
         }
 
         return view('verify-hostel-receipt', compact('payment'));
+    }
+
+    public function verifyStationaryReceipt(string $receipt_no)
+    {
+        $payment = StationaryFeePayment::where('receipt_no', $receipt_no)
+            ->with(['student', 'school'])
+            ->first();
+
+        if (!$payment) {
+            return response('Invalid or unrecognized receipt number.', 404);
+        }
+
+        return view('verify-stationary-receipt', compact('payment'));
     }
 
     public function verifyGatePass(string $token)

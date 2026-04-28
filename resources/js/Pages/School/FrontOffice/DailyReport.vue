@@ -135,6 +135,10 @@ const barColors = [
                         <div class="kpi-box__value">{{ fmtMoney(collection.hostel?.total) }}</div>
                         <div class="kpi-box__label">Hostel · {{ collection.hostel?.receipts ?? 0 }} receipt(s)</div>
                     </div>
+                    <div class="kpi-box">
+                        <div class="kpi-box__value">{{ fmtMoney(collection.stationary?.total) }}</div>
+                        <div class="kpi-box__label">Stationary · {{ collection.stationary?.receipts ?? 0 }} receipt(s)</div>
+                    </div>
                 </div>
             </div>
         </div>

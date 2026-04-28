@@ -32,13 +32,15 @@ const numericKeys = new Set([
     'total_fee', 'paid_fee', 'fee_due',
     'transport_fee', 'transport_paid', 'transport_due',
     'hostel_fee', 'hostel_paid', 'hostel_due',
+    'stationary_fee', 'stationary_paid', 'stationary_due',
     'total_balance',
 ]);
 
 const FEE_TYPE_OPTIONS = [
-    { value: 'regular',   label: 'Normal Fee' },
-    { value: 'transport', label: 'Transport Fee' },
-    { value: 'hostel',    label: 'Hostel Fee' },
+    { value: 'regular',    label: 'Normal Fee' },
+    { value: 'transport',  label: 'Transport Fee' },
+    { value: 'hostel',     label: 'Hostel Fee' },
+    { value: 'stationary', label: 'Stationary Fee' },
 ];
 
 function toggleFeeType(value) {
@@ -157,7 +159,7 @@ const stats = computed(() => {
     const defaulters = d.filter(r => r.is_defaulter).length;
     const outstanding = d.reduce((s, r) => s + Number(r.total_balance || 0), 0);
     const collected = d.reduce((s, r) =>
-        s + Number(r.paid_fee || 0) + Number(r.transport_paid || 0) + Number(r.hostel_paid || 0), 0);
+        s + Number(r.paid_fee || 0) + Number(r.transport_paid || 0) + Number(r.hostel_paid || 0) + Number(r.stationary_paid || 0), 0);
     return { total: d.length, defaulters, outstanding, collected };
 });
 
@@ -166,6 +168,7 @@ const filteredTotals = computed(() => {
         total_fee: 0, paid_fee: 0, fee_due: 0,
         transport_fee: 0, transport_paid: 0, transport_due: 0,
         hostel_fee: 0, hostel_paid: 0, hostel_due: 0,
+        stationary_fee: 0, stationary_paid: 0, stationary_due: 0,
         total_balance: 0,
     };
     for (const r of sortedRows.value) {
@@ -361,6 +364,15 @@ async function sendAll() {
                             <th class="sortable text-right" @click="setSort('hostel_due')">
                                 Hostel Due <span class="sort-arrow" :class="sortIndicator('hostel_due')"></span>
                             </th>
+                            <th class="sortable text-right" @click="setSort('stationary_fee')">
+                                Stationary Fee <span class="sort-arrow" :class="sortIndicator('stationary_fee')"></span>
+                            </th>
+                            <th class="sortable text-right" @click="setSort('stationary_paid')">
+                                Stationary Paid <span class="sort-arrow" :class="sortIndicator('stationary_paid')"></span>
+                            </th>
+                            <th class="sortable text-right" @click="setSort('stationary_due')">
+                                Stationary Due <span class="sort-arrow" :class="sortIndicator('stationary_due')"></span>
+                            </th>
                             <th class="sortable text-right balance-col" @click="setSort('total_balance')">
                                 Total Balance <span class="sort-arrow" :class="sortIndicator('total_balance')"></span>
                             </th>
@@ -385,6 +397,9 @@ async function sendAll() {
                             <td class="text-right text-sm">{{ formatCurrency(row.hostel_fee) }}</td>
                             <td class="text-right text-sm" style="color: var(--success)">{{ formatCurrency(row.hostel_paid) }}</td>
                             <td class="text-right text-sm">{{ formatCurrency(row.hostel_due) }}</td>
+                            <td class="text-right text-sm">{{ formatCurrency(row.stationary_fee) }}</td>
+                            <td class="text-right text-sm" style="color: var(--success)">{{ formatCurrency(row.stationary_paid) }}</td>
+                            <td class="text-right text-sm">{{ formatCurrency(row.stationary_due) }}</td>
                             <td class="text-right font-bold balance-col"
                                 :class="{ 'balance-zero': Number(row.total_balance) === 0 }">
                                 {{ formatCurrency(row.total_balance) }}
@@ -428,6 +443,9 @@ async function sendAll() {
                             <td class="text-right">{{ formatCurrency(filteredTotals.hostel_fee) }}</td>
                             <td class="text-right" style="color: var(--success)">{{ formatCurrency(filteredTotals.hostel_paid) }}</td>
                             <td class="text-right">{{ formatCurrency(filteredTotals.hostel_due) }}</td>
+                            <td class="text-right">{{ formatCurrency(filteredTotals.stationary_fee) }}</td>
+                            <td class="text-right" style="color: var(--success)">{{ formatCurrency(filteredTotals.stationary_paid) }}</td>
+                            <td class="text-right">{{ formatCurrency(filteredTotals.stationary_due) }}</td>
                             <td class="text-right balance-col">{{ formatCurrency(filteredTotals.total_balance) }}</td>
                             <td></td>
                         </tr>

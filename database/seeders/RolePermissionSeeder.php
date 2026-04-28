@@ -54,6 +54,8 @@ class RolePermissionSeeder extends Seeder
         'transport_routes'      => 'Transport: Routes & Stops',
         'transport_allocations' => 'Transport: Student Allocation',
         'transport_tracking'    => 'Transport: Tracking',
+        'stationary_items'         => 'Stationary: Items',
+        'stationary_allocations'   => 'Stationary: Student Allocation',
         'hostel'        => 'Hostel',
         'houses'        => 'Student Houses',
         'front_office'  => 'Front Office',
@@ -128,6 +130,12 @@ class RolePermissionSeeder extends Seeder
         'view_transport'            => 'Transport',
         'collect_transport_fee'     => 'Transport',   // record transport-fee receipts
 
+        // ── Stationary ───────────────────────────────────────────────────────
+        'view_stationary'           => 'Stationary',
+        'collect_stationary_fee'    => 'Stationary',  // record stationary-fee receipts
+        'issue_stationary_items'    => 'Stationary',  // hand items to students (qty_collected ↑)
+        'accept_stationary_returns' => 'Stationary',  // accept returns + post refund GL
+
         // ── Hostel ───────────────────────────────────────────────────────────
         'collect_hostel_fee'        => 'Hostel',      // record hostel-fee receipts
 
@@ -182,6 +190,8 @@ class RolePermissionSeeder extends Seeder
             'receptionist', 'front_office', 'front_gate_keeper',
             // Transport
             'driver', 'conductor', 'transport_manager',
+            // Stationary
+            'stationary_manager',
             // Facility
             'hostel_warden', 'mess_manager',
             // Service
@@ -203,6 +213,7 @@ class RolePermissionSeeder extends Seeder
             'driver'            => ['Driver',               'Transport driver — views assigned route and vehicle'],
             'conductor'         => ['Conductor',            'Transport conductor — views route and tracking'],
             'transport_manager' => ['Transport Manager',    'Manages vehicles, routes, and student allocations'],
+            'stationary_manager'=> ['Stationary Manager',   'Manages stationary items, allocations, issuances, returns, and fee collection'],
             'receptionist'      => ['Receptionist',         'Front office staff — manages visitors and enquiries'],
             'front_office'      => ['Front Office',         'Front office operations including enquiries and gate passes'],
             'front_gate_keeper' => ['Front Gate Keeper',    'School gate security — logs visitor entry/exit and verifies student identity'],
@@ -352,6 +363,10 @@ class RolePermissionSeeder extends Seeder
 
             // Hostel — view gate passes for their child
             'view_hostel',
+
+            // Stationary — view their child's allocation
+            'view_stationary',
+            'view_stationary_allocations',
         ]);
 
         // ── accountant ──────────────────────────────────────────────────────
@@ -371,6 +386,12 @@ class RolePermissionSeeder extends Seeder
             // Hostel fee collection (standalone from Finance > Fee)
             'view_hostel',
             'collect_hostel_fee',
+
+            // Stationary fee collection + returns (standalone from Finance > Fee)
+            'view_stationary',
+            'view_stationary_allocations',
+            'collect_stationary_fee',
+            'accept_stationary_returns',
 
             // Expense — full CRUD
             'view_expense', 'create_expense', 'edit_expense', 'delete_expense',
@@ -449,6 +470,18 @@ class RolePermissionSeeder extends Seeder
             'view_transport_routes',
             'view_transport_tracking',
             'view_transport',
+        ]);
+
+        // ── stationary_manager ───────────────────────────────────────────────
+        Role::findByName('stationary_manager')->syncPermissions([
+            'view_stationary_items', 'create_stationary_items', 'edit_stationary_items', 'delete_stationary_items',
+            'view_stationary_allocations', 'create_stationary_allocations', 'edit_stationary_allocations', 'delete_stationary_allocations',
+            'collect_stationary_fee',
+            'issue_stationary_items',
+            'accept_stationary_returns',
+            'generate_fee_receipt',
+            'view_students',
+            'view_stationary',
         ]);
 
         // ── hostel_warden ────────────────────────────────────────────────────

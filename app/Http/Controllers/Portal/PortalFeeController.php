@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\FeePayment;
 use App\Models\FeeHead;
 use App\Models\HostelFeePayment;
+use App\Models\StationaryFeePayment;
 use App\Models\OnlinePaymentOrder;
 use App\Models\Student;
 use App\Models\StudentParent;
@@ -369,17 +370,30 @@ class PortalFeeController extends Controller
             ->orderByDesc('id')
             ->paginate(20, ['*'], 'hostel_page');
 
+        // Stationary fee receipts (standalone)
+        $stationaryPayments = StationaryFeePayment::whereIn('student_id', $studentIds)
+            ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
+            ->where('amount_paid', '>', 0)
+            ->with([
+                'student:id,first_name,last_name,admission_no',
+                'allocation:id,total_amount,amount_paid,balance,payment_status',
+            ])
+            ->orderByDesc('payment_date')
+            ->orderByDesc('id')
+            ->paginate(20, ['*'], 'stationary_page');
+
         $studentsMap = $students->map(fn($s) => [
             'id'   => $s->id,
             'name' => $s->first_name . ' ' . $s->last_name,
         ]);
 
         return Inertia::render('Portal/Fees/History', [
-            'payments'          => $payments,
-            'orders'            => $orders,
-            'transportPayments' => $transportPayments,
-            'hostelPayments'    => $hostelPayments,
-            'students'          => $studentsMap,
+            'payments'           => $payments,
+            'orders'             => $orders,
+            'transportPayments'  => $transportPayments,
+            'hostelPayments'     => $hostelPayments,
+            'stationaryPayments' => $stationaryPayments,
+            'students'           => $studentsMap,
         ]);
     }
 }

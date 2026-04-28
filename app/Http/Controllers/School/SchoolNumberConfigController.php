@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
 use App\Models\FeePayment;
 use App\Models\HostelFeePayment;
+use App\Models\StationaryFeePayment;
 use App\Models\Student;
 use App\Models\StudentApplication;
 use App\Models\TransferCertificate;
@@ -62,12 +63,19 @@ class SchoolNumberConfigController extends Controller
                 'start_no'   => $settings['hostel_receipt_start_no']   ?? 1,
                 'pad_length' => $settings['hostel_receipt_pad_length'] ?? 5,
             ],
+            'stationaryConfig' => [
+                'prefix'     => $settings['stationary_receipt_prefix']     ?? 'STA-',
+                'suffix'     => $settings['stationary_receipt_suffix']     ?? '',
+                'start_no'   => $settings['stationary_receipt_start_no']   ?? 1,
+                'pad_length' => $settings['stationary_receipt_pad_length'] ?? 5,
+            ],
             'admissionCount'    => Student::where('school_id', $schoolId)->enrolledInCurrentYear()->count(),
             'registrationCount' => StudentApplication::where('school_id', $schoolId)->count(),
             'feeCount'          => FeePayment::where('school_id', $schoolId)->count(),
             'tcCount'           => TransferCertificate::where('school_id', $schoolId)->where('status', 'issued')->count(),
             'transportCount'    => TransportFeePayment::where('school_id', $schoolId)->count(),
             'hostelCount'       => HostelFeePayment::where('school_id', $schoolId)->count(),
+            'stationaryCount'   => StationaryFeePayment::where('school_id', $schoolId)->count(),
             'academicYearName'  => $activeYear?->name ?? '??-??',
         ]);
     }
@@ -110,6 +118,11 @@ class SchoolNumberConfigController extends Controller
             'hostel_suffix'     => 'nullable|string|max:20',
             'hostel_start_no'   => 'required|integer|min:1',
             'hostel_pad_length' => 'required|integer|min:1|max:10',
+            // Stationary Fee Receipt (standalone counter for stationary fees)
+            'stationary_prefix'     => 'nullable|string|max:20',
+            'stationary_suffix'     => 'nullable|string|max:20',
+            'stationary_start_no'   => 'required|integer|min:1',
+            'stationary_pad_length' => 'required|integer|min:1|max:10',
         ]);
 
         $settings = $school->settings ?? [];
@@ -152,6 +165,12 @@ class SchoolNumberConfigController extends Controller
         $settings['hostel_receipt_suffix']     = $validated['hostel_suffix']     ?? '';
         $settings['hostel_receipt_start_no']   = $validated['hostel_start_no'];
         $settings['hostel_receipt_pad_length'] = $validated['hostel_pad_length'];
+
+        // Stationary Fee Receipt
+        $settings['stationary_receipt_prefix']     = $validated['stationary_prefix']     ?? '';
+        $settings['stationary_receipt_suffix']     = $validated['stationary_suffix']     ?? '';
+        $settings['stationary_receipt_start_no']   = $validated['stationary_start_no'];
+        $settings['stationary_receipt_pad_length'] = $validated['stationary_pad_length'];
 
         $school->settings = $settings;
         $school->save();

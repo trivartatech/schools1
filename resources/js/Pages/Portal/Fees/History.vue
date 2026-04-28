@@ -10,9 +10,10 @@ const school = useSchoolStore();
 const props = defineProps({
     payments:          { type: Object, default: () => ({ data: [] }) },
     orders:            { type: Object, default: () => ({ data: [] }) },
-    transportPayments: { type: Object, default: () => ({ data: [] }) },
-    hostelPayments:    { type: Object, default: () => ({ data: [] }) },
-    students:          { type: Array,  default: () => [] },
+    transportPayments:  { type: Object, default: () => ({ data: [] }) },
+    hostelPayments:     { type: Object, default: () => ({ data: [] }) },
+    stationaryPayments: { type: Object, default: () => ({ data: [] }) },
+    students:           { type: Array,  default: () => [] },
 });
 
 const activeTab = ref('receipts');
@@ -102,6 +103,17 @@ const modeBadge = (mode) => ({
                         <span v-if="hostelPayments.total" class="text-xs px-1.5 py-0.5 rounded-full"
                             :class="activeTab === 'hostel' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-200 text-gray-600'">
                             {{ hostelPayments.total }}
+                        </span>
+                    </span>
+                </button>
+                <button @click="activeTab = 'stationary'"
+                    class="flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-all"
+                    :class="activeTab === 'stationary' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'">
+                    <span class="flex items-center justify-center gap-2">
+                        📚 Stationary
+                        <span v-if="stationaryPayments.total" class="text-xs px-1.5 py-0.5 rounded-full"
+                            :class="activeTab === 'stationary' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-200 text-gray-600'">
+                            {{ stationaryPayments.total }}
                         </span>
                     </span>
                 </button>
@@ -286,6 +298,63 @@ const modeBadge = (mode) => ({
                     <span>Showing {{ hostelPayments.from }}–{{ hostelPayments.to }} of {{ hostelPayments.total }}</span>
                     <div class="flex gap-1">
                         <Link v-for="link in hostelPayments.links" :key="link.label"
+                            :href="link.url" v-html="link.label"
+                            class="px-3 py-1 rounded-lg border text-xs transition-colors"
+                            :class="link.active ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                            :preserve-scroll="true"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stationary Receipts -->
+            <div v-if="activeTab === 'stationary'" class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b bg-gray-50">
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Receipt #</th>
+                                <th v-if="students.length > 1" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Student</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Allocation</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Mode</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            <tr v-for="p in stationaryPayments.data" :key="p.id" class="hover:bg-gray-50/60">
+                                <td class="px-4 py-3 font-mono text-xs text-gray-400">{{ p.receipt_no }}</td>
+                                <td v-if="students.length > 1" class="px-4 py-3 text-gray-700">
+                                    {{ p.student?.first_name }} {{ p.student?.last_name }}
+                                </td>
+                                <td class="px-4 py-3 font-medium text-gray-900">
+                                    Stationary kit
+                                    <span v-if="p.allocation" class="text-xs text-gray-500">
+                                        · Total {{ fmtMoney(p.allocation.total_amount) }} · Balance {{ fmtMoney(p.allocation.balance) }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-gray-500 text-xs">{{ school.fmtDate(p.payment_date) }}</td>
+                                <td class="px-4 py-3 text-center">
+                                    <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize" :class="modeBadge(p.payment_mode)">
+                                        {{ p.payment_mode }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-right font-mono font-semibold text-gray-900 text-xs">
+                                    {{ fmtMoney(p.amount_paid) }}
+                                </td>
+                            </tr>
+                            <tr v-if="!stationaryPayments.data?.length">
+                                <td :colspan="students.length > 1 ? 6 : 5" class="px-4 py-12 text-center text-gray-400 text-sm">
+                                    No stationary fee receipts found.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div v-if="stationaryPayments.last_page > 1" class="px-4 py-3 border-t bg-gray-50 flex items-center justify-between text-xs text-gray-500">
+                    <span>Showing {{ stationaryPayments.from }}–{{ stationaryPayments.to }} of {{ stationaryPayments.total }}</span>
+                    <div class="flex gap-1">
+                        <Link v-for="link in stationaryPayments.links" :key="link.label"
                             :href="link.url" v-html="link.label"
                             class="px-3 py-1 rounded-lg border text-xs transition-colors"
                             :class="link.active ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 hover:bg-gray-50'"

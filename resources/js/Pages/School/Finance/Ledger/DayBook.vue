@@ -12,6 +12,7 @@ const school = useSchoolStore();
 const props = defineProps({
     feePayments: Array,
     transportPayments: { type: Array, default: () => [] },
+    stationaryPayments: { type: Array, default: () => [] },
     expenses: Array,
     summary: Object,
     classes: Array,
@@ -160,6 +161,7 @@ const formatCurrency = (amount) => {
                 <div class="px-4 py-2 text-xs flex flex-wrap gap-4 border-b" style="background:#f7fef9;color:#15803d;border-color:#bbf7d0;">
                     <span>Tuition: <strong>{{ formatCurrency(summary.total_tuition_inflow) }}</strong></span>
                     <span>Transport: <strong>{{ formatCurrency(summary.total_transport_inflow) }}</strong></span>
+                    <span>Stationary: <strong>{{ formatCurrency(summary.total_stationary_inflow) }}</strong></span>
                 </div>
                 <div class="overflow-x-auto">
                     <Table>
@@ -193,7 +195,17 @@ const formatCurrency = (amount) => {
                                 <td class="capitalize" style="color: var(--text-secondary)">{{ tp.payment_mode }}</td>
                                 <td class="text-right font-bold" style="color: var(--success)">{{ formatCurrency(tp.amount_paid) }}</td>
                             </tr>
-                            <tr v-if="feePayments.length === 0 && transportPayments.length === 0">
+                            <tr v-for="sp in stationaryPayments" :key="`s-${sp.id}`">
+                                <td>
+                                    <span class="font-mono text-xs">{{ sp.receipt_no }}</span>
+                                    <div class="text-xs" style="color: var(--text-muted)">Stationary kit</div>
+                                </td>
+                                <td class="font-medium">{{ sp.student?.first_name }} {{ sp.student?.last_name }}</td>
+                                <td><span class="badge-type stationary">Stationary</span></td>
+                                <td class="capitalize" style="color: var(--text-secondary)">{{ sp.payment_mode }}</td>
+                                <td class="text-right font-bold" style="color: var(--success)">{{ formatCurrency(sp.amount_paid) }}</td>
+                            </tr>
+                            <tr v-if="feePayments.length === 0 && transportPayments.length === 0 && stationaryPayments.length === 0">
                                 <td colspan="5" class="py-8 text-center italic" style="color: var(--text-muted)">No receipts for this date.</td>
                             </tr>
                         </tbody>

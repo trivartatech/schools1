@@ -20,7 +20,7 @@ class DueReportService
      * Not Defaulter" pill). It is intentionally NOT derived from total_balance.
      *
      * @param  string        $status     'all' | 'defaulter' | 'not_defaulter'
-     * @param  array<string> $feeTypes   subset of ['regular','transport','hostel'].
+     * @param  array<string> $feeTypes   subset of ['regular','transport','hostel','stationary'].
      *                                   When non-empty, only return rows whose
      *                                   balance is > 0 in at least one of the
      *                                   selected fee types. Empty = no fee-type
@@ -43,6 +43,7 @@ class DueReportService
                 'studentParent',
                 'transportAllocation',
                 'hostelAllocation',
+                'stationaryAllocation',
             ])
             ->select('id', 'first_name', 'last_name', 'admission_no', 'gender', 'parent_id', 'is_defaulter')
             ->when($status === 'defaulter',     fn($q) => $q->where('is_defaulter', true))
@@ -73,7 +74,7 @@ class DueReportService
             ->pluck('count', 'student_id');
 
         // Normalize the fee-type filter
-        $allowed   = ['regular', 'transport', 'hostel'];
+        $allowed   = ['regular', 'transport', 'hostel', 'stationary'];
         $feeTypes  = array_values(array_intersect($allowed, $feeTypes));
         $hasFilter = count($feeTypes) > 0;
 
@@ -112,15 +113,21 @@ class DueReportService
             $hostelPaid    = (float) ($hostel->amount_paid ?? 0);
             $hostelDue     = (float) ($hostel->balance ?? 0);
 
-            $totalBalance = $feeDue + $transportDue + $hostelDue;
+            $stationary     = $student->stationaryAllocation;
+            $stationaryFee  = (float) ($stationary->total_amount ?? 0);
+            $stationaryPaid = (float) ($stationary->amount_paid ?? 0);
+            $stationaryDue  = (float) ($stationary->balance ?? 0);
+
+            $totalBalance = $feeDue + $transportDue + $hostelDue + $stationaryDue;
 
             // Fee-type filter: keep the row only if at least one of the
             // selected categories has an outstanding balance.
             if ($hasFilter) {
                 $matches = false;
-                if (in_array('regular',   $feeTypes, true) && $feeDue       > 0) $matches = true;
-                if (in_array('transport', $feeTypes, true) && $transportDue > 0) $matches = true;
-                if (in_array('hostel',    $feeTypes, true) && $hostelDue    > 0) $matches = true;
+                if (in_array('regular',    $feeTypes, true) && $feeDue        > 0) $matches = true;
+                if (in_array('transport',  $feeTypes, true) && $transportDue  > 0) $matches = true;
+                if (in_array('hostel',     $feeTypes, true) && $hostelDue     > 0) $matches = true;
+                if (in_array('stationary', $feeTypes, true) && $stationaryDue > 0) $matches = true;
                 if (! $matches) continue;
             }
 
@@ -138,14 +145,17 @@ class DueReportService
                 'total_fee'      => $totalDue,
                 'paid_fee'       => $totalPaid,
                 'fee_due'        => $feeDue,
-                'transport_fee'  => $transportFee,
-                'transport_paid' => $transportPaid,
-                'transport_due'  => $transportDue,
-                'hostel_fee'     => $hostelFee,
-                'hostel_paid'    => $hostelPaid,
-                'hostel_due'     => $hostelDue,
-                'total_balance'  => $totalBalance,
-                'is_defaulter'   => (bool) $student->is_defaulter,
+                'transport_fee'   => $transportFee,
+                'transport_paid'  => $transportPaid,
+                'transport_due'   => $transportDue,
+                'hostel_fee'      => $hostelFee,
+                'hostel_paid'     => $hostelPaid,
+                'hostel_due'      => $hostelDue,
+                'stationary_fee'  => $stationaryFee,
+                'stationary_paid' => $stationaryPaid,
+                'stationary_due'  => $stationaryDue,
+                'total_balance'   => $totalBalance,
+                'is_defaulter'    => (bool) $student->is_defaulter,
             ];
         }
 

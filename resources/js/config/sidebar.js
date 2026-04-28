@@ -261,6 +261,22 @@ export const SIDEBAR_MENU = [
             { title: 'Driver Tracking',   route: '/school/transport/driver-tracking', permission: 'view_transport_tracking' },
         ],
     },
+    {
+        id: 'stationary',
+        title: 'Stationary',
+        group: 'Operations',
+        permission: 'view_stationary',
+        icon: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>`,
+        children: [
+            { title: 'Dashboard',          route: '/school/stationary',                                  permission: 'view_stationary' },
+            { title: 'Items',              route: '/school/stationary/items',                            permission: 'view_stationary_items' },
+            { title: 'Allocations',        route: '/school/stationary/allocations',                      permission: 'view_stationary_allocations' },
+            { title: 'Fee Collection',     route: '/school/stationary/fees',                             permission: 'view_stationary_allocations' },
+            { title: 'Fee Defaulters',     route: '/school/stationary/reports/fee-defaulters',           permission: 'view_stationary_allocations' },
+            { title: 'Collection Pending', route: '/school/stationary/reports/collection-pending',       permission: 'view_stationary_allocations' },
+            { title: 'Returns',            route: '/school/stationary/reports/returns',                  permission: 'view_stationary_allocations' },
+        ],
+    },
 
     // \u2500\u2500 COMMUNICATION \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
     {
