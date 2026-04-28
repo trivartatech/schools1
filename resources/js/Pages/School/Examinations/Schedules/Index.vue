@@ -26,6 +26,7 @@ const form = ref({
     exam_type_id: '',
     course_class_id: '',
     section_ids: [],
+    weightage: 100,
     has_co_scholastic: false,
     scholastic_grading_system_id: '',
     co_scholastic_grading_system_id: '',
@@ -131,6 +132,7 @@ function openCreate() {
     editingSchedule.value = null;
     form.value = {
         exam_type_id: '', course_class_id: '', section_ids: [],
+        weightage: 100,
         has_co_scholastic: false,
         scholastic_grading_system_id: '',
         co_scholastic_grading_system_id: '',
@@ -146,6 +148,7 @@ function openEdit(schedule) {
         exam_type_id: schedule.exam_type_id,
         course_class_id: schedule.course_class_id,
         section_ids: schedule.sections.map(s => s.id),
+        weightage: Number(schedule.weightage ?? 100),
         has_co_scholastic: schedule.has_co_scholastic,
         scholastic_grading_system_id: schedule.scholastic_grading_system_id || '',
         co_scholastic_grading_system_id: schedule.co_scholastic_grading_system_id || '',
@@ -248,6 +251,7 @@ function togglePublish(id, currentStatus) {
                                 <th>Exam Type</th>
                                 <th>Class</th>
                                 <th>Sections</th>
+                                <th style="text-align:center;">Weightage</th>
                                 <th>Subjects</th>
                                 <th>Status</th>
                                 <th style="text-align:right">Actions</th>
@@ -262,6 +266,7 @@ function togglePublish(id, currentStatus) {
                                         <span v-for="sec in s.sections" :key="sec.id" class="badge badge-blue">{{ sec.name }}</span>
                                     </div>
                                 </td>
+                                <td style="text-align:center;font-weight:600;color:#5b21b6;">{{ Number(s.weightage ?? 0) }}%</td>
                                 <td>{{ s.schedule_subjects?.length || 0 }} subjects</td>
                                 <td>
                                     <span class="badge" :class="s.status === 'published' ? 'badge-green' : 'badge-gray'">
@@ -277,7 +282,7 @@ function togglePublish(id, currentStatus) {
                                 </td>
                             </tr>
                             <tr v-if="!schedules.length">
-                                <td colspan="6" style="text-align:center;padding:32px;color:#94a3b8;">No exam schedules yet.</td>
+                                <td colspan="7" style="text-align:center;padding:32px;color:#94a3b8;">No exam schedules yet.</td>
                             </tr>
                         </tbody>
                     </Table>
@@ -332,6 +337,20 @@ function togglePublish(id, currentStatus) {
                                         @click="toggleSection(sec.id)">{{ sec.name }}</button>
                                 </div>
                                 <div class="form-error" v-if="errors.section_ids">{{ errors.section_ids }}</div>
+                            </div>
+                        </div>
+
+                        <div class="form-row" style="grid-template-columns:240px 1fr;align-items:start;margin-top:12px;">
+                            <div class="form-field">
+                                <label>Weightage (%) <span style="color:#ef4444">*</span></label>
+                                <input v-model.number="form.weightage" type="number" step="0.01" min="0" max="100" required />
+                                <div class="form-error" v-if="errors.weightage">{{ errors.weightage }}</div>
+                            </div>
+                            <div class="form-field" style="align-self:end;">
+                                <p style="font-size:0.75rem;color:#64748b;margin:0 0 8px;line-height:1.4;">
+                                    Share of the cumulative report this exam contributes for this class.
+                                    E.g. PT1 = 10%, Half-Yearly = 30%. Set per class so seniors and juniors can weight differently.
+                                </p>
                             </div>
                         </div>
                     </div>

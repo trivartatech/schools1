@@ -50,11 +50,12 @@ class ExaminationModuleSeeder extends Seeder
             $term2 = ExamTerm::create(['school_id' => $schoolId, 'academic_year_id' => $academicYearId, 'name' => 'T2', 'display_name' => 'Term 2']);
 
             $examTypesMap = [];
+            $weightageMap = ['PT1' => 10, 'HY' => 30, 'PT2' => 10, 'ANNUAL' => 50];
             foreach (['PT1', 'HY', 'PT2', 'ANNUAL'] as $code) {
                 $term = (strpos($code, '1') !== false || $code == 'HY') ? $term1 : $term2;
                 $t = ExamType::create([
                     'school_id' => $schoolId, 'academic_year_id' => $academicYearId, 'exam_term_id' => $term->id,
-                    'name' => $code, 'code' => $code, 'display_name' => $code, 'weightage' => 25, 'classification' => 'main',
+                    'name' => $code, 'code' => $code, 'display_name' => $code, 'classification' => 'main',
                 ]);
                 $examTypesMap[$code] = $t->id;
             }
@@ -78,7 +79,8 @@ class ExaminationModuleSeeder extends Seeder
                 foreach ($examTypesMap as $code => $typeId) {
                     $schedule = ExamSchedule::create([
                         'school_id' => $schoolId, 'academic_year_id' => $academicYearId, 'exam_type_id' => $typeId,
-                        'course_class_id' => $cls->id, 'has_co_scholastic' => true, 'scholastic_grading_system_id' => $scholasticGrading->id,
+                        'course_class_id' => $cls->id, 'weightage' => $weightageMap[$code] ?? 25,
+                        'has_co_scholastic' => true, 'scholastic_grading_system_id' => $scholasticGrading->id,
                         'co_scholastic_grading_system_id' => $coScholasticGrading?->id, 'status' => 'published',
                     ]);
 

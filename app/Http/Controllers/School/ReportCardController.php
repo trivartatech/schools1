@@ -5,6 +5,8 @@ namespace App\Http\Controllers\School;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\ExamSchedule;
+use App\Models\ExamTerm;
+use App\Models\CourseClass;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\ExamMark;
@@ -19,14 +21,29 @@ class ReportCardController extends Controller
     {
         if (! $request->user()->can('manage_exam_terms')) abort(403);
 
+        $schoolId = app('current_school_id');
+        $yearId   = app('current_academic_year_id');
+
         $schedules = ExamSchedule::with(['examType', 'courseClass', 'sections'])
-            ->where('school_id', app('current_school_id'))
-            ->where('academic_year_id', app('current_academic_year_id'))
+            ->where('school_id', $schoolId)
+            ->where('academic_year_id', $yearId)
             ->latest()
             ->get();
 
+        $examTerms = ExamTerm::with('examTypes')
+            ->where('school_id', $schoolId)
+            ->where('academic_year_id', $yearId)
+            ->get();
+
+        $classes = CourseClass::where('school_id', $schoolId)
+            ->with(['sections' => fn($q) => $q->forCurrentYear()->select('id', 'course_class_id', 'name')])
+            ->orderBy('numeric_value')->orderBy('name')
+            ->get(['id', 'name']);
+
         return Inertia::render('School/Examinations/ReportCards/Index', [
             'schedules' => $schedules,
+            'examTerms' => $examTerms,
+            'classes'   => $classes,
         ]);
     }
 
@@ -253,7 +270,7 @@ class ReportCardController extends Controller
         $examTypes = $allSchedules->map(fn ($s) => [
             'name'      => $s->examType->name ?? '',
             'code'      => $s->examType->code ?? '',
-            'weightage' => (float) ($s->examType->weightage ?? 0),
+            'weightage' => (float) ($s->weightage ?? 0),
             'term_id'   => $s->examType->exam_term_id ?? null,
             'term_name' => $s->examType->examTerm->name ?? 'Term',
         ]);
@@ -269,7 +286,7 @@ class ReportCardController extends Controller
             }
 
             foreach ($allSchedules as $schedule) {
-                $weightage = (float) ($schedule->examType->weightage ?? 0);
+                $weightage = (float) ($schedule->weightage ?? 0);
                 foreach ($schedule->scheduleSubjects as $ss) {
                     $name = $ss->subject->name ?? '';
                     $score = $this->calcSubjectScore($ss, $studentMarks, $weightage);
@@ -357,68 +374,135 @@ class ReportCardController extends Controller
         }
     }
 
+    // ─── Resolve report context from request ────────────────────────────────────
+    // Returns: [reportType, applyWeightage, baseSchedule, allSchedules, courseClassId, sectionId]
+    private function resolveReportContext(Request $request): array
+    {
+        $reportType     = $request->input('report_type', 'exam');
+        $applyWeightage = (bool) $request->input('apply_weightage', false);
+        $sectionId      = $request->input('section_id');
+
+        $schoolId = app('current_school_id');
+        $yearId   = app('current_academic_year_id');
+
+        $scheduleWith = [
+            'examType.examTerm', 'courseClass',
+            'scheduleSubjects' => fn($q) => $q->where('is_enabled', true)
+                ->with(['subject', 'examAssessment.items', 'markConfigs', 'gradingSystem.grades'])
+        ];
+
+        switch ($reportType) {
+            case 'term':
+                $request->validate([
+                    'exam_term_id'    => 'required|exists:exam_terms,id',
+                    'course_class_id' => 'required|exists:course_classes,id',
+                    'section_id'      => 'required|exists:sections,id',
+                ]);
+                $allSchedules = ExamSchedule::with($scheduleWith)
+                    ->where('school_id', $schoolId)
+                    ->where('academic_year_id', $yearId)
+                    ->where('course_class_id', $request->course_class_id)
+                    ->whereHas('examType', fn($q) => $q->where('exam_term_id', $request->exam_term_id))
+                    ->get();
+                if ($allSchedules->isEmpty()) {
+                    abort(404, 'No exam schedules found in this term for this class.');
+                }
+                $baseSchedule  = $allSchedules->sortByDesc('weightage')->first();
+                $courseClassId = $request->course_class_id;
+                break;
+
+            case 'cumulative':
+                $request->validate([
+                    'exam_schedule_id' => 'required|exists:exam_schedules,id',
+                    'section_id'       => 'required|exists:sections,id',
+                ]);
+                $baseSchedule = ExamSchedule::with($scheduleWith)
+                    ->where('school_id', $schoolId)
+                    ->findOrFail($request->exam_schedule_id);
+                $allSchedules = ExamSchedule::with($scheduleWith)
+                    ->where('school_id', $schoolId)
+                    ->where('academic_year_id', $yearId)
+                    ->where('course_class_id', $baseSchedule->course_class_id)
+                    ->get();
+                $courseClassId = $baseSchedule->course_class_id;
+                break;
+
+            case 'exam':
+            default:
+                $request->validate([
+                    'exam_schedule_id' => 'required|exists:exam_schedules,id',
+                    'section_id'       => 'required|exists:sections,id',
+                ]);
+                $reportType   = 'exam';
+                $baseSchedule = ExamSchedule::with($scheduleWith)
+                    ->where('school_id', $schoolId)
+                    ->findOrFail($request->exam_schedule_id);
+                $allSchedules = collect([$baseSchedule]);
+                $courseClassId = $baseSchedule->course_class_id;
+                break;
+        }
+
+        return [$reportType, $applyWeightage, $baseSchedule, $allSchedules, $courseClassId, $sectionId];
+    }
+
+    // ─── Run the right calculation pipeline ──────────────────────────────────────
+    private function runCalculation($students, string $reportType, bool $applyWeightage, $baseSchedule, $allSchedules): void
+    {
+        // Exam-wise + raw → single-exam path (does not surface contributions[])
+        // Everything else → weighted aggregator (always surfaces contributions[]; the toggle only controls how the frontend renders them)
+        if ($reportType === 'exam' && ! $applyWeightage) {
+            $this->attachSingleExamReports($students, $baseSchedule);
+        } else {
+            $this->attachWeightedReports($students, $allSchedules, $baseSchedule);
+        }
+    }
+
+    // ─── Sort students by roll-no within a section + attach roll_no field ───────
+    private function attachRollAndSort($students, $sectionId)
+    {
+        return $students
+            ->sortBy(function ($s) use ($sectionId) {
+                $hist = $s->academicHistories->firstWhere('section_id', $sectionId);
+                return [is_null($hist?->roll_no) ? PHP_INT_MAX : (int) $hist->roll_no, $s->first_name];
+            })
+            ->values()
+            ->each(function ($s) use ($sectionId) {
+                $hist = $s->academicHistories->firstWhere('section_id', $sectionId);
+                $s->roll_no = $hist?->roll_no;
+            });
+    }
+
     // ─── Generate (AJAX) ─────────────────────────────────────────────────────────
     public function generate(Request $request)
     {
         if (! $request->user()->can('manage_exam_terms')) abort(403);
 
-        $request->validate([
-            'exam_schedule_id' => 'required|exists:exam_schedules,id',
-            'section_id'       => 'required|exists:sections,id',
-            'use_weightage'    => 'nullable|boolean',
-        ]);
+        [$reportType, $applyWeightage, $baseSchedule, $allSchedules, $courseClassId, $sectionId]
+            = $this->resolveReportContext($request);
 
-        $useWeightage = (bool) $request->input('use_weightage', false);
+        $schoolId = app('current_school_id');
+        $yearId   = app('current_academic_year_id');
 
-        $schedule = ExamSchedule::with([
-            'examType', 'courseClass',
-            'scheduleSubjects' => fn($q) => $q->where('is_enabled', true)
-                ->with(['subject', 'examAssessment.items', 'markConfigs', 'gradingSystem.grades'])
-        ])->where('school_id', app('current_school_id'))->findOrFail($request->exam_schedule_id);
-
-        $academicYearId = app('current_academic_year_id');
         $students = Student::with(['studentParent', 'academicHistories'])
-            ->where('school_id', app('current_school_id'))
+            ->where('school_id', $schoolId)
             ->whereHas('academicHistories', fn($q) =>
-                $q->where('academic_year_id', $academicYearId)
-                  ->where('class_id', $schedule->course_class_id)
-                  ->where('section_id', $request->section_id)
+                $q->where('academic_year_id', $yearId)
+                  ->where('class_id', $courseClassId)
+                  ->where('section_id', $sectionId)
             )
             ->where('status', 'active')
-            ->get()
-            ->sortBy(function ($s) use ($request) {
-                $hist = $s->academicHistories->firstWhere('section_id', $request->section_id);
-                return [is_null($hist?->roll_no) ? PHP_INT_MAX : (int)$hist->roll_no, $s->first_name];
-            })
-            ->values();
+            ->get();
 
-        // Attach roll_no from academic history as a direct property for Vue
-        $students->each(function ($s) use ($request) {
-            $hist = $s->academicHistories->firstWhere('section_id', $request->section_id);
-            $s->roll_no = $hist?->roll_no;
-        });
+        $students = $this->attachRollAndSort($students, $sectionId);
 
-        if ($useWeightage) {
-            // Load ALL schedules for this class/year
-            $allSchedules = ExamSchedule::with([
-                'examType',
-                'scheduleSubjects' => fn($q) => $q->where('is_enabled', true)
-                    ->with(['subject', 'examAssessment.items', 'markConfigs', 'gradingSystem.grades'])
-            ])->where('school_id', app('current_school_id'))
-              ->where('academic_year_id', app('current_academic_year_id'))
-              ->where('course_class_id', $schedule->course_class_id)
-              ->get();
-
-            $this->attachWeightedReports($students, $allSchedules, $schedule);
-        } else {
-            $this->attachSingleExamReports($students, $schedule);
-        }
-
+        $this->runCalculation($students, $reportType, $applyWeightage, $baseSchedule, $allSchedules);
         $this->assignRanks($students);
 
         return response()->json([
-            'schedule' => $schedule,
-            'students' => $students,
+            'report_type'     => $reportType,
+            'apply_weightage' => $applyWeightage,
+            'schedule'        => $baseSchedule,
+            'students'        => $students,
         ]);
     }
 
@@ -427,58 +511,24 @@ class ReportCardController extends Controller
     {
         if (! $request->user()->can('manage_exam_terms')) abort(403);
 
-        $request->validate([
-            'exam_schedule_id' => 'required|exists:exam_schedules,id',
-            'section_id'       => 'required|exists:sections,id',
-            'student_ids'      => 'required|string',
-            'use_weightage'    => 'nullable|boolean',
-        ]);
+        $request->validate(['student_ids' => 'required|string']);
 
-        $useWeightage = (bool) $request->input('use_weightage', false);
+        [$reportType, $applyWeightage, $baseSchedule, $allSchedules, , $sectionId]
+            = $this->resolveReportContext($request);
 
-        $schedule = ExamSchedule::with([
-            'examType', 'courseClass',
-            'scheduleSubjects' => fn($q) => $q->where('is_enabled', true)
-                ->with(['subject', 'examAssessment.items', 'markConfigs', 'gradingSystem.grades'])
-        ])->where('school_id', app('current_school_id'))->findOrFail($request->exam_schedule_id);
+        $studentIds = array_filter(explode(',', $request->student_ids));
 
-        $studentIds = explode(',', $request->student_ids);
-
-        $academicYearId = app('current_academic_year_id');
         $students = Student::with(['studentParent', 'academicHistories'])
             ->where('school_id', app('current_school_id'))
             ->whereIn('id', $studentIds)
             ->where('status', 'active')
-            ->get()
-            ->sortBy(function ($s) use ($request) {
-                $hist = $s->academicHistories->firstWhere('section_id', $request->section_id);
-                return [is_null($hist?->roll_no) ? PHP_INT_MAX : (int)$hist->roll_no, $s->first_name];
-            })
-            ->values();
+            ->get();
 
-        $students->each(function ($s) use ($request) {
-            $hist = $s->academicHistories->firstWhere('section_id', $request->section_id);
-            $s->roll_no = $hist?->roll_no;
-        });
+        $students = $this->attachRollAndSort($students, $sectionId);
 
-        if ($useWeightage) {
-            $allSchedules = ExamSchedule::with([
-            'examType.examTerm',
-            'scheduleSubjects' => fn($q) => $q->where('is_enabled', true)
-                ->with(['subject', 'examAssessment.items', 'markConfigs', 'gradingSystem.grades'])
-        ])->where('school_id', app('current_school_id'))
-          ->where('academic_year_id', app('current_academic_year_id'))
-          ->where('course_class_id', $schedule->course_class_id)
-          ->get();
-
-            $this->attachWeightedReports($students, $allSchedules, $schedule);
-        } else {
-            $this->attachSingleExamReports($students, $schedule);
-        }
-
+        $this->runCalculation($students, $reportType, $applyWeightage, $baseSchedule, $allSchedules);
         $this->assignRanks($students);
 
-        // Grading scale for the legend table
         $gradeScale = \App\Models\GradingSystem::with('grades')
             ->where('school_id', app('current_school_id'))
             ->where('type', 'scholastic')
@@ -487,14 +537,22 @@ class ReportCardController extends Controller
             ->sortByDesc('min_percentage')
             ->values();
 
+        // Pull the term name for the print pill when in term mode
+        $termName = null;
+        if ($reportType === 'term') {
+            $termName = $baseSchedule->examType->examTerm->name ?? null;
+        }
+
         return Inertia::render('School/Examinations/ReportCards/Print', [
-            'scheduleData' => $schedule,
-            'students'     => $students,
-            'sectionData'  => Section::find($request->section_id),
-            'schoolInfo'   => app('current_school'),
-            'academicYear' => app('current_academic_year')->name,
-            'useWeightage' => $useWeightage,
-            'gradeScale'   => $gradeScale,
+            'scheduleData'   => $baseSchedule,
+            'students'       => $students,
+            'sectionData'    => Section::find($sectionId),
+            'schoolInfo'     => app('current_school'),
+            'academicYear'   => app('current_academic_year')->name,
+            'useWeightage'   => $applyWeightage,
+            'reportType'     => $reportType,
+            'termName'       => $termName,
+            'gradeScale'     => $gradeScale,
         ]);
     }
 }

@@ -19,7 +19,6 @@ const form = useForm({
     name: '',
     code: '',
     display_name: '',
-    weightage: 100.00,
     classification: 'main'
 });
 
@@ -36,7 +35,6 @@ const editType = (t) => {
     form.name = t.name;
     form.code = t.code;
     form.display_name = t.display_name;
-    form.weightage = t.weightage;
     form.classification = t.classification;
     isFormOpen.value = true;
 };
@@ -102,13 +100,12 @@ const getClassificationBadge = (val) => {
                             <th>Exam Name</th>
                             <th>Code</th>
                             <th>Classification</th>
-                            <th>Weightage</th>
                             <th class="w-24 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-if="types.length === 0">
-                            <td colspan="7" class="text-center py-8 text-gray-500">No exam types created yet.</td>
+                            <td colspan="6" class="text-center py-8 text-gray-500">No exam types created yet.</td>
                         </tr>
                         <tr v-for="t in types" :key="t.id">
                             <td class="text-gray-500 font-mono text-xs">#{{ t.id }}</td>
@@ -125,7 +122,6 @@ const getClassificationBadge = (val) => {
                                     {{ getClassificationBadge(t.classification).label }}
                                 </span>
                             </td>
-                            <td class="font-medium text-gray-700">{{ t.weightage }}%</td>
                             <td class="text-right">
                                 <div class="flex items-center justify-end gap-2">
                                     <button @click="editType(t)" class="text-blue-600 hover:text-blue-800 p-1" title="Edit">
@@ -192,20 +188,17 @@ const getClassificationBadge = (val) => {
                             <div class="text-xs text-gray-500 mt-1">If empty, Exam Name will be used on reports.</div>
                         </div>
 
-                        <div class="form-row-2">
-                            <div class="form-field">
-                                <label>Classification <span class="text-red-500">*</span></label>
-                                <select v-model="form.classification" required>
-                                    <option value="main">Main Exam (Scholastic)</option>
-                                    <option value="periodic">Periodic Test</option>
-                                    <option value="unit_test">Unit Test</option>
-                                </select>
-                                <span v-if="form.errors.classification" class="form-error">{{ form.errors.classification }}</span>
-                            </div>
-                            <div class="form-field">
-                                <label>Weightage (%) <span class="text-red-500">*</span></label>
-                                <input v-model.number="form.weightage" type="number" step="0.01" min="0" max="100" required />
-                                <span v-if="form.errors.weightage" class="form-error">{{ form.errors.weightage }}</span>
+                        <div class="form-field">
+                            <label>Classification <span class="text-red-500">*</span></label>
+                            <select v-model="form.classification" required>
+                                <option value="main">Main Exam (Scholastic)</option>
+                                <option value="periodic">Periodic Test</option>
+                                <option value="unit_test">Unit Test</option>
+                            </select>
+                            <span v-if="form.errors.classification" class="form-error">{{ form.errors.classification }}</span>
+                            <div class="text-xs text-gray-500 mt-1">
+                                Weightage is now set per exam schedule (per class) under
+                                <strong>Exam Schedules</strong>, so different classes can weight the same exam type differently.
                             </div>
                         </div>
 

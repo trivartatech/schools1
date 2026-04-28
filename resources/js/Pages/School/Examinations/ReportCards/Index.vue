@@ -1,10 +1,11 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import axios from 'axios';
 import Table from '@/Components/ui/Table.vue';
+import { useClassSections } from '@/Composables/useClassSections.js';
 
 // ── AI Comments ──
 const aiComments     = ref({}); // { [student_id]: comment string }
@@ -37,102 +38,183 @@ function saveCommentsToStorage() {
     localStorage.setItem('rc_ai_comments', JSON.stringify(aiComments.value));
 }
 
-const props = defineProps({ schedules: Array });
+// ── Props ──
+const props = defineProps({
+    schedules: Array,
+    examTerms: Array,
+    classes:   Array,
+});
 
-const selectedClassId   = ref('');
-const selectedSectionId = ref('');
-const selectedScheduleId = ref('');
-const useWeightage       = ref(false);
-const loading    = ref(false);
-const students   = ref([]);
+// ── Filter state ──
+const reportType         = ref('');                  // 'exam' | 'term' | 'cumulative'
+const selectedClassId    = ref('');
+const selectedSectionId  = ref('');
+const selectedScheduleId = ref('');                  // exam-wise + cumulative anchor
+const selectedTermId     = ref('');                  // term-wise
+const applyWeightage     = ref(false);
+
+const { sections: fetchedSections, fetchSections, reset: resetSections } = useClassSections();
+
+// ── Result state ──
+const loading      = ref(false);
+const students     = ref([]);
 const scheduleInfo = ref(null);
-const selectedIds = ref([]);
-const errorMsg = ref('');
+const respReportType    = ref('');                   // mode actually used by the last response
+const respApplyWeightage = ref(false);
+const selectedIds  = ref([]);
+const errorMsg     = ref('');
 
-// Computed: All unique classes from schedules
-const availableClasses = computed(() => {
-    const map = new Map();
-    props.schedules.forEach(s => {
-        if (s.course_class) {
-            map.set(s.course_class.id, s.course_class);
-        }
-    });
-    return Array.from(map.values());
-});
+// ── Computed: dropdown sources ──
+const availableClasses = computed(() => props.classes ?? []);
 
-// Computed: Sections available for the selected Class
-const availableSections = computed(() => {
-    if (!selectedClassId.value) return [];
-    // Get all sections from all schedules belonging to this class
-    const map = new Map();
-    props.schedules
-        .filter(s => s.course_class_id == selectedClassId.value)
-        .forEach(s => {
-            s.sections?.forEach(sec => {
-                map.set(sec.id, sec);
-            });
-        });
-    return Array.from(map.values());
-});
+const availableSections = computed(() => fetchedSections.value ?? []);
 
-// Computed: Exams available for the selected Class + Section
+// Exams visible for the chosen class + section (used by exam-wise + cumulative)
 const availableExams = computed(() => {
     if (!selectedClassId.value || !selectedSectionId.value) return [];
-    return props.schedules.filter(s => 
-        s.course_class_id == selectedClassId.value && 
-        s.sections.some(sec => sec.id == selectedSectionId.value)
+    return (props.schedules ?? []).filter(s =>
+        s.course_class_id == selectedClassId.value &&
+        (s.sections ?? []).some(sec => sec.id == selectedSectionId.value)
     );
 });
 
-function onClassChange() {
-    selectedSectionId.value = '';
-    selectedScheduleId.value = '';
-    resetData();
-}
+// Terms that have at least one schedule for the chosen class (used by term-wise)
+const availableTerms = computed(() => {
+    if (!selectedClassId.value) return [];
+    const validTermIds = new Set(
+        (props.schedules ?? [])
+            .filter(s => s.course_class_id == selectedClassId.value)
+            .map(s => s.exam_type?.exam_term_id)
+            .filter(Boolean)
+    );
+    return (props.examTerms ?? []).filter(t => validTermIds.has(t.id));
+});
 
-function onSectionChange() {
+// ── Watchers ──
+watch(selectedClassId, async (cls) => {
+    selectedSectionId.value  = '';
     selectedScheduleId.value = '';
+    selectedTermId.value     = '';
+    if (cls) {
+        await fetchSections(cls);
+    } else {
+        resetSections();
+    }
     resetData();
-}
+});
 
-function onScheduleChange() {
+watch(selectedSectionId, () => {
+    selectedScheduleId.value = '';
+    selectedTermId.value     = '';
     resetData();
-}
+});
+
+watch(reportType, () => {
+    selectedClassId.value    = '';
+    selectedSectionId.value  = '';
+    selectedScheduleId.value = '';
+    selectedTermId.value     = '';
+    resetSections();
+    resetData();
+});
 
 function resetData() {
-    students.value = [];
-    selectedIds.value = [];
+    students.value     = [];
+    selectedIds.value  = [];
     scheduleInfo.value = null;
-    errorMsg.value = '';
+    errorMsg.value     = '';
 }
 
-// When toggle changes, reload if already loaded
+// ── Validation: when is "Load" enabled? ──
+const canLoad = computed(() => {
+    if (!reportType.value || !selectedClassId.value || !selectedSectionId.value) return false;
+    if (reportType.value === 'exam' || reportType.value === 'cumulative') {
+        return !!selectedScheduleId.value;
+    }
+    if (reportType.value === 'term') {
+        return !!selectedTermId.value;
+    }
+    return false;
+});
+
+// Toggle is offered once basic class/section is picked
+const showWeightageToggle = computed(() =>
+    !!reportType.value && !!selectedClassId.value && !!selectedSectionId.value
+);
+
+// ── Toggle UX copy (per Report Type) ──
+const toggleCopy = computed(() => {
+    if (reportType.value === 'exam') {
+        return {
+            title:    'Apply weightage',
+            descOff:  'Show raw obtained / max marks for the selected exam',
+            descOn:   'Show this exam’s weighted contribution toward the year cumulative',
+        };
+    }
+    if (reportType.value === 'term') {
+        return {
+            title:    'Apply weightage',
+            descOff:  'Tabulation — each exam in the term shown side-by-side with raw marks',
+            descOn:   'Aggregate exams in this term using their weightages',
+        };
+    }
+    return {
+        title:    'Apply weightage',
+        descOff:  'Tabulation — every exam in the year shown side-by-side with raw marks',
+        descOn:   'Weighted aggregation across all exams in the academic year',
+    };
+});
+
 function onToggle() {
     if (students.value.length) loadPreview();
 }
 
+// ── Load students + report data ──
 async function loadPreview() {
-    if (!selectedScheduleId.value || !selectedSectionId.value) return;
+    if (!canLoad.value) return;
+
     loading.value = true;
     errorMsg.value = '';
     try {
-        const res = await axios.post('/school/report-cards/generate', {
-            exam_schedule_id: selectedScheduleId.value,
-            section_id: selectedSectionId.value,
-            use_weightage: useWeightage.value,
-        });
-        students.value   = res.data.students;
-        scheduleInfo.value = res.data.schedule;
-        selectedIds.value = students.value.map(s => s.id);
-    } catch(e) {
-        errorMsg.value = e.response?.data?.message || 'Failed to load student data.';
+        const payload = {
+            report_type:     reportType.value,
+            section_id:      selectedSectionId.value,
+            apply_weightage: applyWeightage.value,
+        };
+        if (reportType.value === 'exam' || reportType.value === 'cumulative') {
+            payload.exam_schedule_id = selectedScheduleId.value;
+        }
+        if (reportType.value === 'term') {
+            payload.exam_term_id    = selectedTermId.value;
+            payload.course_class_id = selectedClassId.value;
+        }
+
+        const res = await axios.post('/school/report-cards/generate', payload);
+        students.value         = res.data.students;
+        scheduleInfo.value     = res.data.schedule;
+        respReportType.value   = res.data.report_type;
+        respApplyWeightage.value = res.data.apply_weightage;
+        selectedIds.value      = students.value.map(s => s.id);
+    } catch (e) {
+        errorMsg.value = e.response?.data?.message || e.response?.data?.error || 'Failed to load student data.';
     } finally {
         loading.value = false;
     }
 }
 
-// Column definitions depend on mode
-const isWeighted = computed(() => students.value[0]?.report_calculated?.mode === 'weighted');
+// ── Computed: which result table layout to render ──
+// 'single-raw'      → existing single-exam table
+// 'single-weighted' → weighted table (1 exam)
+// 'weighted'        → weighted table (multi-exam aggregated)
+// 'tabulation'      → side-by-side per-exam raw marks
+const tableMode = computed(() => {
+    if (!students.value.length) return null;
+    const mode = students.value[0]?.report_calculated?.mode;
+    if (mode === 'single') return 'single-raw';
+    // 'weighted' mode in payload — drill down by report context + toggle
+    if (respReportType.value === 'exam') return 'single-weighted';
+    return respApplyWeightage.value ? 'weighted' : 'tabulation';
+});
 
 const scholasticSubjects = computed(() => {
     return students.value[0]?.report_calculated?.subjects?.map(s => s.subject_name) ?? [];
@@ -143,7 +225,7 @@ const coScholasticSubjects = computed(() => {
 });
 
 const examTypeHeaders = computed(() => {
-    if (!isWeighted.value) return [];
+    if (tableMode.value === 'single-raw') return [];
     return students.value[0]?.report_calculated?.exam_types ?? [];
 });
 
@@ -152,12 +234,18 @@ function getCoGrade(student, subName, examCode = null) {
     const cs = student.report_calculated?.co_scholastic?.find(c => c.subject_name === subName);
     if (!cs) return '—';
     if (!examCode) {
-        // Return first exam's grade if no code specified (single exam mode)
         return cs.exams[0]?.grade ?? '—';
     }
     return cs.exams.find(e => e.code === examCode)?.grade ?? '—';
 }
 
+// Helper to fetch one subject's contribution under a specific exam code
+function getContribution(student, subjectName, examCode) {
+    const subject = student.report_calculated?.subjects?.find(s => s.subject_name === subjectName);
+    return subject?.contributions?.find(c => c.code === examCode) ?? null;
+}
+
+// ── Multi-select ──
 function toggleAll(ev) {
     selectedIds.value = ev.target.checked ? students.value.map(s => s.id) : [];
 }
@@ -167,18 +255,46 @@ function toggleOne(id) {
     else selectedIds.value.push(id);
 }
 
+// ── Print ──
 function openPrint() {
     if (!selectedIds.value.length) return;
-    // Save AI comments to localStorage so Print.vue can read them
     saveCommentsToStorage();
-    const url = `/school/report-cards/print?exam_schedule_id=${selectedScheduleId.value}&section_id=${selectedSectionId.value}&student_ids=${selectedIds.value.join(',')}&use_weightage=${useWeightage.value ? 1 : 0}`;
-    window.open(url, '_blank');
+
+    const params = new URLSearchParams({
+        report_type:     reportType.value,
+        section_id:      selectedSectionId.value,
+        student_ids:     selectedIds.value.join(','),
+        apply_weightage: applyWeightage.value ? 1 : 0,
+    });
+    if (reportType.value === 'exam' || reportType.value === 'cumulative') {
+        params.set('exam_schedule_id', selectedScheduleId.value);
+    }
+    if (reportType.value === 'term') {
+        params.set('exam_term_id', selectedTermId.value);
+        params.set('course_class_id', selectedClassId.value);
+    }
+    window.open(`/school/report-cards/print?${params.toString()}`, '_blank');
 }
 
 function gradeColor(grade) {
     const map = { 'A1':'#059669','A2':'#10b981','B1':'#0284c7','B2':'#38bdf8','C1':'#7c3aed','C2':'#a78bfa','D':'#d97706','E':'#dc2626' };
     return map[grade] || '#64748b';
 }
+
+// ── Card title for the result tables ──
+const resultTitle = computed(() => {
+    const cls = scheduleInfo.value?.course_class?.name ?? '';
+    if (respReportType.value === 'term') {
+        const termName = scheduleInfo.value?.exam_type?.exam_term?.name ?? 'Term';
+        return `${cls} — ${termName} ${respApplyWeightage.value ? '(Weighted)' : '(Tabulation)'}`;
+    }
+    if (respReportType.value === 'cumulative') {
+        return `${cls} — Cumulative — Annual ${respApplyWeightage.value ? '(Weighted)' : '(Tabulation)'}`;
+    }
+    // exam
+    const examName = scheduleInfo.value?.exam_type?.name ?? 'Exam';
+    return `${cls} — ${examName}${respApplyWeightage.value ? ' (Weighted Contribution)' : ''}`;
+});
 </script>
 
 <template>
@@ -189,16 +305,14 @@ function gradeColor(grade) {
         <div class="page-header">
             <div>
                 <h1 class="page-header-title">📋 Report Card Generator</h1>
-                <p class="page-header-sub">Generate CBSE academic report cards — single exam or weighted cumulative.</p>
+                <p class="page-header-sub">Generate report cards by exam, term, or full-year cumulative — for one student or many.</p>
             </div>
             <div v-if="students.length" style="display:flex;gap:10px;align-items:center;">
-                <!-- AI Comments Button -->
                 <button @click="generateAiComments" class="btn-ai-comments" :disabled="aiLoading">
                     <span v-if="aiLoading" class="ai-spin">⏳</span>
                     <span v-else>✨</span>
                     {{ aiLoading ? 'Generating…' : (showComments ? 'Regenerate AI Comments' : 'Generate AI Comments') }}
                 </button>
-                <!-- Print Button -->
                 <Button @click="openPrint" :disabled="!selectedIds.length">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
@@ -208,66 +322,111 @@ function gradeColor(grade) {
             </div>
         </div>
 
-        <!-- Filters + Toggle Bar -->
+        <!-- Filters Card -->
         <div class="card mb-6">
-            <div class="card-body" style="display:flex;flex-direction:column;gap:16px;">
-                <!-- Row 1: Dropdowns + Load -->
-                <div class="form-row" style="grid-template-columns:1fr 1fr 1fr auto;align-items:flex-end;gap:12px;">
-                    <div class="form-field">
-                        <label>Class *</label>
-                        <select v-model="selectedClassId" @change="onClassChange">
-                            <option value="">-- Select Class --</option>
-                            <option v-for="cls in availableClasses" :key="cls.id" :value="cls.id">
-                                {{ cls.name }}
-                            </option>
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label>Section *</label>
-                        <select v-model="selectedSectionId" @change="onSectionChange" :disabled="!selectedClassId">
-                            <option value="">-- Select Section --</option>
-                            <option v-for="sec in availableSections" :key="sec.id" :value="sec.id">
-                                {{ sec.name }}
-                            </option>
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label>Exam *</label>
-                        <select v-model="selectedScheduleId" @change="onScheduleChange" :disabled="!selectedSectionId">
-                            <option value="">-- Select Exam --</option>
-                            <option v-for="sc in availableExams" :key="sc.id" :value="sc.id">
-                                {{ sc.exam_type?.name }}
-                            </option>
-                        </select>
-                    </div>
-                    <div>
-                        <Button @click="loadPreview" :disabled="!selectedScheduleId || !selectedSectionId || loading">
-                            <svg v-if="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke-width="4"/>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-                            </svg>
-                            {{ loading ? 'Loading…' : 'Load Students' }}
-                        </Button>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:18px;">
+
+                <!-- Row 1: Report Type pills -->
+                <div>
+                    <label class="rt-label">Step 1 · Report Type</label>
+                    <div class="rt-pills">
+                        <button type="button" class="rt-pill" :class="{ 'rt-pill--on': reportType === 'exam' }"
+                            @click="reportType = 'exam'">
+                            <span class="rt-icon">📝</span>
+                            <span>
+                                <span class="rt-title">Exam-wise</span>
+                                <span class="rt-sub">Single exam result</span>
+                            </span>
+                        </button>
+                        <button type="button" class="rt-pill" :class="{ 'rt-pill--on': reportType === 'term' }"
+                            @click="reportType = 'term'">
+                            <span class="rt-icon">📚</span>
+                            <span>
+                                <span class="rt-title">Term-wise</span>
+                                <span class="rt-sub">All exams in one term</span>
+                            </span>
+                        </button>
+                        <button type="button" class="rt-pill" :class="{ 'rt-pill--on': reportType === 'cumulative' }"
+                            @click="reportType = 'cumulative'">
+                            <span class="rt-icon">🎯</span>
+                            <span>
+                                <span class="rt-title">Cumulative-wise</span>
+                                <span class="rt-sub">Full academic year</span>
+                            </span>
+                        </button>
                     </div>
                 </div>
 
-                <!-- Row 2: Weightage Toggle -->
-                <div class="weightage-toggle-row">
-                    <label class="toggle-wrap" :class="{ 'toggle-wrap--active': useWeightage }">
-                        <button type="button" class="toggle-btn" :class="{ 'toggle-btn--on': useWeightage }"
-                            @click="useWeightage = !useWeightage; onToggle()" role="switch" :aria-checked="useWeightage">
-                            <span class="toggle-knob" :class="{ 'toggle-knob--on': useWeightage }"></span>
+                <!-- Row 2: Class / Section / (Exam | Term) -->
+                <div v-if="reportType">
+                    <label class="rt-label">Step 2 · Class &amp; {{ reportType === 'term' ? 'Term' : 'Exam' }}</label>
+                    <div class="form-row" style="grid-template-columns:1fr 1fr 1fr auto;align-items:flex-end;gap:12px;">
+                        <div class="form-field">
+                            <label>Class *</label>
+                            <select v-model="selectedClassId">
+                                <option value="">-- Select Class --</option>
+                                <option v-for="cls in availableClasses" :key="cls.id" :value="cls.id">
+                                    {{ cls.name }}
+                                </option>
+                            </select>
+                        </div>
+                        <div class="form-field">
+                            <label>Section *</label>
+                            <select v-model="selectedSectionId" :disabled="!selectedClassId || !availableSections.length">
+                                <option value="">-- Select Section --</option>
+                                <option v-for="sec in availableSections" :key="sec.id" :value="sec.id">
+                                    {{ sec.name }}
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- Exam-wise + Cumulative: Exam picker -->
+                        <div class="form-field" v-if="reportType === 'exam' || reportType === 'cumulative'">
+                            <label>{{ reportType === 'cumulative' ? 'Anchor Exam *' : 'Exam *' }}</label>
+                            <select v-model="selectedScheduleId" :disabled="!selectedSectionId">
+                                <option value="">-- Select Exam --</option>
+                                <option v-for="sc in availableExams" :key="sc.id" :value="sc.id">
+                                    {{ sc.exam_type?.name }}<span v-if="reportType === 'cumulative'"> (defines subject list)</span>
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- Term-wise: Term picker -->
+                        <div class="form-field" v-if="reportType === 'term'">
+                            <label>Term *</label>
+                            <select v-model="selectedTermId" :disabled="!selectedSectionId || !availableTerms.length">
+                                <option value="">-- Select Term --</option>
+                                <option v-for="t in availableTerms" :key="t.id" :value="t.id">
+                                    {{ t.display_name || t.name }}
+                                </option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <Button @click="loadPreview" :disabled="!canLoad || loading">
+                                <svg v-if="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke-width="4"/>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                                </svg>
+                                {{ loading ? 'Loading…' : 'Load Students' }}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 3: Weightage toggle (universal, contextual copy) -->
+                <div v-if="showWeightageToggle" class="weightage-toggle-row">
+                    <label class="toggle-wrap" :class="{ 'toggle-wrap--active': applyWeightage }">
+                        <button type="button" class="toggle-btn" :class="{ 'toggle-btn--on': applyWeightage }"
+                            @click="applyWeightage = !applyWeightage; onToggle()" role="switch" :aria-checked="applyWeightage">
+                            <span class="toggle-knob" :class="{ 'toggle-knob--on': applyWeightage }"></span>
                         </button>
                         <div class="toggle-label-area">
-                            <span class="toggle-label-title">Apply CBSE Weightage</span>
-                            <span class="toggle-label-desc" v-if="!useWeightage">
-                                Showing raw marks from selected exam only
-                            </span>
-                            <span class="toggle-label-desc toggle-label-desc--active" v-else>
-                                Weighted cumulative: PT1 (10%) + HY (30%) + PT2 (10%) + Annual (50%) = 100%
-                            </span>
+                            <span class="toggle-label-title">{{ toggleCopy.title }}</span>
+                            <span class="toggle-label-desc" v-if="!applyWeightage">{{ toggleCopy.descOff }}</span>
+                            <span class="toggle-label-desc toggle-label-desc--active" v-else>{{ toggleCopy.descOn }}</span>
                         </div>
-                        <span class="toggle-badge" v-if="useWeightage">CBSE ✓</span>
+                        <span class="toggle-badge" v-if="applyWeightage">Weighted ✓</span>
                     </label>
                 </div>
             </div>
@@ -286,14 +445,14 @@ function gradeColor(grade) {
             <svg class="w-14 h-14 mx-auto mb-3" style="color:#e2e8f0;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
             </svg>
-            Select a class, section, and exam, then click <strong>Load Students</strong>.
+            Pick a Report Type, then Class &amp; Section, then click <strong>Load Students</strong>.
         </div>
 
-        <!-- ─── SINGLE EXAM TABLE ─── -->
-        <div v-else-if="students.length && !isWeighted" class="card" style="overflow:hidden;">
+        <!-- ─── SINGLE EXAM (RAW) TABLE ─── -->
+        <div v-else-if="tableMode === 'single-raw'" class="card" style="overflow:hidden;">
             <div class="card-header">
                 <span class="card-title">
-                    {{ scheduleInfo?.course_class?.name }} — {{ scheduleInfo?.exam_type?.name }}
+                    {{ resultTitle }}
                     <span class="badge badge-blue ml-2">{{ students.length }} Students</span>
                     <span class="badge badge-gray ml-1">Raw Marks</span>
                 </span>
@@ -369,13 +528,13 @@ function gradeColor(grade) {
             </div>
         </div>
 
-        <!-- ─── WEIGHTED CUMULATIVE TABLE ─── -->
-        <div v-else-if="students.length && isWeighted" class="card" style="overflow:hidden;">
+        <!-- ─── WEIGHTED TABLE (cumulative ON / term ON / single-weighted) ─── -->
+        <div v-else-if="tableMode === 'weighted' || tableMode === 'single-weighted'" class="card" style="overflow:hidden;">
             <div class="card-header">
                 <span class="card-title">
-                    {{ scheduleInfo?.course_class?.name }} — Cumulative Weighted Report
+                    {{ resultTitle }}
                     <span class="badge badge-blue ml-2">{{ students.length }} Students</span>
-                    <span class="badge ml-1" style="background:#eef0ff;color:#4c1d95;">⚖ Weightage Applied</span>
+                    <span class="badge ml-1" style="background:#eef0ff;color:#4c1d95;">⚖ Weighted</span>
                 </span>
                 <label class="select-all-label">
                     <input type="checkbox" :checked="selectedIds.length === students.length" @change="toggleAll" />
@@ -383,7 +542,6 @@ function gradeColor(grade) {
                 </label>
             </div>
 
-            <!-- Weightage Legend -->
             <div class="weightage-legend">
                 <span>Exam weightage:</span>
                 <span v-for="et in examTypeHeaders" :key="et.code" class="weightage-pill">
@@ -459,10 +617,135 @@ function gradeColor(grade) {
             </div>
         </div>
 
+        <!-- ─── TABULATION TABLE (term OFF / cumulative OFF) ─── -->
+        <div v-else-if="tableMode === 'tabulation'" class="card" style="overflow:hidden;">
+            <div class="card-header">
+                <span class="card-title">
+                    {{ resultTitle }}
+                    <span class="badge badge-blue ml-2">{{ students.length }} Students</span>
+                    <span class="badge ml-1" style="background:#fef3c7;color:#92400e;">📋 Tabulation</span>
+                </span>
+                <label class="select-all-label">
+                    <input type="checkbox" :checked="selectedIds.length === students.length" @change="toggleAll" />
+                    Select All
+                </label>
+            </div>
+
+            <div style="overflow-x:auto;">
+                <Table>
+                    <thead>
+                        <tr>
+                            <th style="width:42px;" rowspan="2"></th>
+                            <th rowspan="2">Roll No</th>
+                            <th rowspan="2">Student Name</th>
+                            <th v-for="sn in scholasticSubjects" :key="sn" :colspan="examTypeHeaders.length" style="text-align:center;min-width:160px;background:#f0f6ff;">
+                                {{ sn }}
+                            </th>
+                            <th v-for="csn in coScholasticSubjects" :key="csn" style="text-align:center;min-width:110px;background:#fffde7;" rowspan="2">
+                                {{ csn }} (Grade)
+                            </th>
+                            <th v-if="showComments" rowspan="2" style="min-width:220px;background:#faf5ff;color:#6d28d9;">✨ AI Comment</th>
+                        </tr>
+                        <tr>
+                            <template v-for="sn in scholasticSubjects" :key="sn + '_exams'">
+                                <th v-for="et in examTypeHeaders" :key="sn + et.code"
+                                    style="text-align:center;background:#f8fafb;font-size:0.65rem;color:#64748b;">
+                                    {{ et.code || et.name }}
+                                </th>
+                            </template>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="st in students" :key="st.id" @click="toggleOne(st.id)" style="cursor:pointer;"
+                            :style="selectedIds.includes(st.id) ? 'background:#eff6ff;' : ''">
+                            <td><input type="checkbox" :checked="selectedIds.includes(st.id)" @click.stop="toggleOne(st.id)" /></td>
+                            <td>{{ st.roll_no || '-' }}</td>
+                            <td style="font-weight:600;">{{ st.first_name }} {{ st.last_name }}</td>
+                            <template v-for="sn in scholasticSubjects" :key="st.id + '_' + sn">
+                                <td v-for="et in examTypeHeaders" :key="st.id + '_' + sn + '_' + et.code"
+                                    style="text-align:center;">
+                                    <template v-if="getContribution(st, sn, et.code)">
+                                        <span v-if="getContribution(st, sn, et.code).obtained === 'ABS'" class="badge badge-red">ABS</span>
+                                        <span v-else>
+                                            {{ getContribution(st, sn, et.code).obtained }}/{{ getContribution(st, sn, et.code).max }}
+                                        </span>
+                                    </template>
+                                    <span v-else style="color:#cbd5e1;">—</span>
+                                </td>
+                            </template>
+                            <td v-for="csn in coScholasticSubjects" :key="'tab_'+csn" style="text-align:center;background:#fdfce8;">
+                                <span class="badge"
+                                    :style="`background:${gradeColor(getCoGrade(st, csn))}20;color:${gradeColor(getCoGrade(st, csn))};font-weight:700;`"
+                                >
+                                    {{ getCoGrade(st, csn) }}
+                                </span>
+                            </td>
+                            <td v-if="showComments" style="background:#faf5ff;" @click.stop>
+                                <textarea class="ai-comment-input"
+                                    v-model="aiComments[st.id]"
+                                    placeholder="AI comment…"
+                                    rows="2"
+                                ></textarea>
+                            </td>
+                        </tr>
+                    </tbody>
+                </Table>
+            </div>
+        </div>
+
     </SchoolLayout>
 </template>
 
 <style scoped>
+/* ─── Report Type pills ─── */
+.rt-label {
+    display:block;
+    font-size:0.72rem;
+    font-weight:700;
+    color:#64748b;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    margin-bottom:8px;
+}
+.rt-pills {
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:10px;
+}
+.rt-pill {
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:14px 18px;
+    border-radius:12px;
+    border:1.5px solid #e2e8f0;
+    background:#f8fafc;
+    cursor:pointer;
+    text-align:left;
+    transition:all 0.15s;
+}
+.rt-pill:hover { border-color:#cbd5e1; background:#fff; }
+.rt-pill--on {
+    border-color:#1169cd;
+    background:linear-gradient(135deg,#eff6ff 0%, #dbeafe 100%);
+    box-shadow:0 1px 4px rgba(17,105,205,0.12);
+}
+.rt-icon { font-size:1.4rem; }
+.rt-title {
+    display:block;
+    font-size:0.875rem;
+    font-weight:700;
+    color:#1e293b;
+    line-height:1.2;
+}
+.rt-sub {
+    display:block;
+    font-size:0.72rem;
+    color:#64748b;
+    margin-top:2px;
+}
+.rt-pill--on .rt-title { color:#1169cd; }
+
 /* ─── Weightage Toggle ─── */
 .weightage-toggle-row {
     display: flex;

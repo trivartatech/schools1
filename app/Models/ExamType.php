@@ -16,7 +16,6 @@ class ExamType extends Model
         'name',
         'code',
         'display_name',
-        'weightage',
         'classification',
     ];
 

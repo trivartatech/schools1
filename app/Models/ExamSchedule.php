@@ -8,12 +8,14 @@ class ExamSchedule extends Model
 {
     protected $fillable = [
         'school_id', 'academic_year_id', 'exam_type_id', 'course_class_id',
+        'weightage',
         'has_co_scholastic', 'scholastic_grading_system_id',
         'co_scholastic_grading_system_id', 'status',
     ];
 
     protected $casts = [
         'has_co_scholastic' => 'boolean',
+        'weightage'         => 'decimal:2',
     ];
 
     public function school()        { return $this->belongsTo(School::class); }

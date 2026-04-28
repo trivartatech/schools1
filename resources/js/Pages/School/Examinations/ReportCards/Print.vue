@@ -18,10 +18,23 @@ const props = defineProps({
     schoolInfo: Object,
     academicYear: String,
     useWeightage: Boolean,
+    reportType: { type: String, default: 'exam' },
+    termName:   { type: String, default: null },
     gradeScale: Array,
 });
 
 const isWeighted = computed(() => props.useWeightage);
+
+const modePillText = computed(() => {
+    if (props.reportType === 'term') {
+        const t = props.termName || 'Term';
+        return props.useWeightage ? `⚖ Term — ${t} (Weighted)` : `📋 Term — ${t} (Tabulation)`;
+    }
+    if (props.reportType === 'cumulative') {
+        return props.useWeightage ? '⚖ Cumulative — Annual' : '📋 Cumulative — Annual (Tabulation)';
+    }
+    return props.useWeightage ? '⚖ Single Exam (Weighted Contribution)' : 'Single Exam';
+});
 
 // Unique exam types (columns) ordered as they appear in contributions
 const examTypeCols = computed(() => {
@@ -72,7 +85,7 @@ function singleTotal(rc) {
             <button onclick="window.print()" class="ctrl-btn ctrl-btn--print">🖨️ Print All Report Cards</button>
             <button onclick="window.close()" class="ctrl-btn ctrl-btn--close">✕ Close</button>
             <span class="mode-pill" :style="isWeighted ? 'background:#6d28d9' : 'background:#1169cd'">
-                {{ isWeighted ? '⚖ Weighted Cumulative' : 'Raw Marks' }}
+                {{ modePillText }}
             </span>
         </div>
 
@@ -146,7 +159,7 @@ function singleTotal(rc) {
                 </div>
             </div>
 
-            <!-- ─── WEIGHTED MARKS TABLE ─── -->
+            <!-- ─── WEIGHTED MARKS TABLE (term ON / cumulative ON / single-exam ON) ─── -->
             <template v-if="isWeighted && student.report_calculated?.mode === 'weighted'">
                 <table class="rc-table">
                     <thead>
@@ -197,6 +210,40 @@ function singleTotal(rc) {
                             <td class="td-grade-final" :style="`color:${gradeColor(student.report_calculated.subjects[0]?.grade)};`">
                                 <strong>{{ student.report_calculated.subjects[0]?.grade ?? '—' }}</strong>
                             </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </template>
+
+            <!-- ─── TABULATION TABLE (term OFF / cumulative OFF) ─── -->
+            <template v-else-if="!isWeighted && student.report_calculated?.mode === 'weighted'">
+                <table class="rc-table">
+                    <thead>
+                        <tr>
+                            <th rowspan="2" class="th-subject">SUBJECT</th>
+                            <template v-for="grp in termGroups" :key="grp.term_name + '_tab'">
+                                <th :colspan="grp.cols.length * 2" class="th-term">{{ grp.term_name }}</th>
+                            </template>
+                        </tr>
+                        <tr>
+                            <template v-for="et in examTypeCols" :key="et.code + '_tab'">
+                                <th class="th-exam" colspan="2">{{ et.name }}</th>
+                            </template>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(sub, si) in student.report_calculated.subjects" :key="si"
+                            :class="si % 2 === 0 ? 'tr-even' : 'tr-odd'">
+                            <td class="td-subject">{{ sub.subject_name }}</td>
+                            <template v-for="et in examTypeCols" :key="et.code + '_tabcell'">
+                                <td class="td-score" colspan="2">
+                                    <template v-if="getC(sub, et.code)">
+                                        <span v-if="getC(sub, et.code).obtained === 'ABS'" style="color:#dc2626;font-weight:700;">ABS</span>
+                                        <span v-else>{{ getC(sub, et.code).obtained }}/{{ getC(sub, et.code).max }}</span>
+                                    </template>
+                                    <span v-else class="dim">—</span>
+                                </td>
+                            </template>
                         </tr>
                     </tbody>
                 </table>

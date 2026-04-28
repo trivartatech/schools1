@@ -45,7 +45,6 @@ class ExamTypeController extends Controller
             'name'           => 'required|string|max:255',
             'code'           => 'nullable|string|max:50',
             'display_name'   => 'nullable|string|max:255',
-            'weightage'      => 'required|numeric|min:0|max:100',
             'classification' => 'required|in:main,periodic,unit_test',
         ]);
 
@@ -69,7 +68,6 @@ class ExamTypeController extends Controller
             'name'           => 'required|string|max:255',
             'code'           => 'nullable|string|max:50',
             'display_name'   => 'nullable|string|max:255',
-            'weightage'      => 'required|numeric|min:0|max:100',
             'classification' => 'required|in:main,periodic,unit_test',
         ]);
 

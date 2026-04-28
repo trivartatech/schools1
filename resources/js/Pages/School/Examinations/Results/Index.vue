@@ -104,7 +104,7 @@ function pctClass(pct) {
 
 function openPrint() {
     const ids = result.value.rows.map(r => r.id).join(',');
-    const url = `/school/report-cards/print?exam_schedule_id=${selectedScheduleId.value}&section_id=${selectedSectionId.value}&student_ids=${ids}&use_weightage=0`;
+    const url = `/school/report-cards/print?report_type=exam&exam_schedule_id=${selectedScheduleId.value}&section_id=${selectedSectionId.value}&student_ids=${ids}&apply_weightage=0`;
     window.open(url, '_blank');
 }
 
