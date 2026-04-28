@@ -8,7 +8,7 @@
  *
  * URL: /school/_ui-sandbox
  */
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import Modal from '@/Components/ui/Modal.vue';
@@ -17,8 +17,10 @@ import StatsRow from '@/Components/ui/StatsRow.vue';
 import EmptyState from '@/Components/ui/EmptyState.vue';
 import Button from '@/Components/ui/Button.vue';
 import Table from '@/Components/ui/Table.vue';
+import SortableTh from '@/Components/ui/SortableTh.vue';
 import { useConfirm } from '@/Composables/useConfirm';
 import { useToast } from '@/Composables/useToast';
+import { useTableSort } from '@/Composables/useTableSort';
 
 const confirm = useConfirm();
 const toast = useToast();
@@ -60,6 +62,21 @@ async function tryConfirmCustom() {
     });
     toast[ok ? 'success' : 'info'](ok ? 'Submitted' : 'Returned to review');
 }
+
+// ── Sortable Table demo ─────────────────────────────────────────
+const sampleStudents = ref([
+    { id: 1, name: 'Aanya Sharma',   class: 'Grade 7-A',  marks: 89,  attendance: 98.2, status: 'Active' },
+    { id: 2, name: 'Rohan Mehta',    class: 'Grade 9-B',  marks: 72,  attendance: 85.5, status: 'Active' },
+    { id: 3, name: 'Diya Iyer',      class: 'Grade 8-C',  marks: 94,  attendance: 96.0, status: 'Active' },
+    { id: 4, name: 'Kabir Verma',    class: 'Grade 6-A',  marks: 65,  attendance: 78.3, status: 'Inactive' },
+    { id: 5, name: 'Saanvi Reddy',   class: 'Grade 10-A', marks: 88,  attendance: 92.7, status: 'Active' },
+    { id: 6, name: 'Aarav Khan',     class: 'Grade 7-B',  marks: 77,  attendance: 88.1, status: 'Active' },
+    { id: 7, name: 'Myra Joshi',     class: 'Grade 9-A',  marks: 91,  attendance: 95.4, status: 'Active' },
+    { id: 8, name: 'Vihaan Gupta',   class: 'Grade 8-A',  marks: 58,  attendance: 70.0, status: 'Inactive' },
+]);
+
+const { sortKey, sortDir, toggleSort, sortRows } = useTableSort('name', 'asc');
+const sortedStudents = computed(() => sortRows(sampleStudents.value));
 </script>
 
 <template>
@@ -195,8 +212,45 @@ async function tryConfirmCustom() {
             />
         </div>
 
-        <!-- ─── Table reference (for context) ───────────────────────────── -->
-        <h2 class="section-heading">Existing Table component (for reference)</h2>
+        <!-- ─── Table — sortable columns ─────────────────────────────────── -->
+        <h2 class="section-heading">Table with sortable columns</h2>
+        <p style="font-size:0.8rem;color:var(--text-muted);margin:-6px 0 8px;">
+            Click any header with the dual-arrow icon to sort. Click again to reverse direction.
+            Active sort: <strong>{{ sortKey || 'none' }}</strong> ({{ sortDir }})
+        </p>
+        <div class="card" style="margin-bottom:20px;">
+            <Table :sort-key="sortKey" :sort-dir="sortDir" @sort="toggleSort">
+                <thead>
+                    <tr>
+                        <SortableTh sort-key="name">Student</SortableTh>
+                        <SortableTh sort-key="class">Class</SortableTh>
+                        <SortableTh sort-key="marks" align="right">Marks</SortableTh>
+                        <SortableTh sort-key="attendance" align="right">Attendance %</SortableTh>
+                        <SortableTh sort-key="status">Status</SortableTh>
+                        <th style="text-align:right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="s in sortedStudents" :key="s.id">
+                        <td style="font-weight:600;color:var(--text-primary);">{{ s.name }}</td>
+                        <td>{{ s.class }}</td>
+                        <td style="text-align:right;font-family:monospace;">{{ s.marks }}</td>
+                        <td style="text-align:right;font-family:monospace;">{{ s.attendance }}%</td>
+                        <td>
+                            <span class="badge" :class="s.status === 'Active' ? 'badge-green' : 'badge-gray'">
+                                {{ s.status }}
+                            </span>
+                        </td>
+                        <td style="text-align:right;">
+                            <Button variant="secondary" size="xs">View</Button>
+                        </td>
+                    </tr>
+                </tbody>
+            </Table>
+        </div>
+
+        <!-- ─── Table reference (basic, no sort) ───────────────────────────── -->
+        <h2 class="section-heading">Table — basic (no sort)</h2>
         <div class="card" style="margin-bottom:20px;">
             <Table>
                 <thead>

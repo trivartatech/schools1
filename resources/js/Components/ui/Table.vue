@@ -2,39 +2,45 @@
 /**
  * Table — the single unified table primitive for the School ERP UI.
  *
- * Drop-in replacement for `<table class="erp-table">`. Owns its own styles
- * (no longer dependent on `.erp-table` in SchoolLayout). Adds built-in
- * responsive wrapper, loading state, empty state, and density variants
- * that used to be re-implemented per page.
+ * Drop-in replacement for `<table class="erp-table">`. Owns its own styles.
+ * Adds built-in responsive wrapper, loading state, empty state, density
+ * variants, AND sortable-column support via <SortableTh>.
  *
- * @prop {('sm'|'md'|'lg')} size      — row/cell density (default 'md' matches old .erp-table)
+ * @prop {('sm'|'md'|'lg')} size      — row/cell density (default 'md')
  * @prop {boolean}         striped    — zebra rows
  * @prop {boolean}         hover      — row hover highlight (default true)
- * @prop {boolean}         bordered   — outer border + cell borders (for financial/report tables)
+ * @prop {boolean}         bordered   — outer border + cell borders
  * @prop {boolean}         responsive — wraps in overflow-x container (default true)
  * @prop {boolean}         loading    — show spinner overlay
- * @prop {boolean}         empty      — show empty-state slot (caller drives this)
+ * @prop {boolean}         empty      — show empty-state slot
  * @prop {string}          emptyText  — convenience message when `empty` is true
  *
+ * @prop {string|null}     sortKey    — currently-sorted column key (v-model:sort-key)
+ * @prop {'asc'|'desc'}    sortDir    — sort direction (v-model:sort-dir)
+ *
+ * Emits:
+ *   update:sortKey, update:sortDir — for v-model
+ *   sort (key)                     — fired when a <SortableTh> is clicked
+ *
  * Slots:
- *   default  — thead + tbody markup (authored in parent so parent-scoped
- *              CSS on th/td continues to work)
- *   empty    — custom empty state content
- *   loading  — custom loading state content
+ *   default  — thead + tbody markup
+ *   empty    — custom empty state
+ *   loading  — custom loading state
  *
- * Usage:
- *   <Table>
- *     <thead><tr><th>Name</th></tr></thead>
- *     <tbody><tr v-for="r in rows" :key="r.id"><td>{{ r.name }}</td></tr></tbody>
- *   </Table>
+ * Sortable example (see also UISandbox.vue):
  *
- *   <Table :empty="rows.length === 0" empty-text="No students yet">
- *     ...
- *   </Table>
+ *   In script setup:
+ *     import { useTableSort } from '@/Composables/useTableSort';
+ *     const { sortKey, sortDir, toggleSort, sortRows } = useTableSort('name');
+ *     const sortedRows = computed(() => sortRows(rows.value));
  *
- *   <Table bordered size="sm">...</Table>
+ *   In template:
+ *     Table sort-key=sortKey sort-dir=sortDir on-sort=toggleSort
+ *       SortableTh sort-key="name"   -> renders Name with arrow
+ *       SortableTh sort-key="email"  -> renders Email with arrow
+ *       th plain                     -> non-sortable column
  */
-import { computed } from 'vue';
+import { computed, provide } from 'vue';
 
 const props = defineProps({
     size: {
@@ -49,7 +55,17 @@ const props = defineProps({
     loading: Boolean,
     empty: Boolean,
     emptyText: { type: String, default: 'No records found.' },
+
+    /** Sort state (optional — only needed if any <SortableTh> is used) */
+    sortKey: { type: String, default: null },
+    sortDir: {
+        type: String,
+        default: 'asc',
+        validator: (v) => ['asc', 'desc'].includes(v),
+    },
 });
+
+const emit = defineEmits(['update:sortKey', 'update:sortDir', 'sort']);
 
 defineOptions({ inheritAttrs: false });
 
@@ -62,6 +78,23 @@ const tableClasses = computed(() => [
         'erp-table--bordered': props.bordered,
     },
 ]);
+
+// Provide sort context to descendant <SortableTh> components.
+// They inject this and call `triggerSort(key)` on click.
+provide('erpTableSort', {
+    sortKey: computed(() => props.sortKey),
+    sortDir: computed(() => props.sortDir),
+    triggerSort(key) {
+        emit('sort', key);
+        // Default toggle if parent is using v-model directly without a handler:
+        if (props.sortKey === key) {
+            emit('update:sortDir', props.sortDir === 'asc' ? 'desc' : 'asc');
+        } else {
+            emit('update:sortKey', key);
+            emit('update:sortDir', 'asc');
+        }
+    },
+});
 </script>
 
 <template>

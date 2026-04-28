@@ -4,6 +4,9 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import debounce from 'lodash/debounce';
 import Button from '@/Components/ui/Button.vue';
+import Table from '@/Components/ui/Table.vue';
+import SortableTh from '@/Components/ui/SortableTh.vue';
+import { useTableSort } from '@/Composables/useTableSort';
 import { useToast } from '@/Composables/useToast';
 import { usePermissions } from '@/Composables/usePermissions';
 import { useConfirm } from '@/Composables/useConfirm';
@@ -247,6 +250,19 @@ const getRoleLabel = (type) => ({
 const getStatusBadgeClass = (active) => active
     ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
     : 'bg-rose-100 text-rose-700 border-rose-200';
+
+// ── Table sorts ─────────────────────────────────────────────────────────────
+const { sortKey: usersSortKey, sortDir: usersSortDir, toggleSort: usersToggleSort, sortRows: usersSortRows } = useTableSort('name', 'asc');
+const sortedUsers = computed(() => usersSortRows(props.users.data || [], {
+    getValue: (row, key) => {
+        if (key === 'role') return row.user_type;
+        if (key === 'access') return row.is_active ? 1 : 0;
+        return row[key];
+    },
+}));
+
+const { sortKey: bulkSortKey, sortDir: bulkSortDir, toggleSort: bulkToggleSort, sortRows: bulkSortRows } = useTableSort('name', 'asc');
+const sortedBulkRows = computed(() => bulkSortRows(bulkRows.value || []));
 </script>
 
 <template>
@@ -357,94 +373,91 @@ const getStatusBadgeClass = (active) => active
 
             <!-- Users Table -->
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-100">
-                        <thead class="bg-gray-50/50">
-                            <tr>
-                                <th class="px-4 py-4 w-10">
-                                    <input type="checkbox" :checked="allSelected" @change="toggleAll"
-                                           class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
-                                </th>
-                                <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Name &amp; Profile</th>
-                                <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">System Role</th>
-                                <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Username</th>
-                                <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Password</th>
-                                <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Access Status</th>
-                                <th class="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Manage</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-50">
-                            <tr v-for="user in users.data" :key="user.id"
-                                class="hover:bg-indigo-50/20 transition-colors group"
-                                :class="{ 'bg-indigo-50/40': isSelected(user.id) }">
-                                <td class="px-4 py-4 w-10">
-                                    <input type="checkbox" :checked="isSelected(user.id)" @change="toggleOne(user.id)"
-                                           class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
-                                </td>
-                                <td class="px-6 py-4">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-black text-sm border-2 border-white shadow-sm flex-shrink-0">
-                                            {{ user.name.charAt(0).toUpperCase() }}
+                <Table :sort-key="usersSortKey" :sort-dir="usersSortDir" @sort="usersToggleSort">
+                    <thead>
+                        <tr>
+                            <th style="width:40px;">
+                                <input type="checkbox" :checked="allSelected" @change="toggleAll"
+                                       class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+                            </th>
+                            <SortableTh sort-key="name">Name &amp; Profile</SortableTh>
+                            <SortableTh sort-key="role">System Role</SortableTh>
+                            <SortableTh sort-key="username">Username</SortableTh>
+                            <th>Password</th>
+                            <SortableTh sort-key="access" align="center">Access Status</SortableTh>
+                            <th style="text-align:right;">Manage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="user in sortedUsers" :key="user.id"
+                            :class="{ 'bg-indigo-50/40': isSelected(user.id) }">
+                            <td>
+                                <input type="checkbox" :checked="isSelected(user.id)" @change="toggleOne(user.id)"
+                                       class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+                            </td>
+                            <td>
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-black text-sm border-2 border-white shadow-sm flex-shrink-0">
+                                        {{ user.name.charAt(0).toUpperCase() }}
+                                    </div>
+                                    <div>
+                                        <div class="text-sm font-black text-gray-900">{{ user.name }}</div>
+                                        <!-- Class · Section for students/parents, phone/email for everyone else -->
+                                        <div v-if="user.class_name || user.section_name" class="text-xs text-indigo-600 font-bold mt-0.5">
+                                            {{ [user.class_name, user.section_name].filter(Boolean).join(' · ') }}
                                         </div>
-                                        <div>
-                                            <div class="text-sm font-black text-gray-900">{{ user.name }}</div>
-                                            <!-- Class · Section for students/parents, phone/email for everyone else -->
-                                            <div v-if="user.class_name || user.section_name" class="text-xs text-indigo-600 font-bold mt-0.5">
-                                                {{ [user.class_name, user.section_name].filter(Boolean).join(' · ') }}
-                                            </div>
-                                            <div class="text-xs text-gray-500 font-medium">{{ user.phone || user.email || '-' }}</div>
-                                        </div>
+                                        <div class="text-xs text-gray-500 font-medium">{{ user.phone || user.email || '-' }}</div>
                                     </div>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <span class="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-gray-100 text-gray-600 border border-gray-200">
-                                        {{ getRoleLabel(user.user_type) }}
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <div class="flex items-center gap-2">
-                                        <code class="text-[11px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">{{ user.username || user.phone || user.email || '—' }}</code>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-gray-100 text-gray-600 border border-gray-200">
+                                    {{ getRoleLabel(user.user_type) }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <code class="text-[11px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">{{ user.username || user.phone || user.email || '—' }}</code>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="flex items-center gap-1.5">
+                                    <code class="text-[11px] font-black text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md">password</code>
+                                    <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">default</span>
+                                </div>
+                            </td>
+                            <td style="text-align:center;">
+                                <button @click="toggleAccess(user)"
+                                        class="px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border transition-all hover:shadow-sm"
+                                        :class="getStatusBadgeClass(user.is_active)">
+                                    {{ user.is_active ? 'Active' : 'Locked' }}
+                                </button>
+                            </td>
+                            <td style="text-align:right;" class="space-x-2">
+                                <Button v-if="$page.props.auth.user.id !== user.id && can('impersonate_users')"
+                                        @click="impersonateUser(user)" title="Login as this user" size="xs">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                                    Login As
+                                </Button>
+                                <Button @click="handleResetPassword(user)" size="xs">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+                                    Reset
+                                </Button>
+                            </td>
+                        </tr>
+                        <tr v-if="sortedUsers.length === 0">
+                            <td colspan="7" class="px-6 py-20 text-center">
+                                <div class="flex flex-col items-center">
+                                    <div class="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4 text-gray-300">
+                                        <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
                                     </div>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <div class="flex items-center gap-1.5">
-                                        <code class="text-[11px] font-black text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md">password</code>
-                                        <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">default</span>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <button @click="toggleAccess(user)"
-                                            class="px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border transition-all hover:shadow-sm"
-                                            :class="getStatusBadgeClass(user.is_active)">
-                                        {{ user.is_active ? 'Active' : 'Locked' }}
-                                    </button>
-                                </td>
-                                <td class="px-6 py-4 text-right space-x-2">
-                                    <Button v-if="$page.props.auth.user.id !== user.id && can('impersonate_users')"
-                                            @click="impersonateUser(user)" title="Login as this user" size="xs">
-                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-                                        Login As
-                                    </Button>
-                                    <Button @click="handleResetPassword(user)" size="xs">
-                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
-                                        Reset
-                                    </Button>
-                                </td>
-                            </tr>
-                            <tr v-if="users.data.length === 0">
-                                <td colspan="7" class="px-6 py-20 text-center">
-                                    <div class="flex flex-col items-center">
-                                        <div class="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4 text-gray-300">
-                                            <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                                        </div>
-                                        <p class="text-sm font-bold text-gray-900">No users found</p>
-                                        <p class="text-xs text-gray-500 mt-1">Try adjusting your filters or search query.</p>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                                    <p class="text-sm font-bold text-gray-900">No users found</p>
+                                    <p class="text-xs text-gray-500 mt-1">Try adjusting your filters or search query.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </Table>
 
                 <!-- Pagination -->
                 <div v-if="users.links.length > 3" class="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between">
@@ -527,24 +540,24 @@ const getStatusBadgeClass = (active) => active
                 </div>
 
                 <div class="max-h-[60vh] overflow-auto">
-                    <table class="min-w-full text-sm">
-                        <thead class="bg-gray-50 sticky top-0">
+                    <Table :sort-key="bulkSortKey" :sort-dir="bulkSortDir" @sort="bulkToggleSort" size="sm">
+                        <thead>
                             <tr>
-                                <th class="px-5 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Name</th>
-                                <th class="px-5 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Role</th>
-                                <th class="px-5 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Username</th>
-                                <th class="px-5 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Password</th>
+                                <SortableTh sort-key="name">Name</SortableTh>
+                                <SortableTh sort-key="role">Role</SortableTh>
+                                <SortableTh sort-key="username">Username</SortableTh>
+                                <th>Password</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="(r, i) in bulkRows" :key="i" class="border-t border-gray-100">
-                                <td class="px-5 py-2.5 font-medium text-gray-800">{{ r.name }}</td>
-                                <td class="px-5 py-2.5 text-gray-500">{{ r.role }}</td>
-                                <td class="px-5 py-2.5 font-mono font-bold text-indigo-600">{{ r.username }}</td>
-                                <td class="px-5 py-2.5 font-mono font-bold text-emerald-600">{{ r.password }}</td>
+                            <tr v-for="(r, i) in sortedBulkRows" :key="i">
+                                <td class="font-medium text-gray-800">{{ r.name }}</td>
+                                <td class="text-gray-500">{{ r.role }}</td>
+                                <td class="font-mono font-bold text-indigo-600">{{ r.username }}</td>
+                                <td class="font-mono font-bold text-emerald-600">{{ r.password }}</td>
                             </tr>
                         </tbody>
-                    </table>
+                    </Table>
                 </div>
 
                 <div class="p-4 bg-amber-50 border-t border-amber-100 flex justify-between items-center">

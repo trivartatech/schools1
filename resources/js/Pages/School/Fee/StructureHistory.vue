@@ -1,6 +1,9 @@
 <script setup>
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import Table from '@/Components/ui/Table.vue';
+import SortableTh from '@/Components/ui/SortableTh.vue';
+import { useTableSort } from '@/Composables/useTableSort';
 import { Link } from '@inertiajs/vue3';
 import { router } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
@@ -32,6 +35,15 @@ const { formatDate: fmt } = useFormat();
 
 const currentEntry = computed(() => props.history.find(h => !h.effective_to));
 const archivedEntries = computed(() => props.history.filter(h => h.effective_to));
+
+const { sortKey, sortDir, toggleSort, sortRows } = useTableSort('effective_from', 'desc');
+const sortedArchived = computed(() => sortRows(archivedEntries.value, {
+    getValue: (row, key) => {
+        if (key === 'amount') return Number(row.amount);
+        if (key === 'late_fee_per_day') return Number(row.late_fee_per_day ?? 0);
+        return row[key];
+    },
+}));
 </script>
 
 <template>
@@ -111,39 +123,37 @@ const archivedEntries = computed(() => props.history.filter(h => h.effective_to)
                 <div class="card-header">
                     <span class="card-title">Previous Versions ({{ archivedEntries.length }})</span>
                 </div>
-                <div style="overflow-x:auto;">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Amount</th>
-                                <th>Late Fee/Day</th>
-                                <th>Due Date</th>
-                                <th>Effective From</th>
-                                <th>Effective To</th>
-                                <th>Change Reason</th>
-                                <th>Duration</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="(entry, idx) in archivedEntries" :key="entry.id" style="background:#fafafa;">
-                                <td style="color:#94a3b8;font-size:.8rem;">v{{ archivedEntries.length - idx }}</td>
-                                <td style="font-weight:600;">₹{{ Number(entry.amount).toLocaleString('en-IN') }}</td>
-                                <td>₹{{ entry.late_fee_per_day ?? 0 }}</td>
-                                <td>{{ fmt(entry.due_date) }}</td>
-                                <td>{{ fmt(entry.effective_from) }}</td>
-                                <td><span class="badge badge-gray">{{ fmt(entry.effective_to) }}</span></td>
-                                <td style="color:#64748b;font-size:.85rem;font-style:italic;">{{ entry.change_reason ?? '—' }}</td>
-                                <td style="font-size:.8rem;color:#94a3b8;">
-                                    <span v-if="entry.effective_from && entry.effective_to">
-                                        {{ Math.round((new Date(entry.effective_to) - new Date(entry.effective_from)) / (1000*60*60*24)) }} days
-                                    </span>
-                                    <span v-else>—</span>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                <Table :sort-key="sortKey" :sort-dir="sortDir" @sort="toggleSort">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <SortableTh sort-key="amount" align="right">Amount</SortableTh>
+                            <SortableTh sort-key="late_fee_per_day" align="right">Late Fee/Day</SortableTh>
+                            <SortableTh sort-key="due_date">Due Date</SortableTh>
+                            <SortableTh sort-key="effective_from">Effective From</SortableTh>
+                            <SortableTh sort-key="effective_to">Effective To</SortableTh>
+                            <SortableTh sort-key="change_reason">Change Reason</SortableTh>
+                            <th>Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(entry, idx) in sortedArchived" :key="entry.id" style="background:#fafafa;">
+                            <td style="color:#94a3b8;font-size:.8rem;">v{{ sortedArchived.length - idx }}</td>
+                            <td style="font-weight:600;text-align:right;">₹{{ Number(entry.amount).toLocaleString('en-IN') }}</td>
+                            <td style="text-align:right;">₹{{ entry.late_fee_per_day ?? 0 }}</td>
+                            <td>{{ fmt(entry.due_date) }}</td>
+                            <td>{{ fmt(entry.effective_from) }}</td>
+                            <td><span class="badge badge-gray">{{ fmt(entry.effective_to) }}</span></td>
+                            <td style="color:#64748b;font-style:italic;">{{ entry.change_reason ?? '—' }}</td>
+                            <td>
+                                <span v-if="entry.effective_from && entry.effective_to">
+                                    {{ Math.round((new Date(entry.effective_to) - new Date(entry.effective_from)) / (1000*60*60*24)) }} days
+                                </span>
+                                <span v-else>—</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </Table>
             </div>
 
             <div v-if="!archivedEntries.length && currentEntry" style="padding:16px;text-align:center;color:#94a3b8;font-size:.9rem;">

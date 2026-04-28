@@ -1,6 +1,7 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import Table from '@/Components/ui/Table.vue';
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -90,41 +91,39 @@ const pct = (v, total) => total > 0 ? Math.round((v / total) * 100) : 0;
                 </div>
             </div>
 
-            <div class="table-wrap">
-                <table class="report-table">
-                    <thead>
-                        <tr>
-                            <th class="sticky-col" style="min-width:180px;">Staff</th>
-                            <th v-for="d in daysInMonth" :key="d" class="day-th">{{ d }}</th>
-                            <th class="count-th">P</th>
-                            <th class="count-th">A</th>
-                            <th class="count-th">L</th>
-                            <th class="count-th">%</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="row in filtered" :key="row.staff_id">
-                            <td class="sticky-col staff-col">
-                                <div class="staff-name">{{ row.name }}</div>
-                                <div class="staff-sub">{{ row.employee_id }} <span v-if="row.department">/ {{ row.department }}</span></div>
-                            </td>
-                            <td v-for="d in daysInMonth" :key="d" class="day-cell">
-                                <span v-if="row.days[d]" class="day-dot" :style="{ background: statusColor(row.days[d]) }" :title="row.days[d]">
-                                    {{ statusLabel(row.days[d]) }}
-                                </span>
-                                <span v-else class="day-empty">-</span>
-                            </td>
-                            <td class="count-cell count-green">{{ row.counts.present }}</td>
-                            <td class="count-cell count-red">{{ row.counts.absent }}</td>
-                            <td class="count-cell count-amber">{{ row.counts.late }}</td>
-                            <td class="count-cell count-pct">{{ pct(row.counts.present, row.counts.working_days) }}%</td>
-                        </tr>
-                        <tr v-if="filtered.length === 0">
-                            <td :colspan="daysInMonth + 5" class="empty">No staff found.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+            <Table class="report-table">
+                <thead>
+                    <tr>
+                        <th class="sticky-col" style="min-width:180px;">Staff</th>
+                        <th v-for="d in daysInMonth" :key="d" class="day-th">{{ d }}</th>
+                        <th class="count-th">P</th>
+                        <th class="count-th">A</th>
+                        <th class="count-th">L</th>
+                        <th class="count-th">%</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="row in filtered" :key="row.staff_id">
+                        <td class="sticky-col staff-col">
+                            <div class="staff-name">{{ row.name }}</div>
+                            <div class="staff-sub">{{ row.employee_id }} <span v-if="row.department">/ {{ row.department }}</span></div>
+                        </td>
+                        <td v-for="d in daysInMonth" :key="d" class="day-cell">
+                            <span v-if="row.days[d]" class="day-dot" :style="{ background: statusColor(row.days[d]) }" :title="row.days[d]">
+                                {{ statusLabel(row.days[d]) }}
+                            </span>
+                            <span v-else class="day-empty">-</span>
+                        </td>
+                        <td class="count-cell count-green">{{ row.counts.present }}</td>
+                        <td class="count-cell count-red">{{ row.counts.absent }}</td>
+                        <td class="count-cell count-amber">{{ row.counts.late }}</td>
+                        <td class="count-cell count-pct">{{ pct(row.counts.present, row.counts.working_days) }}%</td>
+                    </tr>
+                    <tr v-if="filtered.length === 0">
+                        <td :colspan="daysInMonth + 5" class="empty">No staff found.</td>
+                    </tr>
+                </tbody>
+            </Table>
         </div>
     </SchoolLayout>
 </template>
@@ -148,15 +147,12 @@ const pct = (v, total) => total > 0 ? Math.round((v / total) * 100) : 0;
 .legend-item { display:flex; align-items:center; gap:4px; font-size:.72rem; color:#64748b; font-weight:500; }
 .legend-dot { width:10px; height:10px; border-radius:50%; }
 
-.table-wrap { overflow-x:auto; }
-.report-table { border-collapse:collapse; width:100%; min-width:900px; }
-.report-table th { padding:8px 4px; font-size:.65rem; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:#64748b; background:#f8fafc; border-bottom:1px solid #e2e8f0; text-align:center; white-space:nowrap; }
-.report-table td { padding:8px 4px; font-size:.78rem; color:#374151; border-bottom:1px solid #f1f5f9; text-align:center; }
-.report-table tr:hover td { background:#f8fafc; }
-
-.sticky-col { position:sticky; left:0; background:#fff; z-index:2; text-align:left !important; padding-left:14px !important; border-right:1px solid #e2e8f0; }
-.report-table thead .sticky-col { background:#f8fafc; }
-.report-table tr:hover .sticky-col { background:#f8fafc; }
+.report-table :deep(table) { min-width:900px; }
+.report-table :deep(th) { padding:8px 4px !important; font-size:.65rem; text-align:center !important; }
+.report-table :deep(td) { padding:8px 4px !important; font-size:.78rem; text-align:center !important; }
+.report-table :deep(.sticky-col) { position:sticky; left:0; background:#fff; z-index:2; text-align:left !important; padding-left:14px !important; border-right:1px solid #e2e8f0; }
+.report-table :deep(thead .sticky-col) { background:#f8fafc; }
+.report-table :deep(tbody tr:hover .sticky-col) { background:#fafbff; }
 
 .staff-col { min-width:180px; }
 .staff-name { font-weight:600; color:#1e293b; font-size:.8rem; }

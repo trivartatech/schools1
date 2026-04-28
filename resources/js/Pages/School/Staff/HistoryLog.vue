@@ -1,8 +1,11 @@
 <script setup>
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import Table from '@/Components/ui/Table.vue';
+import SortableTh from '@/Components/ui/SortableTh.vue';
+import { useTableSort } from '@/Composables/useTableSort';
 import { Link, router } from '@inertiajs/vue3';
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 
 const props = defineProps({
     events: Object,
@@ -39,6 +42,17 @@ const eventTypeColor = {
 import { useFormat } from '@/Composables/useFormat';
 const { formatDate: fmt } = useFormat();
 const fmtSal = (n) => n ? '₹' + Number(n).toLocaleString('en-IN') : null;
+
+const { sortKey, sortDir, toggleSort, sortRows } = useTableSort('effective_date', 'desc');
+const sortedEvents = computed(() => sortRows(props.events.data || [], {
+    getValue: (row, key) => {
+        if (key === 'staff_name') {
+            return row.staff?.user?.name
+                ?? `${row.staff?.user?.first_name ?? ''} ${row.staff?.user?.last_name ?? ''}`.trim();
+        }
+        return row[key];
+    },
+}));
 </script>
 
 <template>
@@ -65,55 +79,53 @@ const fmtSal = (n) => n ? '₹' + Number(n).toLocaleString('en-IN') : null;
         </div>
 
         <div class="card">
-            <div style="overflow-x:auto;">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Staff</th>
-                            <th>Event</th>
-                            <th>Change</th>
-                            <th>Effective Date</th>
-                            <th>Order No</th>
-                            <th>Remarks</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="e in events.data" :key="e.id">
-                            <td>
-                                <Link :href="`/school/staff/${e.staff_id}/history`" style="font-weight:500;color:#3b82f6;">
-                                    {{ e.staff?.user?.name ?? `${e.staff?.user?.first_name} ${e.staff?.user?.last_name}` }}
-                                </Link>
-                            </td>
-                            <td>
-                                <span class="badge" :class="eventTypeColor[e.event_type]" style="font-size:.75rem;text-transform:capitalize;">{{ e.event_type.replace('_', ' ') }}</span>
-                            </td>
-                            <td style="font-size:.85rem;">
-                                <div v-if="e.from_designation || e.to_designation">
-                                    <span v-if="e.from_designation" style="color:#94a3b8;">{{ e.from_designation.name }}</span>
-                                    <span v-if="e.from_designation && e.to_designation"> → </span>
-                                    <span v-if="e.to_designation" style="font-weight:600;">{{ e.to_designation.name }}</span>
-                                </div>
-                                <div v-if="e.from_department || e.to_department">
-                                    <span v-if="e.from_department" style="color:#94a3b8;">{{ e.from_department.name }}</span>
-                                    <span v-if="e.from_department && e.to_department"> → </span>
-                                    <span v-if="e.to_department" style="font-weight:600;">{{ e.to_department.name }}</span>
-                                </div>
-                                <div v-if="fmtSal(e.from_salary) || fmtSal(e.to_salary)">
-                                    <span v-if="fmtSal(e.from_salary)" style="color:#94a3b8;">{{ fmtSal(e.from_salary) }}</span>
-                                    <span v-if="fmtSal(e.from_salary) && fmtSal(e.to_salary)"> → </span>
-                                    <span v-if="fmtSal(e.to_salary)" style="font-weight:600;color:#10b981;">{{ fmtSal(e.to_salary) }}</span>
-                                </div>
-                            </td>
-                            <td>{{ fmt(e.effective_date) }}</td>
-                            <td style="font-size:.8rem;color:#64748b;">{{ e.order_no ?? '—' }}</td>
-                            <td style="font-size:.8rem;color:#64748b;max-width:200px;white-space:normal;">{{ e.remarks ?? '—' }}</td>
-                        </tr>
-                        <tr v-if="!events.data?.length">
-                            <td colspan="6" style="text-align:center;padding:32px;color:#94a3b8;">No history events found.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+            <Table :sort-key="sortKey" :sort-dir="sortDir" @sort="toggleSort">
+                <thead>
+                    <tr>
+                        <SortableTh sort-key="staff_name">Staff</SortableTh>
+                        <SortableTh sort-key="event_type">Event</SortableTh>
+                        <th>Change</th>
+                        <SortableTh sort-key="effective_date">Effective Date</SortableTh>
+                        <SortableTh sort-key="order_no">Order No</SortableTh>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="e in sortedEvents" :key="e.id">
+                        <td>
+                            <Link :href="`/school/staff/${e.staff_id}/history`" style="font-weight:500;color:#3b82f6;">
+                                {{ e.staff?.user?.name ?? `${e.staff?.user?.first_name} ${e.staff?.user?.last_name}` }}
+                            </Link>
+                        </td>
+                        <td>
+                            <span class="badge" :class="eventTypeColor[e.event_type]" style="font-size:.75rem;text-transform:capitalize;">{{ e.event_type.replace('_', ' ') }}</span>
+                        </td>
+                        <td style="font-size:.85rem;">
+                            <div v-if="e.from_designation || e.to_designation">
+                                <span v-if="e.from_designation" style="color:#94a3b8;">{{ e.from_designation.name }}</span>
+                                <span v-if="e.from_designation && e.to_designation"> → </span>
+                                <span v-if="e.to_designation" style="font-weight:600;">{{ e.to_designation.name }}</span>
+                            </div>
+                            <div v-if="e.from_department || e.to_department">
+                                <span v-if="e.from_department" style="color:#94a3b8;">{{ e.from_department.name }}</span>
+                                <span v-if="e.from_department && e.to_department"> → </span>
+                                <span v-if="e.to_department" style="font-weight:600;">{{ e.to_department.name }}</span>
+                            </div>
+                            <div v-if="fmtSal(e.from_salary) || fmtSal(e.to_salary)">
+                                <span v-if="fmtSal(e.from_salary)" style="color:#94a3b8;">{{ fmtSal(e.from_salary) }}</span>
+                                <span v-if="fmtSal(e.from_salary) && fmtSal(e.to_salary)"> → </span>
+                                <span v-if="fmtSal(e.to_salary)" style="font-weight:600;color:#10b981;">{{ fmtSal(e.to_salary) }}</span>
+                            </div>
+                        </td>
+                        <td>{{ fmt(e.effective_date) }}</td>
+                        <td>{{ e.order_no ?? '—' }}</td>
+                        <td style="max-width:200px;white-space:normal;">{{ e.remarks ?? '—' }}</td>
+                    </tr>
+                    <tr v-if="!sortedEvents.length">
+                        <td colspan="6" style="text-align:center;padding:32px;color:#94a3b8;">No history events found.</td>
+                    </tr>
+                </tbody>
+            </Table>
             <!-- Pagination -->
             <div v-if="events.last_page > 1" style="display:flex;justify-content:center;gap:4px;padding:16px;">
                 <a v-for="p in events.links" :key="p.label" :href="p.url ?? '#'"

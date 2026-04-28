@@ -2,6 +2,7 @@
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import Table from '@/Components/ui/Table.vue';
 import { useForm } from '@inertiajs/vue3';
 import { reactive } from 'vue';
 
@@ -96,38 +97,36 @@ const groupColor = {
             <div class="card-header" :style="{ borderLeft: `3px solid ${groupColor[groupName] ?? '#3b82f6'}` }">
                 <span class="card-title">{{ groupName }}</span>
             </div>
-            <div style="overflow-x:auto;">
-                <table style="width:100%;border-collapse:collapse;">
-                    <thead>
-                        <tr style="background:#f8fafc;">
-                            <th style="text-align:left;padding:10px 16px;font-size:.8rem;color:#64748b;font-weight:600;min-width:220px;">Notification</th>
-                            <th v-for="ch in channels" :key="ch" style="text-align:center;padding:10px 16px;font-size:.8rem;color:#64748b;font-weight:600;min-width:80px;">
-                                {{ channelIcon[ch] }} {{ channelLabel[ch] }}
-                            </th>
-                            <th style="text-align:center;padding:10px 16px;font-size:.8rem;color:#94a3b8;min-width:80px;">All</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="event in events" :key="event.key" style="border-top:1px solid #f1f5f9;">
-                            <td style="padding:12px 16px;font-size:.875rem;color:#1e293b;">{{ event.label }}</td>
-                            <td v-for="ch in channels" :key="ch" style="text-align:center;padding:12px 16px;">
-                                <label style="display:inline-flex;align-items:center;cursor:pointer;">
-                                    <input type="checkbox" v-model="prefs[event.key][ch]"
-                                           style="width:18px;height:18px;cursor:pointer;accent-color:#3b82f6;" />
-                                </label>
-                            </td>
-                            <td style="text-align:center;padding:12px 16px;">
-                                <div style="display:flex;gap:4px;justify-content:center;">
-                                    <button type="button" @click="toggleAll(event.key, true)"
-                                            style="font-size:.7rem;padding:3px 8px;border-radius:4px;border:1px solid #e2e8f0;background:#f0fdf4;color:#10b981;cursor:pointer;">All</button>
-                                    <button type="button" @click="toggleAll(event.key, false)"
-                                            style="font-size:.7rem;padding:3px 8px;border-radius:4px;border:1px solid #e2e8f0;background:#fef2f2;color:#ef4444;cursor:pointer;">None</button>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+            <Table>
+                <thead>
+                    <tr>
+                        <th style="min-width:220px;">Notification</th>
+                        <th v-for="ch in channels" :key="ch" style="text-align:center;min-width:80px;">
+                            {{ channelIcon[ch] }} {{ channelLabel[ch] }}
+                        </th>
+                        <th style="text-align:center;min-width:80px;">All</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="event in events" :key="event.key">
+                        <td>{{ event.label }}</td>
+                        <td v-for="ch in channels" :key="ch" style="text-align:center;">
+                            <label style="display:inline-flex;align-items:center;cursor:pointer;">
+                                <input type="checkbox" v-model="prefs[event.key][ch]"
+                                       style="width:18px;height:18px;cursor:pointer;accent-color:#3b82f6;" />
+                            </label>
+                        </td>
+                        <td style="text-align:center;">
+                            <div style="display:flex;gap:4px;justify-content:center;">
+                                <button type="button" @click="toggleAll(event.key, true)"
+                                        style="font-size:.7rem;padding:3px 8px;border-radius:4px;border:1px solid #e2e8f0;background:#f0fdf4;color:#10b981;cursor:pointer;">All</button>
+                                <button type="button" @click="toggleAll(event.key, false)"
+                                        style="font-size:.7rem;padding:3px 8px;border-radius:4px;border:1px solid #e2e8f0;background:#fef2f2;color:#ef4444;cursor:pointer;">None</button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </Table>
         </div>
 
         <div style="display:flex;justify-content:flex-end;padding-bottom:32px;">

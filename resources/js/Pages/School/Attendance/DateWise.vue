@@ -2,6 +2,7 @@
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
+import Table from '@/Components/ui/Table.vue';
 import { reactive, ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -139,28 +140,27 @@ const STATUS_COLOR = { present: '#22c55e', absent: '#ef4444', late: '#eab308', h
             <div class="hint-bar">
                 Click any row to see class-wise breakdown for that date.
             </div>
-            <div class="table-wrap">
-                <table class="dw-table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th style="width:48px;">Day</th>
-                            <th class="col-num col-green">Present</th>
-                            <th class="col-num col-red">Absent</th>
-                            <th class="col-num col-amber">Late</th>
-                            <th class="col-num col-orange">Half Day</th>
-                            <th class="col-num col-blue">Leave</th>
-                            <th class="col-num col-warn">Unmarked</th>
-                            <th class="col-num">Attend. %</th>
-                            <th style="width:32px;"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <template v-for="row in report" :key="row.date">
-                            <tr
-                                :class="['dw-row dw-row-clickable', expanded === row.date ? 'dw-row-expanded' : '']"
-                                @click="toggle(row.date)"
-                            >
+            <Table class="dw-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th style="width:48px;">Day</th>
+                        <th class="col-num col-green">Present</th>
+                        <th class="col-num col-red">Absent</th>
+                        <th class="col-num col-amber">Late</th>
+                        <th class="col-num col-orange">Half Day</th>
+                        <th class="col-num col-blue">Leave</th>
+                        <th class="col-num col-warn">Unmarked</th>
+                        <th class="col-num">Attend. %</th>
+                        <th style="width:32px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template v-for="row in report" :key="row.date">
+                        <tr
+                            :class="['dw-row dw-row-clickable', expanded === row.date ? 'dw-row-expanded' : '']"
+                            @click="toggle(row.date)"
+                        >
                                 <td class="date-cell">{{ school.fmtDate(row.date) }}</td>
                                 <td class="day-cell">{{ row.day }}</td>
                                 <td class="col-num"><span class="badge badge-green">{{ row.present }}</span></td>
@@ -234,8 +234,7 @@ const STATUS_COLOR = { present: '#22c55e', absent: '#ef4444', late: '#eab308', h
                             </tr>
                         </template>
                     </tbody>
-                </table>
-            </div>
+                </Table>
 
             <div class="table-footer-note">
                 * Late counts as 0.5 day, Half Day counts as 0.5 day for % calculation.
@@ -281,27 +280,7 @@ const STATUS_COLOR = { present: '#22c55e', absent: '#ef4444', late: '#eab308', h
     color: #0369a1;
 }
 
-.table-wrap { overflow-x: auto; }
-.dw-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875rem;
-}
-.dw-table thead th {
-    background: #f8fafc;
-    padding: 10px 12px;
-    text-align: left;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: .04em;
-    border-bottom: 1px solid #e2e8f0;
-    white-space: nowrap;
-}
-.dw-table tbody td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
 .dw-row-clickable { cursor: pointer; transition: background .15s; }
-.dw-row-clickable:hover { background: #f8fafc; }
 .dw-row-expanded { background: #f0f9ff !important; }
 
 .date-cell { font-weight: 600; font-size: 0.875rem; white-space: nowrap; }

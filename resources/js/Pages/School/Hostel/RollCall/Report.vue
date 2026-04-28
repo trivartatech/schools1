@@ -1,6 +1,7 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import Table from '@/Components/ui/Table.vue';
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -96,31 +97,29 @@ const pct = (v, t) => t > 0 ? Math.round((v/t)*100) : 0;
                     <span class="legend-item"><span class="legend-dot" style="background:#f97316;"></span>Medical</span>
                 </div>
             </div>
-            <div class="table-wrap">
-                <table class="report-table">
-                    <thead><tr>
-                        <th class="sticky-col" style="min-width:180px;">Student</th>
-                        <th v-for="d in daysInMonth" :key="d" class="day-th">{{ d }}</th>
-                        <th class="count-th">P</th><th class="count-th">A</th><th class="count-th">%</th>
-                    </tr></thead>
-                    <tbody>
-                        <tr v-for="row in filtered" :key="row.student_id">
-                            <td class="sticky-col student-col">
-                                <div class="student-name">{{ row.name }}</div>
-                                <div class="student-sub">{{ row.admission_no }}</div>
-                            </td>
-                            <td v-for="d in daysInMonth" :key="d" class="day-cell">
-                                <span v-if="row.days[d]" class="day-dot" :style="{background:statusColor(row.days[d])}" :title="row.days[d]">{{ statusLabel(row.days[d]) }}</span>
-                                <span v-else class="day-empty">-</span>
-                            </td>
-                            <td class="count-cell count-green">{{ row.counts.present }}</td>
-                            <td class="count-cell count-red">{{ row.counts.absent }}</td>
-                            <td class="count-cell count-pct">{{ pct(row.counts.present, row.counts.working_days) }}%</td>
-                        </tr>
-                        <tr v-if="!filtered.length"><td :colspan="daysInMonth+4" class="empty">No data found.</td></tr>
-                    </tbody>
-                </table>
-            </div>
+            <Table class="report-table">
+                <thead><tr>
+                    <th class="sticky-col" style="min-width:180px;">Student</th>
+                    <th v-for="d in daysInMonth" :key="d" class="day-th">{{ d }}</th>
+                    <th class="count-th">P</th><th class="count-th">A</th><th class="count-th">%</th>
+                </tr></thead>
+                <tbody>
+                    <tr v-for="row in filtered" :key="row.student_id">
+                        <td class="sticky-col student-col">
+                            <div class="student-name">{{ row.name }}</div>
+                            <div class="student-sub">{{ row.admission_no }}</div>
+                        </td>
+                        <td v-for="d in daysInMonth" :key="d" class="day-cell">
+                            <span v-if="row.days[d]" class="day-dot" :style="{background:statusColor(row.days[d])}" :title="row.days[d]">{{ statusLabel(row.days[d]) }}</span>
+                            <span v-else class="day-empty">-</span>
+                        </td>
+                        <td class="count-cell count-green">{{ row.counts.present }}</td>
+                        <td class="count-cell count-red">{{ row.counts.absent }}</td>
+                        <td class="count-cell count-pct">{{ pct(row.counts.present, row.counts.working_days) }}%</td>
+                    </tr>
+                    <tr v-if="!filtered.length"><td :colspan="daysInMonth+4" class="empty">No data found.</td></tr>
+                </tbody>
+            </Table>
         </div>
     </template>
     <div v-else class="card" style="text-align:center;padding:48px;color:var(--text-muted);">
@@ -143,14 +142,12 @@ const pct = (v, t) => t > 0 ? Math.round((v/t)*100) : 0;
 .legend { display:flex; gap:12px; flex-wrap:wrap; margin-left:auto; }
 .legend-item { display:flex; align-items:center; gap:4px; font-size:.72rem; color:#64748b; font-weight:500; }
 .legend-dot { width:10px; height:10px; border-radius:50%; }
-.table-wrap { overflow-x:auto; }
-.report-table { border-collapse:collapse; width:100%; min-width:900px; }
-.report-table th { padding:8px 4px; font-size:.65rem; font-weight:700; text-transform:uppercase; color:#64748b; background:#f8fafc; border-bottom:1px solid #e2e8f0; text-align:center; white-space:nowrap; }
-.report-table td { padding:8px 4px; font-size:.78rem; color:#374151; border-bottom:1px solid #f1f5f9; text-align:center; }
-.report-table tr:hover td { background:#f8fafc; }
-.sticky-col { position:sticky; left:0; background:#fff; z-index:2; text-align:left!important; padding-left:14px!important; border-right:1px solid #e2e8f0; }
-.report-table thead .sticky-col { background:#f8fafc; }
-.report-table tr:hover .sticky-col { background:#f8fafc; }
+.report-table :deep(table) { min-width:900px; }
+.report-table :deep(th) { padding:8px 4px !important; font-size:.65rem; text-align:center !important; }
+.report-table :deep(td) { padding:8px 4px !important; font-size:.78rem; text-align:center !important; }
+.report-table :deep(.sticky-col) { position:sticky; left:0; background:#fff; z-index:2; text-align:left !important; padding-left:14px !important; border-right:1px solid #e2e8f0; }
+.report-table :deep(thead .sticky-col) { background:#f8fafc; }
+.report-table :deep(tbody tr:hover .sticky-col) { background:#fafbff; }
 .student-col { min-width:180px; } .student-name { font-weight:600; color:#1e293b; font-size:.8rem; } .student-sub { font-size:.65rem; color:#94a3b8; }
 .day-th { min-width:28px; } .day-cell { padding:4px 2px!important; }
 .day-dot { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:4px; font-size:.6rem; font-weight:700; color:#fff; }

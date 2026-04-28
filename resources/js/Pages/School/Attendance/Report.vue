@@ -2,6 +2,7 @@
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
+import Table from '@/Components/ui/Table.vue';
 import { reactive, ref, computed } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -145,42 +146,40 @@ const pct = (row) => {
                     </div>
                 </div>
 
-                <div class="table-wrap">
-                    <table class="report-table">
-                        <thead>
-                            <tr>
-                                <th class="sticky-col" style="min-width:60px;">Roll</th>
-                                <th class="sticky-col-name">Student</th>
-                                <th v-for="d in daysInMonth" :key="d" class="day-th">{{ d }}</th>
-                                <th class="count-th">P</th>
-                                <th class="count-th">A</th>
-                                <th class="count-th">L</th>
-                                <th class="count-th">%</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="row in filtered" :key="row.student_id">
-                                <td class="sticky-col roll-col">{{ row.roll_no || '—' }}</td>
-                                <td class="sticky-col-name student-col">
-                                    <div class="student-name">{{ row.name }}</div>
-                                </td>
-                                <td v-for="d in daysInMonth" :key="d" class="day-cell">
-                                    <span v-if="row.days[d]" class="day-dot" :style="{ background: statusColor(row.days[d]) }" :title="row.days[d]">
-                                        {{ statusLabel(row.days[d]) }}
-                                    </span>
-                                    <span v-else class="day-empty">-</span>
-                                </td>
-                                <td class="count-cell count-green">{{ row.counts.present }}</td>
-                                <td class="count-cell count-red">{{ row.counts.absent }}</td>
-                                <td class="count-cell count-amber">{{ row.counts.late }}</td>
-                                <td class="count-cell count-pct">{{ pct(row) }}%</td>
-                            </tr>
-                            <tr v-if="filtered.length === 0">
-                                <td :colspan="daysInMonth + 6" class="empty">No students found.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                <Table class="report-table">
+                    <thead>
+                        <tr>
+                            <th class="sticky-col" style="min-width:60px;">Roll</th>
+                            <th class="sticky-col-name">Student</th>
+                            <th v-for="d in daysInMonth" :key="d" class="day-th">{{ d }}</th>
+                            <th class="count-th">P</th>
+                            <th class="count-th">A</th>
+                            <th class="count-th">L</th>
+                            <th class="count-th">%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="row in filtered" :key="row.student_id">
+                            <td class="sticky-col roll-col">{{ row.roll_no || '—' }}</td>
+                            <td class="sticky-col-name student-col">
+                                <div class="student-name">{{ row.name }}</div>
+                            </td>
+                            <td v-for="d in daysInMonth" :key="d" class="day-cell">
+                                <span v-if="row.days[d]" class="day-dot" :style="{ background: statusColor(row.days[d]) }" :title="row.days[d]">
+                                    {{ statusLabel(row.days[d]) }}
+                                </span>
+                                <span v-else class="day-empty">-</span>
+                            </td>
+                            <td class="count-cell count-green">{{ row.counts.present }}</td>
+                            <td class="count-cell count-red">{{ row.counts.absent }}</td>
+                            <td class="count-cell count-amber">{{ row.counts.late }}</td>
+                            <td class="count-cell count-pct">{{ pct(row) }}%</td>
+                        </tr>
+                        <tr v-if="filtered.length === 0">
+                            <td :colspan="daysInMonth + 6" class="empty">No students found.</td>
+                        </tr>
+                    </tbody>
+                </Table>
 
                 <div class="report-legend">
                     <span class="legend-note">* Late and half-day count as 0.5 day for % calculation</span>
@@ -231,18 +230,16 @@ const pct = (row) => {
 .legend-item { display:flex; align-items:center; gap:4px; font-size:.72rem; color:#64748b; font-weight:500; }
 .legend-dot { width:10px; height:10px; border-radius:50%; }
 
-.table-wrap { overflow-x:auto; }
-.report-table { border-collapse:collapse; width:100%; min-width:900px; }
-.report-table th { padding:8px 4px; font-size:.65rem; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:#64748b; background:#f8fafc; border-bottom:1px solid #e2e8f0; text-align:center; white-space:nowrap; }
-.report-table td { padding:8px 4px; font-size:.78rem; color:#374151; border-bottom:1px solid #f1f5f9; text-align:center; }
-.report-table tr:hover td { background:#f8fafc; }
+.report-table :deep(table) { min-width: 900px; }
+.report-table :deep(th) { padding:8px 4px !important; font-size:.65rem; text-align:center !important; }
+.report-table :deep(td) { padding:8px 4px !important; font-size:.78rem; text-align:center !important; }
 
-.sticky-col { position:sticky; left:0; background:#fff; z-index:3; text-align:center !important; border-right:1px solid #e2e8f0; }
-.sticky-col-name { position:sticky; left:60px; background:#fff; z-index:3; text-align:left !important; padding-left:10px !important; border-right:1px solid #e2e8f0; min-width:160px; }
-.report-table thead .sticky-col,
-.report-table thead .sticky-col-name { background:#f8fafc; }
-.report-table tr:hover .sticky-col,
-.report-table tr:hover .sticky-col-name { background:#f8fafc; }
+.report-table :deep(.sticky-col) { position:sticky; left:0; background:#fff; z-index:3; border-right:1px solid #e2e8f0; }
+.report-table :deep(.sticky-col-name) { position:sticky; left:60px; background:#fff; z-index:3; text-align:left !important; padding-left:10px !important; border-right:1px solid #e2e8f0; min-width:160px; }
+.report-table :deep(thead .sticky-col),
+.report-table :deep(thead .sticky-col-name) { background:#f8fafc; }
+.report-table :deep(tbody tr:hover .sticky-col),
+.report-table :deep(tbody tr:hover .sticky-col-name) { background:#fafbff; }
 
 .roll-col { min-width:60px; font-size:.75rem; color:#94a3b8; font-family:monospace; }
 .student-col { min-width:160px; }

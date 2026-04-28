@@ -1,6 +1,9 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import Table from '@/Components/ui/Table.vue';
+import SortableTh from '@/Components/ui/SortableTh.vue';
+import { useTableSort } from '@/Composables/useTableSort';
 import { ref, computed } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -118,6 +121,21 @@ const statLabels = {
     pass_count:   'Pass',
     fail_count:   'Fail',
 };
+
+// Sort by roll number / student name
+const { sortKey, sortDir, toggleSort, sortRows } = useTableSort('roll_no', 'asc');
+const sortedRows = computed(() => {
+    if (!result.value) return [];
+    return sortRows(result.value.rows, {
+        getValue: (row, key) => {
+            if (key === 'roll_no') {
+                const n = parseInt(row.roll_no, 10);
+                return isNaN(n) ? row.roll_no : n;
+            }
+            return row[key];
+        },
+    });
+});
 </script>
 
 <template>
@@ -182,57 +200,55 @@ const statLabels = {
                     <span class="badge badge-blue ml-2">{{ result.rows.length }} Students</span>
                 </span>
             </div>
-            <div style="overflow-x:auto;">
-                <table class="ms-table">
-                    <thead>
-                        <!-- Row 1: Subject group headers -->
-                        <tr>
-                            <th rowspan="2" class="ms-fixed">Roll No</th>
-                            <th rowspan="2" class="ms-fixed ms-name">Student Name</th>
-                            <th v-for="grp in subjectGroups" :key="grp.subject_id"
-                                :colspan="grp.count" class="ms-subj-hdr">
-                                {{ grp.subject_name }}
-                            </th>
-                        </tr>
-                        <!-- Row 2: Assessment item headers -->
-                        <tr>
-                            <th v-for="(col, ci) in result.columns" :key="col.item_id"
-                                class="ms-item-hdr" :style="cellStyle(ci)">
-                                {{ col.item_name }}
-                                <div class="ms-max">/ {{ col.max_marks }}</div>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="row in result.rows" :key="row.id">
-                            <td class="ms-fixed center">{{ row.roll_no || '—' }}</td>
-                            <td class="ms-fixed ms-name">
-                                {{ row.name }}
-                                <div v-if="row.admission_no" class="adm-no">{{ row.admission_no }}</div>
-                            </td>
-                            <td v-for="(cell, ci) in row.cells" :key="ci"
-                                class="center" :style="cellStyle(ci)">
-                                <span v-if="!cell.entered" class="no-entry">—</span>
-                                <span v-else-if="cell.is_absent" class="absent-tag">ABS</span>
-                                <span v-else :class="['mark-val', failClass(cell, result.columns[ci])]">
-                                    {{ cell.obtained }}
-                                </span>
-                            </td>
-                        </tr>
-                    </tbody>
-                    <!-- Statistics rows -->
-                    <tfoot>
-                        <tr v-for="stat in ['highest','lowest','average','absent_count','pass_count','fail_count']"
-                            :key="stat" class="stat-row">
-                            <td colspan="2" class="stat-label-cell">{{ statLabels[stat] }}</td>
-                            <td v-for="(s, ci) in result.col_stats" :key="ci"
-                                class="center" :style="cellStyle(ci)">
-                                {{ s[stat] ?? '—' }}
-                            </td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
+            <Table class="ms-table" :sort-key="sortKey" :sort-dir="sortDir" @sort="toggleSort">
+                <thead>
+                    <!-- Row 1: Subject group headers -->
+                    <tr>
+                        <SortableTh sort-key="roll_no" rowspan="2" class="ms-fixed">Roll No</SortableTh>
+                        <SortableTh sort-key="name" rowspan="2" class="ms-fixed ms-name">Student Name</SortableTh>
+                        <th v-for="grp in subjectGroups" :key="grp.subject_id"
+                            :colspan="grp.count" class="ms-subj-hdr">
+                            {{ grp.subject_name }}
+                        </th>
+                    </tr>
+                    <!-- Row 2: Assessment item headers -->
+                    <tr>
+                        <th v-for="(col, ci) in result.columns" :key="col.item_id"
+                            class="ms-item-hdr" :style="cellStyle(ci)">
+                            {{ col.item_name }}
+                            <div class="ms-max">/ {{ col.max_marks }}</div>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="row in sortedRows" :key="row.id">
+                        <td class="ms-fixed center">{{ row.roll_no || '—' }}</td>
+                        <td class="ms-fixed ms-name">
+                            {{ row.name }}
+                            <div v-if="row.admission_no" class="adm-no">{{ row.admission_no }}</div>
+                        </td>
+                        <td v-for="(cell, ci) in row.cells" :key="ci"
+                            class="center" :style="cellStyle(ci)">
+                            <span v-if="!cell.entered" class="no-entry">—</span>
+                            <span v-else-if="cell.is_absent" class="absent-tag">ABS</span>
+                            <span v-else :class="['mark-val', failClass(cell, result.columns[ci])]">
+                                {{ cell.obtained }}
+                            </span>
+                        </td>
+                    </tr>
+                </tbody>
+                <!-- Statistics rows -->
+                <tfoot>
+                    <tr v-for="stat in ['highest','lowest','average','absent_count','pass_count','fail_count']"
+                        :key="stat" class="stat-row">
+                        <td colspan="2" class="stat-label-cell">{{ statLabels[stat] }}</td>
+                        <td v-for="(s, ci) in result.col_stats" :key="ci"
+                            class="center" :style="cellStyle(ci)">
+                            {{ s[stat] ?? '—' }}
+                        </td>
+                    </tr>
+                </tfoot>
+            </Table>
         </div>
 
         <!-- Empty State -->
@@ -258,29 +274,27 @@ const statLabels = {
     font-size: 0.85rem;
 }
 
-/* ── Table ── */
-.ms-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.78rem;
-}
+/* ── Table — visual overrides over <Table> primitive ── */
+.ms-table { font-size: 0.78rem; }
 
-.ms-table th {
-    background: #1a3764;
-    color: #fff;
-    padding: 6px 8px;
-    text-align: center;
-    font-weight: 700;
-    border: 1px solid #243b6e;
+.ms-table :deep(th) {
+    background: #1a3764 !important;
+    color: #fff !important;
+    padding: 6px 8px !important;
+    text-align: center !important;
+    font-weight: 700 !important;
+    border: 1px solid #243b6e !important;
     white-space: nowrap;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
 }
 
-.ms-subj-hdr {
+.ms-table :deep(.ms-subj-hdr) {
     border-left: 2px solid #3b5ba5 !important;
     font-size: 0.8rem;
 }
 
-.ms-item-hdr {
+.ms-table :deep(.ms-item-hdr) {
     font-size: 0.7rem;
     font-weight: 600 !important;
     background: #253d7a !important;
@@ -293,14 +307,14 @@ const statLabels = {
     margin-top: 1px;
 }
 
-.ms-table td {
-    padding: 5px 7px;
-    border: 1px solid #e2e8f0;
+.ms-table :deep(td) {
+    padding: 5px 7px !important;
+    border: 1px solid #e2e8f0 !important;
     vertical-align: middle;
 }
 
-.ms-table tbody tr:nth-child(even) { background: #f8fafc; }
-.ms-table tbody tr:hover { background: #eff6ff; }
+.ms-table :deep(tbody tr:nth-child(even)) { background: #f8fafc; }
+.ms-table :deep(tbody tr:hover) { background: #eff6ff !important; }
 
 .ms-fixed { white-space: nowrap; }
 .ms-name  { text-align: left !important; min-width: 140px; }

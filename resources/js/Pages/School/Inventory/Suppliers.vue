@@ -1,11 +1,14 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
 import Modal from '@/Components/ui/Modal.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import EmptyState from '@/Components/ui/EmptyState.vue';
+import Table from '@/Components/ui/Table.vue';
+import SortableTh from '@/Components/ui/SortableTh.vue';
+import { useTableSort } from '@/Composables/useTableSort';
 
 const props = defineProps({
     suppliers: Array,
@@ -56,6 +59,14 @@ function doDelete() {
 }
 
 const linkedCount = () => (props.suppliers ?? []).filter(s => s.assets_count > 0).length;
+
+const { sortKey, sortDir, toggleSort, sortRows } = useTableSort('name', 'asc');
+const sortedSuppliers = computed(() => sortRows(props.suppliers || [], {
+    getValue: (row, key) => {
+        if (key === 'location') return [row.city, row.state].filter(Boolean).join(', ');
+        return row[key];
+    },
+}));
 </script>
 
 <template>
@@ -125,57 +136,55 @@ const linkedCount = () => (props.suppliers ?? []).filter(s => s.assets_count > 0
                     @action="openAdd"
                 />
             </div>
-            <div v-else style="overflow-x:auto;">
-                <table class="inv-table">
-                    <thead>
-                        <tr>
-                            <th>Supplier Name</th>
-                            <th>Contact Person</th>
-                            <th>Phone / Email</th>
-                            <th>City / State</th>
-                            <th>GSTIN</th>
-                            <th style="text-align:center;">Assets</th>
-                            <th style="text-align:center;">Items</th>
-                            <th style="text-align:right;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="s in suppliers" :key="s.id">
-                            <td>
-                                <div style="font-weight:600;font-size:.875rem;color:#1e293b;">{{ s.name }}</div>
-                                <div v-if="s.website" style="font-size:.72rem;color:#94a3b8;">{{ s.website }}</div>
-                            </td>
-                            <td style="font-size:.85rem;color:#475569;">{{ s.contact_person || '—' }}</td>
-                            <td>
-                                <div v-if="s.phone" style="font-size:.82rem;color:#374151;">{{ s.phone }}</div>
-                                <div v-if="s.email" style="font-size:.72rem;color:#64748b;">{{ s.email }}</div>
-                                <span v-if="!s.phone && !s.email" style="color:#cbd5e1;font-size:.8rem;">—</span>
-                            </td>
-                            <td style="font-size:.82rem;color:#475569;">
-                                {{ [s.city, s.state].filter(Boolean).join(', ') || '—' }}
-                            </td>
-                            <td>
-                                <span v-if="s.gstin" style="font-family:monospace;font-size:.78rem;color:#374151;background:#f1f5f9;padding:2px 7px;border-radius:4px;">{{ s.gstin }}</span>
-                                <span v-else style="color:#cbd5e1;font-size:.8rem;">—</span>
-                            </td>
-                            <td style="text-align:center;">
-                                <span class="count-pill count-blue">{{ s.assets_count }}</span>
-                            </td>
-                            <td style="text-align:center;">
-                                <span class="count-pill count-purple">{{ s.store_items_count }}</span>
-                            </td>
-                            <td>
-                                <div style="display:flex;gap:5px;justify-content:flex-end;">
-                                    <button class="act-btn act-amber" @click="openEdit(s)">Edit</button>
-                                    <button class="act-btn act-red" :disabled="s.assets_count > 0"
-                                        :title="s.assets_count > 0 ? 'Linked to assets — cannot delete' : 'Delete'"
-                                        @click="deleteTarget = s">Delete</button>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+            <Table v-else :sort-key="sortKey" :sort-dir="sortDir" @sort="toggleSort">
+                <thead>
+                    <tr>
+                        <SortableTh sort-key="name">Supplier Name</SortableTh>
+                        <SortableTh sort-key="contact_person">Contact Person</SortableTh>
+                        <SortableTh sort-key="phone">Phone / Email</SortableTh>
+                        <SortableTh sort-key="location">City / State</SortableTh>
+                        <SortableTh sort-key="gstin">GSTIN</SortableTh>
+                        <SortableTh sort-key="assets_count" align="center">Assets</SortableTh>
+                        <SortableTh sort-key="store_items_count" align="center">Items</SortableTh>
+                        <th style="text-align:right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="s in sortedSuppliers" :key="s.id">
+                        <td>
+                            <div style="font-weight:600;font-size:.875rem;color:#1e293b;">{{ s.name }}</div>
+                            <div v-if="s.website" style="font-size:.72rem;color:#94a3b8;">{{ s.website }}</div>
+                        </td>
+                        <td>{{ s.contact_person || '—' }}</td>
+                        <td>
+                            <div v-if="s.phone" style="font-size:.82rem;color:#374151;">{{ s.phone }}</div>
+                            <div v-if="s.email" style="font-size:.72rem;color:#64748b;">{{ s.email }}</div>
+                            <span v-if="!s.phone && !s.email" style="color:#cbd5e1;font-size:.8rem;">—</span>
+                        </td>
+                        <td>
+                            {{ [s.city, s.state].filter(Boolean).join(', ') || '—' }}
+                        </td>
+                        <td>
+                            <span v-if="s.gstin" style="font-family:monospace;font-size:.78rem;color:#374151;background:#f1f5f9;padding:2px 7px;border-radius:4px;">{{ s.gstin }}</span>
+                            <span v-else style="color:#cbd5e1;font-size:.8rem;">—</span>
+                        </td>
+                        <td style="text-align:center;">
+                            <span class="count-pill count-blue">{{ s.assets_count }}</span>
+                        </td>
+                        <td style="text-align:center;">
+                            <span class="count-pill count-purple">{{ s.store_items_count }}</span>
+                        </td>
+                        <td>
+                            <div style="display:flex;gap:5px;justify-content:flex-end;">
+                                <button class="act-btn act-amber" @click="openEdit(s)">Edit</button>
+                                <button class="act-btn act-red" :disabled="s.assets_count > 0"
+                                    :title="s.assets_count > 0 ? 'Linked to assets — cannot delete' : 'Delete'"
+                                    @click="deleteTarget = s">Delete</button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </Table>
         </div>
 
         <!-- Add / Edit Modal -->
@@ -281,11 +290,6 @@ const linkedCount = () => (props.suppliers ?? []).filter(s => s.assets_count > 0
 .stat-sub   { font-size:.72rem;color:#94a3b8;margin-top:2px; }
 
 .card { background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05); }
-.inv-table { width:100%;border-collapse:collapse; }
-.inv-table th { padding:11px 16px;text-align:left;font-size:.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;background:#f8fafc;border-bottom:1px solid #e2e8f0;white-space:nowrap; }
-.inv-table td { padding:12px 16px;border-bottom:1px solid #f1f5f9;vertical-align:middle; }
-.inv-table tr:last-child td { border-bottom:none; }
-.inv-table tr:hover td { background:#fafbff; }
 
 .act-btn { font-size:.72rem;font-weight:600;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;transition:opacity .15s;white-space:nowrap; }
 .act-btn:hover { opacity:.8; }

@@ -1,6 +1,9 @@
 <script setup>
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import Table from '@/Components/ui/Table.vue';
+import SortableTh from '@/Components/ui/SortableTh.vue';
+import { useTableSort } from '@/Composables/useTableSort';
 import { ref, computed } from 'vue';
 
 const props = defineProps({
@@ -10,26 +13,20 @@ const props = defineProps({
     totals:           Object,
 });
 
-const deprSort  = ref({ key: 'depreciation', dir: 'desc' });
 const deprSearch = ref('');
 
+const deprSort = useTableSort('depreciation', 'desc');
 const sortedAssets = computed(() => {
     let list = props.deprAssets ?? [];
     if (deprSearch.value) {
         const q = deprSearch.value.toLowerCase();
         list = list.filter(a => a.name.toLowerCase().includes(q) || (a.asset_code ?? '').toLowerCase().includes(q) || a.category.toLowerCase().includes(q));
     }
-    return [...list].sort((a, b) => {
-        const av = a[deprSort.value.key] ?? 0;
-        const bv = b[deprSort.value.key] ?? 0;
-        return deprSort.value.dir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
-    });
+    return deprSort.sortRows(list);
 });
 
-const setSort = (key) => {
-    if (deprSort.value.key === key) deprSort.value.dir = deprSort.value.dir === 'asc' ? 'desc' : 'asc';
-    else deprSort.value = { key, dir: 'desc' };
-};
+const maintSort = useTableSort('total_cost', 'desc');
+const sortedMaint = computed(() => maintSort.sortRows(props.maintByCategory || []));
 
 import { useFormat } from '@/Composables/useFormat';
 const { formatDate: fmt } = useFormat();
@@ -107,32 +104,30 @@ const statusLabel = { available: 'Available', assigned: 'Assigned', under_mainte
             <!-- Maintenance by Category -->
             <div class="card">
                 <div class="card-head">Maintenance Cost by Category</div>
-                <div style="overflow-x:auto;">
-                    <table class="rpt-table">
-                        <thead>
-                            <tr>
-                                <th>Category</th>
-                                <th style="text-align:right;">Tickets</th>
-                                <th style="text-align:right;">Open</th>
-                                <th style="text-align:right;">Total Cost</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="row in maintByCategory" :key="row.category">
-                                <td>{{ row.category }}</td>
-                                <td style="text-align:right;color:#475569;">{{ row.ticket_count }}</td>
-                                <td style="text-align:right;">
-                                    <span v-if="row.open_count > 0" style="color:#dc2626;font-weight:600;">{{ row.open_count }}</span>
-                                    <span v-else style="color:#94a3b8;">0</span>
-                                </td>
-                                <td style="text-align:right;font-weight:600;color:#1e293b;">{{ fmtCost(row.total_cost) }}</td>
-                            </tr>
-                            <tr v-if="!maintByCategory?.length">
-                                <td colspan="4" style="text-align:center;color:#94a3b8;padding:24px;">No maintenance records yet.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                <Table :sort-key="maintSort.sortKey.value" :sort-dir="maintSort.sortDir.value" @sort="maintSort.toggleSort">
+                    <thead>
+                        <tr>
+                            <SortableTh sort-key="category">Category</SortableTh>
+                            <SortableTh sort-key="ticket_count" align="right">Tickets</SortableTh>
+                            <SortableTh sort-key="open_count" align="right">Open</SortableTh>
+                            <SortableTh sort-key="total_cost" align="right">Total Cost</SortableTh>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="row in sortedMaint" :key="row.category">
+                            <td>{{ row.category }}</td>
+                            <td style="text-align:right;">{{ row.ticket_count }}</td>
+                            <td style="text-align:right;">
+                                <span v-if="row.open_count > 0" style="color:#dc2626;font-weight:600;">{{ row.open_count }}</span>
+                                <span v-else style="color:#94a3b8;">0</span>
+                            </td>
+                            <td style="text-align:right;font-weight:600;color:#1e293b;">{{ fmtCost(row.total_cost) }}</td>
+                        </tr>
+                        <tr v-if="!sortedMaint.length">
+                            <td colspan="4" style="text-align:center;color:#94a3b8;padding:24px;">No maintenance records yet.</td>
+                        </tr>
+                    </tbody>
+                </Table>
             </div>
         </div>
 
@@ -146,111 +141,72 @@ const statusLabel = { available: 'Available', assigned: 'Assigned', under_mainte
                 </div>
                 <span style="font-size:.75rem;color:#94a3b8;margin-left:auto;">{{ sortedAssets.length }} assets</span>
             </div>
-            <div style="overflow-x:auto;">
-                <table class="rpt-table">
-                    <thead>
-                        <tr>
-                            <th>
-                                <button class="sort-btn" @click="setSort('name')">
-                                    Asset
-                                    <svg v-if="deprSort.key === 'name'" width="10" height="10" fill="currentColor" viewBox="0 0 24 24">
-                                        <path :d="deprSort.dir === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'"/>
-                                    </svg>
-                                </button>
-                            </th>
-                            <th>
-                                <button class="sort-btn" @click="setSort('category')">Category</button>
-                            </th>
-                            <th>
-                                <button class="sort-btn" @click="setSort('purchase_date')">
-                                    Purchase Date
-                                    <svg v-if="deprSort.key === 'purchase_date'" width="10" height="10" fill="currentColor" viewBox="0 0 24 24">
-                                        <path :d="deprSort.dir === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'"/>
-                                    </svg>
-                                </button>
-                            </th>
-                            <th style="text-align:right;">
-                                <button class="sort-btn" @click="setSort('purchase_cost')">
-                                    Cost
-                                    <svg v-if="deprSort.key === 'purchase_cost'" width="10" height="10" fill="currentColor" viewBox="0 0 24 24">
-                                        <path :d="deprSort.dir === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'"/>
-                                    </svg>
-                                </button>
-                            </th>
-                            <th style="text-align:right;">Life (yrs)</th>
-                            <th style="text-align:right;">
-                                <button class="sort-btn" @click="setSort('current_value')">
-                                    Book Value
-                                    <svg v-if="deprSort.key === 'current_value'" width="10" height="10" fill="currentColor" viewBox="0 0 24 24">
-                                        <path :d="deprSort.dir === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'"/>
-                                    </svg>
-                                </button>
-                            </th>
-                            <th style="text-align:right;">
-                                <button class="sort-btn" @click="setSort('depreciation')">
-                                    Depreciation
-                                    <svg v-if="deprSort.key === 'depreciation'" width="10" height="10" fill="currentColor" viewBox="0 0 24 24">
-                                        <path :d="deprSort.dir === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'"/>
-                                    </svg>
-                                </button>
-                            </th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="a in sortedAssets" :key="a.id">
-                            <td>
-                                <div style="font-weight:600;font-size:.875rem;color:#1e293b;">{{ a.name }}</div>
-                                <div v-if="a.asset_code" style="font-size:.72rem;color:#94a3b8;">{{ a.asset_code }}</div>
-                            </td>
-                            <td>
-                                <span class="cat-badge">{{ a.category }}</span>
-                            </td>
-                            <td style="white-space:nowrap;color:#475569;">{{ fmt(a.purchase_date) }}</td>
-                            <td style="text-align:right;font-weight:600;">{{ fmtCost(a.purchase_cost) }}</td>
-                            <td style="text-align:right;color:#64748b;">{{ a.useful_life }}</td>
-                            <td style="text-align:right;">
-                                <span :style="{ color: a.current_value <= 0 ? '#94a3b8' : '#3b82f6', fontWeight: 600 }">
-                                    {{ fmtCost(a.current_value) }}
-                                </span>
-                                <!-- Remaining value bar -->
-                                <div class="value-bar-wrap" v-if="a.purchase_cost > 0">
-                                    <div class="value-bar"
-                                        :style="{ width: pct(a.current_value, a.purchase_cost) + '%', background: a.current_value <= 0 ? '#e2e8f0' : '#3b82f6' }">
-                                    </div>
+            <Table :sort-key="deprSort.sortKey.value" :sort-dir="deprSort.sortDir.value" @sort="deprSort.toggleSort">
+                <thead>
+                    <tr>
+                        <SortableTh sort-key="name">Asset</SortableTh>
+                        <SortableTh sort-key="category">Category</SortableTh>
+                        <SortableTh sort-key="purchase_date">Purchase Date</SortableTh>
+                        <SortableTh sort-key="purchase_cost" align="right">Cost</SortableTh>
+                        <th style="text-align:right;">Life (yrs)</th>
+                        <SortableTh sort-key="current_value" align="right">Book Value</SortableTh>
+                        <SortableTh sort-key="depreciation" align="right">Depreciation</SortableTh>
+                        <SortableTh sort-key="status">Status</SortableTh>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="a in sortedAssets" :key="a.id">
+                        <td>
+                            <div style="font-weight:600;font-size:.875rem;color:#1e293b;">{{ a.name }}</div>
+                            <div v-if="a.asset_code" style="font-size:.72rem;color:#94a3b8;">{{ a.asset_code }}</div>
+                        </td>
+                        <td>
+                            <span class="cat-badge">{{ a.category }}</span>
+                        </td>
+                        <td style="white-space:nowrap;">{{ fmt(a.purchase_date) }}</td>
+                        <td style="text-align:right;font-weight:600;">{{ fmtCost(a.purchase_cost) }}</td>
+                        <td style="text-align:right;">{{ a.useful_life }}</td>
+                        <td style="text-align:right;">
+                            <span :style="{ color: a.current_value <= 0 ? '#94a3b8' : '#3b82f6', fontWeight: 600 }">
+                                {{ fmtCost(a.current_value) }}
+                            </span>
+                            <!-- Remaining value bar -->
+                            <div class="value-bar-wrap" v-if="a.purchase_cost > 0">
+                                <div class="value-bar"
+                                    :style="{ width: pct(a.current_value, a.purchase_cost) + '%', background: a.current_value <= 0 ? '#e2e8f0' : '#3b82f6' }">
                                 </div>
-                            </td>
-                            <td style="text-align:right;color:#f59e0b;font-weight:600;">
-                                {{ fmtCost(a.depreciation) }}
-                                <div v-if="a.purchase_cost > 0" style="font-size:.68rem;color:#94a3b8;font-weight:400;">
-                                    {{ pct(a.depreciation, a.purchase_cost) }}% written down
-                                </div>
-                            </td>
-                            <td>
-                                <span class="status-pill"
-                                    :style="{ background: statusColor[a.status] + '1a', color: statusColor[a.status], border: '1px solid ' + statusColor[a.status] + '40' }">
-                                    {{ statusLabel[a.status] ?? a.status }}
-                                </span>
-                            </td>
-                        </tr>
-                        <tr v-if="!sortedAssets.length">
-                            <td colspan="8" style="text-align:center;color:#94a3b8;padding:32px;">No assets found.</td>
-                        </tr>
-                    </tbody>
-                    <tfoot v-if="sortedAssets.length">
-                        <tr style="background:#f8fafc;font-weight:700;border-top:2px solid #e2e8f0;">
-                            <td colspan="3" style="padding:10px 16px;font-size:.8rem;color:#64748b;">
-                                Totals ({{ sortedAssets.length }} assets)
-                            </td>
-                            <td style="text-align:right;padding:10px 16px;">{{ fmtCost(sortedAssets.reduce((s,a) => s + a.purchase_cost, 0)) }}</td>
-                            <td></td>
-                            <td style="text-align:right;padding:10px 16px;color:#3b82f6;">{{ fmtCost(sortedAssets.reduce((s,a) => s + a.current_value, 0)) }}</td>
-                            <td style="text-align:right;padding:10px 16px;color:#f59e0b;">{{ fmtCost(sortedAssets.reduce((s,a) => s + a.depreciation, 0)) }}</td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
+                            </div>
+                        </td>
+                        <td style="text-align:right;color:#f59e0b;font-weight:600;">
+                            {{ fmtCost(a.depreciation) }}
+                            <div v-if="a.purchase_cost > 0" style="font-size:.68rem;color:#94a3b8;font-weight:400;">
+                                {{ pct(a.depreciation, a.purchase_cost) }}% written down
+                            </div>
+                        </td>
+                        <td>
+                            <span class="status-pill"
+                                :style="{ background: statusColor[a.status] + '1a', color: statusColor[a.status], border: '1px solid ' + statusColor[a.status] + '40' }">
+                                {{ statusLabel[a.status] ?? a.status }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr v-if="!sortedAssets.length">
+                        <td colspan="8" style="text-align:center;color:#94a3b8;padding:32px;">No assets found.</td>
+                    </tr>
+                </tbody>
+                <tfoot v-if="sortedAssets.length">
+                    <tr class="rpt-totals">
+                        <td colspan="3">
+                            Totals ({{ sortedAssets.length }} assets)
+                        </td>
+                        <td style="text-align:right;">{{ fmtCost(sortedAssets.reduce((s,a) => s + a.purchase_cost, 0)) }}</td>
+                        <td></td>
+                        <td style="text-align:right;color:#3b82f6;">{{ fmtCost(sortedAssets.reduce((s,a) => s + a.current_value, 0)) }}</td>
+                        <td style="text-align:right;color:#f59e0b;">{{ fmtCost(sortedAssets.reduce((s,a) => s + a.depreciation, 0)) }}</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </Table>
         </div>
 
     </SchoolLayout>
@@ -305,23 +261,9 @@ const statusLabel = { available: 'Available', assigned: 'Assigned', under_mainte
 .aging-bar { height: 100%; background: #3b82f6; border-radius: 4px; transition: width .3s; min-width: 4px; }
 .aging-count { font-size: .8rem; font-weight: 700; color: #1e293b; width: 30px; text-align: right; }
 
-/* ── Report table ───────────────────────────────────────────────────────── */
-.rpt-table {
-    width: 100%; border-collapse: collapse;
-}
-.rpt-table th {
-    padding: 10px 16px; text-align: left;
-    font-size: .7rem; font-weight: 700; color: #64748b;
-    text-transform: uppercase; letter-spacing: .05em;
-    background: #f8fafc; border-bottom: 1px solid #e2e8f0;
-    white-space: nowrap;
-}
-.rpt-table td {
-    padding: 11px 16px; border-bottom: 1px solid #f1f5f9;
-    font-size: .85rem; vertical-align: middle;
-}
-.rpt-table tr:last-child td { border-bottom: none; }
-.rpt-table tr:hover td { background: #fafbff; }
+/* ── Report table totals row ────────────────────────────────────────────── */
+.rpt-totals { background: #f8fafc; font-weight: 700; }
+.rpt-totals :deep(td) { border-top: 2px solid #e2e8f0; border-bottom: none !important; }
 
 .cat-badge {
     font-size: .75rem; font-weight: 500; color: #6d28d9;
@@ -331,14 +273,6 @@ const statusLabel = { available: 'Available', assigned: 'Assigned', under_mainte
     font-size: .72rem; font-weight: 600;
     padding: 3px 10px; border-radius: 20px; white-space: nowrap;
 }
-.sort-btn {
-    background: none; border: none; cursor: pointer; display: inline-flex;
-    align-items: center; gap: 4px; font-size: .7rem; font-weight: 700;
-    color: #64748b; text-transform: uppercase; letter-spacing: .05em;
-    padding: 0; transition: color .15s;
-}
-.sort-btn:hover { color: #3b82f6; }
-
 /* ── Value bar ──────────────────────────────────────────────────────────── */
 .value-bar-wrap {
     width: 80px; height: 4px; background: #f1f5f9; border-radius: 2px;
@@ -363,12 +297,10 @@ const statusLabel = { available: 'Available', assigned: 'Assigned', under_mainte
 
 /* ── Print ──────────────────────────────────────────────────────────────── */
 @media print {
-    .page-header, .search-wrap, .sort-btn svg, .aging-bar-wrap { display: none !important; }
+    .page-header, .search-wrap, .aging-bar-wrap { display: none !important; }
     .summary-grid { grid-template-columns: repeat(4, 1fr); }
     .two-col { grid-template-columns: 1fr 1fr; page-break-inside: avoid; }
     .card { border: 1px solid #ccc; box-shadow: none; page-break-inside: avoid; }
-    .rpt-table thead { background: #f1f5f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .rpt-table tfoot { background: #f1f5f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .value-bar-wrap, .value-bar { display: none; }
     body { font-size: 11px; }
     @page { margin: 18mm; size: A4 landscape; }

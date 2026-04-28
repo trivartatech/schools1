@@ -7,6 +7,9 @@ import Modal from '@/Components/ui/Modal.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import Tabs from '@/Components/ui/Tabs.vue';
 import EmptyState from '@/Components/ui/EmptyState.vue';
+import Table from '@/Components/ui/Table.vue';
+import SortableTh from '@/Components/ui/SortableTh.vue';
+import { useTableSort } from '@/Composables/useTableSort';
 
 const props = defineProps({
     asset:    Object,
@@ -81,6 +84,23 @@ const tabsConfig = computed(() => [
     { key: 'maintenance', label: 'Maintenance', count: props.asset.maintenance_logs?.length ?? 0 },
     { key: 'audit',       label: 'Audit Log',   count: props.auditLog?.length ?? 0 },
 ]);
+
+// ── Independent sorts for assignments & maintenance ─────────────────────
+const assignSort = useTableSort('assigned_on', 'desc');
+const sortedAssignments = computed(() => assignSort.sortRows(props.asset.assignments || [], {
+    getValue: (row, key) => {
+        if (key === 'assigned_by_name') return row.assigned_by?.name ?? '';
+        return row[key];
+    },
+}));
+
+const maintSort = useTableSort('reported_on', 'desc');
+const sortedMaintenance = computed(() => maintSort.sortRows(props.asset.maintenance_logs || [], {
+    getValue: (row, key) => {
+        if (key === 'cost') return Number(row.cost || 0);
+        return row[key];
+    },
+}));
 </script>
 
 <template>
@@ -216,81 +236,88 @@ const tabsConfig = computed(() => [
             <!-- Tab: Assignments -->
             <template #tab-assignments>
                 <div class="card" style="overflow:hidden;">
-                    <div style="overflow-x:auto;">
-                        <table class="det-table">
-                            <thead>
-                                <tr>
-                                    <th>Assigned On</th><th>Assign Type</th><th>Assignee</th>
-                                    <th>Location</th><th>Returned</th><th>By</th><th>Notes</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="asgn in asset.assignments" :key="asgn.id">
-                                    <td style="white-space:nowrap;">{{ fmt(asgn.assigned_on) }}</td>
-                                    <td style="text-transform:capitalize;">{{ asgn.assignee_type || 'general' }}</td>
-                                    <td>{{ asgn.assignee_name || '—' }}</td>
-                                    <td>{{ asgn.location }}</td>
-                                    <td>
-                                        <span v-if="asgn.returned_on" style="color:#10b981;">{{ fmt(asgn.returned_on) }}</span>
-                                        <span v-else class="status-pill" style="background:#dbeafe1a;color:#2563eb;border:1px solid #2563eb40;">Active</span>
-                                    </td>
-                                    <td style="font-size:.78rem;color:#64748b;">{{ asgn.assigned_by?.name ?? '—' }}</td>
-                                    <td style="font-size:.78rem;color:#64748b;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ asgn.notes || '—' }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        <EmptyState v-if="!asset.assignments?.length"
-                            variant="compact"
-                            title="No assignment history"
-                            description="Assignment records will appear here once this asset is allocated." />
-                    </div>
+                    <Table v-if="asset.assignments?.length" :sort-key="assignSort.sortKey.value" :sort-dir="assignSort.sortDir.value" @sort="assignSort.toggleSort">
+                        <thead>
+                            <tr>
+                                <SortableTh sort-key="assigned_on">Assigned On</SortableTh>
+                                <SortableTh sort-key="assignee_type">Assign Type</SortableTh>
+                                <SortableTh sort-key="assignee_name">Assignee</SortableTh>
+                                <SortableTh sort-key="location">Location</SortableTh>
+                                <SortableTh sort-key="returned_on">Returned</SortableTh>
+                                <SortableTh sort-key="assigned_by_name">By</SortableTh>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="asgn in sortedAssignments" :key="asgn.id">
+                                <td style="white-space:nowrap;">{{ fmt(asgn.assigned_on) }}</td>
+                                <td style="text-transform:capitalize;">{{ asgn.assignee_type || 'general' }}</td>
+                                <td>{{ asgn.assignee_name || '—' }}</td>
+                                <td>{{ asgn.location }}</td>
+                                <td>
+                                    <span v-if="asgn.returned_on" style="color:#10b981;">{{ fmt(asgn.returned_on) }}</span>
+                                    <span v-else class="status-pill" style="background:#dbeafe1a;color:#2563eb;border:1px solid #2563eb40;">Active</span>
+                                </td>
+                                <td>{{ asgn.assigned_by?.name ?? '—' }}</td>
+                                <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ asgn.notes || '—' }}</td>
+                            </tr>
+                        </tbody>
+                    </Table>
+                    <EmptyState v-else
+                        variant="compact"
+                        title="No assignment history"
+                        description="Assignment records will appear here once this asset is allocated." />
                 </div>
             </template>
 
             <!-- Tab: Maintenance -->
             <template #tab-maintenance>
                 <div class="card" style="overflow:hidden;">
-                    <div style="overflow-x:auto;">
-                        <table class="det-table">
-                            <thead>
-                                <tr>
-                                    <th>Reported</th><th>Type</th><th>Description</th>
-                                    <th>Status</th><th>Cost</th><th>Vendor</th><th>Resolved</th><th style="text-align:right;">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="log in asset.maintenance_logs" :key="log.id">
-                                    <td style="white-space:nowrap;">{{ fmt(log.reported_on) }}</td>
-                                    <td style="text-transform:capitalize;">{{ log.type }}</td>
-                                    <td>{{ log.issue_description }}</td>
-                                    <td>
-                                        <span class="maint-status-pill"
-                                            :style="{ background: maintStatusColor[log.status] + '1a', color: maintStatusColor[log.status], border: '1px solid ' + maintStatusColor[log.status] + '40' }">
-                                            {{ maintStatusLabel[log.status] }}
-                                        </span>
-                                    </td>
-                                    <td>{{ log.cost > 0 ? fmtCost(log.cost) : '—' }}</td>
-                                    <td style="font-size:.78rem;color:#64748b;">{{ log.vendor || '—' }}</td>
-                                    <td style="font-size:.78rem;color:#64748b;">
-                                        {{ fmt(log.resolved_on) }}
-                                        <div v-if="log.resolution_notes" style="font-style:italic;color:#94a3b8;font-size:.72rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" :title="log.resolution_notes">
-                                            {{ log.resolution_notes }}
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div style="display:flex;gap:5px;justify-content:flex-end;">
-                                            <button v-if="log.status === 'open'" class="act-btn act-amber" @click="markInProgress(log.id)">In Progress</button>
-                                            <button v-if="['open','in_progress'].includes(log.status)" class="act-btn act-green" @click="openResolve(log)">Resolve</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        <EmptyState v-if="!asset.maintenance_logs?.length"
-                            variant="compact"
-                            title="No maintenance records"
-                            description="Maintenance logs will appear here once any are reported." />
-                    </div>
+                    <Table v-if="asset.maintenance_logs?.length" :sort-key="maintSort.sortKey.value" :sort-dir="maintSort.sortDir.value" @sort="maintSort.toggleSort">
+                        <thead>
+                            <tr>
+                                <SortableTh sort-key="reported_on">Reported</SortableTh>
+                                <SortableTh sort-key="type">Type</SortableTh>
+                                <SortableTh sort-key="issue_description">Description</SortableTh>
+                                <SortableTh sort-key="status">Status</SortableTh>
+                                <SortableTh sort-key="cost" align="right">Cost</SortableTh>
+                                <SortableTh sort-key="vendor">Vendor</SortableTh>
+                                <SortableTh sort-key="resolved_on">Resolved</SortableTh>
+                                <th style="text-align:right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="log in sortedMaintenance" :key="log.id">
+                                <td style="white-space:nowrap;">{{ fmt(log.reported_on) }}</td>
+                                <td style="text-transform:capitalize;">{{ log.type }}</td>
+                                <td>{{ log.issue_description }}</td>
+                                <td>
+                                    <span class="maint-status-pill"
+                                        :style="{ background: maintStatusColor[log.status] + '1a', color: maintStatusColor[log.status], border: '1px solid ' + maintStatusColor[log.status] + '40' }">
+                                        {{ maintStatusLabel[log.status] }}
+                                    </span>
+                                </td>
+                                <td style="text-align:right;">{{ log.cost > 0 ? fmtCost(log.cost) : '—' }}</td>
+                                <td>{{ log.vendor || '—' }}</td>
+                                <td>
+                                    {{ fmt(log.resolved_on) }}
+                                    <div v-if="log.resolution_notes" style="font-style:italic;color:#94a3b8;font-size:.72rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" :title="log.resolution_notes">
+                                        {{ log.resolution_notes }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div style="display:flex;gap:5px;justify-content:flex-end;">
+                                        <button v-if="log.status === 'open'" class="act-btn act-amber" @click="markInProgress(log.id)">In Progress</button>
+                                        <button v-if="['open','in_progress'].includes(log.status)" class="act-btn act-green" @click="openResolve(log)">Resolve</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </Table>
+                    <EmptyState v-else
+                        variant="compact"
+                        title="No maintenance records"
+                        description="Maintenance logs will appear here once any are reported." />
                 </div>
             </template>
 
@@ -380,13 +407,6 @@ const tabsConfig = computed(() => [
 .detail-row:last-child { border-bottom:none; }
 .detail-label { font-size:.72rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em; }
 .detail-val   { font-size:.875rem;color:#1e293b;font-weight:500; }
-
-/* ── Tables ─────────────────────────────────────────────────────────────── */
-.det-table { width:100%;border-collapse:collapse; }
-.det-table th { padding:10px 16px;text-align:left;font-size:.7rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;background:#f8fafc;border-bottom:1px solid #e2e8f0;white-space:nowrap; }
-.det-table td { padding:11px 16px;border-bottom:1px solid #f1f5f9;font-size:.85rem;vertical-align:middle;color:#374151; }
-.det-table tr:last-child td { border-bottom:none; }
-.det-table tr:hover td { background:#fafbff; }
 
 /* ── Audit log ──────────────────────────────────────────────────────────── */
 .audit-list { display:flex;flex-direction:column; }

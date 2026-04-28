@@ -3,6 +3,9 @@ import { ref, computed } from 'vue';
 import { useForm, usePage, Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import Table from '@/Components/ui/Table.vue';
+import SortableTh from '@/Components/ui/SortableTh.vue';
+import { useTableSort } from '@/Composables/useTableSort';
 import { useConfirm } from '@/Composables/useConfirm';
 
 const confirm = useConfirm();
@@ -80,6 +83,10 @@ const submitEdit = (id) => {
         },
     });
 };
+
+// ── Table sort ─────────────────────────────────────────────────────────
+const { sortKey, sortDir, toggleSort, sortRows } = useTableSort('name', 'asc');
+const sortedContacts = computed(() => sortRows(props.contacts || []));
 
 const deleteContact = async (contact) => {
     const ok = await confirm({
@@ -163,17 +170,17 @@ const deleteContact = async (contact) => {
                         <div v-if="contacts.length === 0" style="padding:32px;text-align:center;color:#64748b;font-size:.875rem;">
                             No admin contacts yet. Click <strong>+ Add Contact</strong> to add one.
                         </div>
-                        <table v-else class="contacts-table">
+                        <Table v-else :sort-key="sortKey" :sort-dir="sortDir" @sort="toggleSort">
                             <thead>
                                 <tr>
-                                    <th>Name</th>
-                                    <th>Phone</th>
-                                    <th>WhatsApp</th>
+                                    <SortableTh sort-key="name">Name</SortableTh>
+                                    <SortableTh sort-key="phone">Phone</SortableTh>
+                                    <SortableTh sort-key="whatsapp_number">WhatsApp</SortableTh>
                                     <th style="width:160px;text-align:right;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <template v-for="contact in contacts" :key="contact.id">
+                                <template v-for="contact in sortedContacts" :key="contact.id">
                                     <!-- View row -->
                                     <tr v-if="editingId !== contact.id">
                                         <td>{{ contact.name }}</td>
@@ -206,7 +213,7 @@ const deleteContact = async (contact) => {
                                     </tr>
                                 </template>
                             </tbody>
-                        </table>
+                        </Table>
                     </div>
                 </div>
 
@@ -284,35 +291,10 @@ const deleteContact = async (contact) => {
 }
 
 /* ── Contacts table ── */
-.contacts-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875rem;
-}
-.contacts-table thead th {
-    text-align: left;
-    padding: 12px 16px;
-    background: #f8fafc;
-    border-bottom: 1px solid #e2e8f0;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #475569;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-.contacts-table tbody td {
-    padding: 12px 16px;
-    border-bottom: 1px solid #f1f5f9;
-    color: #1e293b;
-    vertical-align: middle;
-}
-.contacts-table tbody tr:last-child td {
-    border-bottom: none;
-}
-.contacts-table .edit-row td {
+.edit-row :deep(td) {
     background: #fffbea;
 }
-.contacts-table .edit-row input {
+.edit-row input {
     width: 100%;
     padding: 6px 8px;
     border: 1px solid #cbd5e1;

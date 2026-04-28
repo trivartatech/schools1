@@ -6,6 +6,9 @@ import PageHeader from '@/Components/ui/PageHeader.vue';
 import StatsRow from '@/Components/ui/StatsRow.vue';
 import EmptyState from '@/Components/ui/EmptyState.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
+import Table from '@/Components/ui/Table.vue';
+import SortableTh from '@/Components/ui/SortableTh.vue';
+import { useTableSort } from '@/Composables/useTableSort';
 import { useForm, router } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import { useConfirm } from '@/Composables/useConfirm';
@@ -188,6 +191,16 @@ const statCards = computed(() => [
     { label: 'Graduation Years',     value: props.years.length,    color: 'accent' },
     { label: 'Classes Represented',  value: props.classes.length,  color: 'success' },
 ]);
+
+// ── Table sorting ────────────────────────────────────────────────────────────
+const { sortKey, sortDir, toggleSort, sortRows } = useTableSort('graduated_on', 'desc');
+const sortedAlumni = computed(() => sortRows(props.alumni.data || [], {
+    getValue: (row, key) => {
+        if (key === 'student_name') return `${row.student?.first_name ?? ''} ${row.student?.last_name ?? ''}`.trim();
+        if (key === 'location') return row.current_city ?? '';
+        return row[key];
+    },
+}));
 </script>
 
 <template>
@@ -221,65 +234,63 @@ const statCards = computed(() => [
 
         <!-- Table -->
         <div class="card">
-            <div style="overflow-x:auto;">
-                <table style="width:100%;border-collapse:collapse;font-size:.8125rem;">
-                    <thead>
-                        <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
-                            <th style="padding:10px 16px;text-align:left;color:#475569;font-weight:600;">Student</th>
-                            <th style="padding:10px 16px;text-align:left;color:#475569;font-weight:600;">Batch</th>
-                            <th style="padding:10px 16px;text-align:left;color:#475569;font-weight:600;">Final Class</th>
-                            <th style="padding:10px 16px;text-align:left;color:#475569;font-weight:600;">Grade / %</th>
-                            <th style="padding:10px 16px;text-align:left;color:#475569;font-weight:600;">Current Occupation</th>
-                            <th style="padding:10px 16px;text-align:left;color:#475569;font-weight:600;">Location</th>
-                            <th style="padding:10px 16px;text-align:left;color:#475569;font-weight:600;">Graduated On</th>
-                            <th style="padding:10px 16px;text-align:left;color:#475569;font-weight:600;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="a in alumni.data" :key="a.id" style="border-bottom:1px solid #f1f5f9;" class="table-row">
-                            <td style="padding:10px 16px;">
-                                <div style="display:flex;align-items:center;gap:10px;">
-                                    <div class="avatar-circle">{{ a.student?.first_name?.charAt(0) }}</div>
-                                    <div>
-                                        <div style="font-weight:600;color:#1e293b;">{{ a.student?.first_name }} {{ a.student?.last_name }}</div>
-                                        <div style="font-size:.75rem;color:#94a3b8;">{{ a.student?.admission_no }}</div>
-                                    </div>
+            <Table :sort-key="sortKey" :sort-dir="sortDir" @sort="toggleSort">
+                <thead>
+                    <tr>
+                        <SortableTh sort-key="student_name">Student</SortableTh>
+                        <SortableTh sort-key="passout_year">Batch</SortableTh>
+                        <SortableTh sort-key="final_class">Final Class</SortableTh>
+                        <SortableTh sort-key="final_percentage">Grade / %</SortableTh>
+                        <SortableTh sort-key="current_occupation">Current Occupation</SortableTh>
+                        <SortableTh sort-key="location">Location</SortableTh>
+                        <SortableTh sort-key="graduated_on">Graduated On</SortableTh>
+                        <th style="text-align:right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="a in sortedAlumni" :key="a.id">
+                        <td>
+                            <div style="display:flex;align-items:center;gap:10px;">
+                                <div class="avatar-circle">{{ a.student?.first_name?.charAt(0) }}</div>
+                                <div>
+                                    <div style="font-weight:600;color:#1e293b;">{{ a.student?.first_name }} {{ a.student?.last_name }}</div>
+                                    <div style="font-size:.75rem;color:#94a3b8;">{{ a.student?.admission_no }}</div>
                                 </div>
-                            </td>
-                            <td style="padding:10px 16px;">
-                                <span class="badge badge-purple">{{ a.passout_year ?? '—' }}</span>
-                            </td>
-                            <td style="padding:10px 16px;color:#475569;">{{ a.final_class ?? '—' }}</td>
-                            <td style="padding:10px 16px;">
-                                <span v-if="a.final_grade" class="badge badge-green">{{ a.final_grade }}</span>
-                                <span v-if="a.final_percentage" style="font-size:.8rem;color:#64748b;margin-left:4px;">{{ a.final_percentage }}%</span>
-                                <span v-if="!a.final_grade && !a.final_percentage" style="color:#94a3b8;">—</span>
-                            </td>
-                            <td style="padding:10px 16px;color:#475569;">{{ a.current_occupation ?? '—' }}</td>
-                            <td style="padding:10px 16px;color:#475569;">
-                                {{ a.current_city ?? '—' }}<span v-if="a.current_state">, {{ a.current_state }}</span>
-                            </td>
-                            <td style="padding:10px 16px;color:#475569;">{{ fmt(a.graduated_on) }}</td>
-                            <td style="padding:10px 16px;">
-                                <div style="display:flex;gap:6px;">
-                                    <Button size="xs" variant="secondary" @click="openEdit(a)">Edit</Button>
-                                    <Button size="xs" variant="danger" @click="removeAlumni(a)">Remove</Button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr v-if="!alumni.data?.length">
-                            <td colspan="8" style="padding:0;">
-                                <EmptyState
-                                    title="No alumni records found"
-                                    description="Graduate students to start building your alumni directory."
-                                    action-label="+ Graduate Students"
-                                    @action="openGraduate"
-                                />
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge badge-purple">{{ a.passout_year ?? '—' }}</span>
+                        </td>
+                        <td>{{ a.final_class ?? '—' }}</td>
+                        <td>
+                            <span v-if="a.final_grade" class="badge badge-green">{{ a.final_grade }}</span>
+                            <span v-if="a.final_percentage" style="font-size:.8rem;color:#64748b;margin-left:4px;">{{ a.final_percentage }}%</span>
+                            <span v-if="!a.final_grade && !a.final_percentage" style="color:#94a3b8;">—</span>
+                        </td>
+                        <td>{{ a.current_occupation ?? '—' }}</td>
+                        <td>
+                            {{ a.current_city ?? '—' }}<span v-if="a.current_state">, {{ a.current_state }}</span>
+                        </td>
+                        <td>{{ fmt(a.graduated_on) }}</td>
+                        <td style="text-align:right;">
+                            <div style="display:inline-flex;gap:6px;">
+                                <Button size="xs" variant="secondary" @click="openEdit(a)">Edit</Button>
+                                <Button size="xs" variant="danger" @click="removeAlumni(a)">Remove</Button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr v-if="!sortedAlumni.length">
+                        <td colspan="8" style="padding:0;">
+                            <EmptyState
+                                title="No alumni records found"
+                                description="Graduate students to start building your alumni directory."
+                                action-label="+ Graduate Students"
+                                @action="openGraduate"
+                            />
+                        </td>
+                    </tr>
+                </tbody>
+            </Table>
 
             <!-- Pagination -->
             <div v-if="alumni.last_page > 1" style="display:flex;justify-content:center;gap:4px;padding:16px;flex-wrap:wrap;">
@@ -449,7 +460,6 @@ const statCards = computed(() => [
 
 <style scoped>
 /* Table */
-.table-row:hover { background:#fafbff; }
 .avatar-circle { width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;flex-shrink:0; }
 .badge-purple { background:#ede9fe;color:#7c3aed;padding:2px 8px;border-radius:20px;font-size:.72rem;font-weight:600; }
 

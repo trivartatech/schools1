@@ -5,6 +5,9 @@ import Modal from '@/Components/ui/Modal.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import StatsRow from '@/Components/ui/StatsRow.vue';
 import EmptyState from '@/Components/ui/EmptyState.vue';
+import Table from '@/Components/ui/Table.vue';
+import SortableTh from '@/Components/ui/SortableTh.vue';
+import { useTableSort } from '@/Composables/useTableSort';
 import { useForm, router } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 import { useConfirm } from '@/Composables/useConfirm';
@@ -55,6 +58,15 @@ const statCards = computed(() => [
     { label: 'Last Backup',   value: props.stats.last_backup,   color: 'warning' },
     { label: 'Storage Used',  value: props.stats.storage_used,  color: 'purple' },
 ]);
+
+// ── Table sorting ────────────────────────────────────────────────────────────
+const { sortKey, sortDir, toggleSort, sortRows } = useTableSort('created_at', 'desc');
+const sortedBackups = computed(() => sortRows(props.backups || [], {
+    getValue: (row, key) => {
+        if (key === 'size') return row.size_bytes ?? 0;
+        return row[key];
+    },
+}));
 </script>
 
 <template>
@@ -74,68 +86,66 @@ const statCards = computed(() => [
             <div class="card-header" style="padding:16px 20px;border-bottom:1px solid #f1f5f9;">
                 <h3 class="card-title">Backup History</h3>
             </div>
-            <div style="overflow-x:auto;">
-                <table class="backup-table">
-                    <thead>
-                        <tr>
-                            <th>Label</th>
-                            <th>Status</th>
-                            <th>Size</th>
-                            <th>Duration</th>
-                            <th>Created By</th>
-                            <th>Created At</th>
-                            <th style="text-align:right;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="b in backups" :key="b.id">
-                            <td>
-                                <div style="font-weight:600;color:#1e293b;">{{ b.label || 'Manual Backup' }}</div>
-                                <div v-if="b.filename" style="font-size:.72rem;color:#94a3b8;margin-top:2px;">{{ b.filename }}</div>
-                            </td>
-                            <td>
-                                <span class="badge" :class="statusBadge[b.status]" style="text-transform:capitalize;">{{ b.status }}</span>
-                            </td>
-                            <td style="color:#475569;">{{ b.status === 'completed' ? b.formatted_size : '—' }}</td>
-                            <td style="color:#64748b;font-size:.85rem;">
-                                {{ b.duration_seconds != null ? b.duration_seconds + 's' : '—' }}
-                            </td>
-                            <td style="font-size:.85rem;color:#64748b;">{{ b.created_by || '—' }}</td>
-                            <td style="white-space:nowrap;color:#64748b;font-size:.85rem;">{{ b.created_at }}</td>
-                            <td style="text-align:right;">
-                                <div style="display:inline-flex;gap:6px;align-items:center;">
-                                    <a
-                                        v-if="b.status === 'completed' && b.file_exists"
-                                        :href="`/school/backup/${b.id}/download`"
-                                        class="download-btn"
-                                        title="Download"
-                                    >
-                                        Download
-                                    </a>
-                                    <Button variant="danger" size="xs" @click="deleteBackup(b.id)">Delete</Button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr v-if="!backups?.length">
-                            <td colspan="7" style="padding:0;">
-                                <EmptyState
-                                    title="No backups yet"
-                                    description="Click 'Create Backup' to get started."
-                                    action-label="+ Create Backup"
-                                    @action="openCreate"
-                                />
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+            <Table :sort-key="sortKey" :sort-dir="sortDir" @sort="toggleSort">
+                <thead>
+                    <tr>
+                        <SortableTh sort-key="label">Label</SortableTh>
+                        <SortableTh sort-key="status">Status</SortableTh>
+                        <SortableTh sort-key="size" align="right">Size</SortableTh>
+                        <SortableTh sort-key="duration_seconds" align="right">Duration</SortableTh>
+                        <SortableTh sort-key="created_by">Created By</SortableTh>
+                        <SortableTh sort-key="created_at">Created At</SortableTh>
+                        <th style="text-align:right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="b in sortedBackups" :key="b.id">
+                        <td>
+                            <div style="font-weight:600;color:#1e293b;">{{ b.label || 'Manual Backup' }}</div>
+                            <div v-if="b.filename" style="font-size:.72rem;color:#94a3b8;margin-top:2px;">{{ b.filename }}</div>
+                        </td>
+                        <td>
+                            <span class="badge" :class="statusBadge[b.status]" style="text-transform:capitalize;">{{ b.status }}</span>
+                        </td>
+                        <td style="text-align:right;">{{ b.status === 'completed' ? b.formatted_size : '—' }}</td>
+                        <td style="text-align:right;">
+                            {{ b.duration_seconds != null ? b.duration_seconds + 's' : '—' }}
+                        </td>
+                        <td>{{ b.created_by || '—' }}</td>
+                        <td style="white-space:nowrap;">{{ b.created_at }}</td>
+                        <td style="text-align:right;">
+                            <div style="display:inline-flex;gap:6px;align-items:center;">
+                                <a
+                                    v-if="b.status === 'completed' && b.file_exists"
+                                    :href="`/school/backup/${b.id}/download`"
+                                    class="download-btn"
+                                    title="Download"
+                                >
+                                    Download
+                                </a>
+                                <Button variant="danger" size="xs" @click="deleteBackup(b.id)">Delete</Button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr v-if="!sortedBackups.length">
+                        <td colspan="7" style="padding:0;">
+                            <EmptyState
+                                title="No backups yet"
+                                description="Click 'Create Backup' to get started."
+                                action-label="+ Create Backup"
+                                @action="openCreate"
+                            />
+                        </td>
+                    </tr>
+                </tbody>
+            </Table>
 
-                <!-- Error rows inline -->
-                <template v-if="backups?.some(b => b.status === 'failed' && b.error_message)">
-                    <div v-for="b in backups.filter(x => x.status === 'failed' && x.error_message)" :key="'e-' + b.id" class="error-row">
-                        <span><strong>{{ b.label }}:</strong> {{ b.error_message }}</span>
-                    </div>
-                </template>
-            </div>
+            <!-- Error rows inline -->
+            <template v-if="backups?.some(b => b.status === 'failed' && b.error_message)">
+                <div v-for="b in backups.filter(x => x.status === 'failed' && x.error_message)" :key="'e-' + b.id" class="error-row">
+                    <span><strong>{{ b.label }}:</strong> {{ b.error_message }}</span>
+                </div>
+            </template>
         </div>
 
         <!-- Create Backup Modal -->
@@ -161,24 +171,6 @@ const statCards = computed(() => [
 </template>
 
 <style scoped>
-/* Table */
-.backup-table { width: 100%; border-collapse: collapse; }
-.backup-table th {
-    padding: 11px 16px;
-    background: #f8fafc;
-    border-bottom: 2px solid #e2e8f0;
-    font-size: .72rem; font-weight: 700; color: #64748b;
-    text-transform: uppercase; letter-spacing: .04em;
-    text-align: left; white-space: nowrap;
-}
-.backup-table td {
-    padding: 13px 16px;
-    border-bottom: 1px solid #f1f5f9;
-    vertical-align: middle;
-}
-.backup-table tbody tr:hover { background: #f8fafc; }
-.backup-table tbody tr:last-child td { border-bottom: none; }
-
 /* Download link */
 .download-btn {
     display: inline-flex; align-items: center; gap: 5px;

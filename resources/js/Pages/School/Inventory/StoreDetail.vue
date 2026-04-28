@@ -5,6 +5,9 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
 import Modal from '@/Components/ui/Modal.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import Table from '@/Components/ui/Table.vue';
+import SortableTh from '@/Components/ui/SortableTh.vue';
+import { useTableSort } from '@/Composables/useTableSort';
 import { useConfirm } from '@/Composables/useConfirm';
 
 const confirm = useConfirm();
@@ -22,6 +25,19 @@ const lowStockItems = computed(() => (props.store.items || []).filter(isLow));
 const totalValue    = computed(() =>
     (props.store.items || []).reduce((s, i) => s + Number(i.quantity) * Number(i.unit_price), 0)
 );
+
+// ── Table sort ────────────────────────────────────────────────────────────
+const { sortKey, sortDir, toggleSort, sortRows } = useTableSort('name', 'asc');
+const sortedItems = computed(() => sortRows(props.store.items || [], {
+    getValue: (row, key) => {
+        if (key === 'supplier_name') return row.supplier?.name ?? '';
+        if (key === 'quantity') return Number(row.quantity);
+        if (key === 'min_quantity') return Number(row.min_quantity);
+        if (key === 'unit_price') return Number(row.unit_price);
+        if (key === 'stock_value') return Number(row.quantity) * Number(row.unit_price);
+        return row[key];
+    },
+}));
 
 // ── Item CRUD ─────────────────────────────────────────────────────────────────
 const showItemModal = ref(false);
@@ -156,65 +172,63 @@ const showTxnModal = computed({
 
         <!-- Items Table -->
         <div class="card" style="overflow:hidden;">
-            <div style="overflow-x:auto;">
-                <table class="inv-table">
-                    <thead>
-                        <tr>
-                            <th>Item Name</th>
-                            <th>Supplier</th>
-                            <th style="text-align:right;">Qty in Stock</th>
-                            <th>Unit</th>
-                            <th style="text-align:right;">Min Stock</th>
-                            <th style="text-align:right;">Unit Price</th>
-                            <th style="text-align:right;">Stock Value</th>
-                            <th style="text-align:right;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="item in store.items" :key="item.id" :class="{ 'row-low': isLow(item) }">
-                            <td>
-                                <div style="font-weight:600;font-size:.875rem;color:#1e293b;">{{ item.name }}</div>
-                                <span v-if="isLow(item)" style="font-size:.68rem;font-weight:700;background:#fee2e2;color:#dc2626;padding:1px 7px;border-radius:10px;">Low Stock</span>
-                            </td>
-                            <td style="font-size:.82rem;color:#475569;">{{ item.supplier?.name || '—' }}</td>
-                            <td style="text-align:right;">
-                                <span :style="{ fontWeight: 700, fontSize: '.9rem', color: isLow(item) ? '#dc2626' : '#1e293b' }">{{ fmtQty(item.quantity) }}</span>
-                            </td>
-                            <td style="font-size:.82rem;color:#64748b;">{{ item.unit }}</td>
-                            <td style="text-align:right;font-size:.8rem;color:#94a3b8;">
-                                {{ item.min_quantity > 0 ? fmtQty(item.min_quantity) : '—' }}
-                            </td>
-                            <td style="text-align:right;font-size:.82rem;color:#374151;">
-                                {{ item.unit_price > 0 ? '₹' + fmt(item.unit_price) : '—' }}
-                            </td>
-                            <td style="text-align:right;font-size:.82rem;font-weight:600;color:#1e293b;">
-                                {{ item.unit_price > 0 ? '₹' + fmt(Number(item.quantity) * Number(item.unit_price)) : '—' }}
-                            </td>
-                            <td>
-                                <div style="display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap;">
-                                    <button class="act-btn act-green" @click="openTxn(item, 'in')" title="Stock In">+ In</button>
-                                    <button class="act-btn act-orange" @click="openTxn(item, 'out')" title="Stock Out">− Out</button>
-                                    <button class="act-btn act-blue" @click="openEditItem(item)">Edit</button>
-                                    <button class="act-btn act-red" @click="deleteItem(item)">Del</button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr v-if="!store.items?.length">
-                            <td colspan="8" class="empty-row">
-                                <svg width="40" height="40" fill="none" stroke="#cbd5e1" viewBox="0 0 24 24" style="margin-bottom:8px;display:block;margin-inline:auto;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.4" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7"/></svg>
-                                No items yet. Add your first item to start tracking stock.
-                            </td>
-                        </tr>
-                    </tbody>
-                    <tfoot v-if="store.items?.length">
-                        <tr>
-                            <td colspan="6" style="text-align:right;font-size:.8rem;font-weight:700;color:#64748b;padding:12px 16px;">Total Stock Value</td>
-                            <td style="text-align:right;font-size:.9rem;font-weight:800;color:#1e293b;padding:12px 16px;">₹{{ fmt(totalValue) }}</td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
+            <Table :sort-key="sortKey" :sort-dir="sortDir" @sort="toggleSort">
+                <thead>
+                    <tr>
+                        <SortableTh sort-key="name">Item Name</SortableTh>
+                        <SortableTh sort-key="supplier_name">Supplier</SortableTh>
+                        <SortableTh sort-key="quantity" align="right">Qty in Stock</SortableTh>
+                        <SortableTh sort-key="unit">Unit</SortableTh>
+                        <SortableTh sort-key="min_quantity" align="right">Min Stock</SortableTh>
+                        <SortableTh sort-key="unit_price" align="right">Unit Price</SortableTh>
+                        <SortableTh sort-key="stock_value" align="right">Stock Value</SortableTh>
+                        <th style="text-align:right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="item in sortedItems" :key="item.id" :class="{ 'row-low': isLow(item) }">
+                        <td>
+                            <div style="font-weight:600;font-size:.875rem;color:#1e293b;">{{ item.name }}</div>
+                            <span v-if="isLow(item)" style="font-size:.68rem;font-weight:700;background:#fee2e2;color:#dc2626;padding:1px 7px;border-radius:10px;">Low Stock</span>
+                        </td>
+                        <td>{{ item.supplier?.name || '—' }}</td>
+                        <td style="text-align:right;">
+                            <span :style="{ fontWeight: 700, fontSize: '.9rem', color: isLow(item) ? '#dc2626' : '#1e293b' }">{{ fmtQty(item.quantity) }}</span>
+                        </td>
+                        <td>{{ item.unit }}</td>
+                        <td style="text-align:right;">
+                            {{ item.min_quantity > 0 ? fmtQty(item.min_quantity) : '—' }}
+                        </td>
+                        <td style="text-align:right;">
+                            {{ item.unit_price > 0 ? '₹' + fmt(item.unit_price) : '—' }}
+                        </td>
+                        <td style="text-align:right;font-weight:600;color:#1e293b;">
+                            {{ item.unit_price > 0 ? '₹' + fmt(Number(item.quantity) * Number(item.unit_price)) : '—' }}
+                        </td>
+                        <td>
+                            <div style="display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap;">
+                                <button class="act-btn act-green" @click="openTxn(item, 'in')" title="Stock In">+ In</button>
+                                <button class="act-btn act-orange" @click="openTxn(item, 'out')" title="Stock Out">− Out</button>
+                                <button class="act-btn act-blue" @click="openEditItem(item)">Edit</button>
+                                <button class="act-btn act-red" @click="deleteItem(item)">Del</button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr v-if="!sortedItems.length">
+                        <td colspan="8" class="empty-row">
+                            <svg width="40" height="40" fill="none" stroke="#cbd5e1" viewBox="0 0 24 24" style="margin-bottom:8px;display:block;margin-inline:auto;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.4" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7"/></svg>
+                            No items yet. Add your first item to start tracking stock.
+                        </td>
+                    </tr>
+                </tbody>
+                <tfoot v-if="sortedItems.length">
+                    <tr>
+                        <td colspan="6" style="text-align:right;font-weight:700;">Total Stock Value</td>
+                        <td style="text-align:right;font-weight:800;color:#1e293b;">₹{{ fmt(totalValue) }}</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </Table>
         </div>
 
         <!-- Add / Edit Item Modal -->
@@ -320,13 +334,8 @@ const showTxnModal = computed({
 .stat-sub   { font-size:.72rem;color:#94a3b8;margin-top:2px; }
 
 .card { background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05); }
-.inv-table { width:100%;border-collapse:collapse; }
-.inv-table th { padding:11px 16px;text-align:left;font-size:.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;background:#f8fafc;border-bottom:1px solid #e2e8f0;white-space:nowrap; }
-.inv-table td { padding:12px 16px;border-bottom:1px solid #f1f5f9;vertical-align:middle; }
-.inv-table tr:last-child td { border-bottom:none; }
-.inv-table tr:hover td { background:#fafbff; }
-.inv-table tfoot td { background:#f8fafc;border-top:2px solid #e2e8f0;border-bottom:none; }
-.row-low td { background:rgba(239,68,68,.04); }
+:deep(tfoot td) { background:#f8fafc;border-top:2px solid #e2e8f0;border-bottom:none !important; }
+.row-low :deep(td) { background:rgba(239,68,68,.04); }
 
 .act-btn { font-size:.72rem;font-weight:600;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;transition:opacity .15s;white-space:nowrap; }
 .act-btn:hover { opacity:.8; }

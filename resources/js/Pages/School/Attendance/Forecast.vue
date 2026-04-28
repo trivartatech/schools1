@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import Table from '@/Components/ui/Table.vue';
 import { Line } from 'vue-chartjs';
 import {
     Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -200,37 +201,34 @@ const lastSevenAvg = computed(() => {
             <div class="card-header">
                 <span class="card-title">Daily Breakdown</span>
             </div>
-            <div style="overflow-x:auto;">
-                <table style="width:100%;border-collapse:collapse;font-size:.8125rem;">
-                    <thead>
-                        <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
-                            <th style="padding:10px 16px;text-align:left;color:#475569;font-weight:600;">Date</th>
-                            <th style="padding:10px 16px;text-align:right;color:#475569;font-weight:600;">Present</th>
-                            <th style="padding:10px 16px;text-align:right;color:#475569;font-weight:600;">Absent</th>
-                            <th style="padding:10px 16px;text-align:right;color:#475569;font-weight:600;">Total</th>
-                            <th style="padding:10px 16px;text-align:right;color:#475569;font-weight:600;">Rate</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="h in [...historical].reverse()" :key="h.date"
-                            style="border-bottom:1px solid #f1f5f9;">
-                            <td style="padding:9px 16px;color:#1e293b;font-weight:500;">{{ h.date }}</td>
-                            <td style="padding:9px 16px;text-align:right;color:#16a34a;">{{ h.present }}</td>
-                            <td style="padding:9px 16px;text-align:right;color:#dc2626;">{{ h.absent }}</td>
-                            <td style="padding:9px 16px;text-align:right;color:#475569;">{{ h.total }}</td>
-                            <td style="padding:9px 16px;text-align:right;">
-                                <span :style="{
-                                    fontWeight: 600,
-                                    color: h.rate >= 85 ? '#16a34a' : h.rate >= 70 ? '#d97706' : '#dc2626'
-                                }">{{ h.rate !== null ? h.rate + '%' : '—' }}</span>
-                            </td>
-                        </tr>
-                        <tr v-if="historical.length === 0">
-                            <td colspan="5" style="padding:40px;text-align:center;color:#94a3b8;">No data</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+            <Table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th style="text-align:right;">Present</th>
+                        <th style="text-align:right;">Absent</th>
+                        <th style="text-align:right;">Total</th>
+                        <th style="text-align:right;">Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="h in [...historical].reverse()" :key="h.date">
+                        <td style="font-weight:500;color:#1e293b;">{{ h.date }}</td>
+                        <td style="text-align:right;color:#16a34a;">{{ h.present }}</td>
+                        <td style="text-align:right;color:#dc2626;">{{ h.absent }}</td>
+                        <td style="text-align:right;">{{ h.total }}</td>
+                        <td style="text-align:right;">
+                            <span :style="{
+                                fontWeight: 600,
+                                color: h.rate >= 85 ? '#16a34a' : h.rate >= 70 ? '#d97706' : '#dc2626'
+                            }">{{ h.rate !== null ? h.rate + '%' : '—' }}</span>
+                        </td>
+                    </tr>
+                    <tr v-if="historical.length === 0">
+                        <td colspan="5" style="padding:40px;text-align:center;color:#94a3b8;">No data</td>
+                    </tr>
+                </tbody>
+            </Table>
         </div>
 
     </SchoolLayout>

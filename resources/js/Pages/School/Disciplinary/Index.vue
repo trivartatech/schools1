@@ -6,6 +6,9 @@ import PageHeader from '@/Components/ui/PageHeader.vue';
 import StatsRow from '@/Components/ui/StatsRow.vue';
 import EmptyState from '@/Components/ui/EmptyState.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
+import Table from '@/Components/ui/Table.vue';
+import SortableTh from '@/Components/ui/SortableTh.vue';
+import { useTableSort } from '@/Composables/useTableSort';
 import { useForm, router } from '@inertiajs/vue3';
 import { ref, reactive, computed, watchEffect } from 'vue';
 import { useConfirm } from '@/Composables/useConfirm';
@@ -238,6 +241,16 @@ const statCards = computed(() => [
     { label: 'This Month',       value: props.summary.this_month, color: 'purple' },
     { label: 'Major Incidents',  value: props.summary.major,      color: 'danger' },
 ]);
+
+// ── Table sorting ────────────────────────────────────────────────────────────
+const { sortKey, sortDir, toggleSort, sortRows } = useTableSort('incident_date', 'desc');
+const sortedRecords = computed(() => sortRows(props.records.data || [], {
+    getValue: (row, key) => {
+        if (key === 'student_name') return `${row.student?.first_name ?? ''} ${row.student?.last_name ?? ''}`.trim();
+        if (key === 'reported_by') return row.reported_by?.name ?? '';
+        return row[key];
+    },
+}));
 </script>
 
 <template>
@@ -281,54 +294,52 @@ const statCards = computed(() => [
 
             <!-- Records table -->
             <div class="card" style="overflow:hidden;">
-                <div style="overflow-x:auto;">
-                    <table class="disc-table">
-                        <thead>
-                            <tr>
-                                <th>Student</th>
-                                <th>Date</th>
-                                <th>Category</th>
-                                <th>Severity</th>
-                                <th>Status</th>
-                                <th>Consequence</th>
-                                <th>Reported By</th>
-                                <th style="text-align:right;">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="r in records.data" :key="r.id">
-                                <td>
-                                    <div style="font-weight:600;color:#1e293b;">{{ r.student?.first_name }} {{ r.student?.last_name }}</div>
-                                    <div style="font-size:.72rem;color:#94a3b8;">{{ r.student?.admission_no }}</div>
-                                </td>
-                                <td style="white-space:nowrap;color:#475569;">{{ fmtDate(r.incident_date) }}</td>
-                                <td style="color:#475569;">{{ fmtCategory(r.category) }}</td>
-                                <td>
-                                    <span class="sev-badge" :style="{ background: severityColor[r.severity] + '18', color: severityColor[r.severity] }">{{ r.severity }}</span>
-                                </td>
-                                <td><span class="badge" :class="statusBadge[r.status]" style="text-transform:capitalize;">{{ r.status?.replace('_', ' ') }}</span></td>
-                                <td style="text-transform:capitalize;font-size:.82rem;color:#64748b;">{{ r.consequence ? r.consequence.replace('_', ' ') : '—' }}</td>
-                                <td style="font-size:.82rem;color:#64748b;">{{ r.reported_by?.name || '—' }}</td>
-                                <td style="text-align:right;">
-                                    <div style="display:inline-flex;gap:6px;">
-                                        <Button variant="secondary" size="xs" @click="openEdit(r)">Edit</Button>
-                                        <Button variant="danger" size="xs" @click="deleteRecord(r.id)">Del</Button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr v-if="!records.data?.length">
-                                <td colspan="8" style="padding:0;">
-                                    <EmptyState
-                                        title="No records found"
-                                        description="No disciplinary records match the selected filters."
-                                        action-label="+ Add Record"
-                                        @action="openAdd"
-                                    />
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                <Table :sort-key="sortKey" :sort-dir="sortDir" @sort="toggleSort">
+                    <thead>
+                        <tr>
+                            <SortableTh sort-key="student_name">Student</SortableTh>
+                            <SortableTh sort-key="incident_date">Date</SortableTh>
+                            <SortableTh sort-key="category">Category</SortableTh>
+                            <SortableTh sort-key="severity">Severity</SortableTh>
+                            <SortableTh sort-key="status">Status</SortableTh>
+                            <SortableTh sort-key="consequence">Consequence</SortableTh>
+                            <SortableTh sort-key="reported_by">Reported By</SortableTh>
+                            <th style="text-align:right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="r in sortedRecords" :key="r.id">
+                            <td>
+                                <div style="font-weight:600;color:#1e293b;">{{ r.student?.first_name }} {{ r.student?.last_name }}</div>
+                                <div style="font-size:.72rem;color:#94a3b8;">{{ r.student?.admission_no }}</div>
+                            </td>
+                            <td style="white-space:nowrap;">{{ fmtDate(r.incident_date) }}</td>
+                            <td>{{ fmtCategory(r.category) }}</td>
+                            <td>
+                                <span class="sev-badge" :style="{ background: severityColor[r.severity] + '18', color: severityColor[r.severity] }">{{ r.severity }}</span>
+                            </td>
+                            <td><span class="badge" :class="statusBadge[r.status]" style="text-transform:capitalize;">{{ r.status?.replace('_', ' ') }}</span></td>
+                            <td style="text-transform:capitalize;">{{ r.consequence ? r.consequence.replace('_', ' ') : '—' }}</td>
+                            <td>{{ r.reported_by?.name || '—' }}</td>
+                            <td style="text-align:right;">
+                                <div style="display:inline-flex;gap:6px;">
+                                    <Button variant="secondary" size="xs" @click="openEdit(r)">Edit</Button>
+                                    <Button variant="danger" size="xs" @click="deleteRecord(r.id)">Del</Button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr v-if="!sortedRecords.length">
+                            <td colspan="8" style="padding:0;">
+                                <EmptyState
+                                    title="No records found"
+                                    description="No disciplinary records match the selected filters."
+                                    action-label="+ Add Record"
+                                    @action="openAdd"
+                                />
+                            </td>
+                        </tr>
+                    </tbody>
+                </Table>
             </div>
         </template>
 
@@ -621,19 +632,6 @@ const statCards = computed(() => [
 
 <style scoped>
 /* ── Records table ── */
-.disc-table { width:100%;border-collapse:collapse; }
-.disc-table th {
-    padding:11px 16px;background:#f8fafc;border-bottom:2px solid #e2e8f0;
-    font-size:.72rem;font-weight:700;color:#64748b;text-transform:uppercase;
-    letter-spacing:.04em;text-align:left;white-space:nowrap;
-}
-.disc-table td {
-    padding:13px 16px;border-bottom:1px solid #f1f5f9;
-    vertical-align:middle;
-}
-.disc-table tbody tr:hover { background:#f8fafc; }
-.disc-table tbody tr:last-child td { border-bottom:none; }
-
 .sev-badge {
     display:inline-block;padding:3px 10px;border-radius:20px;
     font-size:.75rem;font-weight:600;text-transform:capitalize;

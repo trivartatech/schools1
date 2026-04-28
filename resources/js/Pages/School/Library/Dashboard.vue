@@ -1,7 +1,11 @@
 <script setup>
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import Table from '@/Components/ui/Table.vue';
+import SortableTh from '@/Components/ui/SortableTh.vue';
+import { useTableSort } from '@/Composables/useTableSort';
 import { Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 const props = defineProps({
     stats: Object,
@@ -9,6 +13,19 @@ const props = defineProps({
 });
 
 const fmt = (n) => Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+
+const { sortKey, sortDir, toggleSort, sortRows } = useTableSort('issue_date', 'desc');
+const sortedIssues = computed(() => sortRows(props.recentIssues || [], {
+    getValue: (row, key) => {
+        if (key === 'book_title') return row.book?.title ?? '';
+        if (key === 'borrower') {
+            return row.borrower_type === 'student'
+                ? `${row.student?.first_name ?? ''} ${row.student?.last_name ?? ''}`.trim()
+                : row.staff?.user?.name ?? '';
+        }
+        return row[key];
+    },
+}));
 </script>
 
 <template>
@@ -60,46 +77,44 @@ const fmt = (n) => Number(n || 0).toLocaleString('en-IN', { minimumFractionDigit
                 <span class="card-title">Recent Issues</span>
                 <Link href="/school/library/issues" style="font-size:.8rem;color:#3b82f6;">View All</Link>
             </div>
-            <div style="overflow-x:auto;">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Book</th>
-                            <th>Borrower</th>
-                            <th>Issue Date</th>
-                            <th>Due Date</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="issue in recentIssues" :key="issue.id">
-                            <td>
-                                <div style="font-weight:500;">{{ issue.book?.title }}</div>
-                                <div style="font-size:.75rem;color:#94a3b8;">{{ issue.book?.author }}</div>
-                            </td>
-                            <td>
-                                <span v-if="issue.borrower_type === 'student'">
-                                    {{ issue.student?.first_name }} {{ issue.student?.last_name }}
-                                </span>
-                                <span v-else>{{ issue.staff?.user?.name }}</span>
-                            </td>
-                            <td>{{ issue.issue_date?.slice(0,10) }}</td>
-                            <td>{{ issue.due_date?.slice(0,10) }}</td>
-                            <td>
-                                <span class="badge" :class="{
-                                    'badge-green': issue.status === 'returned',
-                                    'badge-amber': issue.status === 'issued',
-                                    'badge-red':   issue.status === 'overdue',
-                                    'badge-gray':  issue.status === 'lost',
-                                }">{{ issue.status }}</span>
-                            </td>
-                        </tr>
-                        <tr v-if="!recentIssues?.length">
-                            <td colspan="5" style="text-align:center;padding:32px;color:#94a3b8;">No issues yet.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+            <Table :sort-key="sortKey" :sort-dir="sortDir" @sort="toggleSort">
+                <thead>
+                    <tr>
+                        <SortableTh sort-key="book_title">Book</SortableTh>
+                        <SortableTh sort-key="borrower">Borrower</SortableTh>
+                        <SortableTh sort-key="issue_date">Issue Date</SortableTh>
+                        <SortableTh sort-key="due_date">Due Date</SortableTh>
+                        <SortableTh sort-key="status">Status</SortableTh>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="issue in sortedIssues" :key="issue.id">
+                        <td>
+                            <div style="font-weight:500;">{{ issue.book?.title }}</div>
+                            <div style="font-size:.75rem;color:#94a3b8;">{{ issue.book?.author }}</div>
+                        </td>
+                        <td>
+                            <span v-if="issue.borrower_type === 'student'">
+                                {{ issue.student?.first_name }} {{ issue.student?.last_name }}
+                            </span>
+                            <span v-else>{{ issue.staff?.user?.name }}</span>
+                        </td>
+                        <td>{{ issue.issue_date?.slice(0,10) }}</td>
+                        <td>{{ issue.due_date?.slice(0,10) }}</td>
+                        <td>
+                            <span class="badge" :class="{
+                                'badge-green': issue.status === 'returned',
+                                'badge-amber': issue.status === 'issued',
+                                'badge-red':   issue.status === 'overdue',
+                                'badge-gray':  issue.status === 'lost',
+                            }">{{ issue.status }}</span>
+                        </td>
+                    </tr>
+                    <tr v-if="!sortedIssues.length">
+                        <td colspan="5" style="text-align:center;padding:32px;color:#94a3b8;">No issues yet.</td>
+                    </tr>
+                </tbody>
+            </Table>
         </div>
     </SchoolLayout>
 </template>
