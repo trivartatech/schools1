@@ -590,6 +590,9 @@ class StudentController extends Controller
             'mother_occupation'        => 'nullable|string|max:255',
             'mother_qualification'     => 'nullable|string|max:100',
             'parent_address'           => 'nullable|string',
+
+            // Academic-history override (persisted on the current year's row)
+            'student_type'             => 'nullable|in:New Student,Old Student',
         ]);
 
         $updateData = [
@@ -660,6 +663,18 @@ class StudentController extends Controller
             }
         } elseif ($student->studentParent) {
             $student->studentParent->update($parentData);
+        }
+
+        // Persist student_type override on the current academic-history row.
+        // This is what the runtime fee resolver reads; the column on `students`
+        // doesn't exist, so the value has to live on the per-year history row.
+        if (array_key_exists('student_type', $validated) && $validated['student_type'] !== null) {
+            $academicYearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
+            if ($academicYearId) {
+                StudentAcademicHistory::where('student_id', $student->id)
+                    ->where('academic_year_id', $academicYearId)
+                    ->update(['student_type' => $validated['student_type']]);
+            }
         }
 
         return redirect()->route('school.students.show', $student->id)->with('success', 'Student details updated successfully.');

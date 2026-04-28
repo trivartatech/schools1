@@ -15,6 +15,7 @@ const form = useForm({
     // Academic
     class_id: '',
     section_id: '',
+    student_type: 'New Student',
 
     // Student
     first_name: '',
@@ -143,7 +144,7 @@ const submit = () => {
                     </div>
                 </div>
                 <div class="card-body">
-                    <div class="form-row form-row-2">
+                    <div class="form-row form-row-3">
                         <div class="form-field">
                             <label>Class <span class="required">*</span></label>
                             <select v-model="form.class_id" @change="onClassChange" required>
@@ -161,6 +162,16 @@ const submit = () => {
                             </select>
                             <span v-if="sectionFetchError" class="form-error">{{ sectionFetchError }}</span>
                             <span v-else-if="form.errors.section_id" class="form-error">{{ form.errors.section_id }}</span>
+                        </div>
+
+                        <div class="form-field">
+                            <label>Student Type</label>
+                            <select v-model="form.student_type">
+                                <option value="New Student">New Student</option>
+                                <option value="Old Student">Old Student</option>
+                            </select>
+                            <span class="field-hint">Used for fee-rule matching ("New only" / "Old only" structures).</span>
+                            <span v-if="form.errors.student_type" class="form-error">{{ form.errors.student_type }}</span>
                         </div>
                     </div>
                 </div>

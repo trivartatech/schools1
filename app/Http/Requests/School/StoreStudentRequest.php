@@ -20,6 +20,7 @@ class StoreStudentRequest extends FormRequest
             // Academic — scoped to current school to prevent cross-tenant FK injection
             'class_id'   => ['required', Rule::exists('course_classes', 'id')->where('school_id', $schoolId)],
             'section_id' => ['required', Rule::exists('sections', 'id')->where('school_id', $schoolId)],
+            'student_type' => 'nullable|in:New Student,Old Student',
 
             // Student Personal
             'first_name'               => 'required|string|max:255',

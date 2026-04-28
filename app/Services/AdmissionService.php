@@ -162,6 +162,7 @@ class AdmissionService
                 'class_id' => $data['class_id'],
                 'section_id' => $data['section_id'] ?? null,
                 'status' => 'current',
+                'student_type' => $data['student_type'] ?? 'New Student',
             ]);
 
             // 7. Auto-add to section chat group

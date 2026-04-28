@@ -51,6 +51,9 @@ const form = useForm({
     guardian_phone: props.student.student_parent?.guardian_phone || '',
     father_qualification: props.student.student_parent?.father_qualification || '',
     mother_qualification: props.student.student_parent?.mother_qualification || '',
+
+    // Academic-history override (persisted on the current year's row)
+    student_type: props.student.current_academic_history?.student_type || 'New Student',
 });
 
 const submit = () => {
@@ -104,6 +107,19 @@ const submit = () => {
                             <span v-if="form.errors.admission_no" class="form-error">{{ form.errors.admission_no }}</span>
                         </div>
                         <span class="admission-hint">Must be unique across the school</span>
+                    </div>
+
+                    <!-- Student Type — overrides the count-based new/old classification -->
+                    <div class="form-row form-row-3" style="margin-bottom: 1rem;">
+                        <div class="form-field">
+                            <label>Student Type</label>
+                            <select v-model="form.student_type">
+                                <option value="New Student">New Student</option>
+                                <option value="Old Student">Old Student</option>
+                            </select>
+                            <span class="field-hint" style="font-size:.7rem;color:#6b7280;">Drives fee-rule matching for this academic year ("New only" / "Old only" structures).</span>
+                            <span v-if="form.errors.student_type" class="form-error">{{ form.errors.student_type }}</span>
+                        </div>
                     </div>
 
                     <div class="form-row form-row-3">

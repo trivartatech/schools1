@@ -391,7 +391,7 @@ function submitAssignHostel() {
                                 </div>
                                 <div class="info-field">
                                     <p class="info-label">Student Type</p>
-                                    <span class="info-value">{{ student.student_type ?? 'Old Student' }}</span>
+                                    <span class="info-value">{{ student.current_academic_history?.student_type || '—' }}</span>
                                 </div>
                                 <div class="info-field">
                                     <p class="info-label">Father Name</p>
