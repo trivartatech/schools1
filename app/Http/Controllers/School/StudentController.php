@@ -322,6 +322,7 @@ class StudentController extends Controller
             'transportAllocation.route.stops',
             'transportAllocation.stop',
             'transportAllocation.vehicle',
+            'hostelAllocation.bed.room.hostel',
         ]);
 
         $schoolId = app('current_school_id');
@@ -485,6 +486,21 @@ class StudentController extends Controller
         $standardMonths  = (float) ($school?->settings['transport_standard_months'] ?? 10);
         if ($standardMonths <= 0) $standardMonths = 10.0;
 
+        // Hostel: available beds (status=Available) flattened with hostel/room context,
+        // for the inline "Assign Hostel" form on the empty-state.
+        $availableHostelBeds = \App\Models\HostelBed::where('school_id', $schoolId)
+            ->where('status', 'Available')
+            ->with(['room:id,room_number,hostel_id,cost_per_month', 'room.hostel:id,name'])
+            ->get(['id', 'name', 'hostel_room_id', 'status'])
+            ->map(fn($b) => [
+                'id'             => $b->id,
+                'name'           => $b->name,
+                'room_number'    => $b->room?->room_number,
+                'cost_per_month' => (float) ($b->room?->cost_per_month ?? 0),
+                'hostel_name'    => $b->room?->hostel?->name,
+                'hostel_id'      => $b->room?->hostel_id,
+            ])->values();
+
         return Inertia::render('School/Students/Show', [
             'student'             => $student,
             'attendanceSummary'   => $attendanceSummary,
@@ -497,6 +513,7 @@ class StudentController extends Controller
             'feePayments'         => $feePayments,
             'transportRoutes'     => $transportRoutes,
             'standardMonths'      => $standardMonths,
+            'availableHostelBeds' => $availableHostelBeds,
         ]);
     }
 

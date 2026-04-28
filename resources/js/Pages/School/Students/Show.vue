@@ -30,6 +30,7 @@ const props = defineProps({
     feePayments:        { type: Array, default: () => [] },
     transportRoutes:    { type: Array,  default: () => [] },
     standardMonths:     { type: Number, default: 10 },
+    availableHostelBeds:{ type: Array,  default: () => [] },
 });
 
 // ── Date Formatting ───────────────────────────────────────────────────────────
@@ -49,6 +50,7 @@ const tabs = [
     { key: 'exam',        label: 'Exam Report', icon: '📝' },
     { key: 'documents',   label: 'Document',    icon: '📄' },
     { key: 'transport',   label: 'Transport',   icon: '🚌' },
+    { key: 'hostel',      label: 'Hostel',      icon: '🏠' },
 ];
 
 // ── Inline Admission No Edit ──────────────────────────────────────────────────
@@ -219,6 +221,57 @@ function submitAssignTransport() {
         preserveScroll: true,
         onSuccess: () => { showAssignTransport.value = false; },
     });
+}
+
+// ── Inline Assign Hostel (shown when student has no allocation) ───────────────
+const showAssignHostel = ref(false);
+const assignHostelForm = useForm({
+    student_id:        props.student.id,
+    hostel_bed_id:     '',
+    admission_date:    new Date().toISOString().slice(0, 10),
+    guardian_name:     '',
+    guardian_phone:    '',
+    guardian_relation: '',
+    medical_info:      '',
+    mess_type:         'Veg',
+    months_opted:      '',
+});
+
+const selectedHostelBed = computed(() =>
+    props.availableHostelBeds.find(b => b.id == assignHostelForm.hostel_bed_id)
+);
+
+const computedHostelFee = computed(() => {
+    const cost   = Number(selectedHostelBed.value?.cost_per_month || 0);
+    const months = Number(assignHostelForm.months_opted || 0);
+    if (!cost || !months) return 0;
+    return Math.round(cost * months * 100) / 100;
+});
+
+function openAssignHostel() {
+    // Pre-fill guardian info from the parent record if available.
+    const p = props.student.student_parent;
+    if (p) {
+        assignHostelForm.guardian_name = p.guardian_name || p.father_name || p.mother_name || '';
+        assignHostelForm.guardian_phone = p.primary_phone || p.father_phone || '';
+        assignHostelForm.guardian_relation = p.guardian_name ? 'Guardian' : (p.father_name ? 'Father' : 'Mother');
+    }
+    showAssignHostel.value = true;
+}
+
+function submitAssignHostel() {
+    assignHostelForm
+        .transform((data) => ({
+            ...data,
+            // Empty input would fail `nullable|numeric` validation; send null instead.
+            months_opted: data.months_opted === '' || data.months_opted === null
+                ? null
+                : Number(data.months_opted),
+        }))
+        .post('/school/hostel/allocations', {
+            preserveScroll: true,
+            onSuccess: () => { showAssignHostel.value = false; },
+        });
 }
 </script>
 
@@ -1135,6 +1188,202 @@ function submitAssignTransport() {
                                             :loading="assignForm.processing"
                                             :disabled="assignForm.processing || assignTermTooShort || assignMonthsOpted === 0 || !assignForm.route_id || !assignForm.stop_id">
                                         {{ assignForm.processing ? 'Assigning…' : 'Assign Transport' }}
+                                    </Button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ─── TAB: HOSTEL ────────────────────────────────────────── -->
+                <div v-if="activeTab === 'hostel'">
+                    <div class="card">
+                        <div class="card-header" style="gap:0.5rem;flex-wrap:wrap;">
+                            <span class="card-title">Hostel Details</span>
+                            <div style="display:flex;gap:0.5rem;margin-left:auto;flex-wrap:wrap;">
+                                <Button v-if="student.hostel_allocation" size="sm" as="a"
+                                        :href="`/school/hostel/fees/${student.hostel_allocation.id}`">
+                                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-right:4px;">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
+                                    </svg>
+                                    Collect Fee
+                                </Button>
+                                <Button variant="secondary" size="sm" as="a" href="/school/hostel/allocations">Manage Allocations</Button>
+                            </div>
+                        </div>
+                        <div class="card-body" v-if="student.hostel_allocation">
+                            <div class="transport-banner">
+                                <div class="transport-banner-icon">
+                                    <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div class="transport-route-name">{{ student.hostel_allocation.bed?.room?.hostel?.name ?? '—' }}</div>
+                                    <div class="transport-route-meta">
+                                        <span v-if="student.hostel_allocation.bed?.room?.room_number">Room {{ student.hostel_allocation.bed.room.room_number }}</span>
+                                        <span v-if="student.hostel_allocation.bed?.name"> · {{ student.hostel_allocation.bed.name }}</span>
+                                    </div>
+                                </div>
+                                <div style="margin-left:auto;display:flex;gap:0.375rem;align-items:center;flex-wrap:wrap;">
+                                    <span :class="['badge', student.hostel_allocation.status === 'Active' ? 'badge-green' : 'badge-gray']">
+                                        {{ student.hostel_allocation.status }}
+                                    </span>
+                                    <span :class="[
+                                        'badge',
+                                        student.hostel_allocation.payment_status === 'paid'    ? 'badge-green' :
+                                        student.hostel_allocation.payment_status === 'partial' ? 'badge-yellow' :
+                                        student.hostel_allocation.payment_status === 'waived'  ? 'badge-gray'   : 'badge-red'
+                                    ]" style="text-transform:capitalize;">
+                                        {{ student.hostel_allocation.payment_status }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="transport-grid">
+                                <div class="transport-field">
+                                    <div class="transport-field-label">Hostel</div>
+                                    <div class="transport-field-value">{{ student.hostel_allocation.bed?.room?.hostel?.name ?? '—' }}</div>
+                                </div>
+                                <div class="transport-field">
+                                    <div class="transport-field-label">Room Number</div>
+                                    <div class="transport-field-value">{{ student.hostel_allocation.bed?.room?.room_number ?? '—' }}</div>
+                                </div>
+                                <div class="transport-field">
+                                    <div class="transport-field-label">Bed</div>
+                                    <div class="transport-field-value">{{ student.hostel_allocation.bed?.name ?? '—' }}</div>
+                                </div>
+                                <div class="transport-field">
+                                    <div class="transport-field-label">Mess Type</div>
+                                    <div class="transport-field-value">{{ student.hostel_allocation.mess_type ?? '—' }}</div>
+                                </div>
+                                <div class="transport-field">
+                                    <div class="transport-field-label">Cost / Month</div>
+                                    <div class="transport-field-value">₹{{ student.hostel_allocation.bed?.room?.cost_per_month ?? '0' }}</div>
+                                </div>
+                                <div class="transport-field">
+                                    <div class="transport-field-label">Hostel Fee Total</div>
+                                    <div class="transport-field-value">₹{{ student.hostel_allocation.hostel_fee ?? '0' }}</div>
+                                </div>
+                                <div class="transport-field">
+                                    <div class="transport-field-label">Paid</div>
+                                    <div class="transport-field-value" style="color:#059669;">₹{{ student.hostel_allocation.amount_paid ?? '0' }}</div>
+                                </div>
+                                <div class="transport-field">
+                                    <div class="transport-field-label">Outstanding</div>
+                                    <div class="transport-field-value" :style="Number(student.hostel_allocation.balance) > 0 ? 'color:#dc2626;font-weight:600;' : 'color:#6b7280;'">
+                                        ₹{{ student.hostel_allocation.balance ?? '0' }}
+                                    </div>
+                                </div>
+                                <div class="transport-field">
+                                    <div class="transport-field-label">Months Opted</div>
+                                    <div class="transport-field-value">{{ student.hostel_allocation.months_opted ?? '—' }}</div>
+                                </div>
+                                <div class="transport-field">
+                                    <div class="transport-field-label">Admission Date</div>
+                                    <div class="transport-field-value">{{ student.hostel_allocation.admission_date ?? '—' }}</div>
+                                </div>
+                                <div class="transport-field" v-if="student.hostel_allocation.guardian_name">
+                                    <div class="transport-field-label">Guardian</div>
+                                    <div class="transport-field-value">
+                                        {{ student.hostel_allocation.guardian_name }}
+                                        <span v-if="student.hostel_allocation.guardian_phone" style="color:#6b7280;font-size:0.78rem;">
+                                            · {{ student.hostel_allocation.guardian_phone }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="transport-field" v-if="student.hostel_allocation.vacate_date">
+                                    <div class="transport-field-label">Vacate Date</div>
+                                    <div class="transport-field-value">{{ student.hostel_allocation.vacate_date }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body" v-else>
+                            <!-- Empty state (before user clicks "Assign Hostel") -->
+                            <div v-if="!showAssignHostel" class="empty-state">
+                                <svg class="w-12 h-12 empty-state-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                                </svg>
+                                <p class="empty-state-title">No hostel allocated</p>
+                                <p class="empty-state-sub">This student is not assigned to any hostel bed.</p>
+                                <Button v-if="availableHostelBeds.length" size="sm" @click="openAssignHostel" class="mt-2.5">
+                                    Assign Hostel Bed
+                                </Button>
+                                <p v-else class="empty-state-sub" style="margin-top:8px;">
+                                    No available beds. Add hostels and rooms in the Hostel module first.
+                                </p>
+                            </div>
+
+                            <!-- Inline Assign Hostel form -->
+                            <form v-else @submit.prevent="submitAssignHostel" class="assign-transport-form">
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                                    <h4 style="font-size:0.95rem;font-weight:600;color:#111827;margin:0;">Assign Hostel Bed</h4>
+                                    <Button variant="secondary" size="xs" type="button" @click="showAssignHostel = false">Cancel</Button>
+                                </div>
+
+                                <div v-if="Object.keys(assignHostelForm.errors).length" style="background:#fef2f2;border:1px solid #fecaca;border-radius:0.5rem;padding:0.65rem 0.9rem;margin-bottom:12px;">
+                                    <p v-for="(msg, key) in assignHostelForm.errors" :key="key" style="font-size:0.8rem;color:#dc2626;margin:0.1rem 0;">{{ Array.isArray(msg) ? msg[0] : msg }}</p>
+                                </div>
+
+                                <div class="form-row form-row-3">
+                                    <div class="form-field">
+                                        <label>Available Bed *</label>
+                                        <select v-model="assignHostelForm.hostel_bed_id" required>
+                                            <option value="">— Select Bed —</option>
+                                            <option v-for="b in availableHostelBeds" :key="b.id" :value="b.id">
+                                                {{ b.hostel_name }} / Rm {{ b.room_number }} / {{ b.name }}{{ b.cost_per_month ? ' — ₹' + b.cost_per_month + '/mo' : '' }}
+                                            </option>
+                                        </select>
+                                    </div>
+                                    <div class="form-field">
+                                        <label>Mess Type *</label>
+                                        <select v-model="assignHostelForm.mess_type" required>
+                                            <option value="Veg">Veg</option>
+                                            <option value="Non-Veg">Non-Veg</option>
+                                            <option value="Custom">Custom</option>
+                                            <option value="None">None</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-field">
+                                        <label>Months Opted</label>
+                                        <input v-model.number="assignHostelForm.months_opted" type="number" min="0" max="24" step="0.5" placeholder="auto">
+                                        <span class="field-hint" style="color:#94a3b8;">Blank = until academic year end</span>
+                                    </div>
+                                </div>
+
+                                <div class="form-row form-row-2" style="margin-top:0.75rem;">
+                                    <div class="form-field">
+                                        <label>Admission Date *</label>
+                                        <input v-model="assignHostelForm.admission_date" type="date" required>
+                                    </div>
+                                    <div class="form-field" v-if="selectedHostelBed">
+                                        <label>Estimated Hostel Fee</label>
+                                        <div style="padding:0.5rem 0.75rem;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:0.5rem;font-size:0.9rem;color:#065f46;line-height:1.45;">
+                                            <div><strong style="font-size:1rem;">₹{{ computedHostelFee || 'auto' }}</strong></div>
+                                            <div style="font-size:0.75rem;color:#047857;">
+                                                {{ selectedHostelBed.cost_per_month }} × {{ assignHostelForm.months_opted || '?' }} months
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-row form-row-2" style="margin-top:0.75rem;">
+                                    <div class="form-field">
+                                        <label>Guardian Name</label>
+                                        <input v-model="assignHostelForm.guardian_name">
+                                    </div>
+                                    <div class="form-field">
+                                        <label>Guardian Phone</label>
+                                        <input v-model="assignHostelForm.guardian_phone">
+                                    </div>
+                                </div>
+
+                                <div style="display:flex;justify-content:flex-end;gap:0.75rem;margin-top:14px;padding-top:12px;border-top:1px solid #e5e7eb;">
+                                    <Button variant="secondary" type="button" @click="showAssignHostel = false">Cancel</Button>
+                                    <Button type="submit"
+                                            :loading="assignHostelForm.processing"
+                                            :disabled="assignHostelForm.processing || !assignHostelForm.hostel_bed_id">
+                                        {{ assignHostelForm.processing ? 'Assigning…' : 'Assign Hostel Bed' }}
                                     </Button>
                                 </div>
                             </form>
