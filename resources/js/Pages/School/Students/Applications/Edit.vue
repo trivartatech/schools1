@@ -15,6 +15,7 @@ const form = useForm({
     _method:            'PUT',
     class_id:           props.application.class_id       ?? '',
     section_id:         props.application.section_id     ?? '',
+    student_type:       props.application.student_type   ?? 'New Student',
     first_name:         props.application.first_name     ?? '',
     last_name:          props.application.last_name      ?? '',
     dob:                props.application.dob            ?? '',
@@ -123,7 +124,7 @@ const submit = () => {
                 <!-- Class Assignment -->
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                     <h3 class="text-base font-bold text-gray-800 mb-4 pb-2 border-b">Class Assignment</h3>
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Class *</label>
                             <select v-model="form.class_id" @change="fetchSections"
@@ -141,6 +142,16 @@ const submit = () => {
                                 <option value="">Select Section</option>
                                 <option v-for="s in sections" :key="s.id" :value="s.id">{{ s.name }}</option>
                             </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Student Type</label>
+                            <select v-model="form.student_type"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none bg-white">
+                                <option value="New Student">New Student</option>
+                                <option value="Old Student">Old Student</option>
+                            </select>
+                            <p class="text-xs text-gray-400 mt-1">Drives fee-rule matching for this academic year.</p>
+                            <p v-if="form.errors.student_type" class="text-xs text-red-500 mt-1">{{ form.errors.student_type }}</p>
                         </div>
                     </div>
                 </div>

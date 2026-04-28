@@ -12,6 +12,7 @@ class StudentApplication extends Model
 
     protected $fillable = [
         'school_id', 'academic_year_id', 'class_id', 'section_id',
+        'student_type',
         'transport_route_id', 'transport_stop_id', 'transport_pickup_type',
         'transport_months', 'transport_days',
         'reg_no',

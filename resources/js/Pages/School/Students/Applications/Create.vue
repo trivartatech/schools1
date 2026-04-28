@@ -11,7 +11,7 @@ const props = defineProps({
 });
 
 const form = useForm({
-    class_id: '', section_id: '',
+    class_id: '', section_id: '', student_type: 'New Student',
     first_name: '', last_name: '', dob: '', birth_place: '', mother_tongue: '',
     gender: 'Male', blood_group: '', religion: '', caste: '', category: '', aadhaar_no: '',
     photo: null, student_address: '',
@@ -107,7 +107,7 @@ const submit = () => {
                     </div>
                 </div>
                 <div class="card-body">
-                    <div class="form-row form-row-2">
+                    <div class="form-row form-row-3">
                         <div class="form-field">
                             <label>Class <span class="req">*</span></label>
                             <select v-model="form.class_id" @change="fetchSections" required>
@@ -122,6 +122,15 @@ const submit = () => {
                                 <option value="">{{ isFetchingSections ? 'Loading…' : 'Select Section' }}</option>
                                 <option v-for="s in sections" :key="s.id" :value="s.id">{{ s.name }}</option>
                             </select>
+                        </div>
+                        <div class="form-field">
+                            <label>Student Type</label>
+                            <select v-model="form.student_type">
+                                <option value="New Student">New Student</option>
+                                <option value="Old Student">Old Student</option>
+                            </select>
+                            <span class="field-hint" style="font-size:.7rem;color:#6b7280;">Drives fee-rule matching ("New only" / "Old only" structures).</span>
+                            <span v-if="form.errors.student_type" class="form-error">{{ form.errors.student_type }}</span>
                         </div>
                     </div>
                 </div>

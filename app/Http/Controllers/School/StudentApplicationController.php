@@ -74,6 +74,7 @@ class StudentApplicationController extends Controller
         $validated = $request->validate([
             'class_id'          => ['required', Rule::exists('course_classes', 'id')->where('school_id', $schoolId)],
             'section_id'        => ['nullable', Rule::exists('sections', 'id')->where('school_id', $schoolId)],
+            'student_type'      => 'nullable|in:New Student,Old Student',
             'first_name'        => 'required|string|max:255',
             'last_name'         => 'nullable|string|max:255',
             'dob'               => 'required|date',
@@ -250,6 +251,7 @@ class StudentApplicationController extends Controller
         $validated = $request->validate([
             'class_id'          => ['required', Rule::exists('course_classes', 'id')->where('school_id', $schoolId)],
             'section_id'        => ['nullable', Rule::exists('sections', 'id')->where('school_id', $schoolId)],
+            'student_type'      => 'nullable|in:New Student,Old Student',
             'first_name'        => 'required|string|max:255',
             'last_name'         => 'nullable|string|max:255',
             'dob'               => 'required|date',

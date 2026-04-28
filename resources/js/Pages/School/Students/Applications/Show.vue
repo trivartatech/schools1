@@ -47,6 +47,10 @@ const field = (label, value) => ({ label, value: value || '—' });
                             <span>·</span>
                             <span>{{ application.course_class?.name }}</span>
                             <span v-if="application.section">/ {{ application.section?.name }}</span>
+                            <span v-if="application.student_type">·</span>
+                            <span v-if="application.student_type" class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 font-medium">
+                                {{ application.student_type }}
+                            </span>
                         </div>
                         <div class="flex items-center gap-2 mt-2">
                             <span class="font-mono text-sm font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-0.5 rounded-full">
