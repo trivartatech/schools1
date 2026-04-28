@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 
@@ -30,16 +31,15 @@ const submit = () => {
     <SchoolLayout title="Edit Salary & Compliance">
 
         <!-- Page Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Salary &amp; Compliance</h1>
-                <p class="page-header-sub">
-                    Editing payroll details for
-                    <strong style="color:#0f172a;">{{ staff.user?.name }}</strong>
-                </p>
-            </div>
-            <Button variant="secondary" as="link" :href="`/school/staff/${staff.id}`">← Back to Profile</Button>
-        </div>
+        <PageHeader title="Salary &amp;amp; Compliance">
+            <template #subtitle>
+                <p class="page-header-sub">Editing payroll details for
+                    <strong style="color:#0f172a;">{{ staff.user?.name }}</strong></p>
+            </template>
+            <template #actions>
+                <Button variant="secondary" as="link" :href="`/school/staff/${staff.id}`">← Back to Profile</Button>
+            </template>
+        </PageHeader>
 
         <!-- Stat Overview Cards -->
         <div class="salary-stats">

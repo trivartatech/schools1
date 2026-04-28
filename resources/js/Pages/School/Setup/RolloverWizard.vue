@@ -1,12 +1,15 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import SchoolLayout from '@/Layouts/SchoolLayout.vue'
 import axios from 'axios'
 import { useFormat } from '@/Composables/useFormat';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const { formatDateTime } = useFormat();
+const confirm = useConfirm();
 
 const props = defineProps({
     years:      { type: Array,  default: () => [] },
@@ -50,8 +53,13 @@ const toggleModule = (mod) => {
     else form.modules.push(mod)
 }
 
-const executeRollover = () => {
-    if (!confirm(`Clone ${form.modules.length} modules from ${sourceYearName.value} → ${targetYearName.value}?`)) return
+const executeRollover = async () => {
+    const ok = await confirm({
+        title: 'Start rollover?',
+        message: `Clone ${form.modules.length} modules from ${sourceYearName.value} → ${targetYearName.value}?`,
+        confirmLabel: 'Start Rollover',
+    });
+    if (!ok) return;
     form.post('/school/settings/rollover', {
         onSuccess: () => {
             activeStep.value = 1
@@ -84,15 +92,26 @@ const runCarryDryRun = async (run) => {
     }
 }
 
-const runCarryExecute = (run) => {
-    if (!confirm('Carry unpaid balances from source year into target year? This creates new fee_payment rows.')) return
+const runCarryExecute = async (run) => {
+    const ok = await confirm({
+        title: 'Carry forward unpaid balances?',
+        message: 'Carry unpaid balances from source year into target year? This creates new fee_payment rows.',
+        confirmLabel: 'Carry Forward',
+    });
+    if (!ok) return;
     router.post(`/school/settings/rollover/runs/${run.id}/carry-forward`, {}, {
         onSuccess: () => { dryRunResult.value = null }
     })
 }
 
-const runFinalize = (run) => {
-    if (!confirm('Finalize this rollover run? The source year will be frozen (read-only).')) return
+const runFinalize = async (run) => {
+    const ok = await confirm({
+        title: 'Finalize rollover?',
+        message: 'Finalize this rollover run? The source year will be frozen (read-only).',
+        confirmLabel: 'Finalize',
+        danger: true,
+    });
+    if (!ok) return;
     router.post(`/school/settings/rollover/runs/${run.id}/finalize`, { freeze_source: true })
 }
 
@@ -119,12 +138,7 @@ const nextPhaseActionFor = (state) => {
 
 <template>
     <SchoolLayout title="Academic Year Rollover">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Academic Year Rollover</h1>
-                <p class="page-header-sub">Clone per-year configuration, promote students, and carry forward unpaid balances.</p>
-            </div>
-        </div>
+        <PageHeader title="Academic Year Rollover" subtitle="Clone per-year configuration, promote students, and carry forward unpaid balances." />
 
         <!-- ─────────────── IN-PROGRESS RUN PANEL ─────────────── -->
         <div v-if="inProgressRun" class="run-panel">

@@ -3,13 +3,16 @@ import { ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import { useConfirm } from '@/Composables/useConfirm';
 
 defineProps({
     scheduled: Object,
 });
 
 const school = useSchoolStore();
+const confirm = useConfirm();
 
 const expandedError = ref(null);
 
@@ -26,8 +29,14 @@ const getStatus = (item) => {
 const isPending = (item) => !item.is_broadcasted && !item.failed_at;
 const isFailed = (item) => !!item.failed_at;
 
-const cancelMessage = (id) => {
-    if (!confirm('Cancel this scheduled message?')) return;
+const cancelMessage = async (id) => {
+    const ok = await confirm({
+        title: 'Cancel scheduled message?',
+        message: 'Cancel this scheduled message?',
+        confirmLabel: 'Cancel Message',
+        danger: true,
+    });
+    if (!ok) return;
     router.delete(`/school/communication/scheduled/${id}`, {
         preserveScroll: true,
     });
@@ -57,12 +66,7 @@ const methodColor = (method) => {
 
 <template>
     <SchoolLayout title="Scheduled Messages">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Scheduled Messages</h1>
-                <p class="page-header-sub">View and manage queued, sent, and failed messages</p>
-            </div>
-        </div>
+        <PageHeader title="Scheduled Messages" subtitle="View and manage queued, sent, and failed messages" />
 
         <div class="card">
             <Table v-if="scheduled?.data?.length > 0" class="table" striped size="sm">

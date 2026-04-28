@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -46,13 +47,11 @@ const destroy = (id) => del(`/school/academic-years/${id}`, 'Delete this academi
 
 <template>
     <SchoolLayout title="Academic Years">
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">Academic Years &amp; Sessions</h2>
-                <p class="page-header-sub">Configure and manage academic year sessions for your school.</p>
-            </div>
-            <Button variant="success" @click="openCreate">+ New Academic Year</Button>
-        </div>
+        <PageHeader title="Academic Years &amp;amp; Sessions" subtitle="Configure and manage academic year sessions for your school.">
+            <template #actions>
+                <Button variant="success" @click="openCreate">+ New Academic Year</Button>
+            </template>
+        </PageHeader>
 
         <div class="card">
             <Table>

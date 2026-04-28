@@ -1,9 +1,12 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import Modal from '@/Components/ui/Modal.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, reactive, computed } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { usePermissions } from '@/Composables/usePermissions';
+import { useConfirm } from '@/Composables/useConfirm';
 import Table from '@/Components/ui/Table.vue';
 
 const props = defineProps({
@@ -11,6 +14,7 @@ const props = defineProps({
 });
 
 const { can } = usePermissions();
+const confirm = useConfirm();
 
 function fmt(n) {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(n ?? 0);
@@ -62,8 +66,14 @@ function submitIssue() {
     });
 }
 
-function voidIssuance(issuance) {
-    if (!confirm(`Void this issuance from ${new Date(issuance.issued_at).toLocaleDateString()}? Stock and qty_collected will be restored.`)) return;
+async function voidIssuance(issuance) {
+    const ok = await confirm({
+        title: 'Void issuance?',
+        message: `Void this issuance from ${new Date(issuance.issued_at).toLocaleDateString()}? Stock and qty_collected will be restored.`,
+        confirmLabel: 'Void',
+        danger: true,
+    });
+    if (!ok) return;
     router.delete(`/school/stationary/issuances/${issuance.id}`, { preserveScroll: true });
 }
 
@@ -123,27 +133,30 @@ function submitReturn() {
     });
 }
 
-function voidReturn(ret) {
-    if (!confirm(`Void this return from ${new Date(ret.returned_at).toLocaleDateString()}? Refund will be reversed.`)) return;
+async function voidReturn(ret) {
+    const ok = await confirm({
+        title: 'Void return?',
+        message: `Void this return from ${new Date(ret.returned_at).toLocaleDateString()}? Refund will be reversed.`,
+        confirmLabel: 'Void',
+        danger: true,
+    });
+    if (!ok) return;
     router.delete(`/school/stationary/returns/${ret.id}`, { preserveScroll: true });
 }
 </script>
 
 <template>
     <SchoolLayout title="Stationary Allocation Detail">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Allocation #{{ allocation.id }}</h1>
-                <p class="page-header-sub">
-                    <Link href="/school/stationary/allocations" style="color:#6366f1;">← All allocations</Link>
-                </p>
-            </div>
-            <div style="display:flex;gap:8px;">
+        <PageHeader
+            :title="`Allocation #${allocation.id}`"
+            back-href="/school/stationary/allocations"
+            back-label="← All allocations">
+            <template #actions>
                 <Link :href="`/school/stationary/fees/${allocation.id}`" class="btn-link" style="background:#eef2ff;padding:8px 14px;border-radius:8px;">💰 Collect Fee</Link>
                 <Button v-if="can('issue_stationary_items')" @click="openIssueModal">📦 Issue Items</Button>
                 <Button v-if="can('accept_stationary_returns')" variant="secondary" @click="openReturnModal">↩ Accept Return</Button>
-            </div>
-        </div>
+            </template>
+        </PageHeader>
 
         <!-- Header card -->
         <div class="card" style="margin-bottom: 16px;">
@@ -291,95 +304,79 @@ function voidReturn(ret) {
         </div>
 
         <!-- Issue Modal -->
-        <div v-if="showIssue" class="modal-overlay" @click.self="showIssue = false">
-            <div class="modal-card" style="max-width: 600px;">
-                <div class="modal-header">
-                    <h3>📦 Issue Items to Student</h3>
-                    <button class="modal-close" @click="showIssue = false">×</button>
+        <Modal v-model:open="showIssue" title="Issue Items to Student" size="lg">
+            <p v-if="!issueForm.lines.length" style="padding:20px;text-align:center;color:#94a3b8;">All entitled items have been issued. Nothing to do.</p>
+            <div v-for="(line, i) in issueForm.lines" :key="i" style="display:grid;grid-template-columns:1fr 80px 80px;gap:10px;align-items:center;padding:8px;border-bottom:1px solid #f1f5f9;">
+                <div>
+                    <p style="font-size:0.86rem;font-weight:600;color:#1e293b;">{{ line.item_name }}</p>
+                    <p style="font-size:0.74rem;color:#94a3b8;">{{ line.remaining }} remaining</p>
                 </div>
-                <div class="modal-body">
-                    <p v-if="!issueForm.lines.length" style="padding:20px;text-align:center;color:#94a3b8;">All entitled items have been issued. Nothing to do.</p>
-                    <div v-for="(line, i) in issueForm.lines" :key="i" style="display:grid;grid-template-columns:1fr 80px 80px;gap:10px;align-items:center;padding:8px;border-bottom:1px solid #f1f5f9;">
-                        <div>
-                            <p style="font-size:0.86rem;font-weight:600;color:#1e293b;">{{ line.item_name }}</p>
-                            <p style="font-size:0.74rem;color:#94a3b8;">{{ line.remaining }} remaining</p>
-                        </div>
-                        <input v-model.number="line.qty_issued" type="number" :min="0" :max="line.remaining" class="form-input" placeholder="Qty" />
-                        <span style="font-size:0.78rem;color:#94a3b8;">of {{ line.remaining }}</span>
-                    </div>
-                    <p v-if="issueErrors.lines" class="form-err">{{ issueErrors.lines }}</p>
-                    <div class="form-row">
-                        <label>Remarks (optional)</label>
-                        <textarea v-model="issueForm.remarks" rows="2" class="form-input"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <Button variant="secondary" @click="showIssue = false">Cancel</Button>
-                    <Button :loading="issuing" @click="submitIssue" :disabled="!issueForm.lines.length">Issue Items</Button>
-                </div>
+                <input v-model.number="line.qty_issued" type="number" :min="0" :max="line.remaining" class="form-input" placeholder="Qty" />
+                <span style="font-size:0.78rem;color:#94a3b8;">of {{ line.remaining }}</span>
             </div>
-        </div>
+            <p v-if="issueErrors.lines" class="form-err">{{ issueErrors.lines }}</p>
+            <div class="form-row" style="margin-top:14px;">
+                <label>Remarks (optional)</label>
+                <textarea v-model="issueForm.remarks" rows="2" class="form-input"></textarea>
+            </div>
+            <template #footer>
+                <Button variant="secondary" @click="showIssue = false">Cancel</Button>
+                <Button :loading="issuing" @click="submitIssue" :disabled="!issueForm.lines.length">Issue Items</Button>
+            </template>
+        </Modal>
 
         <!-- Return Modal -->
-        <div v-if="showReturn" class="modal-overlay" @click.self="showReturn = false">
-            <div class="modal-card" style="max-width: 700px;">
-                <div class="modal-header">
-                    <h3>↩ Accept Return</h3>
-                    <button class="modal-close" @click="showReturn = false">×</button>
+        <Modal v-model:open="showReturn" title="Accept Return" size="lg">
+            <p v-if="!returnForm.lines.length" style="padding:20px;text-align:center;color:#94a3b8;">No items have been issued — nothing to return.</p>
+            <div v-for="(line, i) in returnForm.lines" :key="i" style="display:grid;grid-template-columns:1.6fr 70px 100px 60px;gap:8px;align-items:center;padding:8px;border-bottom:1px solid #f1f5f9;">
+                <div>
+                    <p style="font-size:0.86rem;font-weight:600;color:#1e293b;">{{ line.item_name }}</p>
+                    <p style="font-size:0.74rem;color:#94a3b8;">{{ line.qty_collected }} issued · {{ fmt(line.unit_price) }}/each</p>
                 </div>
-                <div class="modal-body">
-                    <p v-if="!returnForm.lines.length" style="padding:20px;text-align:center;color:#94a3b8;">No items have been issued — nothing to return.</p>
-                    <div v-for="(line, i) in returnForm.lines" :key="i" style="display:grid;grid-template-columns:1.6fr 70px 100px 60px;gap:8px;align-items:center;padding:8px;border-bottom:1px solid #f1f5f9;">
-                        <div>
-                            <p style="font-size:0.86rem;font-weight:600;color:#1e293b;">{{ line.item_name }}</p>
-                            <p style="font-size:0.74rem;color:#94a3b8;">{{ line.qty_collected }} issued · {{ fmt(line.unit_price) }}/each</p>
-                        </div>
-                        <input v-model.number="line.qty_returned" type="number" :min="0" :max="line.qty_collected" class="form-input" placeholder="Qty" />
-                        <select v-model="line.condition" class="form-input">
-                            <option value="good">Good</option>
-                            <option value="damaged">Damaged</option>
-                        </select>
-                        <label style="font-size:0.74rem;display:flex;align-items:center;gap:4px;">
-                            <input type="checkbox" v-model="line.restock" /> Restock
-                        </label>
-                    </div>
-                    <p v-if="returnErrors.lines" class="form-err">{{ returnErrors.lines }}</p>
+                <input v-model.number="line.qty_returned" type="number" :min="0" :max="line.qty_collected" class="form-input" placeholder="Qty" />
+                <select v-model="line.condition" class="form-input">
+                    <option value="good">Good</option>
+                    <option value="damaged">Damaged</option>
+                </select>
+                <label style="font-size:0.74rem;display:flex;align-items:center;gap:4px;">
+                    <input type="checkbox" v-model="line.restock" /> Restock
+                </label>
+            </div>
+            <p v-if="returnErrors.lines" class="form-err">{{ returnErrors.lines }}</p>
 
-                    <div style="background:#f8fafc;padding:12px 16px;border-radius:8px;margin-top:6px;">
-                        <p style="font-size:0.84rem;color:#475569;display:flex;justify-content:space-between;">
-                            Sum of line refunds: <strong>{{ fmt(totalLineRefund) }}</strong>
-                        </p>
-                    </div>
+            <div style="background:#f8fafc;padding:12px 16px;border-radius:8px;margin-top:14px;">
+                <p style="font-size:0.84rem;color:#475569;display:flex;justify-content:space-between;">
+                    Sum of line refunds: <strong>{{ fmt(totalLineRefund) }}</strong>
+                </p>
+            </div>
 
-                    <div class="form-row-2">
-                        <div>
-                            <label>Refund Amount (₹)</label>
-                            <input v-model.number="returnForm.refund_amount" type="number" min="0" step="0.01" class="form-input" />
-                            <p style="font-size:0.72rem;color:#94a3b8;">Set to 0 if no refund.</p>
-                        </div>
-                        <div>
-                            <label>Refund Mode</label>
-                            <select v-model="returnForm.refund_mode" class="form-input">
-                                <option value="none">No refund</option>
-                                <option v-for="m in $page.props.payment_methods" :key="m.code" :value="m.code">{{ m.label }}</option>
-                                <option value="adjust">Adjust against balance (no GL)</option>
-                            </select>
-                        </div>
-                    </div>
-                    <p v-if="returnErrors.refund_amount" class="form-err">{{ returnErrors.refund_amount }}</p>
-                    <p v-if="returnErrors.refund_mode" class="form-err">{{ returnErrors.refund_mode }}</p>
-
-                    <div class="form-row">
-                        <label>Remarks</label>
-                        <textarea v-model="returnForm.remarks" rows="2" class="form-input"></textarea>
-                    </div>
+            <div class="form-row-2" style="margin-top:14px;">
+                <div>
+                    <label>Refund Amount (₹)</label>
+                    <input v-model.number="returnForm.refund_amount" type="number" min="0" step="0.01" class="form-input" />
+                    <p style="font-size:0.72rem;color:#94a3b8;">Set to 0 if no refund.</p>
                 </div>
-                <div class="modal-footer">
-                    <Button variant="secondary" @click="showReturn = false">Cancel</Button>
-                    <Button :loading="returning" @click="submitReturn" :disabled="!returnForm.lines.length">Accept Return</Button>
+                <div>
+                    <label>Refund Mode</label>
+                    <select v-model="returnForm.refund_mode" class="form-input">
+                        <option value="none">No refund</option>
+                        <option v-for="m in $page.props.payment_methods" :key="m.code" :value="m.code">{{ m.label }}</option>
+                        <option value="adjust">Adjust against balance (no GL)</option>
+                    </select>
                 </div>
             </div>
-        </div>
+            <p v-if="returnErrors.refund_amount" class="form-err">{{ returnErrors.refund_amount }}</p>
+            <p v-if="returnErrors.refund_mode" class="form-err">{{ returnErrors.refund_mode }}</p>
+
+            <div class="form-row" style="margin-top:14px;">
+                <label>Remarks</label>
+                <textarea v-model="returnForm.remarks" rows="2" class="form-input"></textarea>
+            </div>
+            <template #footer>
+                <Button variant="secondary" @click="showReturn = false">Cancel</Button>
+                <Button :loading="returning" @click="submitReturn" :disabled="!returnForm.lines.length">Accept Return</Button>
+            </template>
+        </Modal>
     </SchoolLayout>
 </template>
 
@@ -395,14 +392,6 @@ function voidReturn(ret) {
 .btn-link { color: #6366f1; font-size: 0.84rem; text-decoration: none; }
 .btn-void { background: #fef2f2; color: #dc2626; border: 0; padding: 4px 10px; border-radius: 6px; font-size: 0.74rem; cursor: pointer; }
 .btn-void:hover { background: #fee2e2; }
-
-.modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); display: flex; align-items: flex-start; justify-content: center; z-index: 50; padding: 40px 20px; overflow-y: auto; }
-.modal-card { background: white; border-radius: 12px; width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.2); }
-.modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 22px; border-bottom: 1px solid #e2e8f0; }
-.modal-header h3 { font-size: 1.05rem; font-weight: 700; color: #1e293b; margin: 0; }
-.modal-close { background: none; border: 0; font-size: 1.4rem; color: #94a3b8; cursor: pointer; }
-.modal-body { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; max-height: 70vh; overflow-y: auto; }
-.modal-footer { padding: 14px 22px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 10px; }
 
 .form-row { display: flex; flex-direction: column; gap: 4px; }
 .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }

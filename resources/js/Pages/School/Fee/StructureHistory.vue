@@ -1,5 +1,6 @@
 <script setup>
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { Link } from '@inertiajs/vue3';
 import { router } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
@@ -35,13 +36,11 @@ const archivedEntries = computed(() => props.history.filter(h => h.effective_to)
 
 <template>
     <SchoolLayout title="Fee Structure History">
-        <div class="page-header">
-            <div>
-                <Link href="/school/fee/structure" style="font-size:.8rem;color:#94a3b8;">← Back to Fee Structure</Link>
-                <h1 class="page-header-title" style="margin-top:4px;">Fee Structure Version History</h1>
+        <PageHeader back-href="/school/fee/structure" back-label="← Back to Fee Structure" title="Fee Structure Version History">
+            <template #subtitle>
                 <p style="color:#64748b;font-size:.9rem;margin-top:2px;">Audit trail of all fee amount changes with effective dates.</p>
-            </div>
-        </div>
+            </template>
+        </PageHeader>
 
         <!-- Filter -->
         <div class="card" style="margin-bottom:20px;">

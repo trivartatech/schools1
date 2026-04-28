@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref, computed, onMounted } from 'vue';
@@ -7,8 +8,10 @@ import { usePermissions } from '@/Composables/usePermissions';
 import ExportDropdown from '@/Components/ExportDropdown.vue';
 import axios from 'axios';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const school = useSchoolStore();
+const confirm = useConfirm();
 
 const props = defineProps({
     diaries: Object,
@@ -55,10 +58,15 @@ const applyFilter = () => {
     router.get(route('school.academic.diary.index'), filterForm.value, { preserveState: true });
 };
 
-const deleteEntry = (id) => {
-    if (confirm('Are you sure you want to delete this diary entry?')) {
-        router.delete(route('school.academic.diary.destroy', id));
-    }
+const deleteEntry = async (id) => {
+    const ok = await confirm({
+        title: 'Delete diary entry?',
+        message: 'This cannot be undone.',
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
+    router.delete(route('school.academic.diary.destroy', id));
 };
 
 const formatDate = (date) => school.fmtDate(date);
@@ -172,12 +180,8 @@ const doExport = () => {
 
 <template>
     <SchoolLayout title="Student Diary">
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">Student Diary</h2>
-                <p class="page-header-sub">Manage daily classwork and homework notes</p>
-            </div>
-            <div class="flex gap-2 flex-wrap">
+        <PageHeader title="Student Diary" subtitle="Manage daily classwork and homework notes">
+            <template #actions>
                 <!-- View toggle -->
                 <div class="flex border border-slate-200 rounded-lg overflow-hidden">
                     <button @click="viewMode = 'list'"
@@ -198,8 +202,8 @@ const doExport = () => {
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                     Add Entry
                 </Button>
-            </div>
-        </div>
+            </template>
+        </PageHeader>
 
         <!-- Date Slider -->
         <div class="card mb-6 overflow-hidden">

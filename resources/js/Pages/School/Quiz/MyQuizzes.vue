@@ -1,5 +1,6 @@
 <script setup>
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { Link } from '@inertiajs/vue3';
 
 const props = defineProps({ quizzes: Array });
@@ -24,9 +25,7 @@ const statusClass = (q) => {
 
 <template>
     <SchoolLayout title="My Quizzes">
-        <div class="page-header">
-            <h1 class="page-header-title">My Quizzes</h1>
-        </div>
+        <PageHeader title="My Quizzes" />
 
         <div class="quizzes-grid">
             <div v-for="q in quizzes" :key="q.id" class="quiz-card card">

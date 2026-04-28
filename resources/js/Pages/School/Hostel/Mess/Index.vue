@@ -1,9 +1,16 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
-import { ref, reactive } from 'vue';
-import { router, Link } from '@inertiajs/vue3';
-import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import Modal from '@/Components/ui/Modal.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
 import Table from '@/Components/ui/Table.vue';
+import { ref, reactive } from 'vue';
+import { router } from '@inertiajs/vue3';
+import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const props = defineProps({
     menus:   Object,   // paginated
@@ -67,10 +74,15 @@ function save() {
     });
 }
 
-function destroy(id) {
-    if (confirm('Delete this menu item?')) {
-        router.delete(`/school/hostel/mess/menu/${id}`);
-    }
+async function destroy(id) {
+    const ok = await confirm({
+        title: 'Delete menu item?',
+        message: 'This menu entry will be permanently removed.',
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
+    router.delete(`/school/hostel/mess/menu/${id}`);
 }
 
 const mealColors = {
@@ -84,75 +96,66 @@ const mealColors = {
 <template>
     <SchoolLayout title="Mess Menu">
 
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Weekly Mess Schedule</h1>
-                <p class="page-header-sub">Manage meal menus for each hostel by day and meal type.</p>
-            </div>
-            <Button @click="openModal()">+ Add Menu Item</Button>
-        </div>
+        <PageHeader title="Weekly Mess Schedule" subtitle="Manage meal menus for each hostel by day and meal type.">
+            <template #actions>
+                <Button @click="openModal()">+ Add Menu Item</Button>
+            </template>
+        </PageHeader>
 
         <!-- Filters -->
-        <div class="card" style="margin-bottom: 16px;">
-            <div class="card-body" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;padding:12px 16px;">
-                <div class="form-field" style="margin:0;min-width:160px;">
-                    <label>Hostel</label>
-                    <select v-model="filterForm.hostel_id" @change="applyFilters">
-                        <option value="">All Hostels</option>
-                        <option v-for="h in hostels" :key="h.id" :value="h.id">{{ h.name }}</option>
-                    </select>
-                </div>
-                <div class="form-field" style="margin:0;min-width:140px;">
-                    <label>Day</label>
-                    <select v-model="filterForm.day" @change="applyFilters">
-                        <option value="">All Days</option>
-                        <option v-for="d in DAYS" :key="d" :value="d">{{ d }}</option>
-                    </select>
-                </div>
-                <Button variant="secondary" size="sm" v-if="filterForm.hostel_id || filterForm.day" @click="filterForm.hostel_id=''; filterForm.day=''; applyFilters()">
-                    Clear
-                </Button>
-            </div>
-        </div>
+        <FilterBar
+            :active="!!(filterForm.hostel_id || filterForm.day)"
+            @clear="filterForm.hostel_id = ''; filterForm.day = ''; applyFilters()"
+        >
+            <select v-model="filterForm.hostel_id" @change="applyFilters" style="width:180px;">
+                <option value="">All Hostels</option>
+                <option v-for="h in hostels" :key="h.id" :value="h.id">{{ h.name }}</option>
+            </select>
+            <select v-model="filterForm.day" @change="applyFilters" style="width:160px;">
+                <option value="">All Days</option>
+                <option v-for="d in DAYS" :key="d" :value="d">{{ d }}</option>
+            </select>
+        </FilterBar>
 
         <!-- Table -->
         <div class="card">
-            <div style="overflow-x:auto;">
-                <Table>
-                    <thead>
-                        <tr>
-                            <th>Hostel</th>
-                            <th>Day</th>
-                            <th>Meal</th>
-                            <th>Menu Items</th>
-                            <th style="text-align:right;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="m in menus.data" :key="m.id">
-                            <td style="font-weight:500;">{{ m.hostel?.name || '—' }}</td>
-                            <td style="font-weight:600;color:var(--text-primary);">{{ m.day }}</td>
-                            <td>
-                                <span class="badge" :class="mealColors[m.meal_type] || 'badge-gray'">
-                                    {{ m.meal_type }}
-                                </span>
-                            </td>
-                            <td style="max-width:300px;white-space:pre-wrap;font-size:0.82rem;color:var(--text-secondary);">
-                                {{ m.items }}
-                            </td>
-                            <td style="text-align:right;">
-                                <Button variant="secondary" size="xs" @click="openModal(m)" class="mr-1.5">Edit</Button>
-                                <Button variant="danger" size="xs" @click="destroy(m.id)">Delete</Button>
-                            </td>
-                        </tr>
-                        <tr v-if="!menus.data.length">
-                            <td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">
-                                No menu items found. Click "+ Add Menu Item" to get started.
-                            </td>
-                        </tr>
-                    </tbody>
-                </Table>
-            </div>
+            <Table :empty="!menus.data.length">
+                <thead>
+                    <tr>
+                        <th>Hostel</th>
+                        <th>Day</th>
+                        <th>Meal</th>
+                        <th>Menu Items</th>
+                        <th style="text-align:right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="m in menus.data" :key="m.id">
+                        <td style="font-weight:500;">{{ m.hostel?.name || '—' }}</td>
+                        <td style="font-weight:600;color:var(--text-primary);">{{ m.day }}</td>
+                        <td>
+                            <span class="badge" :class="mealColors[m.meal_type] || 'badge-gray'">
+                                {{ m.meal_type }}
+                            </span>
+                        </td>
+                        <td style="max-width:300px;white-space:pre-wrap;font-size:0.82rem;color:var(--text-secondary);">
+                            {{ m.items }}
+                        </td>
+                        <td style="text-align:right;">
+                            <Button variant="secondary" size="xs" @click="openModal(m)" class="mr-1.5">Edit</Button>
+                            <Button variant="danger" size="xs" @click="destroy(m.id)">Delete</Button>
+                        </td>
+                    </tr>
+                </tbody>
+                <template #empty>
+                    <EmptyState
+                        title="No menu items found"
+                        description="Add weekly menu entries for each hostel by day and meal type."
+                        action-label="+ Add Menu Item"
+                        @action="openModal()"
+                    />
+                </template>
+            </Table>
 
             <!-- Pagination -->
             <div v-if="menus.last_page > 1"
@@ -172,88 +175,52 @@ const mealColors = {
         </div>
 
         <!-- Add / Edit Modal -->
-        <Teleport to="body">
-            <div v-if="showModal" class="modal-backdrop" @mousedown.self="showModal = false">
-                <div class="modal" style="max-width:26rem;">
-                    <div class="modal-header">
-                        <h3 class="modal-title">{{ editing ? 'Edit' : 'Add' }} Menu Item</h3>
-                        <button @click="showModal = false" class="modal-close">&times;</button>
-                    </div>
-                    <form @submit.prevent="save">
-                        <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
-
-                            <!-- Server errors -->
-                            <div v-if="Object.keys(errors).length"
-                                 style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;font-size:0.82rem;color:#dc2626;">
-                                <div v-for="(msg, field) in errors" :key="field">{{ msg }}</div>
-                            </div>
-
-                            <div class="form-field" style="margin:0;">
-                                <label>Hostel *</label>
-                                <select v-model="form.hostel_id" required>
-                                    <option v-for="h in hostels" :key="h.id" :value="h.id">{{ h.name }}</option>
-                                </select>
-                                <span v-if="errors.hostel_id" class="form-error">{{ errors.hostel_id }}</span>
-                            </div>
-
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                                <div class="form-field" style="margin:0;">
-                                    <label>Day *</label>
-                                    <select v-model="form.day" required>
-                                        <option v-for="d in DAYS" :key="d" :value="d">{{ d }}</option>
-                                    </select>
-                                    <span v-if="errors.day" class="form-error">{{ errors.day }}</span>
-                                </div>
-                                <div class="form-field" style="margin:0;">
-                                    <label>Meal *</label>
-                                    <select v-model="form.meal_type" required>
-                                        <option v-for="m in MEALS" :key="m" :value="m">{{ m }}</option>
-                                    </select>
-                                    <span v-if="errors.meal_type" class="form-error">{{ errors.meal_type }}</span>
-                                </div>
-                            </div>
-
-                            <div class="form-field" style="margin:0;">
-                                <label>Menu Items *</label>
-                                <textarea v-model="form.items" required rows="4"
-                                    placeholder="e.g. Idli, Sambar, Chutney, Coffee"></textarea>
-                                <span v-if="errors.items" class="form-error">{{ errors.items }}</span>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <Button variant="secondary" type="button" @click="showModal = false">Cancel</Button>
-                            <Button type="submit" :loading="loading">
-                                Save
-                            </Button>
-                        </div>
-                    </form>
+        <Modal v-model:open="showModal" :title="editing ? 'Edit Menu Item' : 'Add Menu Item'" size="sm">
+            <form @submit.prevent="save" id="menu-form">
+                <!-- Server errors -->
+                <div v-if="Object.keys(errors).length"
+                     style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;font-size:0.82rem;color:#dc2626;margin-bottom:14px;">
+                    <div v-for="(msg, field) in errors" :key="field">{{ msg }}</div>
                 </div>
-            </div>
-        </Teleport>
+
+                <div class="form-field">
+                    <label>Hostel *</label>
+                    <select v-model="form.hostel_id" required>
+                        <option v-for="h in hostels" :key="h.id" :value="h.id">{{ h.name }}</option>
+                    </select>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;">
+                    <div class="form-field">
+                        <label>Day *</label>
+                        <select v-model="form.day" required>
+                            <option v-for="d in DAYS" :key="d" :value="d">{{ d }}</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label>Meal *</label>
+                        <select v-model="form.meal_type" required>
+                            <option v-for="m in MEALS" :key="m" :value="m">{{ m }}</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-field" style="margin-top:14px;">
+                    <label>Menu Items *</label>
+                    <textarea v-model="form.items" required rows="4"
+                        placeholder="e.g. Idli, Sambar, Chutney, Coffee"></textarea>
+                </div>
+            </form>
+            <template #footer>
+                <Button variant="secondary" type="button" @click="showModal = false">Cancel</Button>
+                <Button type="submit" form="menu-form" :loading="loading">Save</Button>
+            </template>
+        </Modal>
 
     </SchoolLayout>
 </template>
 
 <style scoped>
-.modal-backdrop {
-    position:fixed;inset:0;background:rgba(15,23,42,.5);
-    display:flex;align-items:center;justify-content:center;z-index:1000;
-}
-.modal {
-    background:#fff;border-radius:14px;width:100%;
-    box-shadow:0 20px 40px rgba(0,0,0,.18);
-}
-.modal-header {
-    padding:16px 20px;border-bottom:1px solid #e2e8f0;
-    display:flex;justify-content:space-between;align-items:center;
-}
-.modal-title  { font-size:1rem;font-weight:700;color:#1e293b; }
-.modal-close  { background:none;border:none;font-size:1.5rem;color:#94a3b8;cursor:pointer;line-height:1; }
-.modal-close:hover { color:#1e293b; }
-.modal-body   { padding:20px; }
-.modal-footer {
-    padding:14px 20px;border-top:1px solid #e2e8f0;
-    display:flex;justify-content:flex-end;gap:8px;
-    background:#f8fafc;border-radius:0 0 14px 14px;
-}
+.form-field { display: flex; flex-direction: column; gap: 5px; }
+.form-field label { font-size: 0.78rem; font-weight: 600; color: #374151; }
 </style>

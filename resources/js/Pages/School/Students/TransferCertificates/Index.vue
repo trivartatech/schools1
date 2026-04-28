@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { router, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref } from 'vue';
@@ -47,18 +48,16 @@ const totalCount = () => Object.values(props.counts).reduce((a, b) => a + b, 0);
 
 <template>
     <SchoolLayout title="Transfer Certificates">
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">Transfer Certificates</h2>
-                <p class="page-header-sub">Manage student TC requests, approvals, and issuance</p>
-            </div>
-            <Button as="link" :href="route('school.transfer-certificates.create')">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-                New TC Request
-            </Button>
-        </div>
+        <PageHeader title="Transfer Certificates" subtitle="Manage student TC requests, approvals, and issuance">
+            <template #actions>
+                <Button as="link" :href="route('school.transfer-certificates.create')">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                                New TC Request
+                            </Button>
+            </template>
+        </PageHeader>
 
         <!-- Status Tabs -->
         <div class="flex gap-1 mb-6 overflow-x-auto">

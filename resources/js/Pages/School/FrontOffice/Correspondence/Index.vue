@@ -1,11 +1,14 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const school = useSchoolStore();
+const confirm = useConfirm();
 
 const props = defineProps({
     correspondences: { type: Array, default: () => [] },
@@ -37,10 +40,15 @@ const submit = () => {
     });
 };
 
-const deleteEntry = (id) => {
-    if (confirm('Are you sure you want to delete this record? Data and attachments will be lost.')) {
-        router.delete(`/school/front-office/correspondence/${id}`, { preserveScroll: true });
-    }
+const deleteEntry = async (id) => {
+    const ok = await confirm({
+        title: 'Delete record?',
+        message: 'Data and attachments will be lost. This cannot be undone.',
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
+    router.delete(`/school/front-office/correspondence/${id}`, { preserveScroll: true });
 };
 
 const updateDelivery = (id, status) => {
@@ -64,15 +72,13 @@ const filteredData = computed(() => {
 <template>
     <SchoolLayout title="Correspondence">
 
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Mail & Dispatch Log</h1>
-                <p class="page-header-sub">Record incoming deliveries, couriers, and official dispatch letters.</p>
-            </div>
-            <Button @click="showForm = !showForm">
-                {{ showForm ? 'Close Entry Form' : '+ New Correspondence' }}
-            </Button>
-        </div>
+        <PageHeader title="Mail &amp; Dispatch Log" subtitle="Record incoming deliveries, couriers, and official dispatch letters.">
+            <template #actions>
+                <Button @click="showForm = !showForm">
+                                {{ showForm ? 'Close Entry Form' : '+ New Correspondence' }}
+                            </Button>
+            </template>
+        </PageHeader>
 
         <!-- NEW CORRESPONDENCE FORM -->
         <Transition enter-active-class="transition duration-300 ease-out" enter-from-class="translate-y-[-20px] opacity-0"

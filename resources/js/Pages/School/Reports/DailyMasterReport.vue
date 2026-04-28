@@ -3,6 +3,9 @@ import { ref, computed, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const props = defineProps({
     report:         { type: Object, required: true },
@@ -43,8 +46,13 @@ const deltaSign  = (n) => Number(n) > 0 ? '↑' : Number(n) < 0 ? '↓' : '·';
 // ── Send to admins ───────────────────────────────────────────────────
 const sendForm = useForm({ date: selectedDate.value, mode: selectedMode.value });
 
-const sendNow = () => {
-    if (!confirm(`Send report for ${props.report.meta.date_label} to all ${props.admin_contacts.length} admin number(s)?`)) return;
+const sendNow = async () => {
+    const ok = await confirm({
+        title: 'Send daily master report?',
+        message: `Send report for ${props.report.meta.date_label} to all ${props.admin_contacts.length} admin number(s)?`,
+        confirmLabel: 'Send',
+    });
+    if (!ok) return;
     sendForm.date = selectedDate.value;
     sendForm.mode = selectedMode.value;
     sendForm.post('/school/reports/daily-master/send', { preserveScroll: true });

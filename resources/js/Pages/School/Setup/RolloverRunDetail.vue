@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue'
 
 const props = defineProps({
@@ -32,17 +33,19 @@ const statusClass = (s) => ({
 
 <template>
     <SchoolLayout :title="`Rollover Run #${run.id}`">
-        <div class="page-header">
-            <div>
+        <PageHeader>
+            <template #title>
                 <h1 class="page-header-title">Rollover Run #{{ run.id }}</h1>
-                <p class="page-header-sub">
-                    {{ run.source_year?.name }} → {{ run.target_year?.name }}
+            </template>
+            <template #subtitle>
+                <p class="page-header-sub">{{ run.source_year?.name }} → {{ run.target_year?.name }}
                     · Started by {{ run.started_by?.name || '—' }}
-                    · State: <strong>{{ phaseLabel(run.state) }}</strong>
-                </p>
-            </div>
-            <a href="/school/settings/rollover" class="back-link">← Back to Wizard</a>
-        </div>
+                    · State: <strong>{{ phaseLabel(run.state) }}</strong></p>
+            </template>
+            <template #actions>
+                <a href="/school/settings/rollover" class="back-link">← Back to Wizard</a>
+            </template>
+        </PageHeader>
 
         <div v-if="run.error" class="error-box">{{ run.error }}</div>
 

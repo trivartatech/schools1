@@ -1,10 +1,13 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useToast } from '@/Composables/useToast';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const toast = useToast();
+const confirm = useConfirm();
 
 const SEND_INTERVAL = 10; // seconds
 
@@ -175,9 +178,16 @@ async function stopTracking() {
     fetchVehicles();
 }
 
-function toggleTracking() {
+async function toggleTracking() {
     if (tracking.value) {
-        if (confirm('Stop sharing your location?')) stopTracking();
+        const ok = await confirm({
+            title: 'Stop tracking?',
+            message: 'Stop sharing your location?',
+            confirmLabel: 'Stop',
+            danger: true,
+        });
+        if (!ok) return;
+        stopTracking();
     } else {
         startTracking();
     }
@@ -195,22 +205,20 @@ onUnmounted(() => {
     <SchoolLayout title="Driver Tracking">
 
         <!-- Header -->
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">Driver Tracking</h2>
-                <p class="page-header-sub">
-                    Select a vehicle and start live GPS tracking
-                    <span v-if="activeCount" class="ml-2 text-green">{{ activeCount }} active</span>
-                </p>
-            </div>
-            <div style="display:flex;align-items:center;gap:0.75rem;">
+        <PageHeader title="Driver Tracking">
+            <template #subtitle>
+                <p class="page-header-sub">Select a vehicle and start live GPS tracking
+                    <span v-if="activeCount" class="ml-2 text-green">{{ activeCount }} active</span></p>
+            </template>
+            <template #actions>
                 <span v-if="tracking" class="live-indicator">
                     <span class="live-dot"></span>
                     LIVE
                 </span>
                 <span v-if="vehicles.length" class="badge badge-muted">{{ vehicles.length }} Vehicles</span>
-            </div>
-        </div>
+
+            </template>
+        </PageHeader>
 
         <!-- Loading -->
         <div v-if="loading" class="card" style="padding:5rem;text-align:center;">

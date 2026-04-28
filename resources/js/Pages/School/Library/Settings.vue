@@ -1,6 +1,7 @@
 <script setup>
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { useForm } from '@inertiajs/vue3';
 
 const props = defineProps({ settings: Object });
@@ -17,9 +18,7 @@ const save = () => form.post('/school/library/settings', { preserveScroll: true 
 
 <template>
     <SchoolLayout title="Library — Settings">
-        <div class="page-header">
-            <h1 class="page-header-title">Library Settings</h1>
-        </div>
+        <PageHeader title="Library Settings" />
         <div class="card" style="max-width:480px;">
             <div class="card-body" style="display:flex;flex-direction:column;gap:18px;">
                 <div class="form-field">

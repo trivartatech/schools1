@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { Link, Head } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import Table from '@/Components/ui/Table.vue';
 
 const props = defineProps({ defaulters: Array });
@@ -41,12 +42,7 @@ function fmt(n) {
 <template>
     <Head title="Stationary Fee Defaulters" />
     <SchoolLayout title="Stationary Fee Defaulters">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">💰 Stationary Fee Defaulters</h1>
-                <p class="page-header-sub">Active allocations with outstanding balance.</p>
-            </div>
-        </div>
+        <PageHeader title="💰 Stationary Fee Defaulters" subtitle="Active allocations with outstanding balance." />
 
         <div class="stats-grid">
             <div class="stat-card">

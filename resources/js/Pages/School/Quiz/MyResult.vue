@@ -1,5 +1,6 @@
 <script setup>
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { Link } from '@inertiajs/vue3';
 
 const props = defineProps({ quiz: Object, attempt: Object });
@@ -27,9 +28,11 @@ const correctText = (response) => {
 
 <template>
     <SchoolLayout title="Quiz Result">
-        <div class="page-header">
-            <h1 class="page-header-title">{{ quiz.title }} — My Result</h1>
-        </div>
+        <PageHeader>
+            <template #title>
+                <h1 class="page-header-title">{{ quiz.title }} — My Result</h1>
+            </template>
+        </PageHeader>
 
         <!-- Score summary -->
         <div class="card" style="max-width:500px;margin-bottom:20px;">

@@ -1,9 +1,13 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const props = defineProps({
     types: Array,
@@ -53,8 +57,14 @@ const toggleActive = (t) => {
     router.patch(`/school/fee/concession-types/${t.id}/toggle`, {}, { preserveScroll: true });
 };
 
-const destroy = (t) => {
-    if (!confirm(`Delete concession type "${t.name}"?`)) return;
+const destroy = async (t) => {
+    const ok = await confirm({
+        title: 'Delete concession type?',
+        message: `Delete concession type "${t.name}"?`,
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
     router.delete(`/school/fee/concession-types/${t.id}`, { preserveScroll: true });
 };
 </script>
@@ -65,12 +75,8 @@ const destroy = (t) => {
         <div class="max-w-4xl mx-auto space-y-6">
 
             <!-- Header -->
-            <div class="page-header">
-                <div>
-                    <h1 class="page-header-title">Predefined Concession Types</h1>
-                    <p class="page-header-sub">Manage the list of pre-configured concession names and defaults.</p>
-                </div>
-                <div class="flex gap-2">
+            <PageHeader title="Predefined Concession Types" subtitle="Manage the list of pre-configured concession names and defaults.">
+                <template #actions>
                     <Button variant="secondary" as="link" href="/school/fee/concessions">
                         &larr; Back to Concessions
                     </Button>
@@ -78,8 +84,9 @@ const destroy = (t) => {
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                         Add Type
                     </Button>
-                </div>
-            </div>
+
+                </template>
+            </PageHeader>
 
             <!-- Table -->
             <div class="card overflow-hidden">

@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useToast } from '@/Composables/useToast';
@@ -39,13 +40,11 @@ const sendTest = () => {
 
 <template>
     <SchoolLayout title="SMS Config">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">SMS Configuration</h1>
-                <p class="page-header-sub">Configure SMS Gateway to send SMS from the system</p>
-            </div>
-            <Button variant="secondary" @click="sendTest">Send Test SMS</Button>
-        </div>
+        <PageHeader title="SMS Configuration" subtitle="Configure SMS Gateway to send SMS from the system">
+            <template #actions>
+                <Button variant="secondary" @click="sendTest">Send Test SMS</Button>
+            </template>
+        </PageHeader>
 
         <form @submit.prevent="submit" class="config-layout">
             <!-- Main Config -->

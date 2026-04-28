@@ -1,11 +1,16 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import Modal from '@/Components/ui/Modal.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
 import { ref, computed, watch, onMounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useToast } from '@/Composables/useToast';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const toast = useToast();
+const confirm = useConfirm();
 
 const props = defineProps({
     school: Object,
@@ -43,7 +48,6 @@ const availableSections = computed(() => {
 
 onMounted(() => {
     if (props.selectedSectionId) {
-        // Find class for this section
         for (const cls of props.classes) {
             const sec = cls.sections.find(s => s.id == props.selectedSectionId);
             if (sec) {
@@ -54,7 +58,6 @@ onMounted(() => {
         initGrid();
     }
 
-    // Load saved settings
     const savedSettings = localStorage.getItem('timetableGenSettings');
     if (savedSettings) {
         try {
@@ -99,7 +102,6 @@ const initGrid = () => {
     gridInitialized.value = true;
 };
 
-// Re-init grid when timetables change
 watch(() => props.timetables, () => {
     initGrid();
 }, { deep: true });
@@ -192,42 +194,39 @@ const executeAutoGenerate = () => {
     });
 };
 
-const resetTimetable = () => {
+const resetTimetable = async () => {
     if (!selectedSectionId.value) return;
-    if (confirm('Are you sure you want to completely reset the timetable for this section? This will clear all existing assignments.')) {
-        router.post(route('school.timetable.reset'), {
-            section_id: selectedSectionId.value,
-        }, {
-            preserveScroll: true,
-        });
-    }
+    const ok = await confirm({
+        title: 'Reset timetable?',
+        message: 'This will completely reset the timetable for this section, clearing all existing assignments.',
+        confirmLabel: 'Reset',
+        danger: true,
+    });
+    if (!ok) return;
+    router.post(route('school.timetable.reset'), {
+        section_id: selectedSectionId.value,
+    }, {
+        preserveScroll: true,
+    });
 };
 </script>
 
 <template>
     <SchoolLayout title="Timetable">
 
-        <!-- Page Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Timetable Builder</h1>
-                <p class="page-header-sub">Manage schedules iteratively or auto-generate for a section.</p>
-            </div>
-            <div class="header-actions">
+        <PageHeader title="Timetable Builder" subtitle="Manage schedules iteratively or auto-generate for a section.">
+            <template #actions>
                 <Button variant="secondary" v-if="selectedSectionId && classSubjects.length" @click="showAutoGenerateModal = true">
-                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                     Auto Generate
                 </Button>
                 <Button variant="danger" v-if="selectedSectionId && gridInitialized" @click="resetTimetable">
-                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                     Reset
                 </Button>
                 <Button v-if="selectedSectionId && gridInitialized" @click="saveTimetable">
-                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
                     Save Timetable
                 </Button>
-            </div>
-        </div>
+            </template>
+        </PageHeader>
 
         <!-- Class + Section Filter -->
         <div class="card filter-card">
@@ -242,9 +241,7 @@ const resetTimetable = () => {
                         </select>
                     </div>
                 </div>
-                <div class="filter-divider">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                </div>
+                <div class="filter-divider">→</div>
                 <div class="filter-step">
                     <span class="filter-step-num" :class="!selectedClassId ? 'filter-step-num--dim' : ''">2</span>
                     <div class="filter-field">
@@ -259,19 +256,14 @@ const resetTimetable = () => {
         </div>
 
         <!-- Empty state: no section selected -->
-        <div v-if="!selectedSectionId" class="state-card state-card--idle">
-            <div class="state-icon">
-                <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-            </div>
-            <h3>Select a Class &amp; Section</h3>
-            <p>Choose a class and section above to view or start building its timetable.</p>
-        </div>
+        <EmptyState
+            v-if="!selectedSectionId"
+            title="Select a Class & Section"
+            description="Choose a class and section above to view or start building its timetable."
+        />
 
         <!-- Warning: no periods -->
         <div v-else-if="!periods.length" class="state-card state-card--warn">
-            <div class="state-icon">
-                <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-            </div>
             <h3>No Periods Defined</h3>
             <p>Please set up periods for this school before creating timetables.</p>
             <Button variant="warning" size="sm" as="link" :href="route('school.periods.index')" class="mt-3.5">Go to Periods</Button>
@@ -279,9 +271,6 @@ const resetTimetable = () => {
 
         <!-- Warning: no subjects -->
         <div v-else-if="!classSubjects.length" class="state-card state-card--danger">
-            <div class="state-icon">
-                <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-            </div>
             <h3>No Subjects Assigned</h3>
             <p>This section doesn't have any subjects assigned to it yet.</p>
             <Button variant="danger" size="sm" as="link" :href="route('school.class-subjects.index')" class="mt-3.5">Assign Subjects</Button>
@@ -396,148 +385,103 @@ const resetTimetable = () => {
         </div>
 
         <!-- Auto Generate Modal -->
-        <div v-if="showAutoGenerateModal" class="modal-backdrop" @click.self="showAutoGenerateModal = false">
-            <div class="modal">
-                <div class="modal-header">
-                    <h3 class="modal-title">
-                        <span class="modal-title-icon">
-                            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                        </span>
-                        Auto Generate Timetable
-                    </h3>
-                    <button @click="showAutoGenerateModal = false" class="modal-close" aria-label="Close">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                    </button>
-                </div>
+        <Modal v-model:open="showAutoGenerateModal" title="Auto Generate Timetable" size="xl">
+            <div class="modal-cols">
+                <!-- Left: Scope -->
+                <div class="modal-col">
+                    <h4 class="modal-section-title">Generation Scope</h4>
 
-                <div class="modal-body">
-                    <div class="modal-cols">
-                        <!-- Left: Scope -->
-                        <div class="modal-col">
-                            <h4 class="modal-section-title">
-                                <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                Generation Scope
-                            </h4>
+                    <div class="form-field">
+                        <label>Target Day <span class="optional-label">(Optional)</span></label>
+                        <select v-model="autoGenOptions.day">
+                            <option value="">All Days (Full Week)</option>
+                            <option v-for="day in [...weekdayDays, ...weekendDays]" :key="day.id" :value="day.id">{{ day.name }}</option>
+                        </select>
+                        <span class="field-hint">Leave empty to generate for the entire week.</span>
+                    </div>
 
-                            <div class="form-field">
-                                <label>Target Day <span class="optional-label">(Optional)</span></label>
-                                <select v-model="autoGenOptions.day">
-                                    <option value="">All Days (Full Week)</option>
-                                    <option v-for="day in [...weekdayDays, ...weekendDays]" :key="day.id" :value="day.id">{{ day.name }}</option>
-                                </select>
-                                <span class="field-hint">Leave empty to generate for the entire week.</span>
-                            </div>
-
-                            <div class="form-field" style="margin-top:1rem">
-                                <label>Target Subjects <span class="optional-label">(Optional)</span></label>
-                                <div class="subject-checklist">
-                                    <div v-if="classSubjects.length === 0" class="subject-checklist-empty">No subjects assigned.</div>
-                                    <label v-for="cs in classSubjects" :key="cs.id" class="subject-check-row">
-                                        <input type="checkbox" v-model="autoGenOptions.class_subject_ids" :value="cs.id" />
-                                        <div>
-                                            <span class="subject-name">{{ cs.subject.name }}</span>
-                                            <span class="subject-teacher">{{ cs.incharge_staff?.user?.name || 'Unassigned' }}</span>
-                                        </div>
-                                    </label>
+                    <div class="form-field" style="margin-top:1rem">
+                        <label>Target Subjects <span class="optional-label">(Optional)</span></label>
+                        <div class="subject-checklist">
+                            <div v-if="classSubjects.length === 0" class="subject-checklist-empty">No subjects assigned.</div>
+                            <label v-for="cs in classSubjects" :key="cs.id" class="subject-check-row">
+                                <input type="checkbox" v-model="autoGenOptions.class_subject_ids" :value="cs.id" />
+                                <div>
+                                    <span class="subject-name">{{ cs.subject.name }}</span>
+                                    <span class="subject-teacher">{{ cs.incharge_staff?.user?.name || 'Unassigned' }}</span>
                                 </div>
-                                <span class="field-hint">Leave all unchecked to distribute all subjects.</span>
-                            </div>
+                            </label>
                         </div>
-
-                        <!-- Right: Constraints -->
-                        <div class="modal-col">
-                            <h4 class="modal-section-title">
-                                <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                                Constraint Settings
-                            </h4>
-                            <div class="constraints-list">
-                                <label class="constraint-row constraint-row--mandatory">
-                                    <input type="checkbox" v-model="generatorSettings.prevent_teacher_conflict" disabled />
-                                    <span>Prevent Teacher Conflict <span class="badge badge-indigo">Mandatory</span></span>
-                                </label>
-                                <label class="constraint-row constraint-row--mandatory">
-                                    <input type="checkbox" v-model="generatorSettings.prevent_class_conflict" disabled />
-                                    <span>Prevent Class Conflict <span class="badge badge-indigo">Mandatory</span></span>
-                                </label>
-                                <div class="constraint-divider"></div>
-                                <label class="constraint-row">
-                                    <input type="checkbox" v-model="generatorSettings.respect_weekly_limit" />
-                                    <span>Respect Subject Weekly Limit</span>
-                                </label>
-                                <label class="constraint-row">
-                                    <input type="checkbox" v-model="generatorSettings.avoid_consecutive" />
-                                    <span>Avoid Same Subject Consecutively</span>
-                                </label>
-                                <label class="constraint-row">
-                                    <input type="checkbox" v-model="generatorSettings.evenly_distribute" />
-                                    <span>Evenly Distribute Subjects Across Week</span>
-                                </label>
-                                <label class="constraint-row">
-                                    <input type="checkbox" v-model="generatorSettings.limit_teacher_max" />
-                                    <span>Limit Teacher Max Periods Per Day</span>
-                                </label>
-                                <label class="constraint-row">
-                                    <input type="checkbox" v-model="generatorSettings.avoid_same_day" />
-                                    <span>Avoid Same Subject Same Day</span>
-                                </label>
-                                <label class="constraint-row">
-                                    <input type="checkbox" v-model="generatorSettings.prefer_morning" />
-                                    <span>Prefer Morning Slots for Core Subjects</span>
-                                </label>
-                                <label class="constraint-row">
-                                    <input type="checkbox" v-model="generatorSettings.enable_randomization" />
-                                    <span>Enable Randomization (shuffle allocation)</span>
-                                </label>
-                                <label class="constraint-row">
-                                    <input type="checkbox" v-model="generatorSettings.allow_double_periods" />
-                                    <span>Allow Double Periods (for labs)</span>
-                                </label>
-                                <div class="constraint-divider"></div>
-                                <label class="constraint-row constraint-row--lock">
-                                    <input type="checkbox" v-model="generatorSettings.lock_existing" />
-                                    <span>Lock Existing Slots (do not override manual entries)</span>
-                                </label>
-                            </div>
-                        </div>
+                        <span class="field-hint">Leave all unchecked to distribute all subjects.</span>
                     </div>
                 </div>
 
-                <div class="modal-footer">
-                    <Button variant="secondary" size="sm" @click="saveConditions">
-                        <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
-                        Save Conditions
-                    </Button>
-                    <div class="modal-footer-right">
-                        <Button variant="secondary" size="sm" @click="showAutoGenerateModal = false">Cancel</Button>
-                        <Button @click="executeAutoGenerate">
-                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                            Generate Timetable
-                        </Button>
+                <!-- Right: Constraints -->
+                <div class="modal-col">
+                    <h4 class="modal-section-title">Constraint Settings</h4>
+                    <div class="constraints-list">
+                        <label class="constraint-row constraint-row--mandatory">
+                            <input type="checkbox" v-model="generatorSettings.prevent_teacher_conflict" disabled />
+                            <span>Prevent Teacher Conflict <span class="badge badge-indigo">Mandatory</span></span>
+                        </label>
+                        <label class="constraint-row constraint-row--mandatory">
+                            <input type="checkbox" v-model="generatorSettings.prevent_class_conflict" disabled />
+                            <span>Prevent Class Conflict <span class="badge badge-indigo">Mandatory</span></span>
+                        </label>
+                        <div class="constraint-divider"></div>
+                        <label class="constraint-row">
+                            <input type="checkbox" v-model="generatorSettings.respect_weekly_limit" />
+                            <span>Respect Subject Weekly Limit</span>
+                        </label>
+                        <label class="constraint-row">
+                            <input type="checkbox" v-model="generatorSettings.avoid_consecutive" />
+                            <span>Avoid Same Subject Consecutively</span>
+                        </label>
+                        <label class="constraint-row">
+                            <input type="checkbox" v-model="generatorSettings.evenly_distribute" />
+                            <span>Evenly Distribute Subjects Across Week</span>
+                        </label>
+                        <label class="constraint-row">
+                            <input type="checkbox" v-model="generatorSettings.limit_teacher_max" />
+                            <span>Limit Teacher Max Periods Per Day</span>
+                        </label>
+                        <label class="constraint-row">
+                            <input type="checkbox" v-model="generatorSettings.avoid_same_day" />
+                            <span>Avoid Same Subject Same Day</span>
+                        </label>
+                        <label class="constraint-row">
+                            <input type="checkbox" v-model="generatorSettings.prefer_morning" />
+                            <span>Prefer Morning Slots for Core Subjects</span>
+                        </label>
+                        <label class="constraint-row">
+                            <input type="checkbox" v-model="generatorSettings.enable_randomization" />
+                            <span>Enable Randomization (shuffle allocation)</span>
+                        </label>
+                        <label class="constraint-row">
+                            <input type="checkbox" v-model="generatorSettings.allow_double_periods" />
+                            <span>Allow Double Periods (for labs)</span>
+                        </label>
+                        <div class="constraint-divider"></div>
+                        <label class="constraint-row constraint-row--lock">
+                            <input type="checkbox" v-model="generatorSettings.lock_existing" />
+                            <span>Lock Existing Slots (do not override manual entries)</span>
+                        </label>
                     </div>
                 </div>
             </div>
-        </div>
+            <template #footer>
+                <Button variant="secondary" size="sm" @click="saveConditions">Save Conditions</Button>
+                <div style="margin-left:auto;display:flex;gap:.5rem;">
+                    <Button variant="secondary" size="sm" @click="showAutoGenerateModal = false">Cancel</Button>
+                    <Button @click="executeAutoGenerate">Generate Timetable</Button>
+                </div>
+            </template>
+        </Modal>
 
     </SchoolLayout>
 </template>
 
 <style scoped>
-/* ── Page header ── */
-.page-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-    flex-wrap: wrap;
-}
-.header-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-}
-
 /* ── Filter card ── */
 .filter-card { margin-bottom: 1.25rem; }
 .filter-body {
@@ -615,18 +559,8 @@ const resetTimetable = () => {
     align-items: center;
     gap: 0.45rem;
 }
-.state-card--idle { background: #f8fafc; border: 1.5px dashed #cbd5e1; }
 .state-card--warn { background: #fffbeb; border: 1.5px solid #fde68a; }
 .state-card--danger { background: #fef2f2; border: 1.5px solid #fecaca; }
-.state-icon {
-    width: 66px; height: 66px;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    margin-bottom: 0.5rem;
-}
-.state-card--idle .state-icon { background: #e2e8f0; color: #64748b; }
-.state-card--warn .state-icon { background: #fef9c3; color: #a16207; }
-.state-card--danger .state-icon { background: #fee2e2; color: #dc2626; }
 .state-card h3 { font-size: 1rem; font-weight: 700; color: #1e293b; margin: 0; }
 .state-card p { font-size: 0.875rem; color: #64748b; margin: 0; max-width: 360px; }
 
@@ -764,73 +698,6 @@ const resetTimetable = () => {
     font-weight: 600;
 }
 
-/* ── Modal ── */
-.modal-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 50;
-    background: rgba(15,23,42,0.5);
-    backdrop-filter: blur(4px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-}
-.modal {
-    background: var(--surface);
-    border-radius: var(--radius-lg);
-    box-shadow: 0 24px 60px rgba(15,23,42,0.22);
-    width: 100%;
-    max-width: 900px;
-    max-height: 90vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-.modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-}
-.modal-title {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    font-size: 1rem;
-    font-weight: 700;
-    color: #1e293b;
-    margin: 0;
-}
-.modal-title-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    background: #eef2ff;
-    border-radius: 7px;
-    color: var(--accent);
-}
-.modal-close {
-    background: none;
-    border: none;
-    color: #94a3b8;
-    cursor: pointer;
-    padding: 5px;
-    border-radius: 6px;
-    display: flex;
-    transition: background 0.12s, color 0.12s;
-}
-.modal-close:hover { background: #f1f5f9; color: #475569; }
-
-.modal-body {
-    padding: 1.25rem;
-    overflow-y: auto;
-    flex: 1;
-}
 .modal-cols {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -849,19 +716,6 @@ const resetTimetable = () => {
     margin: 0 0 1rem 0;
     padding-bottom: 0.55rem;
     border-bottom: 1px solid var(--border);
-}
-.modal-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.9rem 1.25rem;
-    border-top: 1px solid var(--border);
-    background: #f8fafc;
-    flex-shrink: 0;
-}
-.modal-footer-right {
-    display: flex;
-    gap: 0.5rem;
 }
 
 /* Constraints */
@@ -947,7 +801,6 @@ const resetTimetable = () => {
 
 @media (max-width: 768px) {
     .modal-cols { grid-template-columns: 1fr; }
-    .page-header { flex-direction: column; }
     .tt-day-full { display: none; }
 }
 </style>

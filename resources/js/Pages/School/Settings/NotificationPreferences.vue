@@ -1,6 +1,7 @@
 <script setup>
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { useForm } from '@inertiajs/vue3';
 import { reactive } from 'vue';
 
@@ -71,13 +72,14 @@ const groupColor = {
 
 <template>
     <SchoolLayout title="Notification Preferences">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Notification Preferences</h1>
+        <PageHeader title="Notification Preferences">
+            <template #subtitle>
                 <p style="color:#64748b;font-size:.9rem;">Choose which notifications you receive and via which channels.</p>
-            </div>
-            <Button @click="save" :loading="form.processing">Save Preferences</Button>
-        </div>
+            </template>
+            <template #actions>
+                <Button @click="save" :loading="form.processing">Save Preferences</Button>
+            </template>
+        </PageHeader>
 
         <!-- Channel legend -->
         <div class="card" style="margin-bottom:20px;padding:14px 16px;">

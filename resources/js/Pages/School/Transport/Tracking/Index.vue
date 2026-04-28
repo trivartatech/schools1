@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import { useSchoolStore } from '@/stores/useSchoolStore';
@@ -283,22 +284,20 @@ function loadLeaflet() {
     <SchoolLayout title="Live Bus Tracking">
 
         <!-- Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Live Bus Tracking</h1>
-                <p class="page-header-sub">
-                    Real-time vehicle tracking dashboard
-                    <span v-if="lastUpdated" class="last-updated">— Updated {{ lastUpdated }}</span>
-                </p>
-            </div>
-            <div style="display:flex;align-items:center;gap:0.75rem;">
+        <PageHeader title="Live Bus Tracking">
+            <template #subtitle>
+                <p class="page-header-sub">Real-time vehicle tracking dashboard
+                    <span v-if="lastUpdated" class="last-updated">— Updated {{ lastUpdated }}</span></p>
+            </template>
+            <template #actions>
                 <span class="live-indicator">
                     <span class="live-dot"></span>
                     LIVE
                 </span>
                 <span v-if="vehicles.length" class="badge badge-blue">{{ vehicles.length }} Online</span>
-            </div>
-        </div>
+
+            </template>
+        </PageHeader>
 
         <!-- No Permission -->
         <div v-if="!can('view_transport_tracking')" class="card" style="padding:5rem;text-align:center;color:var(--text-muted);">

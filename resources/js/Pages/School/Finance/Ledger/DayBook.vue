@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 import axios from 'axios';
@@ -77,15 +78,12 @@ const formatCurrency = (amount) => {
 <template>
     <SchoolLayout>
         <!-- Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Day Book Ledger</h1>
-                <p class="page-header-sub">Daily summary of cash inflows (tuition, transport, hostel and stationary fees) and outflows (expenses)</p>
-            </div>
-            <div class="flex gap-2">
+        <PageHeader title="Day Book Ledger" subtitle="Daily summary of cash inflows (tuition, transport, hostel and stationary fees) and outflows (expenses)">
+            <template #actions>
                 <Button variant="secondary" onclick="window.print()">🖨️ Print</Button>
-            </div>
-        </div>
+
+            </template>
+        </PageHeader>
 
         <!-- Filters -->
         <div class="card mb-6 print:hidden">

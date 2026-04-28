@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { computed, watch } from 'vue';
@@ -76,16 +77,14 @@ const submit = () => {
 
 <template>
     <SchoolLayout title="Upload Learning Material">
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">Upload Learning Material</h2>
-                <p class="page-header-sub">Share files, videos, or links with students</p>
-            </div>
-            <Button variant="secondary" as="link" :href="route('school.academic.resources.index')">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                Back to Resources
-            </Button>
-        </div>
+        <PageHeader title="Upload Learning Material" subtitle="Share files, videos, or links with students">
+            <template #actions>
+                <Button variant="secondary" as="link" :href="route('school.academic.resources.index')">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                                Back to Resources
+                            </Button>
+            </template>
+        </PageHeader>
 
         <div class="max-w-3xl">
             <form @submit.prevent="submit" class="card">

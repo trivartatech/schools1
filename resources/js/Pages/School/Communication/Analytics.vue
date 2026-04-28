@@ -1,5 +1,6 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { computed } from 'vue';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
@@ -39,12 +40,8 @@ const formatDate = (dateStr) => school.fmtDate(dateStr);
 
 <template>
     <SchoolLayout title="Delivery Analytics">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Delivery Analytics</h1>
-                <p class="page-header-sub">Message delivery performance overview</p>
-            </div>
-            <div class="period-selector">
+        <PageHeader title="Delivery Analytics" subtitle="Message delivery performance overview">
+            <template #actions>
                 <Link
                     v-for="p in periods"
                     :key="p"
@@ -55,8 +52,9 @@ const formatDate = (dateStr) => school.fmtDate(dateStr);
                 >
                     {{ p }}d
                 </Link>
-            </div>
-        </div>
+
+            </template>
+        </PageHeader>
 
         <!-- Summary Cards -->
         <div class="summary-grid">

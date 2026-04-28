@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -47,12 +48,14 @@ const cancelEdit = () => {
 
 <template>
     <SchoolLayout>
-        <div class="page-header">
-            <div>
+        <PageHeader>
+            <template #title>
                 <h1 class="text-2xl font-bold text-gray-900">Expense Categories</h1>
+            </template>
+            <template #subtitle>
                 <p class="text-sm text-gray-500 mt-1">Manage general expense types (e.g., Office Supplies, Maintenance)</p>
-            </div>
-        </div>
+            </template>
+        </PageHeader>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <!-- Form -->

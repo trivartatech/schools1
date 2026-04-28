@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -92,16 +93,14 @@ const parentOptions = (excludeId = null) =>
 <template>
     <SchoolLayout title="Designations">
 
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Designations</h1>
-                <p class="page-header-sub">Manage job titles and reporting hierarchy for staff.</p>
-            </div>
-            <Button @click="openCreate">
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                Add Designation
-            </Button>
-        </div>
+        <PageHeader title="Designations" subtitle="Manage job titles and reporting hierarchy for staff.">
+            <template #actions>
+                <Button @click="openCreate">
+                                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                Add Designation
+                            </Button>
+            </template>
+        </PageHeader>
 
         <!-- Table -->
         <div class="card" style="overflow:hidden;">

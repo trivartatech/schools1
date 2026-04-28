@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 
@@ -33,13 +34,11 @@ const medals = ['🥇', '🥈', '🥉'];
 
 <template>
 <SchoolLayout title="House Leaderboard">
-    <div class="page-header">
-        <div>
-            <h1 class="page-header-title">House Leaderboard</h1>
-            <p class="page-header-sub">Points tally for the current academic year</p>
-        </div>
-        <Link href="/school/houses" class="btn btn-secondary">← Back to Houses</Link>
-    </div>
+    <PageHeader title="House Leaderboard" subtitle="Points tally for the current academic year">
+        <template #actions>
+            <Link href="/school/houses" class="btn btn-secondary">← Back to Houses</Link>
+        </template>
+    </PageHeader>
 
     <div v-if="!houses.length" class="card" style="text-align:center;padding:3rem;">
         <p style="color:var(--text-muted);">No houses or points recorded yet.</p>

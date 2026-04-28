@@ -3,6 +3,10 @@ import { ref, computed } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import Modal from '@/Components/ui/Modal.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
+import Tabs from '@/Components/ui/Tabs.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
 import Table from '@/Components/ui/Table.vue';
 
 const props = defineProps({
@@ -83,6 +87,16 @@ const confirmImpersonate = () => {
 
 const cancelConfirm = () => { confirmTarget.value = null; };
 
+const showConfirmModal = computed({
+    get: () => confirmTarget.value !== null,
+    set: (v) => { if (!v) confirmTarget.value = null; },
+});
+
+const tabsConfig = computed(() => [
+    { key: 'users', label: 'Users',     count: props.users.length },
+    { key: 'logs',  label: 'Audit Log', count: props.logs.length },
+]);
+
 const colorFor = (type) => USER_TYPE_COLORS[type] ?? { bg: '#f1f5f9', text: '#475569', dot: '#94a3b8' };
 const labelFor = (type) => USER_TYPE_LABELS[type] ?? type;
 
@@ -99,71 +113,51 @@ const formatDuration = (minutes) => {
     <SchoolLayout title="User Management">
 
         <!-- Confirmation Modal -->
-        <Transition
-            enter-active-class="transition duration-200 ease-out"
-            enter-from-class="opacity-0"
-            enter-to-class="opacity-100"
-            leave-active-class="transition duration-150 ease-in"
-            leave-from-class="opacity-100"
-            leave-to-class="opacity-0">
-            <div v-if="confirmTarget" class="modal-overlay" @click.self="cancelConfirm">
-                <Transition
-                    enter-active-class="transition duration-250 ease-out"
-                    enter-from-class="opacity-0 scale-95"
-                    enter-to-class="opacity-100 scale-100"
-                    leave-active-class="transition duration-150 ease-in"
-                    leave-from-class="opacity-100 scale-100"
-                    leave-to-class="opacity-0 scale-95">
-                    <div v-if="confirmTarget" class="confirm-modal">
-                        <div class="confirm-icon-wrap">
-                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                            </svg>
-                        </div>
-                        <h3 class="confirm-title">Confirm Impersonation</h3>
-                        <p class="confirm-desc">
-                            You are about to log in as
-                            <strong>{{ confirmTarget.name }}</strong>
-                            (<span :style="{ color: colorFor(confirmTarget.user_type).dot }">{{ labelFor(confirmTarget.user_type) }}</span>).
-                            <br><br>
-                            All actions performed during this session will be associated with that user's account.
-                            This action will be <strong>logged</strong>.
-                        </p>
-                        <div class="confirm-actions">
-                            <Button variant="secondary" @click="cancelConfirm" id="cancel-impersonate-btn">Cancel</Button>
-                            <Button
-                                class="btn-impersonate"
-                                :loading="impersonatingId !== null"
-                                :disabled="impersonatingId !== null"
-                                @click="confirmImpersonate"
-                                id="confirm-impersonate-btn">
-                                <template v-if="!impersonatingId" #icon>
-                                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                                    </svg>
-                                </template>
-                                {{ impersonatingId ? 'Logging in…' : 'Yes, Login as User' }}
-                            </Button>
-                        </div>
-                    </div>
-                </Transition>
-            </div>
-        </Transition>
-
-        <!-- Page Header -->
-        <div class="page-header">
-            <div class="page-header-left">
-                <div class="page-header-icon">
+        <Modal v-model:open="showConfirmModal" title="Confirm Impersonation" size="sm">
+            <div v-if="confirmTarget" style="text-align:center;">
+                <div class="confirm-icon-wrap">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                     </svg>
                 </div>
-                <div>
-                    <h2 class="page-header-title">User Management</h2>
-                    <p class="page-header-sub">Impersonate users to troubleshoot issues on their behalf. All actions are audited.</p>
-                </div>
+                <p class="confirm-desc">
+                    You are about to log in as
+                    <strong>{{ confirmTarget.name }}</strong>
+                    (<span :style="{ color: colorFor(confirmTarget.user_type).dot }">{{ labelFor(confirmTarget.user_type) }}</span>).
+                    <br><br>
+                    All actions performed during this session will be associated with that user's account.
+                    This action will be <strong>logged</strong>.
+                </p>
             </div>
-            <div class="page-header-stats">
+            <template #footer>
+                <Button variant="secondary" @click="cancelConfirm" id="cancel-impersonate-btn">Cancel</Button>
+                <Button
+                    class="btn-impersonate"
+                    :loading="impersonatingId !== null"
+                    :disabled="impersonatingId !== null"
+                    @click="confirmImpersonate"
+                    id="confirm-impersonate-btn">
+                    {{ impersonatingId ? 'Logging in…' : 'Yes, Login as User' }}
+                </Button>
+            </template>
+        </Modal>
+
+        <!-- Page Header -->
+        <PageHeader>
+            <template #title>
+                <div class="page-header-row">
+                    <div class="page-header-icon">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                        </svg>
+                    </div>
+                    <h2 class="page-header-title">User Management</h2>
+                </div>
+            </template>
+            <template #subtitle>
+                <p class="page-header-sub" style="margin-left:62px;">Impersonate users to troubleshoot issues on their behalf. All actions are audited.</p>
+            </template>
+            <template #actions>
                 <div class="stat-pill">
                     <span class="stat-dot dot-green"></span>
                     {{ users.length }} users available
@@ -172,8 +166,8 @@ const formatDuration = (minutes) => {
                     <span class="stat-dot dot-purple"></span>
                     {{ logs.length }} sessions logged
                 </div>
-            </div>
-        </div>
+            </template>
+        </PageHeader>
 
         <!-- Security Warning Card -->
         <div class="security-card">
@@ -191,156 +185,124 @@ const formatDuration = (minutes) => {
             </div>
         </div>
 
-        <!-- Tabs -->
-        <div class="tabs-bar">
-            <Button variant="tab" :active="activeTab === 'users'" @click="activeTab = 'users'" id="tab-users">
-                <svg class="tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
-                </svg>
-                Users
-                <span class="tab-count">{{ users.length }}</span>
-            </Button>
-            <Button variant="tab" :active="activeTab === 'logs'" @click="activeTab = 'logs'" id="tab-logs">
-                <svg class="tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                </svg>
-                Audit Log
-                <span class="tab-count">{{ logs.length }}</span>
-            </Button>
-        </div>
-
-        <!-- Users Tab -->
-        <div v-show="activeTab === 'users'" class="tab-panel">
-            <!-- Filters -->
-            <div class="filters-row">
-                <div class="search-wrap">
-                    <svg class="search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                    </svg>
-                    <input
-                        v-model="searchQuery"
-                        type="search"
-                        class="search-input"
-                        placeholder="Search by name, email, or role…"
-                        id="user-search-input" />
+        <Tabs v-model="activeTab" :tabs="tabsConfig">
+            <!-- Users Tab -->
+            <template #tab-users>
+                <!-- Filters -->
+                <div class="filters-row">
+                    <div class="search-wrap">
+                        <svg class="search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <input
+                            v-model="searchQuery"
+                            type="search"
+                            class="search-input"
+                            placeholder="Search by name, email, or role…"
+                            id="user-search-input" />
+                    </div>
+                    <select v-model="filterType" class="type-filter" id="user-type-filter">
+                        <option value="">All Roles</option>
+                        <option v-for="t in availableTypes" :key="t" :value="t">{{ labelFor(t) }}</option>
+                    </select>
                 </div>
-                <select v-model="filterType" class="type-filter" id="user-type-filter">
-                    <option value="">All Roles</option>
-                    <option v-for="t in availableTypes" :key="t" :value="t">{{ labelFor(t) }}</option>
-                </select>
-            </div>
 
-            <!-- User Grid -->
-            <div v-if="filteredUsers.length > 0" class="user-grid">
-                <div
-                    v-for="user in filteredUsers"
-                    :key="user.id"
-                    class="user-card"
-                    :class="{ 'user-card--inactive': !user.is_active }">
-                    <div class="user-card-top">
-                        <div class="user-avatar-lg" :style="{ background: `linear-gradient(135deg, ${colorFor(user.user_type).dot}, ${colorFor(user.user_type).dot}88)` }">
-                            {{ user.name.charAt(0).toUpperCase() }}
-                        </div>
-                        <div class="user-card-info">
-                            <div class="user-card-name">{{ user.name }}</div>
-                            <div class="user-card-email">{{ user.email || '—' }}</div>
-                            <div class="user-badge-row">
-                                <span
-                                    class="role-badge"
-                                    :style="{ background: colorFor(user.user_type).bg, color: colorFor(user.user_type).text }">
-                                    <span class="role-dot" :style="{ background: colorFor(user.user_type).dot }"></span>
-                                    {{ labelFor(user.user_type) }}
-                                </span>
-                                <span v-if="!user.is_active" class="inactive-badge">Inactive</span>
+                <!-- User Grid -->
+                <div v-if="filteredUsers.length > 0" class="user-grid">
+                    <div
+                        v-for="user in filteredUsers"
+                        :key="user.id"
+                        class="user-card"
+                        :class="{ 'user-card--inactive': !user.is_active }">
+                        <div class="user-card-top">
+                            <div class="user-avatar-lg" :style="{ background: `linear-gradient(135deg, ${colorFor(user.user_type).dot}, ${colorFor(user.user_type).dot}88)` }">
+                                {{ user.name.charAt(0).toUpperCase() }}
+                            </div>
+                            <div class="user-card-info">
+                                <div class="user-card-name">{{ user.name }}</div>
+                                <div class="user-card-email">{{ user.email || '—' }}</div>
+                                <div class="user-badge-row">
+                                    <span
+                                        class="role-badge"
+                                        :style="{ background: colorFor(user.user_type).bg, color: colorFor(user.user_type).text }">
+                                        <span class="role-dot" :style="{ background: colorFor(user.user_type).dot }"></span>
+                                        {{ labelFor(user.user_type) }}
+                                    </span>
+                                    <span v-if="!user.is_active" class="inactive-badge">Inactive</span>
+                                </div>
                             </div>
                         </div>
+                        <button
+                            @click="startImpersonate(user)"
+                            :disabled="!user.is_active || impersonatingId === user.id"
+                            class="impersonate-btn"
+                            :id="`impersonate-btn-${user.id}`">
+                            <svg v-if="impersonatingId === user.id" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                            </svg>
+                            <svg v-else class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            </svg>
+                            {{ impersonatingId === user.id ? 'Logging in…' : (user.is_active ? 'Login as User' : 'Inactive') }}
+                        </button>
                     </div>
-                    <button
-                        @click="startImpersonate(user)"
-                        :disabled="!user.is_active || impersonatingId === user.id"
-                        class="impersonate-btn"
-                        :id="`impersonate-btn-${user.id}`">
-                        <svg v-if="impersonatingId === user.id" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                        </svg>
-                        <svg v-else class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                        </svg>
-                        {{ impersonatingId === user.id ? 'Logging in…' : (user.is_active ? 'Login as User' : 'Inactive') }}
-                    </button>
                 </div>
-            </div>
 
-            <!-- Empty state -->
-            <div v-else class="empty-state">
-                <svg class="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
-                </svg>
-                <div class="empty-title">No users found</div>
-                <div class="empty-sub">Try adjusting your search or filter.</div>
-            </div>
-        </div>
+                <!-- Empty state -->
+                <EmptyState v-else
+                    title="No users found"
+                    description="Try adjusting your search or filter." />
+            </template>
 
-        <!-- Audit Log Tab -->
-        <div v-show="activeTab === 'logs'" class="tab-panel">
-            <div v-if="logs.length > 0" class="logs-table-wrap">
-                <Table class="logs-table" striped>
-                    <thead>
-                        <tr>
-                            <th>Impersonated User</th>
-                            <th>Role</th>
-                            <th>IP Address</th>
-                            <th>Started At</th>
-                            <th>Ended At</th>
-                            <th>Duration</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="log in logs" :key="log.id" class="log-row">
-                            <td class="log-name">{{ log.impersonated_name }}</td>
-                            <td>
-                                <span class="role-badge sm"
-                                    :style="{ background: colorFor(log.impersonated_type).bg, color: colorFor(log.impersonated_type).text }">
-                                    {{ labelFor(log.impersonated_type) }}
-                                </span>
-                            </td>
-                            <td class="log-mono">{{ log.ip_address || '—' }}</td>
-                            <td class="log-date">{{ log.started_at }}</td>
-                            <td class="log-date">{{ log.ended_at || '—' }}</td>
-                            <td class="log-mono">{{ formatDuration(log.duration_minutes) }}</td>
-                            <td>
-                                <span v-if="log.ended_at" class="status-pill status-completed">Completed</span>
-                                <span v-else class="status-pill status-active">Active</span>
-                            </td>
-                        </tr>
-                    </tbody>
-                </Table>
-            </div>
-            <div v-else class="empty-state">
-                <svg class="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                </svg>
-                <div class="empty-title">No impersonation sessions yet</div>
-                <div class="empty-sub">Sessions will appear here once you impersonate a user.</div>
-            </div>
-        </div>
+            <!-- Audit Log Tab -->
+            <template #tab-logs>
+                <div v-if="logs.length > 0" class="logs-table-wrap">
+                    <Table class="logs-table" striped>
+                        <thead>
+                            <tr>
+                                <th>Impersonated User</th>
+                                <th>Role</th>
+                                <th>IP Address</th>
+                                <th>Started At</th>
+                                <th>Ended At</th>
+                                <th>Duration</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="log in logs" :key="log.id" class="log-row">
+                                <td class="log-name">{{ log.impersonated_name }}</td>
+                                <td>
+                                    <span class="role-badge sm"
+                                        :style="{ background: colorFor(log.impersonated_type).bg, color: colorFor(log.impersonated_type).text }">
+                                        {{ labelFor(log.impersonated_type) }}
+                                    </span>
+                                </td>
+                                <td class="log-mono">{{ log.ip_address || '—' }}</td>
+                                <td class="log-date">{{ log.started_at }}</td>
+                                <td class="log-date">{{ log.ended_at || '—' }}</td>
+                                <td class="log-mono">{{ formatDuration(log.duration_minutes) }}</td>
+                                <td>
+                                    <span v-if="log.ended_at" class="status-pill status-completed">Completed</span>
+                                    <span v-else class="status-pill status-active">Active</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </Table>
+                </div>
+                <EmptyState v-else
+                    title="No impersonation sessions yet"
+                    description="Sessions will appear here once you impersonate a user." />
+            </template>
+        </Tabs>
 
     </SchoolLayout>
 </template>
 
 <style scoped>
-/* ── Page Header ── */
-.page-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-}
-.page-header-left {
+/* ── Page Header decorations ── */
+.page-header-row {
     display: flex;
     align-items: center;
     gap: 14px;
@@ -357,9 +319,6 @@ const formatDuration = (minutes) => {
     box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
 }
 .page-header-icon svg { width: 24px; height: 24px; color: #fff; }
-.page-header-title { font-size: 1.125rem; font-weight: 700; color: #0f172a; margin-bottom: 2px; }
-.page-header-sub { font-size: 0.8125rem; color: #64748b; }
-.page-header-stats { display: flex; flex-wrap: wrap; gap: 8px; }
 .stat-pill {
     display: inline-flex;
     align-items: center;
@@ -400,29 +359,6 @@ const formatDuration = (minutes) => {
 .security-card-icon svg { width: 18px; height: 18px; color: #fff; }
 .security-card-title { font-size: 0.875rem; font-weight: 700; color: #4c1d95; margin-bottom: 3px; }
 .security-card-text { font-size: 0.8rem; color: #5b21b6; line-height: 1.5; }
-
-/* ── Tabs ── */
-.tabs-bar {
-    display: flex;
-    gap: 4px;
-    border-bottom: 2px solid #e2e8f0;
-    margin-bottom: 24px;
-}
-.tab-icon { width: 16px; height: 16px; }
-.tab-count {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 20px;
-    height: 20px;
-    padding: 0 6px;
-    border-radius: 10px;
-    font-size: 0.7rem;
-    font-weight: 700;
-    background: #e2e8f0;
-    color: #475569;
-}
-.ui-btn--active .tab-count { background: #ede9fe; color: #5b21b6; }
 
 /* ── Filters ── */
 .filters-row {
@@ -574,39 +510,7 @@ const formatDuration = (minutes) => {
 .status-completed { background: #d1fae5; color: #065f46; }
 .status-active { background: #fde68a; color: #78350f; }
 
-/* ── Empty State ── */
-.empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 64px 24px;
-    text-align: center;
-}
-.empty-icon { width: 56px; height: 56px; color: #cbd5e1; margin-bottom: 16px; }
-.empty-title { font-size: 1rem; font-weight: 700; color: #374151; margin-bottom: 6px; }
-.empty-sub { font-size: 0.875rem; color: #94a3b8; }
-
-/* ── Confirm Modal ── */
-.modal-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 99999;
-    background: rgba(0,0,0,0.55);
-    backdrop-filter: blur(4px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-}
-.confirm-modal {
-    background: #fff;
-    border-radius: 20px;
-    padding: 32px;
-    max-width: 440px;
-    width: 100%;
-    text-align: center;
-    box-shadow: 0 24px 80px rgba(0,0,0,0.25);
-}
+/* ── Confirm Modal accent ── */
 .confirm-icon-wrap {
     width: 64px;
     height: 64px;
@@ -619,10 +523,8 @@ const formatDuration = (minutes) => {
     box-shadow: 0 8px 24px rgba(124, 58, 237, 0.4);
 }
 .confirm-icon-wrap svg { width: 30px; height: 30px; color: #fff; }
-.confirm-title { font-size: 1.1rem; font-weight: 800; color: #1e293b; margin-bottom: 12px; }
-.confirm-desc { font-size: 0.875rem; color: #475569; line-height: 1.6; margin-bottom: 24px; }
+.confirm-desc { font-size: 0.875rem; color: #475569; line-height: 1.6; margin-bottom: 8px; }
 .confirm-desc strong { color: #1e293b; font-weight: 700; }
-.confirm-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 /* Purple gradient override for the confirm-impersonate button (composes with .ui-btn) */
 .btn-impersonate {
     background: linear-gradient(135deg, #7c3aed, #5b21b6);

@@ -1,6 +1,9 @@
 <script setup>
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import Modal from '@/Components/ui/Modal.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
@@ -57,18 +60,16 @@ const needsSalary      = (et) => ['salary_revision', 'increment', 'promotion', '
 
 <template>
     <SchoolLayout :title="`Staff History — ${staff.user?.name ?? staff.user?.first_name}`">
-        <div class="page-header">
-            <div>
-                <Link href="/school/staff" style="font-size:.8rem;color:#94a3b8;">← Back to Staff</Link>
-                <h1 class="page-header-title" style="margin-top:4px;">
-                    {{ staff.user?.name ?? `${staff.user?.first_name} ${staff.user?.last_name}` }}
-                </h1>
-                <p style="color:#64748b;font-size:.9rem;">
-                    {{ staff.designation?.name }} · {{ staff.department?.name }} · {{ staff.employee_id }}
-                </p>
-            </div>
-            <Button @click="showForm = true">+ Record Event</Button>
-        </div>
+        <PageHeader
+            :title="staff.user?.name ?? `${staff.user?.first_name} ${staff.user?.last_name}`"
+            :subtitle="`${staff.designation?.name} · ${staff.department?.name} · ${staff.employee_id}`"
+            back-href="/school/staff"
+            back-label="Back to Staff"
+        >
+            <template #actions>
+                <Button @click="showForm = true">+ Record Event</Button>
+            </template>
+        </PageHeader>
 
         <!-- Current profile summary -->
         <div class="card" style="margin-bottom:20px;padding:16px;">
@@ -102,9 +103,14 @@ const needsSalary      = (et) => ['salary_revision', 'increment', 'promotion', '
                 <span class="card-title">Career History</span>
             </div>
 
-            <div v-if="!history.length" style="padding:32px;text-align:center;color:#94a3b8;">
-                No history events recorded yet.
-            </div>
+            <EmptyState
+                v-if="!history.length"
+                variant="compact"
+                title="No history events recorded yet"
+                description="Add a career event to start building this staff member's history."
+                action-label="+ Record Event"
+                @action="showForm = true"
+            />
 
             <div v-else style="padding:16px;position:relative;">
                 <div style="position:absolute;left:36px;top:0;bottom:0;width:2px;background:#e2e8f0;z-index:0;"></div>
@@ -148,109 +154,117 @@ const needsSalary      = (et) => ['salary_revision', 'increment', 'promotion', '
         </div>
 
         <!-- Record Event Modal -->
-        <Teleport to="body">
-            <div v-if="showForm" class="modal-backdrop" @click.self="showForm = false">
-                <div class="modal" style="max-width:500px;width:100%;">
-                    <div class="modal-header">
-                        <h3 class="modal-title">Record Career Event</h3>
-                        <button @click="showForm = false" class="modal-close">&times;</button>
+        <Modal v-model:open="showForm" title="Record Career Event" size="md">
+            <form @submit.prevent="submit" id="history-form">
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                    <div class="form-field">
+                        <label>Event Type *</label>
+                        <select v-model="form.event_type" required>
+                            <option value="promotion">Promotion</option>
+                            <option value="transfer">Transfer</option>
+                            <option value="demotion">Demotion</option>
+                            <option value="salary_revision">Salary Revision</option>
+                            <option value="increment">Increment</option>
+                            <option value="department_change">Department Change</option>
+                            <option value="designation_change">Designation Change</option>
+                            <option value="confirmation">Confirmation (after probation)</option>
+                            <option value="joining">Joining</option>
+                            <option value="termination">Termination</option>
+                            <option value="other">Other</option>
+                        </select>
                     </div>
-                    <form @submit.prevent="submit">
-                        <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
-                            <div class="form-field">
-                                <label>Event Type *</label>
-                                <select v-model="form.event_type" required>
-                                    <option value="promotion">Promotion</option>
-                                    <option value="transfer">Transfer</option>
-                                    <option value="demotion">Demotion</option>
-                                    <option value="salary_revision">Salary Revision</option>
-                                    <option value="increment">Increment</option>
-                                    <option value="department_change">Department Change</option>
-                                    <option value="designation_change">Designation Change</option>
-                                    <option value="confirmation">Confirmation (after probation)</option>
-                                    <option value="joining">Joining</option>
-                                    <option value="termination">Termination</option>
-                                    <option value="other">Other</option>
-                                </select>
-                            </div>
 
-                            <div v-if="needsDesignation(form.event_type)" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                                <div class="form-field" style="margin:0;">
-                                    <label>From Designation</label>
-                                    <select v-model="form.from_designation_id">
-                                        <option value="">—</option>
-                                        <option v-for="d in designations" :key="d.id" :value="d.id">{{ d.name }}</option>
-                                    </select>
-                                </div>
-                                <div class="form-field" style="margin:0;">
-                                    <label>To Designation</label>
-                                    <select v-model="form.to_designation_id">
-                                        <option value="">—</option>
-                                        <option v-for="d in designations" :key="d.id" :value="d.id">{{ d.name }}</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div v-if="needsDepartment(form.event_type)" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                                <div class="form-field" style="margin:0;">
-                                    <label>From Department</label>
-                                    <select v-model="form.from_department_id">
-                                        <option value="">—</option>
-                                        <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
-                                    </select>
-                                </div>
-                                <div class="form-field" style="margin:0;">
-                                    <label>To Department</label>
-                                    <select v-model="form.to_department_id">
-                                        <option value="">—</option>
-                                        <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div v-if="needsSalary(form.event_type)" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                                <div class="form-field" style="margin:0;">
-                                    <label>From Salary (₹)</label>
-                                    <input v-model="form.from_salary" type="number" min="0" step="0.01" />
-                                </div>
-                                <div class="form-field" style="margin:0;">
-                                    <label>To Salary (₹)</label>
-                                    <input v-model="form.to_salary" type="number" min="0" step="0.01" />
-                                </div>
-                            </div>
-
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                                <div class="form-field" style="margin:0;">
-                                    <label>Effective Date *</label>
-                                    <input v-model="form.effective_date" type="date" required />
-                                </div>
-                                <div class="form-field" style="margin:0;">
-                                    <label>Order / Reference No</label>
-                                    <input v-model="form.order_no" placeholder="e.g. HR/2026/045" />
-                                </div>
-                            </div>
-                            <div class="form-field">
-                                <label>Remarks</label>
-                                <textarea v-model="form.remarks" rows="2"></textarea>
-                            </div>
+                    <div v-if="needsDesignation(form.event_type)" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div class="form-field" style="margin:0;">
+                            <label>From Designation</label>
+                            <select v-model="form.from_designation_id">
+                                <option value="">—</option>
+                                <option v-for="d in designations" :key="d.id" :value="d.id">{{ d.name }}</option>
+                            </select>
                         </div>
-                        <div class="modal-footer">
-                            <Button variant="secondary" type="button" @click="showForm = false">Cancel</Button>
-                            <Button type="submit" :loading="form.processing">Record Event</Button>
+                        <div class="form-field" style="margin:0;">
+                            <label>To Designation</label>
+                            <select v-model="form.to_designation_id">
+                                <option value="">—</option>
+                                <option v-for="d in designations" :key="d.id" :value="d.id">{{ d.name }}</option>
+                            </select>
                         </div>
-                    </form>
+                    </div>
+
+                    <div v-if="needsDepartment(form.event_type)" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div class="form-field" style="margin:0;">
+                            <label>From Department</label>
+                            <select v-model="form.from_department_id">
+                                <option value="">—</option>
+                                <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
+                            </select>
+                        </div>
+                        <div class="form-field" style="margin:0;">
+                            <label>To Department</label>
+                            <select v-model="form.to_department_id">
+                                <option value="">—</option>
+                                <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div v-if="needsSalary(form.event_type)" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div class="form-field" style="margin:0;">
+                            <label>From Salary (₹)</label>
+                            <input v-model="form.from_salary" type="number" min="0" step="0.01" />
+                        </div>
+                        <div class="form-field" style="margin:0;">
+                            <label>To Salary (₹)</label>
+                            <input v-model="form.to_salary" type="number" min="0" step="0.01" />
+                        </div>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div class="form-field" style="margin:0;">
+                            <label>Effective Date *</label>
+                            <input v-model="form.effective_date" type="date" required />
+                        </div>
+                        <div class="form-field" style="margin:0;">
+                            <label>Order / Reference No</label>
+                            <input v-model="form.order_no" placeholder="e.g. HR/2026/045" />
+                        </div>
+                    </div>
+                    <div class="form-field">
+                        <label>Remarks</label>
+                        <textarea v-model="form.remarks" rows="2"></textarea>
+                    </div>
                 </div>
-            </div>
-        </Teleport>
+            </form>
+            <template #footer>
+                <Button variant="secondary" type="button" @click="showForm = false">Cancel</Button>
+                <Button type="submit" form="history-form" :loading="form.processing">Record Event</Button>
+            </template>
+        </Modal>
     </SchoolLayout>
 </template>
 
 <style scoped>
-.modal-backdrop { position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.5);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;z-index:1000; }
-.modal { background:#fff;border-radius:12px;box-shadow:0 20px 25px -5px rgba(0,0,0,.1); }
-.modal-header { padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center; }
-.modal-title { font-size:1rem;font-weight:700;color:#1e293b; }
-.modal-close { background:none;border:none;font-size:1.5rem;line-height:1;color:#94a3b8;cursor:pointer; }
-.modal-body { padding:20px; }
-.modal-footer { padding:16px 20px;border-top:1px solid #e2e8f0;background:#f8fafc;border-radius:0 0 12px 12px;display:flex;justify-content:flex-end;gap:10px; }
+/* Form fields — Tailwind preflight workaround */
+.form-field { display: flex; flex-direction: column; gap: 5px; }
+.form-field label { font-size: 0.78rem; font-weight: 600; color: #374151; }
+.form-field input,
+.form-field select,
+.form-field textarea {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    background: #fff;
+    color: #111827;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.form-field textarea { min-height: 60px; resize: vertical; }
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
 </style>

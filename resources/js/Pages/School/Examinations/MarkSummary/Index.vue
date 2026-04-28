@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -124,15 +125,13 @@ const statLabels = {
     <SchoolLayout title="Mark Summary">
 
         <!-- Page Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Mark Summary</h1>
-                <p class="page-header-sub">Assessment item-wise marks for all students with class statistics.</p>
-            </div>
-            <Button v-if="result" @click="openPrint">
-                Print Mark Summary
-            </Button>
-        </div>
+        <PageHeader title="Mark Summary" subtitle="Assessment item-wise marks for all students with class statistics.">
+            <template #actions>
+                <Button v-if="result" @click="openPrint">
+                                Print Mark Summary
+                            </Button>
+            </template>
+        </PageHeader>
 
         <!-- Filters -->
         <div class="card mb-6">

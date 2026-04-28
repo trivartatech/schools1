@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, watch, computed, onMounted } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -126,16 +127,14 @@ const selectedSectionName = computed(() => {
 
 <template>
     <SchoolLayout title="Assign Subjects">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Class-Subject Assignments</h1>
-                <p class="page-header-sub">Assign multiple subjects at once to a class or section.</p>
-            </div>
-            <Button @click="openPanel">
-                <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                Assign Subjects
-            </Button>
-        </div>
+        <PageHeader title="Class-Subject Assignments" subtitle="Assign multiple subjects at once to a class or section.">
+            <template #actions>
+                <Button @click="openPanel">
+                                <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                Assign Subjects
+                            </Button>
+            </template>
+        </PageHeader>
 
         <!-- Assignments grouped by class -->
         <div v-if="Object.keys(grouped).length === 0" class="card p-10 text-center text-slate-500 border-dashed">

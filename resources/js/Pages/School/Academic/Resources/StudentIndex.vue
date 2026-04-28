@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref, computed } from 'vue';
@@ -137,12 +138,7 @@ const typeMetaViewer = (type) => ({
 
 <template>
     <SchoolLayout title="Study Materials">
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">Study Materials</h2>
-                <p class="page-header-sub">Access learning materials and join online classes</p>
-            </div>
-        </div>
+        <PageHeader title="Study Materials" subtitle="Access learning materials and join online classes" />
 
         <!-- Tabs -->
         <div class="flex gap-1 mb-6 border-b border-slate-200">

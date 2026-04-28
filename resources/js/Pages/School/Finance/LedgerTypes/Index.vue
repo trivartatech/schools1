@@ -1,8 +1,13 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import Modal from '@/Components/ui/Modal.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const props = defineProps({
     types: Array,
@@ -50,8 +55,14 @@ function save() {
     }
 }
 
-function deleteType(type) {
-    if (!confirm(`Delete "${type.name}"? This cannot be undone.`)) return;
+async function deleteType(type) {
+    const ok = await confirm({
+        title: 'Delete ledger type?',
+        message: `"${type.name}" will be permanently removed. This cannot be undone.`,
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
     router.delete(route('school.finance.ledger-types.destroy', type.id), { preserveScroll: true });
 }
 
@@ -61,14 +72,14 @@ const natureBadge = (n) => n === 'debit' ? 'badge-blue' : 'badge-green';
 
 <template>
     <SchoolLayout>
-        <!-- Page header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Ledger Types</h1>
-                <p class="page-header-sub">Define account categories (Asset, Liability, Income, Expense, Capital)</p>
-            </div>
-            <Button @click="openCreate">+ New Type</Button>
-        </div>
+        <PageHeader
+            title="Ledger Types"
+            subtitle="Define account categories (Asset, Liability, Income, Expense, Capital)"
+        >
+            <template #actions>
+                <Button @click="openCreate">+ New Type</Button>
+            </template>
+        </PageHeader>
 
         <!-- Cards grid -->
         <div class="lt-grid">
@@ -112,40 +123,32 @@ const natureBadge = (n) => n === 'debit' ? 'badge-blue' : 'badge-green';
         </div>
 
         <!-- Create / Edit Modal -->
-        <Teleport to="body">
-            <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
-                <div class="modal-box">
-                    <div class="modal-header">
-                        <h3>{{ isEditing ? 'Edit Ledger Type' : 'New Ledger Type' }}</h3>
-                        <button class="modal-close" @click="showModal = false">×</button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="form-group">
-                            <label class="form-label">Name <span class="text-red-500">*</span></label>
-                            <input v-model="form.name" type="text" class="form-input" placeholder="e.g. Asset" />
-                            <p v-if="form.errors.name" class="form-error">{{ form.errors.name }}</p>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Nature <span class="text-red-500">*</span></label>
-                            <select v-model="form.nature" class="form-input">
-                                <option value="debit">Debit Normal (Asset / Expense)</option>
-                                <option value="credit">Credit Normal (Liability / Capital / Income)</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Description</label>
-                            <textarea v-model="form.description" class="form-input" rows="2" placeholder="Optional description"></textarea>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <Button variant="secondary" @click="showModal = false">Cancel</Button>
-                        <Button @click="save" :loading="form.processing">
-                            {{ (isEditing ? 'Update' : 'Create') }}
-                        </Button>
-                    </div>
+        <Modal v-model:open="showModal" :title="isEditing ? 'Edit Ledger Type' : 'New Ledger Type'" size="md">
+            <form @submit.prevent="save" id="lt-form">
+                <div class="form-group">
+                    <label class="form-label">Name <span class="req">*</span></label>
+                    <input v-model="form.name" type="text" class="form-input" placeholder="e.g. Asset" />
+                    <p v-if="form.errors.name" class="form-error">{{ form.errors.name }}</p>
                 </div>
-            </div>
-        </Teleport>
+                <div class="form-group">
+                    <label class="form-label">Nature <span class="req">*</span></label>
+                    <select v-model="form.nature" class="form-input">
+                        <option value="debit">Debit Normal (Asset / Expense)</option>
+                        <option value="credit">Credit Normal (Liability / Capital / Income)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea v-model="form.description" class="form-input" rows="2" placeholder="Optional description"></textarea>
+                </div>
+            </form>
+            <template #footer>
+                <Button variant="secondary" @click="showModal = false">Cancel</Button>
+                <Button type="submit" form="lt-form" :loading="form.processing">
+                    {{ isEditing ? 'Update' : 'Create' }}
+                </Button>
+            </template>
+        </Modal>
     </SchoolLayout>
 </template>
 
@@ -216,41 +219,11 @@ const natureBadge = (n) => n === 'debit' ? 'badge-blue' : 'badge-green';
 .lt-act-btn:hover     { background: #ede9fe; border-color: #c4b5fd; color: #6366f1; }
 .lt-act-del:hover     { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
 
-/* Modal */
-.modal-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.4);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 9000;
-}
-.modal-box {
-    background: #fff;
-    border-radius: 16px;
-    width: 100%;
-    max-width: 440px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-    overflow: hidden;
-}
-.modal-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 18px 22px;
-    border-bottom: 1px solid #f1f5f9;
-}
-.modal-header h3 { font-weight: 700; font-size: 1rem; color: #1e293b; }
-.modal-close {
-    background: none; border: none; cursor: pointer;
-    font-size: 1.4rem; color: #94a3b8; line-height: 1;
-}
-.modal-close:hover { color: #1e293b; }
-.modal-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; }
-.modal-footer {
-    display: flex; justify-content: flex-end; gap: 10px;
-    padding: 14px 22px;
-    border-top: 1px solid #f1f5f9;
-    background: #f8fafc;
-}
-.form-group { display: flex; flex-direction: column; gap: 5px; }
+/* Modal form fields — Tailwind preflight workaround. */
+.form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+.form-group:last-child { margin-bottom: 0; }
 .form-label { font-size: 0.8rem; font-weight: 600; color: #374151; }
+.req { color: #ef4444; }
 .form-input {
     border: 1.5px solid #e2e8f0;
     border-radius: 8px;

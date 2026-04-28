@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 
@@ -32,15 +33,13 @@ const submit = () => {
 
 <template>
     <SchoolLayout title="Communication Settings">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Communication Settings</h1>
-                <p class="page-header-sub">Master control for all automated alerts and provider configuration</p>
-            </div>
-            <Button @click="submit" :loading="form.processing">
-                Save Settings
-            </Button>
-        </div>
+        <PageHeader title="Communication Settings" subtitle="Master control for all automated alerts and provider configuration">
+            <template #actions>
+                <Button @click="submit" :loading="form.processing">
+                                Save Settings
+                            </Button>
+            </template>
+        </PageHeader>
 
         <!-- Global Switch -->
         <div class="card" style="margin-bottom:16px;">

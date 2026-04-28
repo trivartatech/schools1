@@ -3,11 +3,14 @@ import { ref, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import Table from '@/Components/ui/Table.vue';
 import axios from 'axios';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const school = useSchoolStore();
+const confirm = useConfirm();
 
 const props = defineProps({
     papers:  Array,
@@ -37,8 +40,14 @@ function applyFilter() {
     router.get('/school/question-papers', params, { preserveState: true });
 }
 
-function confirmDelete(paper) {
-    if (!confirm(`Delete "${paper.title}"?`)) return;
+async function confirmDelete(paper) {
+    const ok = await confirm({
+        title: 'Delete question paper?',
+        message: `Delete "${paper.title}"?`,
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
     deleting.value = paper.id;
     router.delete(`/school/question-papers/${paper.id}`, {
         onFinish: () => { deleting.value = null; },
@@ -61,18 +70,16 @@ const DIFFICULTY_LABEL = {
     <SchoolLayout title="AI Question Papers">
 
         <!-- Page Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">AI Question Paper Generator</h1>
-                <p class="page-header-sub">Generate and manage AI-powered exam question papers.</p>
-            </div>
-            <Button as="link" href="/school/question-papers/create">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-                Generate New Paper
-            </Button>
-        </div>
+        <PageHeader title="AI Question Paper Generator" subtitle="Generate and manage AI-powered exam question papers.">
+            <template #actions>
+                <Button as="link" href="/school/question-papers/create">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                                Generate New Paper
+                            </Button>
+            </template>
+        </PageHeader>
 
         <!-- Filters -->
         <div class="card" style="margin-bottom:20px;">

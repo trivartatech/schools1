@@ -1,21 +1,29 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import Modal from '@/Components/ui/Modal.vue';
 import { ref, computed, watch, nextTick } from 'vue';
 import QRCode from 'qrcode';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useDelete } from '@/Composables/useDelete';
+import { useConfirm } from '@/Composables/useConfirm';
 import { usePermissions } from '@/Composables/usePermissions';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const { canDo, canRequestEditStudent } = usePermissions();
 const school = useSchoolStore();
+const confirm = useConfirm();
 
-const deleteStudent = (id) => {
-    if (confirm('Are you sure you want to delete this student? This action cannot be undone.')) {
-        router.delete(`/school/students/${id}`);
-    }
+const deleteStudent = async (id) => {
+    const ok = await confirm({
+        title: 'Delete student?',
+        message: 'Are you sure you want to delete this student? This action cannot be undone.',
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
+    router.delete(`/school/students/${id}`);
 };
 
 const props = defineProps({
@@ -72,9 +80,16 @@ const saveAdmNo    = () => admNoForm.patch(`/school/students/${props.student.id}
 
 // ── Defaulter Flag (manual toggle) ────────────────────────────────────────────
 const defaulterForm = useForm({ is_defaulter: !!props.student.is_defaulter });
-const toggleDefaulter = () => {
+const toggleDefaulter = async () => {
     const next = !defaulterForm.is_defaulter;
-    if (next && !confirm(`Mark ${props.student.first_name} as a fee defaulter?`)) return;
+    if (next) {
+        const ok = await confirm({
+            title: 'Flag as defaulter?',
+            message: `Mark ${props.student.first_name} as a fee defaulter?`,
+            confirmLabel: 'Flag',
+        });
+        if (!ok) return;
+    }
     defaulterForm.is_defaulter = next;
     defaulterForm.patch(`/school/students/${props.student.id}/defaulter`, {
         preserveScroll: true,
@@ -381,10 +396,15 @@ const saveDisc = () => {
     }
 };
 
-const deleteDisc = (id) => {
-    if (confirm('Delete this disciplinary record?')) {
-        router.delete(`/school/disciplinary/${id}`, { preserveScroll: true });
-    }
+const deleteDisc = async (id) => {
+    const ok = await confirm({
+        title: 'Delete disciplinary record?',
+        message: 'This will permanently remove this disciplinary record.',
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
+    router.delete(`/school/disciplinary/${id}`, { preserveScroll: true });
 };
 </script>
 
@@ -1833,295 +1853,245 @@ const deleteDisc = (id) => {
         </div><!-- /student-show-wrap -->
 
         <!-- ══ RECORD DETAIL MODAL ═══════════════════════════════════════════ -->
-        <div v-if="showRecordModal" class="modal-overlay">
-            <div class="modal-card">
-                <div class="modal-header">
-                    <h3 class="modal-title">Record Detail</h3>
-                    <button @click="showRecordModal = false" class="modal-close">
-                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
+        <Modal v-model:open="showRecordModal" title="Record Detail" size="md">
+            <form @submit.prevent="saveRecord" id="student-record-form">
+                <!-- Toggle: Edit Admission Number -->
+                <div class="modal-field">
+                    <label class="toggle-row">
+                        <span class="toggle-label">Edit Admission Number</span>
+                        <div class="toggle-wrap" @click="recordForm.edit_admission_no = !recordForm.edit_admission_no">
+                            <div class="toggle-track" :class="recordForm.edit_admission_no ? 'toggle-track--on' : ''"></div>
+                            <div class="toggle-thumb" :class="recordForm.edit_admission_no ? 'toggle-thumb--on' : ''"></div>
+                        </div>
+                    </label>
+                    <div v-if="recordForm.edit_admission_no" class="modal-sub-field">
+                        <input v-model="recordForm.admission_no" type="text" placeholder="Admission Number"
+                               class="modal-input" />
+                        <p v-if="recordForm.errors.admission_no" class="form-error">{{ recordForm.errors.admission_no }}</p>
+                    </div>
                 </div>
 
-                <div class="modal-body">
-                    <!-- Toggle: Edit Admission Number -->
-                    <div class="modal-field">
-                        <label class="toggle-row">
-                            <span class="toggle-label">Edit Admission Number</span>
-                            <div class="toggle-wrap" @click="recordForm.edit_admission_no = !recordForm.edit_admission_no">
-                                <div class="toggle-track" :class="recordForm.edit_admission_no ? 'toggle-track--on' : ''"></div>
-                                <div class="toggle-thumb" :class="recordForm.edit_admission_no ? 'toggle-thumb--on' : ''"></div>
-                            </div>
-                        </label>
-                        <div v-if="recordForm.edit_admission_no" class="modal-sub-field">
-                            <input v-model="recordForm.admission_no" type="text" placeholder="Admission Number"
-                                   class="modal-input" />
-                            <p v-if="recordForm.errors.admission_no" class="form-error">{{ recordForm.errors.admission_no }}</p>
+                <!-- Toggle: Edit Course -->
+                <div class="modal-field">
+                    <label class="toggle-row">
+                        <span class="toggle-label">Edit Course</span>
+                        <div class="toggle-wrap" @click="recordForm.edit_course = !recordForm.edit_course">
+                            <div class="toggle-track" :class="recordForm.edit_course ? 'toggle-track--on' : ''"></div>
+                            <div class="toggle-thumb" :class="recordForm.edit_course ? 'toggle-thumb--on' : ''"></div>
                         </div>
-                    </div>
-
-                    <!-- Toggle: Edit Course -->
-                    <div class="modal-field">
-                        <label class="toggle-row">
-                            <span class="toggle-label">Edit Course</span>
-                            <div class="toggle-wrap" @click="recordForm.edit_course = !recordForm.edit_course">
-                                <div class="toggle-track" :class="recordForm.edit_course ? 'toggle-track--on' : ''"></div>
-                                <div class="toggle-thumb" :class="recordForm.edit_course ? 'toggle-thumb--on' : ''"></div>
-                            </div>
-                        </label>
-                        <div v-if="recordForm.edit_course" class="modal-two-col">
-                            <div>
-                                <label class="modal-field-label">Class</label>
-                                <select v-model="recordForm.class_id" @change="recordForm.section_id = ''" class="modal-select">
-                                    <option value="">Select Class</option>
-                                    <option v-for="cls in classes" :key="cls.id" :value="cls.id">{{ cls.name }}</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="modal-field-label">Section</label>
-                                <select v-model="recordForm.section_id" class="modal-select">
-                                    <option value="">Select Section</option>
-                                    <option v-for="sec in filteredSections" :key="sec.id" :value="sec.id">{{ sec.name }}</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Enrollment Type + Student Type + Status -->
-                    <div class="modal-three-col">
+                    </label>
+                    <div v-if="recordForm.edit_course" class="modal-two-col">
                         <div>
-                            <label class="modal-field-label">Enrollment Type</label>
-                            <select v-model="recordForm.enrollment_type" class="modal-select">
-                                <option value="Regular">Regular</option>
-                                <option value="Transfer">Transfer</option>
-                                <option value="Lateral">Lateral</option>
-                                <option value="Re-admission">Re-admission</option>
+                            <label class="modal-field-label">Class</label>
+                            <select v-model="recordForm.class_id" @change="recordForm.section_id = ''" class="modal-select">
+                                <option value="">Select Class</option>
+                                <option v-for="cls in classes" :key="cls.id" :value="cls.id">{{ cls.name }}</option>
                             </select>
                         </div>
                         <div>
-                            <label class="modal-field-label">Student Type</label>
-                            <select v-model="recordForm.student_type" class="modal-select">
-                                <option value="New Student">New Student</option>
-                                <option value="Old Student">Old Student</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="modal-field-label">Enrollment Status</label>
-                            <select v-model="recordForm.status" class="modal-select">
-                                <option value="current">Current</option>
-                                <option value="promoted">Promoted</option>
-                                <option value="detained">Detained</option>
-                                <option value="graduated">Graduated</option>
+                            <label class="modal-field-label">Section</label>
+                            <select v-model="recordForm.section_id" class="modal-select">
+                                <option value="">Select Section</option>
+                                <option v-for="sec in filteredSections" :key="sec.id" :value="sec.id">{{ sec.name }}</option>
                             </select>
                         </div>
                     </div>
-
-                    <!-- Remarks -->
-                    <div class="modal-field">
-                        <label class="modal-field-label" style="font-size:14px;font-weight:500;">Remarks</label>
-                        <textarea v-model="recordForm.remarks" rows="3" placeholder="Remarks" class="modal-input modal-textarea"></textarea>
-                    </div>
                 </div>
 
-                <div class="modal-footer">
-                    <Button variant="secondary" type="button" @click="resetRecord">Reset</Button>
-                    <div style="display:flex;gap:8px;">
-                        <Button variant="danger" type="button" @click="showRecordModal = false">Cancel</Button>
-                        <Button type="button" @click="saveRecord" :loading="recordForm.processing">
-                            <svg v-if="recordForm.processing" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Save
-                        </Button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ══ DOCUMENT UPLOAD MODAL ══════════════════════════════════════════ -->
-        <div v-if="showDocumentModal" class="modal-overlay">
-            <div class="modal-card">
-                <div class="modal-header">
-                    <h3 class="modal-title">Add Document</h3>
-                    <button @click="showDocumentModal = false" class="modal-close">
-                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                </div>
-                <form @submit.prevent="submitDocument" class="modal-body">
-                    <div class="modal-field">
-                        <label class="modal-field-label">Document Type <span style="color:var(--danger)">*</span></label>
-                        <select v-model="docForm.document_type" required class="modal-select">
-                            <option value="" disabled>Select type...</option>
-                            <option v-for="type in documentTypes" :key="type" :value="type">{{ type }}</option>
+                <!-- Enrollment Type + Student Type + Status -->
+                <div class="modal-three-col">
+                    <div>
+                        <label class="modal-field-label">Enrollment Type</label>
+                        <select v-model="recordForm.enrollment_type" class="modal-select">
+                            <option value="Regular">Regular</option>
+                            <option value="Transfer">Transfer</option>
+                            <option value="Lateral">Lateral</option>
+                            <option value="Re-admission">Re-admission</option>
                         </select>
                     </div>
-                    <div class="modal-field">
-                        <label class="modal-field-label">Title <span style="color:var(--danger)">*</span></label>
-                        <input v-model="docForm.title" type="text" required placeholder="e.g. Birth Certificate 2015" class="modal-input" />
+                    <div>
+                        <label class="modal-field-label">Student Type</label>
+                        <select v-model="recordForm.student_type" class="modal-select">
+                            <option value="New Student">New Student</option>
+                            <option value="Old Student">Old Student</option>
+                        </select>
                     </div>
-                    <div class="modal-field">
-                        <label class="modal-field-label">Upload Scanned Copy (optional)</label>
-                        <input @input="docForm.file = $event.target.files[0]" type="file" accept=".pdf,.jpg,.jpeg,.png"
-                               class="doc-file-input" />
+                    <div>
+                        <label class="modal-field-label">Enrollment Status</label>
+                        <select v-model="recordForm.status" class="modal-select">
+                            <option value="current">Current</option>
+                            <option value="promoted">Promoted</option>
+                            <option value="detained">Detained</option>
+                            <option value="graduated">Graduated</option>
+                        </select>
                     </div>
-                    <div class="modal-footer" style="border-top:none;padding-top:0;">
-                        <div></div>
-                        <div style="display:flex;gap:8px;">
-                            <Button variant="secondary" type="button" @click="showDocumentModal = false">Cancel</Button>
-                            <Button type="submit" :loading="docForm.processing">
-                                Save Document
-                            </Button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
+                </div>
+
+                <!-- Remarks -->
+                <div class="modal-field">
+                    <label class="modal-field-label" style="font-size:14px;font-weight:500;">Remarks</label>
+                    <textarea v-model="recordForm.remarks" rows="3" placeholder="Remarks" class="modal-input modal-textarea"></textarea>
+                </div>
+            </form>
+            <template #footer>
+                <Button variant="secondary" type="button" @click="resetRecord" style="margin-right:auto;">Reset</Button>
+                <Button variant="danger" type="button" @click="showRecordModal = false">Cancel</Button>
+                <Button type="submit" form="student-record-form" :loading="recordForm.processing">Save</Button>
+            </template>
+        </Modal>
+
+        <!-- ══ DOCUMENT UPLOAD MODAL ══════════════════════════════════════════ -->
+        <Modal v-model:open="showDocumentModal" title="Add Document" size="md">
+            <form @submit.prevent="submitDocument" id="student-document-form">
+                <div class="modal-field">
+                    <label class="modal-field-label">Document Type <span style="color:var(--danger)">*</span></label>
+                    <select v-model="docForm.document_type" required class="modal-select">
+                        <option value="" disabled>Select type...</option>
+                        <option v-for="type in documentTypes" :key="type" :value="type">{{ type }}</option>
+                    </select>
+                </div>
+                <div class="modal-field">
+                    <label class="modal-field-label">Title <span style="color:var(--danger)">*</span></label>
+                    <input v-model="docForm.title" type="text" required placeholder="e.g. Birth Certificate 2015" class="modal-input" />
+                </div>
+                <div class="modal-field">
+                    <label class="modal-field-label">Upload Scanned Copy (optional)</label>
+                    <input @input="docForm.file = $event.target.files[0]" type="file" accept=".pdf,.jpg,.jpeg,.png"
+                           class="doc-file-input" />
+                </div>
+            </form>
+            <template #footer>
+                <Button variant="secondary" type="button" @click="showDocumentModal = false">Cancel</Button>
+                <Button type="submit" form="student-document-form" :loading="docForm.processing">Save Document</Button>
+            </template>
+        </Modal>
 
         <!-- ══ ID CARD MODAL ══════════════════════════════════════════════════ -->
-        <div v-if="showIdModal" class="modal-overlay">
-            <div class="modal-card modal-card--sm">
-                <div class="modal-header">
-                    <h3 class="modal-title">Virtual ID Card</h3>
-                    <button @click="showIdModal = false" class="modal-close">
-                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                </div>
-                <div class="modal-body id-card-body">
-                    <div class="id-card-banner"></div>
-                    <div class="id-card-content">
-                        <img v-if="student.photo && !photoFailed" :src="`/storage/${student.photo}`" class="id-card-photo" alt="" @error="photoFailed = true" />
-                        <div v-else class="id-card-photo id-card-photo-fallback">
-                            {{ student.first_name?.charAt(0) }}
-                        </div>
-                        <h4 class="id-card-name">{{ student.first_name }} {{ student.last_name }}</h4>
-                        <p class="id-card-adm">{{ student.admission_no }}</p>
-                        <div class="id-card-qr-wrap">
-                            <canvas v-if="studentQrTarget" ref="qrCanvas" class="id-card-qr" />
-                            <p v-else class="id-card-qr-hint" style="color:#ef4444">No QR (missing UUID)</p>
-                        </div>
-                        <p class="id-card-qr-hint">Scan for Profile / Attendance</p>
-                        <Button variant="secondary" block class="mt-2" @click="downloadIdQr" :disabled="!studentQrTarget">
-                            Download QR
-                        </Button>
+        <Modal v-model:open="showIdModal" title="Virtual ID Card" size="sm">
+            <div class="id-card-body">
+                <div class="id-card-banner"></div>
+                <div class="id-card-content">
+                    <img v-if="student.photo && !photoFailed" :src="`/storage/${student.photo}`" class="id-card-photo" alt="" @error="photoFailed = true" />
+                    <div v-else class="id-card-photo id-card-photo-fallback">
+                        {{ student.first_name?.charAt(0) }}
                     </div>
+                    <h4 class="id-card-name">{{ student.first_name }} {{ student.last_name }}</h4>
+                    <p class="id-card-adm">{{ student.admission_no }}</p>
+                    <div class="id-card-qr-wrap">
+                        <canvas v-if="studentQrTarget" ref="qrCanvas" class="id-card-qr" />
+                        <p v-else class="id-card-qr-hint" style="color:#ef4444">No QR (missing UUID)</p>
+                    </div>
+                    <p class="id-card-qr-hint">Scan for Profile / Attendance</p>
+                    <Button variant="secondary" block class="mt-2" @click="downloadIdQr" :disabled="!studentQrTarget">
+                        Download QR
+                    </Button>
                 </div>
             </div>
-        </div>
+        </Modal>
 
         <!-- ══ DISCIPLINARY ADD / EDIT MODAL ═══════════════════════════════════ -->
-        <div v-if="showDiscModal" class="modal-overlay">
-            <div class="modal-card" style="max-width:560px;">
-                <div class="modal-header">
-                    <h3 class="modal-title">{{ editingDiscId ? 'Edit' : 'Add' }} Disciplinary Record</h3>
-                    <button @click="showDiscModal = false" class="modal-close">
-                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
+        <Modal v-model:open="showDiscModal" :title="`${editingDiscId ? 'Edit' : 'Add'} Disciplinary Record`" size="md">
+            <form @submit.prevent="saveDisc" id="student-disc-form">
+                <div class="modal-two-col">
+                    <div>
+                        <label class="modal-field-label">Incident Date *</label>
+                        <input v-model="discForm.incident_date" type="date" required class="modal-input" />
+                        <p v-if="discForm.errors.incident_date" class="form-error">{{ discForm.errors.incident_date }}</p>
+                    </div>
+                    <div>
+                        <label class="modal-field-label">Category *</label>
+                        <select v-model="discForm.category" required class="modal-select">
+                            <option value="">Select category</option>
+                            <option v-for="c in disciplinaryCategories" :key="c.id" :value="c.name">
+                                {{ c.name }}{{ c.short_code ? ` (${c.short_code})` : '' }}
+                            </option>
+                        </select>
+                        <p v-if="discForm.errors.category" class="form-error">{{ discForm.errors.category }}</p>
+                    </div>
                 </div>
-                <form @submit.prevent="saveDisc">
-                    <div class="modal-body">
-                        <div class="modal-two-col">
-                            <div>
-                                <label class="modal-field-label">Incident Date *</label>
-                                <input v-model="discForm.incident_date" type="date" required class="modal-input" />
-                                <p v-if="discForm.errors.incident_date" class="form-error">{{ discForm.errors.incident_date }}</p>
-                            </div>
-                            <div>
-                                <label class="modal-field-label">Category *</label>
-                                <select v-model="discForm.category" required class="modal-select">
-                                    <option value="">Select category</option>
-                                    <option v-for="c in disciplinaryCategories" :key="c.id" :value="c.name">
-                                        {{ c.name }}{{ c.short_code ? ` (${c.short_code})` : '' }}
-                                    </option>
-                                </select>
-                                <p v-if="discForm.errors.category" class="form-error">{{ discForm.errors.category }}</p>
-                            </div>
-                        </div>
 
-                        <div class="modal-two-col" style="margin-top:12px;">
-                            <div>
-                                <label class="modal-field-label">Severity *</label>
-                                <select v-model="discForm.severity" required class="modal-select">
-                                    <option value="minor">Minor</option>
-                                    <option value="moderate">Moderate</option>
-                                    <option value="major">Major</option>
-                                </select>
-                            </div>
-                            <div v-if="editingDiscId">
-                                <label class="modal-field-label">Status *</label>
-                                <select v-model="discForm.status" class="modal-select">
-                                    <option value="open">Open</option>
-                                    <option value="under_review">Under Review</option>
-                                    <option value="resolved">Resolved</option>
-                                    <option value="escalated">Escalated</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="modal-field" style="margin-top:12px;">
-                            <label class="modal-field-label">Description *</label>
-                            <textarea v-model="discForm.description" rows="3" required class="modal-input modal-textarea" placeholder="Describe the incident in detail…"></textarea>
-                            <p v-if="discForm.errors.description" class="form-error">{{ discForm.errors.description }}</p>
-                        </div>
-
-                        <div class="modal-field">
-                            <label class="modal-field-label">Action Taken</label>
-                            <input v-model="discForm.action_taken" type="text" class="modal-input" placeholder="Optional — what action was taken?" />
-                        </div>
-
-                        <div class="modal-field">
-                            <label class="modal-field-label">Consequence</label>
-                            <select v-model="discForm.consequence" class="modal-select">
-                                <option value="">— None —</option>
-                                <option value="warning">Warning</option>
-                                <option value="detention">Detention</option>
-                                <option value="parent_call">Parent Call</option>
-                                <option value="suspension">Suspension</option>
-                                <option value="expulsion">Expulsion</option>
-                                <option value="none">None</option>
-                            </select>
-                        </div>
-
-                        <div v-if="discForm.consequence === 'suspension' || discForm.consequence === 'detention'" class="modal-two-col">
-                            <div>
-                                <label class="modal-field-label">Period From</label>
-                                <input v-model="discForm.consequence_from" type="date" class="modal-input" />
-                            </div>
-                            <div>
-                                <label class="modal-field-label">Period To</label>
-                                <input v-model="discForm.consequence_to" type="date" class="modal-input" />
-                            </div>
-                        </div>
-
-                        <div v-if="editingDiscId" class="modal-field">
-                            <label class="toggle-row">
-                                <span class="toggle-label">Parent Notified</span>
-                                <div class="toggle-wrap" @click="discForm.parent_notified = !discForm.parent_notified">
-                                    <div class="toggle-track" :class="discForm.parent_notified ? 'toggle-track--on' : ''"></div>
-                                    <div class="toggle-thumb" :class="discForm.parent_notified ? 'toggle-thumb--on' : ''"></div>
-                                </div>
-                            </label>
-                        </div>
-
-                        <div v-if="editingDiscId" class="modal-field">
-                            <label class="modal-field-label">Student Statement</label>
-                            <textarea v-model="discForm.student_statement" rows="2" class="modal-input modal-textarea"></textarea>
-                        </div>
-
-                        <div v-if="editingDiscId" class="modal-field">
-                            <label class="modal-field-label">Internal Notes</label>
-                            <textarea v-model="discForm.notes" rows="2" class="modal-input modal-textarea"></textarea>
-                        </div>
+                <div class="modal-two-col" style="margin-top:12px;">
+                    <div>
+                        <label class="modal-field-label">Severity *</label>
+                        <select v-model="discForm.severity" required class="modal-select">
+                            <option value="minor">Minor</option>
+                            <option value="moderate">Moderate</option>
+                            <option value="major">Major</option>
+                        </select>
                     </div>
-
-                    <div style="display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid #e5e7eb;background:#f9fafb;border-radius:0 0 12px 12px;">
-                        <Button variant="secondary" type="button" @click="showDiscModal = false">Cancel</Button>
-                        <Button type="submit" :loading="discForm.processing">
-                            {{ editingDiscId ? 'Update Record' : 'Save Record' }}
-                        </Button>
+                    <div v-if="editingDiscId">
+                        <label class="modal-field-label">Status *</label>
+                        <select v-model="discForm.status" class="modal-select">
+                            <option value="open">Open</option>
+                            <option value="under_review">Under Review</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="escalated">Escalated</option>
+                        </select>
                     </div>
-                </form>
-            </div>
-        </div>
+                </div>
+
+                <div class="modal-field" style="margin-top:12px;">
+                    <label class="modal-field-label">Description *</label>
+                    <textarea v-model="discForm.description" rows="3" required class="modal-input modal-textarea" placeholder="Describe the incident in detail…"></textarea>
+                    <p v-if="discForm.errors.description" class="form-error">{{ discForm.errors.description }}</p>
+                </div>
+
+                <div class="modal-field">
+                    <label class="modal-field-label">Action Taken</label>
+                    <input v-model="discForm.action_taken" type="text" class="modal-input" placeholder="Optional — what action was taken?" />
+                </div>
+
+                <div class="modal-field">
+                    <label class="modal-field-label">Consequence</label>
+                    <select v-model="discForm.consequence" class="modal-select">
+                        <option value="">— None —</option>
+                        <option value="warning">Warning</option>
+                        <option value="detention">Detention</option>
+                        <option value="parent_call">Parent Call</option>
+                        <option value="suspension">Suspension</option>
+                        <option value="expulsion">Expulsion</option>
+                        <option value="none">None</option>
+                    </select>
+                </div>
+
+                <div v-if="discForm.consequence === 'suspension' || discForm.consequence === 'detention'" class="modal-two-col">
+                    <div>
+                        <label class="modal-field-label">Period From</label>
+                        <input v-model="discForm.consequence_from" type="date" class="modal-input" />
+                    </div>
+                    <div>
+                        <label class="modal-field-label">Period To</label>
+                        <input v-model="discForm.consequence_to" type="date" class="modal-input" />
+                    </div>
+                </div>
+
+                <div v-if="editingDiscId" class="modal-field">
+                    <label class="toggle-row">
+                        <span class="toggle-label">Parent Notified</span>
+                        <div class="toggle-wrap" @click="discForm.parent_notified = !discForm.parent_notified">
+                            <div class="toggle-track" :class="discForm.parent_notified ? 'toggle-track--on' : ''"></div>
+                            <div class="toggle-thumb" :class="discForm.parent_notified ? 'toggle-thumb--on' : ''"></div>
+                        </div>
+                    </label>
+                </div>
+
+                <div v-if="editingDiscId" class="modal-field">
+                    <label class="modal-field-label">Student Statement</label>
+                    <textarea v-model="discForm.student_statement" rows="2" class="modal-input modal-textarea"></textarea>
+                </div>
+
+                <div v-if="editingDiscId" class="modal-field">
+                    <label class="modal-field-label">Internal Notes</label>
+                    <textarea v-model="discForm.notes" rows="2" class="modal-input modal-textarea"></textarea>
+                </div>
+            </form>
+            <template #footer>
+                <Button variant="secondary" type="button" @click="showDiscModal = false">Cancel</Button>
+                <Button type="submit" form="student-disc-form" :loading="discForm.processing">
+                    {{ editingDiscId ? 'Update Record' : 'Save Record' }}
+                </Button>
+            </template>
+        </Modal>
 
     </SchoolLayout>
 </template>
@@ -3030,88 +3000,7 @@ const deleteDisc = (id) => {
     background: #c7d2fe;
 }
 
-/* ── Modals ───────────────────────────────────────────────────────────────── */
-.modal-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 50;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0,0,0,0.5);
-    padding: 16px;
-}
-
-.modal-card {
-    background: var(--surface, #fff);
-    border-radius: var(--radius-lg, 14px);
-    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-    width: 100%;
-    max-width: 520px;
-    max-height: 90vh;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-}
-
-.modal-card--sm {
-    max-width: 380px;
-}
-
-.modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 18px 24px;
-    border-bottom: 1px solid var(--border, #e2e8f0);
-    flex-shrink: 0;
-}
-
-.modal-title {
-    font-size: 16px;
-    font-weight: 700;
-    color: #1e293b;
-    margin: 0;
-}
-
-.modal-close {
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    background: transparent;
-    color: #94a3b8;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.12s, color 0.12s;
-}
-
-.modal-close:hover {
-    background: #f1f5f9;
-    color: #475569;
-}
-
-.modal-body {
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    flex: 1;
-}
-
-.modal-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 24px;
-    border-top: 1px solid var(--border, #e2e8f0);
-    background: #f8fafc;
-    border-radius: 0 0 var(--radius-lg, 14px) var(--radius-lg, 14px);
-    flex-shrink: 0;
-}
-
+/* ── Modal-internal layout helpers (Modal component owns the chrome) ──────── */
 .modal-field {
     display: flex;
     flex-direction: column;

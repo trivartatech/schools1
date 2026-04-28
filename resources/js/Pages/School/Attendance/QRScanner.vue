@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, onMounted, onUnmounted } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -134,19 +135,20 @@ onUnmounted(() => {
         <!-- Interactive Green Flash Overlay -->
         <div v-show="showFlash" class="fixed inset-0 z-50 bg-green-500/30 transition-opacity duration-200 pointer-events-none mix-blend-multiply"></div>
 
-        <div class="page-header">
-            <div>
+        <PageHeader subtitle="Continuously scan student ID cards to mark them Present instantly.">
+            <template #title>
                 <h1 class="page-header-title" style="display:flex;align-items:center;gap:8px;">
                     <svg class="w-6 h-6" style="color:var(--accent);" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
                     Rapid QR Attendance
                 </h1>
-                <p class="page-header-sub">Continuously scan student ID cards to mark them Present instantly.</p>
-            </div>
-            <Button variant="secondary" as="link" href="/school/attendance">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                Back to Manual
-            </Button>
-        </div>
+            </template>
+            <template #actions>
+                <Button variant="secondary" as="link" href="/school/attendance">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                    Back to Manual
+                </Button>
+            </template>
+        </PageHeader>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <!-- Left: Camera Viewer -->

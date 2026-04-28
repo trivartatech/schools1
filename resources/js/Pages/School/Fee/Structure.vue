@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, reactive } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -93,16 +94,13 @@ const grouped = computed(() => {
     <SchoolLayout title="Fee Structure Builder">
         <div class="max-w-5xl mx-auto space-y-6">
 
-            <div class="page-header">
-                <div>
-                    <h2 class="page-header-title">Fee Structure</h2>
-                    <p class="page-header-sub">Define how much to charge per class and term</p>
-                </div>
-                <div style="display:flex;gap:8px;">
+            <PageHeader title="Fee Structure" subtitle="Define how much to charge per class and term">
+                <template #actions>
                     <Button variant="secondary" as="a" href="/school/fee/structure/history">History</Button>
                     <Button variant="secondary" as="a" href="/school/fee/groups">← Fee Groups</Button>
-                </div>
-            </div>
+
+                </template>
+            </PageHeader>
 
             <!-- Add / Edit entry -->
             <div class="card">

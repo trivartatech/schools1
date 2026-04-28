@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -49,12 +50,7 @@ function formatCurrency(value) {
     <SchoolLayout title="Hostel Fee Defaulters">
 
         <!-- Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Hostel Fee Defaulters</h1>
-                <p class="page-header-sub">Students with overdue hostel fee payments</p>
-            </div>
-        </div>
+        <PageHeader title="Hostel Fee Defaulters" subtitle="Students with overdue hostel fee payments" />
 
         <!-- Summary -->
         <div class="summary-grid">

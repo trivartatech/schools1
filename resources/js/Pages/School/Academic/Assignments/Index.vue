@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -120,12 +121,8 @@ const duplicateAssignment = (assignment) => {
 
 <template>
     <SchoolLayout title="Assignments">
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">Assignments</h2>
-                <p class="page-header-sub">Manage homework and digital submissions</p>
-            </div>
-            <div style="display:flex;gap:8px;">
+        <PageHeader title="Assignments" subtitle="Manage homework and digital submissions">
+            <template #actions>
                 <ExportDropdown
                     base-url="/school/export/assignments"
                     :params="{ class_id: filterForm.class_id, subject_id: filterForm.subject_id, status: filterForm.status }"
@@ -136,8 +133,9 @@ const duplicateAssignment = (assignment) => {
                     </svg>
                     New Assignment
                 </Button>
-            </div>
-        </div>
+
+            </template>
+        </PageHeader>
 
         <!-- Filters -->
         <FilterBar :active="!!(filterForm.class_id || filterForm.status)" @clear="filterForm = {class_id:'',subject_id:'',status:''}; applyFilters()">

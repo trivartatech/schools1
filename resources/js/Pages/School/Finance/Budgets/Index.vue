@@ -1,5 +1,9 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import Modal from '@/Components/ui/Modal.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
+import StatsRow from '@/Components/ui/StatsRow.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
 import { ref, computed } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -57,7 +61,7 @@ function submit() {
 }
 
 function deleteBudget(id) {
-    del(route('school.finance.budgets.destroy', id), 'Delete this budget?');
+    del(route('school.finance.budgets.destroy', id), 'Delete this budget? This cannot be undone.');
 }
 
 const fmt    = (n) => new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(n);
@@ -68,42 +72,33 @@ function progressColor(pct) {
     if (pct >= 70) return '#d97706';
     return '#059669';
 }
+
+const overallPct = computed(() =>
+    props.totals.budget > 0 ? Math.round(props.totals.spent / props.totals.budget * 100) : 0
+);
+
+const statCards = computed(() => [
+    { label: 'Total Budget',    value: fmtCur(props.totals.budget),    color: 'accent' },
+    { label: 'Total Spent',     value: fmtCur(props.totals.spent),     color: 'danger' },
+    { label: 'Remaining',       value: fmtCur(props.totals.remaining), color: 'success' },
+    { label: 'Overall %',       value: `${overallPct.value}%`,         color: overallPct.value >= 90 ? 'danger' : overallPct.value >= 70 ? 'warning' : 'success' },
+]);
 </script>
 
 <template>
     <SchoolLayout>
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Budget Management</h1>
-                <p class="page-header-sub">Track spending against allocated budgets for this academic year</p>
-            </div>
-            <div style="display:flex;gap:8px;">
+        <PageHeader
+            title="Budget Management"
+            subtitle="Track spending against allocated budgets for this academic year"
+        >
+            <template #actions>
                 <ExportDropdown base-url="/school/export/budgets" />
                 <Button v-if="canDo('create', 'finance')" @click="openCreate">+ New Budget</Button>
-            </div>
-        </div>
+            </template>
+        </PageHeader>
 
         <!-- Summary banner -->
-        <div class="summary-grid">
-            <div class="sum-card">
-                <div class="sum-label">Total Budget</div>
-                <div class="sum-value text-indigo">{{ fmtCur(totals.budget) }}</div>
-            </div>
-            <div class="sum-card">
-                <div class="sum-label">Total Spent</div>
-                <div class="sum-value text-red">{{ fmtCur(totals.spent) }}</div>
-            </div>
-            <div class="sum-card">
-                <div class="sum-label">Remaining</div>
-                <div class="sum-value text-green">{{ fmtCur(totals.remaining) }}</div>
-            </div>
-            <div class="sum-card">
-                <div class="sum-label">Overall %</div>
-                <div class="sum-value" :style="{ color: progressColor(totals.budget > 0 ? Math.round(totals.spent/totals.budget*100) : 0) }">
-                    {{ totals.budget > 0 ? Math.round(totals.spent / totals.budget * 100) : 0 }}%
-                </div>
-            </div>
-        </div>
+        <StatsRow :cols="4" :stats="statCards" />
 
         <!-- Budget cards grid -->
         <div class="budget-grid" v-if="budgets.length > 0">
@@ -155,71 +150,53 @@ function progressColor(pct) {
             </div>
         </div>
 
-        <div v-else class="card empty-state">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round">
-                <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
-            </svg>
-            <p>No budgets created yet. <button v-if="canDo('create', 'finance')" class="link-btn" @click="openCreate">Create your first budget</button></p>
+        <div v-else class="card">
+            <EmptyState
+                title="No budgets yet"
+                description="Create your first budget to start tracking spending against allocated amounts."
+                :action-label="canDo('create', 'finance') ? '+ New Budget' : ''"
+                @action="openCreate"
+            />
         </div>
 
         <!-- Create/Edit Modal -->
-        <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
-            <div class="modal-box">
-                <div class="modal-header">
-                    <h3>{{ editTarget ? 'Edit Budget' : 'New Budget' }}</h3>
-                    <button class="modal-close" @click="showModal = false">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                        </svg>
-                    </button>
+        <Modal v-model:open="showModal" :title="editTarget ? 'Edit Budget' : 'New Budget'" size="md">
+            <form @submit.prevent="submit" id="budget-form">
+                <div class="form-group">
+                    <label class="form-label">Budget Name <span class="req">*</span></label>
+                    <input v-model="form.name" type="text" class="form-input" placeholder="e.g. Annual Salary Budget" />
+                    <p v-if="form.errors.name" class="form-error">{{ form.errors.name }}</p>
                 </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label class="form-label">Budget Name <span class="req">*</span></label>
-                        <input v-model="form.name" type="text" class="form-input" placeholder="e.g. Annual Salary Budget" />
-                        <p v-if="form.errors.name" class="form-error">{{ form.errors.name }}</p>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Expense Category</label>
-                        <select v-model="form.expense_category_id" class="form-input">
-                            <option value="">All Expenses (no specific category)</option>
-                            <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-                        </select>
-                        <p v-if="form.errors.expense_category_id" class="form-error">{{ form.errors.expense_category_id }}</p>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Budget Amount (₹) <span class="req">*</span></label>
-                        <input v-model="form.amount" type="number" min="1" step="0.01" class="form-input" placeholder="0.00" />
-                        <p v-if="form.errors.amount" class="form-error">{{ form.errors.amount }}</p>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Notes</label>
-                        <textarea v-model="form.notes" class="form-input" rows="2" placeholder="Optional notes…"></textarea>
-                    </div>
+                <div class="form-group">
+                    <label class="form-label">Expense Category</label>
+                    <select v-model="form.expense_category_id" class="form-input">
+                        <option value="">All Expenses (no specific category)</option>
+                        <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+                    </select>
+                    <p v-if="form.errors.expense_category_id" class="form-error">{{ form.errors.expense_category_id }}</p>
                 </div>
-                <div class="modal-footer">
-                    <Button variant="secondary" @click="showModal = false">Cancel</Button>
-                    <Button @click="submit" :loading="form.processing">
-                        {{ (editTarget ? 'Update' : 'Create') }}
-                    </Button>
+                <div class="form-group">
+                    <label class="form-label">Budget Amount (₹) <span class="req">*</span></label>
+                    <input v-model="form.amount" type="number" min="1" step="0.01" class="form-input" placeholder="0.00" />
+                    <p v-if="form.errors.amount" class="form-error">{{ form.errors.amount }}</p>
                 </div>
-            </div>
-        </div>
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <textarea v-model="form.notes" class="form-input" rows="2" placeholder="Optional notes…"></textarea>
+                </div>
+            </form>
+            <template #footer>
+                <Button variant="secondary" @click="showModal = false">Cancel</Button>
+                <Button type="submit" form="budget-form" :loading="form.processing">
+                    {{ editTarget ? 'Update' : 'Create' }}
+                </Button>
+            </template>
+        </Modal>
     </SchoolLayout>
 </template>
 
 <style scoped>
-.summary-grid {
-    display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;
-}
-.sum-card {
-    background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;
-    padding:16px 20px;
-}
-.sum-label { font-size:0.72rem;font-weight:700;text-transform:uppercase;color:#94a3b8;letter-spacing:0.04em; }
-.sum-value { font-size:1.4rem;font-weight:800;margin-top:4px;font-family:'Courier New',monospace; }
 .text-indigo { color:#6366f1; }
-.text-red    { color:#dc2626; }
 .text-green  { color:#059669; }
 
 .budget-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px; }
@@ -245,20 +222,9 @@ function progressColor(pct) {
 
 .act-del:hover  { background:#fee2e2;border-color:#fca5a5;color:#dc2626; }
 
-.empty-state { display:flex;flex-direction:column;align-items:center;gap:10px;padding:50px;color:#94a3b8; }
-.link-btn { background:none;border:none;color:#6366f1;font-weight:600;cursor:pointer;text-decoration:underline; }
-
-/* Modal */
-.modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1000;display:flex;align-items:center;justify-content:center; }
-.modal-box { background:#fff;border-radius:16px;width:480px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,0.2); }
-.modal-header { display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid #f1f5f9; }
-.modal-header h3 { font-size:1rem;font-weight:700;color:#1e293b; }
-.modal-close { background:none;border:none;cursor:pointer;color:#94a3b8;padding:4px; }
-.modal-close:hover { color:#374151; }
-.modal-body { padding:20px 22px;display:flex;flex-direction:column;gap:14px; }
-.modal-footer { padding:16px 22px;border-top:1px solid #f1f5f9;display:flex;justify-content:flex-end;gap:10px; }
-
-.form-group { display:flex;flex-direction:column;gap:5px; }
+/* Modal form fields — Tailwind preflight workaround. */
+.form-group { display:flex;flex-direction:column;gap:5px;margin-bottom:14px; }
+.form-group:last-child { margin-bottom:0; }
 .form-label { font-size:0.8rem;font-weight:600;color:#374151; }
 .req { color:#ef4444; }
 .form-input {
@@ -268,6 +234,4 @@ function progressColor(pct) {
 }
 .form-input:focus { border-color:#6366f1; }
 .form-error { font-size:0.75rem;color:#dc2626; }
-
-@media (max-width:768px) { .summary-grid { grid-template-columns:repeat(2,1fr); } }
 </style>

@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { useForm, Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -126,12 +127,7 @@ const mappings = [
 
 <template>
     <SchoolLayout>
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">GL Auto-Posting Settings</h1>
-                <p class="page-header-sub">Map operational modules to ledger accounts for automatic journal entries</p>
-            </div>
-        </div>
+        <PageHeader title="GL Auto-Posting Settings" subtitle="Map operational modules to ledger accounts for automatic journal entries" />
 
         <!-- Info banner -->
         <div class="info-banner">

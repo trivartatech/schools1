@@ -1,11 +1,14 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, reactive, computed, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const school = useSchoolStore();
+const confirm = useConfirm();
 
 const props = defineProps({
     routes: Array,
@@ -112,14 +115,17 @@ const selectedRoute = computed(() => {
 const saving = ref(false);
 const submitSuccess = ref(false);
 
-function submit() {
+async function submit() {
     if (!filter.route_id || !filter.trip_type) return;
 
     const unmarked = students.value.filter(s => !s.status).length;
     if (unmarked > 0) {
-        if (!confirm(`${unmarked} student(s) have no status. Mark them all as Present before saving?`)) {
-            return;
-        }
+        const ok = await confirm({
+            title: 'Mark unmarked students?',
+            message: `${unmarked} student(s) have no status. Mark them all as Present before saving?`,
+            confirmLabel: 'Mark All Present',
+        });
+        if (!ok) return;
         markAllPresent();
     }
 
@@ -148,12 +154,7 @@ function submit() {
     <SchoolLayout title="Bus Roll Call">
 
         <!-- Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Bus Roll Call</h1>
-                <p class="page-header-sub">Mark student attendance for bus pickup and drop</p>
-            </div>
-        </div>
+        <PageHeader title="Bus Roll Call" subtitle="Mark student attendance for bus pickup and drop" />
 
         <!-- Filter card -->
         <div class="card" style="margin-bottom:20px;">

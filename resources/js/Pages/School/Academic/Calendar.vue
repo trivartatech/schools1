@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { router, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref, computed } from 'vue';
@@ -91,13 +92,11 @@ const sections = computed(() => {
 
 <template>
     <SchoolLayout title="Academic Calendar">
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">Academic Calendar</h2>
-                <p class="page-header-sub">Assignments, online classes, syllabus & diary — all in one view</p>
-            </div>
-            <Button variant="secondary" as="link" :href="route('school.academic.dashboard')">← Dashboard</Button>
-        </div>
+        <PageHeader title="Academic Calendar" subtitle="Assignments, online classes, syllabus &amp; diary — all in one view">
+            <template #actions>
+                <Button variant="secondary" as="link" :href="route('school.academic.dashboard')">← Dashboard</Button>
+            </template>
+        </PageHeader>
 
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
 

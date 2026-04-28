@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -81,20 +82,22 @@ const submit = () => {
     <SchoolLayout title="New Student Application">
 
         <!-- Page Header -->
-        <div class="page-header">
-            <div class="page-header-left">
-                <Button variant="secondary" size="sm" as="link" href="/school/registrations" class="back-btn">
-                    <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                    </svg>
-                    Back
-                </Button>
-                <div>
+        <PageHeader>
+            <template #title>
+                <div class="page-header-left">
+                    <Button variant="secondary" size="sm" as="link" href="/school/registrations" class="back-btn">
+                        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                        Back
+                    </Button>
                     <div class="page-header-title">New Student Registration</div>
-                    <div class="page-header-sub">Submit an application for review. The student will be admitted after approval.</div>
                 </div>
-            </div>
-        </div>
+            </template>
+            <template #subtitle>
+                <div class="page-header-sub">Submit an application for review. The student will be admitted after approval.</div>
+            </template>
+        </PageHeader>
 
         <form @submit.prevent="submit" class="reg-form">
 

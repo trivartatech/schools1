@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 
@@ -40,16 +41,18 @@ const submit = () => { form.post(`/school/staff/${props.staff.id}`); };
 <template>
     <SchoolLayout title="Edit Staff Member">
 
-        <div class="page-header">
-            <div>
+        <PageHeader>
+            <template #title>
                 <h1 class="page-header-title">Edit: {{ staff.user?.name }}</h1>
-                <p class="page-header-sub">
-                    Employee ID:
-                    <span class="emp-id-badge">{{ staff.employee_id }}</span>
-                </p>
-            </div>
-            <Button variant="secondary" type="button" @click="goBack">← Back</Button>
-        </div>
+            </template>
+            <template #subtitle>
+                <p class="page-header-sub">Employee ID:
+                    <span class="emp-id-badge">{{ staff.employee_id }}</span></p>
+            </template>
+            <template #actions>
+                <Button variant="secondary" type="button" @click="goBack">← Back</Button>
+            </template>
+        </PageHeader>
 
         <form @submit.prevent="submit">
             <div class="form-sections">

@@ -1,5 +1,6 @@
 <script setup>
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { Link } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -12,13 +13,12 @@ const fmt = (n) => Number(n || 0).toLocaleString('en-IN', { minimumFractionDigit
 
 <template>
     <SchoolLayout title="Library">
-        <div class="page-header">
-            <h1 class="page-header-title">Library</h1>
-            <div style="display:flex;gap:8px;">
+        <PageHeader title="Library">
+            <template #actions>
                 <Link href="/school/library/books" class="btn btn-secondary btn-sm">Catalog</Link>
                 <Link href="/school/library/issues" class="btn btn-primary btn-sm">Issues</Link>
-            </div>
-        </div>
+            </template>
+        </PageHeader>
 
         <!-- Stats -->
         <div class="library-stats">

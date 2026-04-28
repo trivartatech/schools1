@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { Link, Head } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import Table from '@/Components/ui/Table.vue';
 
 const props = defineProps({ pending: Array });
@@ -57,12 +58,7 @@ const collectionBadge = (s) => ({
 <template>
     <Head title="Stationary Collection Pending" />
     <SchoolLayout title="Stationary Collection Pending">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">📦 Collection Pending</h1>
-                <p class="page-header-sub">Students who haven't fully picked up their stationary kit.</p>
-            </div>
-        </div>
+        <PageHeader title="📦 Collection Pending" subtitle="Students who haven't fully picked up their stationary kit." />
 
         <div class="stats-grid">
             <div class="stat-card">

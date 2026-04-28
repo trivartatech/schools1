@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 
@@ -21,12 +22,7 @@ const submit = () => {
 
 <template>
     <SchoolLayout title="Notification Integration">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Notification Channels</h1>
-                <p class="page-header-sub">Enable or disable global notification delivery channels</p>
-            </div>
-        </div>
+        <PageHeader title="Notification Channels" subtitle="Enable or disable global notification delivery channels" />
 
         <form @submit.prevent="submit">
             <div class="card" style="margin-bottom:16px;">

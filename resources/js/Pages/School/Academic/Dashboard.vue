@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
@@ -37,15 +38,13 @@ const dueIn = (due) => {
 
 <template>
     <SchoolLayout title="Academic Dashboard">
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">Academic Dashboard</h2>
-                <p class="page-header-sub">Your teaching overview at a glance</p>
-            </div>
-            <Button variant="secondary" as="link" :href="route('school.academic.calendar')">
-                📅 View Calendar
-            </Button>
-        </div>
+        <PageHeader title="Academic Dashboard" subtitle="Your teaching overview at a glance">
+            <template #actions>
+                <Button variant="secondary" as="link" :href="route('school.academic.calendar')">
+                                📅 View Calendar
+                            </Button>
+            </template>
+        </PageHeader>
 
         <!-- Summary Row -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

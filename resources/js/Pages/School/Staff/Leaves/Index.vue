@@ -1,13 +1,16 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { useForm, router, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useDelete } from '@/Composables/useDelete';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const school = useSchoolStore();
+const confirm = useConfirm();
 
 const props = defineProps({
     leaves: Object,   // paginated
@@ -60,8 +63,13 @@ const rejectLeave = (id) => {
     router.patch(`/school/leaves/${id}/reject`, {}, { preserveScroll: true });
 };
 
-const revertLeave = (id) => {
-    if (!confirm('Revert this leave back to pending?')) return;
+const revertLeave = async (id) => {
+    const ok = await confirm({
+        title: 'Revert leave?',
+        message: 'Revert this leave back to pending?',
+        confirmLabel: 'Revert',
+    });
+    if (!ok) return;
     router.patch(`/school/leaves/${id}/revert`, {}, { preserveScroll: true });
 };
 
@@ -112,15 +120,13 @@ const rejected = computed(() => (props.leaves?.data || []).filter(l => l.status 
     <SchoolLayout title="Leave Management">
 
         <!-- Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Staff Leave Requests</h1>
-                <p class="page-header-sub">Manage and review staff leave applications.</p>
-            </div>
-            <Button @click="showApplyForm = !showApplyForm">
-                {{ showApplyForm ? 'Cancel' : 'Apply for Leave' }}
-            </Button>
-        </div>
+        <PageHeader title="Staff Leave Requests" subtitle="Manage and review staff leave applications.">
+            <template #actions>
+                <Button @click="showApplyForm = !showApplyForm">
+                                {{ showApplyForm ? 'Cancel' : 'Apply for Leave' }}
+                            </Button>
+            </template>
+        </PageHeader>
 
         <!-- Apply Form (collapsible) -->
         <transition name="slide">

@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { computed, watch } from 'vue';
@@ -64,16 +65,14 @@ const submit = () => {
 
 <template>
     <SchoolLayout title="New Assignment">
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">New Assignment</h2>
-                <p class="page-header-sub">Create and assign homework to students</p>
-            </div>
-            <Button variant="secondary" as="link" :href="route('school.academic.assignments.index')">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                Back to List
-            </Button>
-        </div>
+        <PageHeader title="New Assignment" subtitle="Create and assign homework to students">
+            <template #actions>
+                <Button variant="secondary" as="link" :href="route('school.academic.assignments.index')">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                                Back to List
+                            </Button>
+            </template>
+        </PageHeader>
 
         <div class="max-w-3xl">
             <form @submit.prevent="submit" class="card">

@@ -3,7 +3,11 @@ import { ref, computed, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
 import SchoolLayout from '@/Layouts/SchoolLayout.vue'
 import Button from '@/Components/ui/Button.vue'
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import axios from 'axios'
+import { useConfirm } from '@/Composables/useConfirm'
+
+const confirm = useConfirm()
 
 const props = defineProps({
     run: { type: Object, required: true },
@@ -167,9 +171,12 @@ const promote = async () => {
     if (!canSubmit.value) return
     const tgtClass = targetClasses.value.find(c => c.id === targetClassId.value)?.name || '?'
     const tgtSec = targetSections.value.find(s => s.id === targetSectionId.value)?.name || '?'
-    if (!confirm(`Promote ${selectedCount.value} student(s) into ${tgtClass} — ${tgtSec} and carry ₹${selectedOutstanding.value} of dues?`)) {
-        return
-    }
+    const ok = await confirm({
+        title: 'Promote students?',
+        message: `Promote ${selectedCount.value} student(s) into ${tgtClass} — ${tgtSec} and carry ₹${selectedOutstanding.value} of dues?`,
+        confirmLabel: 'Promote',
+    })
+    if (!ok) return
     submitting.value = true
     flash.value = null
     try {
@@ -212,8 +219,13 @@ const promote = async () => {
     }
 }
 
-const markDone = () => {
-    if (!confirm('Mark the student promotion phase as complete? After this, any remaining source-year students without a target-year row will be treated as graduated. The next phase (carry-forward) becomes available.')) return
+const markDone = async () => {
+    const ok = await confirm({
+        title: 'Mark promotion phase complete?',
+        message: 'After this, any remaining source-year students without a target-year row will be treated as graduated. The next phase (carry-forward) becomes available.',
+        confirmLabel: 'Mark Complete',
+    })
+    if (!ok) return
     router.post(`${base}/mark-students-done`)
 }
 
@@ -224,17 +236,16 @@ const classLabel = (c) => c.numeric_value !== null && c.numeric_value !== undefi
 
 <template>
     <SchoolLayout title="Promote Students">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Promote Students</h1>
-                <p class="page-header-sub">
-                    Run <strong>#{{ run.id }}</strong> ·
+        <PageHeader title="Promote Students">
+            <template #subtitle>
+                <p class="page-header-sub">Run <strong>#{{ run.id }}</strong> ·
                     <strong>{{ run.source_year?.name }}</strong> → <strong>{{ run.target_year?.name }}</strong>
-                    · State: <strong>{{ run.state }}</strong>
-                </p>
-            </div>
-            <a href="/school/settings/rollover" class="back-link">← Back to Wizard</a>
-        </div>
+                    · State: <strong>{{ run.state }}</strong></p>
+            </template>
+            <template #actions>
+                <a href="/school/settings/rollover" class="back-link">← Back to Wizard</a>
+            </template>
+        </PageHeader>
 
         <div v-if="flash" :class="['flash', flash.kind === 'success' ? 'flash--ok' : 'flash--err']">
             {{ flash.msg }}

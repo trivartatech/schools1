@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { computed } from 'vue';
@@ -57,19 +58,18 @@ const staffStatus = computed(() => {
     <SchoolLayout :title="staff.user?.name + ' — Profile'">
 
         <!-- Page Header -->
-        <div class="page-header">
-            <div style="display:flex;align-items:center;gap:12px;">
-                <Button variant="icon" size="sm" as="link" href="/school/staff" aria-label="Back to staff list">
-                    <template #icon>
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                    </template>
-                </Button>
-                <div>
+        <PageHeader subtitle="Comprehensive employee information and payroll records.">
+            <template #title>
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <Button variant="icon" size="sm" as="link" href="/school/staff" aria-label="Back to staff list">
+                        <template #icon>
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                        </template>
+                    </Button>
                     <h1 class="page-header-title">Staff Profile</h1>
-                    <p class="page-header-sub">Comprehensive employee information and payroll records.</p>
                 </div>
-            </div>
-            <div style="display:flex;gap:8px;">
+            </template>
+            <template #actions>
                 <Button variant="secondary" size="sm" as="link" v-if="canViewStaffSalary" :href="`/school/staff/${staff.id}/salary`">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
                     Salary Form
@@ -82,8 +82,8 @@ const staffStatus = computed(() => {
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                     Edit Profile
                 </Button>
-            </div>
-        </div>
+            </template>
+        </PageHeader>
 
         <div class="staff-profile-grid">
             <!-- ── Left Column ── -->

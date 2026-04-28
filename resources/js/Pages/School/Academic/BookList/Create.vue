@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref, watch } from 'vue';
@@ -45,16 +46,14 @@ const submit = () => {
 
 <template>
     <SchoolLayout title="Add Book">
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">Add Book to List</h2>
-                <p class="page-header-sub">Add a required or recommended book to a class's reading list</p>
-            </div>
-            <Button variant="secondary" as="link" :href="route('school.academic.book-list.index')">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                Back to Book List
-            </Button>
-        </div>
+        <PageHeader title="Add Book to List" subtitle="Add a required or recommended book to a class's reading list">
+            <template #actions>
+                <Button variant="secondary" as="link" :href="route('school.academic.book-list.index')">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                                Back to Book List
+                            </Button>
+            </template>
+        </PageHeader>
 
         <div class="max-w-2xl">
             <form @submit.prevent="submit" class="card">

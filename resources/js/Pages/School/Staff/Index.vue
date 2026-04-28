@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
 import { ref, reactive, watch } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
@@ -38,12 +39,8 @@ const deleteStaff = (id, name) => del(`/school/staff/${id}`, `Delete staff membe
     <SchoolLayout title="Staff Directory">
 
         <!-- Page Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Staff Directory</h1>
-                <p class="page-header-sub">Manage all school employees and their information</p>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <PageHeader title="Staff Directory" subtitle="Manage all school employees and their information">
+            <template #actions>
                 <ExportDropdown
                     base-url="/school/export/staff"
                     :params="{ search: filters.search, status: filters.status }"
@@ -65,8 +62,9 @@ const deleteStaff = (id, name) => del(`/school/staff/${id}`, `Delete staff membe
                     <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                     Add New Staff
                 </Button>
-            </div>
-        </div>
+
+            </template>
+        </PageHeader>
 
         <!-- Stats Row -->
         <div class="stats-row">

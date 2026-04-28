@@ -1,5 +1,6 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
 
@@ -58,12 +59,7 @@ const relativeTime = (dateStr) => {
 
 <template>
     <SchoolLayout title="My Notifications">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">My Notifications</h1>
-                <p class="page-header-sub">All communications sent to you</p>
-            </div>
-        </div>
+        <PageHeader title="My Notifications" subtitle="All communications sent to you" />
 
         <!-- Timeline -->
         <div v-if="logs?.data?.length > 0" class="timeline">

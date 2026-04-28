@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
 import { reactive, ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
@@ -65,16 +66,13 @@ const STATUS_COLOR = { present: '#22c55e', absent: '#ef4444', late: '#eab308', h
 <template>
     <SchoolLayout title="Date-wise Attendance">
 
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Date-wise Attendance Report</h1>
-                <p class="page-header-sub">Day-by-day attendance breakdown with unmarked count</p>
-            </div>
-            <div style="display:flex;gap:8px;">
+        <PageHeader title="Date-wise Attendance Report" subtitle="Day-by-day attendance breakdown with unmarked count">
+            <template #actions>
                 <Button variant="secondary" as="link" href="/school/attendance/report">Monthly Report</Button>
                 <Button as="link" href="/school/attendance">Mark Attendance</Button>
-            </div>
-        </div>
+
+            </template>
+        </PageHeader>
 
         <!-- Filters -->
         <FilterBar>

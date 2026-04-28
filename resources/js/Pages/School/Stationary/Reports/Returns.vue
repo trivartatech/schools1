@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { Link, router, Head } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import Table from '@/Components/ui/Table.vue';
 
 const props = defineProps({
@@ -42,15 +43,13 @@ const refundBadge = (m) => ({
 <template>
     <Head title="Stationary Returns" />
     <SchoolLayout title="Stationary Returns Report">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">↩ Returns Report</h1>
-                <p class="page-header-sub">All stationary returns within the selected date range. To accept a new return, open the student's allocation page.</p>
-            </div>
-            <Link href="/school/stationary/allocations">
-                <Button variant="secondary">📋 All Allocations</Button>
-            </Link>
-        </div>
+        <PageHeader title="↩ Returns Report" subtitle="All stationary returns within the selected date range. To accept a new return, open the student's allocation page.">
+            <template #actions>
+                <Link href="/school/stationary/allocations">
+                                <Button variant="secondary">📋 All Allocations</Button>
+                            </Link>
+            </template>
+        </PageHeader>
 
         <!-- Summary -->
         <div class="stats-grid">

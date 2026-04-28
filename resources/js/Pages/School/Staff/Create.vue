@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { useForm, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 
@@ -39,13 +40,11 @@ const submit = () => { form.post('/school/staff'); };
 <template>
     <SchoolLayout title="Add Staff Member">
 
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Add Staff Member</h1>
-                <p class="page-header-sub">Create a new employee profile and login account</p>
-            </div>
-            <Button variant="secondary" as="link" href="/school/staff">← Back</Button>
-        </div>
+        <PageHeader title="Add Staff Member" subtitle="Create a new employee profile and login account">
+            <template #actions>
+                <Button variant="secondary" as="link" href="/school/staff">← Back</Button>
+            </template>
+        </PageHeader>
 
         <form @submit.prevent="submit">
             <div class="form-sections">

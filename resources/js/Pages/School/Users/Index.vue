@@ -6,9 +6,11 @@ import debounce from 'lodash/debounce';
 import Button from '@/Components/ui/Button.vue';
 import { useToast } from '@/Composables/useToast';
 import { usePermissions } from '@/Composables/usePermissions';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const toast = useToast();
 const { can } = usePermissions();
+const confirm = useConfirm();
 
 // CSRF — Laravel sets the `XSRF-TOKEN` cookie and rotates it on session
 // changes. The meta tag is set once on first render and goes stale on
@@ -100,7 +102,13 @@ const resetModalUser     = ref(null);
 const generatedPassword  = ref('');
 
 const handleResetPassword = async (user) => {
-    if (!confirm(`Are you sure you want to reset the password for ${user.name}?`)) return;
+    const ok = await confirm({
+        title: 'Reset password?',
+        message: `${user.name} will get a fresh random password. They will need it to log in next time.`,
+        confirmLabel: 'Reset Password',
+        danger: true,
+    });
+    if (!ok) return;
     try {
         const response = await fetch(`/school/users/${user.id}/reset-password`, {
             method: 'POST',
@@ -124,8 +132,13 @@ const toggleAccess = (user) => {
     router.post(`/school/users/${user.id}/toggle-status`, {}, { preserveScroll: true });
 };
 
-const impersonateUser = (user) => {
-    if (!confirm(`Are you sure you want to login as ${user.name}?`)) return;
+const impersonateUser = async (user) => {
+    const ok = await confirm({
+        title: 'Login as user?',
+        message: `You will be logged in as ${user.name}. Use the back-to-admin link to return to your own session.`,
+        confirmLabel: 'Login',
+    });
+    if (!ok) return;
     router.post(`/impersonate/${user.id}`);
 };
 
@@ -145,7 +158,12 @@ const closeBulkModal = () => { bulkModal.value = false; bulkRows.value = []; cle
 // Create missing logins (parents / students / all)
 const createMissing = async (type) => {
     const label = { parent: 'parents', student: 'students', all: 'parents and students' }[type] || type;
-    if (!confirm(`Create login accounts for all ${label} who don't have one yet?`)) return;
+    const ok = await confirm({
+        title: 'Create missing logins?',
+        message: `Create login accounts for all ${label} who don't have one yet?`,
+        confirmLabel: 'Create',
+    });
+    if (!ok) return;
     bulkBusy.value = true;
     try {
         const res = await fetch('/school/users/create-missing', {
@@ -172,7 +190,13 @@ const createMissing = async (type) => {
 const bulkReset = async () => {
     const ids = [...selectedIds.value];
     if (ids.length === 0) return toast.warning('Select at least one user.');
-    if (!confirm(`Reset passwords for ${ids.length} selected user(s)? Each will get a fresh random password.`)) return;
+    const ok = await confirm({
+        title: 'Reset passwords?',
+        message: `Reset passwords for ${ids.length} selected user(s)? Each will get a fresh random password.`,
+        confirmLabel: 'Reset Passwords',
+        danger: true,
+    });
+    if (!ok) return;
     bulkBusy.value = true;
     try {
         const res = await fetch('/school/users/bulk-reset', {

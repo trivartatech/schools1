@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import axios from 'axios';
@@ -109,12 +110,7 @@ function openPrintView() {
 <template>
     <Head title="Admit Cards" />
     <SchoolLayout>
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">Admit Cards</h2>
-                <p class="page-header-sub">Generate and print admit cards for exams.</p>
-            </div>
-        </div>
+        <PageHeader title="Admit Cards" subtitle="Generate and print admit cards for exams." />
 
         <!-- ── Filters ── -->
         <div class="card mb-6">

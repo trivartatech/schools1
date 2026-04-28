@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -143,12 +144,7 @@ const submitPhotos = () => {
 <template>
     <SchoolLayout title="Bulk Import">
 
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">Bulk Import</h2>
-                <p class="page-header-sub">Import students, staff, or photos in bulk using Excel files.</p>
-            </div>
-        </div>
+        <PageHeader title="Bulk Import" subtitle="Import students, staff, or photos in bulk using Excel files." />
 
         <div class="bi-layout">
             <!-- Sidebar -->

@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -26,12 +27,7 @@ const setStatus = (status) => {
     <SchoolLayout title="Profile Edit Requests">
 
         <!-- Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Profile Edit Requests</h1>
-                <p class="page-header-sub">Review and approve profile change requests</p>
-            </div>
-        </div>
+        <PageHeader title="Profile Edit Requests" subtitle="Review and approve profile change requests" />
 
         <!-- Status Tabs -->
         <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;">

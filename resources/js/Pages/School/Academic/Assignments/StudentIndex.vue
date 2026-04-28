@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { useForm, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref, computed } from 'vue';
@@ -100,12 +101,7 @@ const pastAssignments = computed(() =>
 
 <template>
     <SchoolLayout title="My Assignments">
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">My Assignments</h2>
-                <p class="page-header-sub">View, submit, and track your homework</p>
-            </div>
-        </div>
+        <PageHeader title="My Assignments" subtitle="View, submit, and track your homework" />
 
         <!-- Active Assignments -->
         <div v-if="activeAssignments.length > 0" class="mb-8">

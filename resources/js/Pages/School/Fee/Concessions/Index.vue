@@ -1,9 +1,13 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const props = defineProps({
     concessions:     Object,
@@ -92,8 +96,14 @@ const save = () => {
 const toggleActive = (c) => {
     router.patch(`/school/fee/concessions/${c.id}/toggle`, {}, { preserveScroll: true });
 };
-const destroy = (c) => {
-    if (!confirm(`Delete concession "${c.name}" for ${c.student?.first_name}?`)) return;
+const destroy = async (c) => {
+    const ok = await confirm({
+        title: 'Delete concession?',
+        message: `"${c.name}" for ${c.student?.first_name ?? 'this student'} will be removed.`,
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
     router.delete(`/school/fee/concessions/${c.id}`, { preserveScroll: true });
 };
 
@@ -143,12 +153,8 @@ const typeBadge = (c) => c.type === 'percentage'
         <div class="max-w-6xl mx-auto space-y-6">
 
             <!-- Header -->
-            <div class="page-header">
-                <div>
-                    <h1 class="page-header-title">Fee Concessions</h1>
-                    <p class="page-header-sub">Assign discounts &amp; scholarships to students</p>
-                </div>
-                <div class="flex gap-2">
+            <PageHeader title="Fee Concessions" subtitle="Assign discounts &amp;amp; scholarships to students">
+                <template #actions>
                     <Button variant="secondary" as="link" href="/school/fee/concession-types">
                         Manage Preset Types
                     </Button>
@@ -156,8 +162,9 @@ const typeBadge = (c) => c.type === 'percentage'
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                         Add Concession
                     </Button>
-                </div>
-            </div>
+
+                </template>
+            </PageHeader>
 
             <!-- Search -->
             <div class="card">

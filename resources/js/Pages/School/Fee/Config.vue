@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -78,15 +79,17 @@ const submit = () => {
         <div class="max-w-3xl mx-auto space-y-6">
 
             <!-- Header -->
-            <div class="page-header">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center text-xl">🧾</div>
-                    <div>
-                        <h2 class="page-header-title">Fee Receipt Configuration</h2>
-                        <p class="page-header-sub">Customise the auto-generated fee receipt number format using fixed text and dynamic variables.</p>
+            <PageHeader>
+                <template #title>
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center text-xl">🧾</div>
+                        <h1 class="page-header-title">Fee Receipt Configuration</h1>
                     </div>
-                </div>
-            </div>
+                </template>
+                <template #subtitle>
+                    <p class="page-header-sub">Customise the auto-generated fee receipt number format using fixed text and dynamic variables.</p>
+                </template>
+            </PageHeader>
 
             <!-- Live Preview -->
             <div class="card bg-green-50 border-green-200">

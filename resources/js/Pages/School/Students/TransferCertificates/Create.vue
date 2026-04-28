@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { router, Link, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref, computed, watch } from 'vue';
@@ -44,13 +45,11 @@ const submit = () => {
 
 <template>
     <SchoolLayout title="New TC Request">
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">New Transfer Certificate Request</h2>
-                <p class="page-header-sub">Fill in the details to initiate a TC request</p>
-            </div>
-            <Button variant="secondary" as="link" :href="route('school.transfer-certificates.index')">← Back</Button>
-        </div>
+        <PageHeader title="New Transfer Certificate Request" subtitle="Fill in the details to initiate a TC request">
+            <template #actions>
+                <Button variant="secondary" as="link" :href="route('school.transfer-certificates.index')">← Back</Button>
+            </template>
+        </PageHeader>
 
         <div class="max-w-2xl">
             <form @submit.prevent="submit" class="card">

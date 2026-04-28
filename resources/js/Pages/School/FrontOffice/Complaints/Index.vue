@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -54,15 +55,13 @@ const updateStatus = (complaint, newStatus) => {
 <template>
     <SchoolLayout title="Complaint Management">
 
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Complaint Tracking</h1>
-                <p class="page-header-sub">Register, assign, and resolve school grievances.</p>
-            </div>
-            <Button @click="showForm = !showForm">
-                {{ showForm ? 'Cancel Entry' : '+ Log Complaint' }}
-            </Button>
-        </div>
+        <PageHeader title="Complaint Tracking" subtitle="Register, assign, and resolve school grievances.">
+            <template #actions>
+                <Button @click="showForm = !showForm">
+                                {{ showForm ? 'Cancel Entry' : '+ Log Complaint' }}
+                            </Button>
+            </template>
+        </PageHeader>
 
         <!-- NEW COMPLAINT FORM -->
         <Transition enter-active-class="transition duration-300 ease-out" enter-from-class="translate-y-[-20px] opacity-0"

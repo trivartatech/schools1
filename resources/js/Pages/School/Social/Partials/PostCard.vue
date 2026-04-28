@@ -2,8 +2,10 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const school = useSchoolStore();
+const confirm = useConfirm();
 import CommentSection from './CommentSection.vue';
 import Button from '@/Components/ui/Button.vue';
 
@@ -49,7 +51,16 @@ const togglePin = () => { showMenu.value = false; useForm({}).post(route('school
 const startEdit = () => { editContent.value = props.post.content; isEditing.value = true; showMenu.value = false; };
 const cancelEdit = () => { isEditing.value = false; };
 const saveEdit = () => useForm({ content: editContent.value }).put(route('school.communication.social-buzz.update', props.post.id), { preserveScroll: true, onSuccess: () => { isEditing.value = false; } });
-const deletePost = () => { if (confirm('Delete this post?')) useForm({}).delete(route('school.communication.social-buzz.destroy', props.post.id)); };
+const deletePost = async () => {
+    const ok = await confirm({
+        title: 'Delete post?',
+        message: 'Delete this post?',
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
+    useForm({}).delete(route('school.communication.social-buzz.destroy', props.post.id));
+};
 
 const timeAgo = (d) => {
     const diff = Math.floor((Date.now() - new Date(d)) / 1000);

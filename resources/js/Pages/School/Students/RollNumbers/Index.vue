@@ -1,9 +1,12 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import Modal from '@/Components/ui/Modal.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
+import Table from '@/Components/ui/Table.vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref, computed, watch } from 'vue';
-import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const school = useSchoolStore();
@@ -34,7 +37,6 @@ watch(() => filters.value.class_id, () => {
 });
 
 // ── Editable student rows ─────────────────────────────────────
-// Deep copy so we can track unsaved changes
 const rows = ref(props.students.map(s => ({ ...s })));
 const isDirty = ref(false);
 
@@ -47,7 +49,7 @@ const markDirty = () => { isDirty.value = true; };
 
 // ── Auto-assign ───────────────────────────────────────────────
 const autoStart  = ref(1);
-const autoPad    = ref(2);   // digit padding: 2 → "01", 3 → "001"
+const autoPad    = ref(2);
 const autoSort   = ref('name');
 
 const sortOptions = [
@@ -159,7 +161,6 @@ const yearLabel = computed(() => {
 
 const genderDot = (g) => g === 'Male' ? '🔵' : g === 'Female' ? '🔴' : '⚪';
 
-// ── Print ─────────────────────────────────────────────────────
 const doPrint = () => {
     const title = `Roll List — ${yearLabel.value} · ${classLabel.value}${sectionLabel.value ? ' / ' + sectionLabel.value : ''}`;
     const tableRows = rows.value.map((r, i) => `
@@ -205,37 +206,29 @@ const doPrint = () => {
             <span>⚠ You have unsaved changes</span>
             <div class="flex gap-3">
                 <button @click="resetChanges" class="bg-white/20 hover:bg-white/30 px-3 py-1 rounded-lg transition">Discard</button>
-                <Button variant="secondary" @click="save" :disabled="hasDuplicates || isSaving"
-                        class="text-amber-700">
+                <Button variant="secondary" @click="save" :disabled="hasDuplicates || isSaving" class="text-amber-700">
                     {{ isSaving ? 'Saving…' : 'Save All' }}
                 </Button>
             </div>
         </div>
 
         <div :class="isDirty ? 'mt-12' : ''">
-            <div class="page-header">
-                <div>
-                    <h2 class="page-header-title">Roll Number Management</h2>
-                    <p class="page-header-sub">Assign and manage roll numbers per class, section, and academic year</p>
-                </div>
-                <div class="flex gap-2" v-if="rows.length > 0">
-                    <Button variant="secondary" @click="showAutoModal = true">
-                        ⚡ Auto Assign
-                    </Button>
-                    <Button variant="secondary" @click="showPrintPanel = true">
-                        🖨 Print List
-                    </Button>
-                    <Button @click="save" :disabled="!isDirty || hasDuplicates || isSaving">
-                        {{ isSaving ? 'Saving…' : '💾 Save' }}
-                    </Button>
-                </div>
-            </div>
+            <PageHeader title="Roll Number Management" subtitle="Assign and manage roll numbers per class, section, and academic year">
+                <template #actions>
+                    <template v-if="rows.length > 0">
+                        <Button variant="secondary" @click="showAutoModal = true">⚡ Auto Assign</Button>
+                        <Button variant="secondary" @click="showPrintPanel = true">🖨 Print List</Button>
+                        <Button @click="save" :disabled="!isDirty || hasDuplicates || isSaving">
+                            {{ isSaving ? 'Saving…' : '💾 Save' }}
+                        </Button>
+                    </template>
+                </template>
+            </PageHeader>
 
             <!-- ── Filters ── -->
             <div class="card mb-6">
                 <div class="card-body">
                     <div class="flex gap-4 flex-wrap items-end">
-                        <!-- Academic Year -->
                         <div class="form-field min-w-[180px]">
                             <label>Academic Year</label>
                             <select v-model="filters.academic_year_id" @change="applyFilters">
@@ -245,7 +238,6 @@ const doPrint = () => {
                                 </option>
                             </select>
                         </div>
-                        <!-- Class -->
                         <div class="form-field min-w-[150px]">
                             <label>Class</label>
                             <select v-model="filters.class_id" :disabled="!filters.academic_year_id">
@@ -253,7 +245,6 @@ const doPrint = () => {
                                 <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
                             </select>
                         </div>
-                        <!-- Section -->
                         <div class="form-field min-w-[140px]">
                             <label>Section</label>
                             <select v-model="filters.section_id" @change="applyFilters"
@@ -267,15 +258,19 @@ const doPrint = () => {
             </div>
 
             <!-- ── No class selected ── -->
-            <div v-if="!filters.class_id" class="card py-16 text-center">
-                <div class="text-4xl mb-3">🎓</div>
-                <p class="text-slate-500 font-medium">Select an academic year and class to manage roll numbers</p>
+            <div v-if="!filters.class_id" class="card">
+                <EmptyState
+                    title="Select a class to begin"
+                    description="Pick an academic year and class above to manage roll numbers for those students."
+                />
             </div>
 
             <!-- ── Empty result ── -->
-            <div v-else-if="rows.length === 0" class="card py-16 text-center">
-                <div class="text-4xl mb-3">😶</div>
-                <p class="text-slate-500 font-medium">No students found in this class/section for the selected year</p>
+            <div v-else-if="rows.length === 0" class="card">
+                <EmptyState
+                    title="No students found"
+                    description="No students are enrolled in this class/section for the selected academic year."
+                />
             </div>
 
             <!-- ── Student Table ── -->
@@ -294,71 +289,60 @@ const doPrint = () => {
                     </div>
                 </div>
 
-                <div class="overflow-x-auto">
-                    <Table>
-                        <thead>
-                            <tr>
-                                <th class="w-10">#</th>
-                                <th>Student</th>
-                                <th>Admission No</th>
-                                <th>Gender</th>
-                                <th class="w-40">
-                                    Roll Number
-                                    <span class="text-xs font-normal text-slate-400 ml-1">(editable)</span>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="(row, idx) in rows" :key="row.history_id"
-                                :class="[
-                                    duplicateRolls.has(idx) ? 'bg-red-50' : '',
-                                ]">
-                                <!-- Row number -->
-                                <td class="text-slate-400 text-xs text-center">{{ idx + 1 }}</td>
-
-                                <!-- Student -->
-                                <td>
-                                    <div class="flex items-center gap-2.5">
-                                        <img v-if="row.photo_url" :src="row.photo_url"
-                                             class="w-7 h-7 rounded-full object-cover border border-slate-200">
-                                        <div v-else class="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600">
-                                            {{ row.first_name?.[0] }}
-                                        </div>
-                                        <span class="text-sm font-medium text-slate-800">{{ row.name }}</span>
+                <Table>
+                    <thead>
+                        <tr>
+                            <th class="w-10">#</th>
+                            <th>Student</th>
+                            <th>Admission No</th>
+                            <th>Gender</th>
+                            <th class="w-40">
+                                Roll Number
+                                <span class="text-xs font-normal text-slate-400 ml-1">(editable)</span>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(row, idx) in rows" :key="row.history_id"
+                            :class="[
+                                duplicateRolls.has(idx) ? 'bg-red-50' : '',
+                            ]">
+                            <td class="text-slate-400 text-xs text-center">{{ idx + 1 }}</td>
+                            <td>
+                                <div class="flex items-center gap-2.5">
+                                    <img v-if="row.photo_url" :src="row.photo_url"
+                                         class="w-7 h-7 rounded-full object-cover border border-slate-200">
+                                    <div v-else class="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600">
+                                        {{ row.first_name?.[0] }}
                                     </div>
-                                </td>
-
-                                <!-- Admission No -->
-                                <td class="font-mono text-xs text-slate-500">{{ row.admission_no }}</td>
-
-                                <!-- Gender -->
-                                <td class="text-sm">
-                                    <span>{{ genderDot(row.gender) }} {{ row.gender || '—' }}</span>
-                                </td>
-
-                                <!-- Roll No (editable) -->
-                                <td>
-                                    <div class="flex items-center gap-1.5">
-                                        <input
-                                            v-model="row.roll_no"
-                                            @input="markDirty"
-                                            type="text"
-                                            maxlength="20"
-                                            :class="[
-                                                'w-28 text-center font-mono font-bold text-sm border rounded-lg px-2 py-1 transition-all focus:outline-none focus:ring-2',
-                                                duplicateRolls.has(idx)
-                                                    ? 'border-red-400 bg-red-50 text-red-700 focus:ring-red-300'
-                                                    : 'border-slate-300 bg-white text-slate-800 focus:ring-indigo-300 focus:border-indigo-400'
-                                            ]"
-                                            :placeholder="`e.g. ${String(idx + 1).padStart(2, '0')}`"
-                                        >
-                                        <span v-if="duplicateRolls.has(idx)" class="text-red-500 text-xs">dup</span>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </Table>
-                </div>
+                                    <span class="text-sm font-medium text-slate-800">{{ row.name }}</span>
+                                </div>
+                            </td>
+                            <td class="font-mono text-xs text-slate-500">{{ row.admission_no }}</td>
+                            <td class="text-sm">
+                                <span>{{ genderDot(row.gender) }} {{ row.gender || '—' }}</span>
+                            </td>
+                            <td>
+                                <div class="flex items-center gap-1.5">
+                                    <input
+                                        v-model="row.roll_no"
+                                        @input="markDirty"
+                                        type="text"
+                                        maxlength="20"
+                                        :class="[
+                                            'w-28 text-center font-mono font-bold text-sm border rounded-lg px-2 py-1 transition-all focus:outline-none focus:ring-2',
+                                            duplicateRolls.has(idx)
+                                                ? 'border-red-400 bg-red-50 text-red-700 focus:ring-red-300'
+                                                : 'border-slate-300 bg-white text-slate-800 focus:ring-indigo-300 focus:border-indigo-400'
+                                        ]"
+                                        :placeholder="`e.g. ${String(idx + 1).padStart(2, '0')}`"
+                                    >
+                                    <span v-if="duplicateRolls.has(idx)" class="text-red-500 text-xs">dup</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </Table>
 
                 <!-- Footer summary -->
                 <div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
@@ -375,83 +359,69 @@ const doPrint = () => {
         </div>
 
         <!-- ── Auto Assign Modal ── -->
-        <div v-if="showAutoModal" class="modal-overlay" @mousedown.self="showAutoModal = false">
-            <div class="modal-box max-w-md">
-                <h3 class="modal-title">⚡ Auto Assign Roll Numbers</h3>
-                <p class="text-sm text-slate-500 mb-5">
-                    Automatically assign sequential roll numbers based on your chosen sort order.
-                    You can review and adjust before saving.
-                </p>
+        <Modal v-model:open="showAutoModal" title="⚡ Auto Assign Roll Numbers" size="md">
+            <p class="text-sm text-slate-500 mb-5">
+                Automatically assign sequential roll numbers based on your chosen sort order.
+                You can review and adjust before saving.
+            </p>
 
-                <div class="space-y-4">
-                    <!-- Sort by -->
-                    <div class="form-field">
-                        <label>Sort Students By</label>
-                        <select v-model="autoSort" class="input">
-                            <option v-for="opt in sortOptions" :key="opt.value" :value="opt.value">
-                                {{ opt.label }}
-                            </option>
+            <div class="space-y-4">
+                <div class="form-field">
+                    <label>Sort Students By</label>
+                    <select v-model="autoSort">
+                        <option v-for="opt in sortOptions" :key="opt.value" :value="opt.value">
+                            {{ opt.label }}
+                        </option>
+                    </select>
+                </div>
+
+                <div class="flex gap-4">
+                    <div class="form-field flex-1">
+                        <label>Starting Number</label>
+                        <input v-model="autoStart" type="number" min="1" class="font-mono">
+                    </div>
+                    <div class="form-field flex-1">
+                        <label>Digits (padding)</label>
+                        <select v-model="autoPad" class="font-mono">
+                            <option value="1">1 → 1, 2, 3</option>
+                            <option value="2">2 → 01, 02, 03</option>
+                            <option value="3">3 → 001, 002, 003</option>
+                            <option value="4">4 → 0001, 0002</option>
                         </select>
                     </div>
-
-                    <div class="flex gap-4">
-                        <!-- Starting number -->
-                        <div class="form-field flex-1">
-                            <label>Starting Number</label>
-                            <input v-model="autoStart" type="number" min="1" class="input font-mono">
-                        </div>
-                        <!-- Digit padding -->
-                        <div class="form-field flex-1">
-                            <label>Digits (padding)</label>
-                            <select v-model="autoPad" class="input font-mono">
-                                <option value="1">1 → 1, 2, 3</option>
-                                <option value="2">2 → 01, 02, 03</option>
-                                <option value="3">3 → 001, 002, 003</option>
-                                <option value="4">4 → 0001, 0002</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Live preview -->
-                    <div class="bg-slate-50 rounded-xl px-4 py-3 border border-slate-200 text-xs">
-                        <div class="font-semibold text-slate-600 mb-1">Preview (first 3):</div>
-                        <div class="font-mono text-indigo-700 font-bold">
-                            {{ String(parseInt(autoStart) || 1).padStart(parseInt(autoPad) || 2, '0') }},
-                            {{ String((parseInt(autoStart) || 1) + 1).padStart(parseInt(autoPad) || 2, '0') }},
-                            {{ String((parseInt(autoStart) || 1) + 2).padStart(parseInt(autoPad) || 2, '0') }}, …
-                        </div>
-                        <div class="text-slate-400 mt-1">Total: {{ rows.length }} students</div>
-                    </div>
                 </div>
 
-                <div class="flex gap-3 justify-end mt-5 pt-4 border-t border-slate-100">
-                    <Button variant="secondary" @click="showAutoModal = false">Cancel</Button>
-                    <Button @click="doAutoAssign">
-                        Assign {{ rows.length }} Students
-                    </Button>
+                <div class="bg-slate-50 rounded-xl px-4 py-3 border border-slate-200 text-xs">
+                    <div class="font-semibold text-slate-600 mb-1">Preview (first 3):</div>
+                    <div class="font-mono text-indigo-700 font-bold">
+                        {{ String(parseInt(autoStart) || 1).padStart(parseInt(autoPad) || 2, '0') }},
+                        {{ String((parseInt(autoStart) || 1) + 1).padStart(parseInt(autoPad) || 2, '0') }},
+                        {{ String((parseInt(autoStart) || 1) + 2).padStart(parseInt(autoPad) || 2, '0') }}, …
+                    </div>
+                    <div class="text-slate-400 mt-1">Total: {{ rows.length }} students</div>
                 </div>
             </div>
-        </div>
 
-        <!-- ── Print Panel (rendered in-page for window.print()) ── -->
-        <div v-if="showPrintPanel" class="modal-overlay" @mousedown.self="showPrintPanel = false">
-            <div class="modal-box max-w-sm">
-                <h3 class="modal-title">🖨 Print Roll List</h3>
-                <p class="text-sm text-slate-500 mb-4">
-                    A print-ready view will open in a new tab.
-                    Make sure roll numbers are saved before printing.
-                </p>
-                <div class="bg-slate-50 rounded-lg px-4 py-3 border border-slate-200 text-sm mb-4 space-y-1">
-                    <div><span class="text-slate-400">Year:</span> <strong>{{ yearLabel }}</strong></div>
-                    <div><span class="text-slate-400">Class:</span> <strong>{{ classLabel }}{{ sectionLabel ? ' / ' + sectionLabel : '' }}</strong></div>
-                    <div><span class="text-slate-400">Students:</span> <strong>{{ rows.length }}</strong></div>
-                </div>
-                <div class="flex gap-3 justify-end">
-                    <Button variant="secondary" @click="showPrintPanel = false">Cancel</Button>
-                    <Button @click="doPrint">Open Print View</Button>
-                </div>
+            <template #footer>
+                <Button variant="secondary" @click="showAutoModal = false">Cancel</Button>
+                <Button @click="doAutoAssign">Assign {{ rows.length }} Students</Button>
+            </template>
+        </Modal>
+
+        <!-- ── Print Panel ── -->
+        <Modal v-model:open="showPrintPanel" title="🖨 Print Roll List" size="sm">
+            <p class="text-sm text-slate-500 mb-4">
+                A print-ready view will open in a new tab. Make sure roll numbers are saved before printing.
+            </p>
+            <div class="bg-slate-50 rounded-lg px-4 py-3 border border-slate-200 text-sm space-y-1">
+                <div><span class="text-slate-400">Year:</span> <strong>{{ yearLabel }}</strong></div>
+                <div><span class="text-slate-400">Class:</span> <strong>{{ classLabel }}{{ sectionLabel ? ' / ' + sectionLabel : '' }}</strong></div>
+                <div><span class="text-slate-400">Students:</span> <strong>{{ rows.length }}</strong></div>
             </div>
-        </div>
+            <template #footer>
+                <Button variant="secondary" @click="showPrintPanel = false">Cancel</Button>
+                <Button @click="doPrint">Open Print View</Button>
+            </template>
+        </Modal>
     </SchoolLayout>
 </template>
-

@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref, computed, watch } from 'vue';
@@ -7,6 +8,9 @@ import { usePermissions } from '@/Composables/usePermissions';
 import ExportDropdown from '@/Components/ExportDropdown.vue';
 import axios from 'axios';
 import Table from '@/Components/ui/Table.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const props = defineProps({
     books:   Array,
@@ -63,8 +67,14 @@ const submit = () => {
     });
 };
 
-const deleteBook = (id) => {
-    if (!confirm('Remove this book from the list?')) return;
+const deleteBook = async (id) => {
+    const ok = await confirm({
+        title: 'Remove book?',
+        message: 'Remove this book from the list?',
+        confirmLabel: 'Remove',
+        danger: true,
+    });
+    if (!ok) return;
     router.delete(route('school.academic.book-list.destroy', id));
 };
 
@@ -88,12 +98,8 @@ const grouped = computed(() => {
 
 <template>
     <SchoolLayout title="Book List Management">
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">Book List</h2>
-                <p class="page-header-sub">Manage required textbooks per class</p>
-            </div>
-            <div class="flex gap-2">
+        <PageHeader title="Book List" subtitle="Manage required textbooks per class">
+            <template #actions>
                 <ExportDropdown
                     base-url="/school/export/book-list"
                     :params="{ class_id: filterClassId }"
@@ -104,8 +110,9 @@ const grouped = computed(() => {
                     </svg>
                     Add Book
                 </Button>
-            </div>
-        </div>
+
+            </template>
+        </PageHeader>
 
         <!-- Filter -->
         <div class="card mb-6">

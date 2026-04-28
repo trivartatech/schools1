@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref } from 'vue';
@@ -84,12 +85,7 @@ const fileType = (p) => {
 
 <template>
     <SchoolLayout title="Class Diary">
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">Class Diary</h2>
-                <p class="page-header-sub">Daily classwork and homework notes from your teachers</p>
-            </div>
-        </div>
+        <PageHeader title="Class Diary" subtitle="Daily classwork and homework notes from your teachers" />
 
         <!-- Date Slider -->
         <div class="card mb-6 overflow-hidden">

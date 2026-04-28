@@ -1,10 +1,13 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import Modal from '@/Components/ui/Modal.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { useForm, Head, Link } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const props = defineProps({
     editRequest: Object,
@@ -17,13 +20,18 @@ const form = useForm({
 });
 
 const school = useSchoolStore();
+const confirm = useConfirm();
 
 const showRejectModal = ref(false);
 
-const approve = () => {
-    if (confirm('Are you sure you want to approve these changes? They will be applied immediately.')) {
-        form.post(`/school/edit-requests/${props.editRequest.id}/approve`);
-    }
+const approve = async () => {
+    const ok = await confirm({
+        title: 'Approve changes?',
+        message: 'Are you sure you want to approve these changes? They will be applied immediately.',
+        confirmLabel: 'Approve',
+    });
+    if (!ok) return;
+    form.post(`/school/edit-requests/${props.editRequest.id}/approve`);
 };
 
 const reject = () => {
@@ -37,25 +45,23 @@ const reject = () => {
     <Head title="Review Edit Request" />
     <SchoolLayout title="Review Edit Request">
 
-        <!-- Page Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Review Edit Request</h1>
-                <p class="page-header-sub">
-                    Submitted by {{ editRequest.user.name }} on {{ school.fmtDateTime(editRequest.created_at) }}
-                </p>
-            </div>
-            <div class="header-actions" v-if="editRequest.status === 'pending'">
-                <Button variant="danger" @click="showRejectModal = true">
-                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
-                    Reject
-                </Button>
-                <Button @click="approve" :loading="form.processing">
-                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                    Approve Changes
-                </Button>
-            </div>
-        </div>
+        <PageHeader
+            title="Review Edit Request"
+            :subtitle="`Submitted by ${editRequest.user.name} on ${school.fmtDateTime(editRequest.created_at)}`"
+        >
+            <template #actions>
+                <template v-if="editRequest.status === 'pending'">
+                    <Button variant="danger" @click="showRejectModal = true">
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                        Reject
+                    </Button>
+                    <Button @click="approve" :loading="form.processing">
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                        Approve Changes
+                    </Button>
+                </template>
+            </template>
+        </PageHeader>
 
         <div class="review-layout">
 
@@ -185,57 +191,36 @@ const reject = () => {
         </div>
 
         <!-- Reject Modal -->
-        <div v-if="showRejectModal" class="modal-backdrop" @click.self="showRejectModal = false">
-            <div class="modal-box">
-                <div class="modal-header">
-                    <div class="modal-header-left">
-                        <span class="modal-icon-wrap">
-                            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                        </span>
-                        <h3 class="modal-title">Reject Request</h3>
-                    </div>
-                    <button @click="showRejectModal = false" class="modal-close" aria-label="Close">
-                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                    </button>
+        <Modal v-model:open="showRejectModal" title="Reject Request" size="sm">
+            <form @submit.prevent="reject" id="reject-edit-request-form">
+                <div class="form-field">
+                    <label class="modal-field-label">
+                        Reason for rejection
+                        <span class="required-star">*</span>
+                    </label>
+                    <textarea
+                        v-model="form.rejection_reason"
+                        rows="4"
+                        required
+                        placeholder="Please explain why this change is being rejected…"
+                        class="modal-textarea"
+                    ></textarea>
+                    <p v-if="form.errors.rejection_reason" class="form-error">{{ form.errors.rejection_reason }}</p>
                 </div>
-                <form @submit.prevent="reject" class="modal-body">
-                    <div class="form-field">
-                        <label class="modal-field-label">
-                            Reason for rejection
-                            <span class="required-star">*</span>
-                        </label>
-                        <textarea
-                            v-model="form.rejection_reason"
-                            rows="4"
-                            required
-                            placeholder="Please explain why this change is being rejected…"
-                            class="modal-textarea"
-                        ></textarea>
-                        <p v-if="form.errors.rejection_reason" class="form-error">{{ form.errors.rejection_reason }}</p>
-                    </div>
-                    <div class="modal-footer">
-                        <Button variant="secondary" type="button" @click="showRejectModal = false">Cancel</Button>
-                        <Button variant="danger" type="submit" :loading="form.processing">
-                            <svg v-if="!form.processing" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
-                            Confirm Rejection
-                        </Button>
-                    </div>
-                </form>
-            </div>
-        </div>
+            </form>
+            <template #footer>
+                <Button variant="secondary" type="button" @click="showRejectModal = false">Cancel</Button>
+                <Button variant="danger" type="submit" form="reject-edit-request-form" :loading="form.processing">
+                    <svg v-if="!form.processing" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                    Confirm Rejection
+                </Button>
+            </template>
+        </Modal>
 
     </SchoolLayout>
 </template>
 
 <style scoped>
-/* ── Header ── */
-.header-actions {
-    display: flex;
-    gap: .625rem;
-    align-items: center;
-    flex-shrink: 0;
-}
-
 /* ── Two-column layout ── */
 .review-layout {
     display: grid;
@@ -356,64 +341,7 @@ const reject = () => {
 .cell-new-text { font-weight: 700; }
 .cell-blank { opacity: .5; font-style: italic; }
 
-/* ── Modal ── */
-.modal-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 100;
-    background: rgba(15, 23, 42, .55);
-    backdrop-filter: blur(4px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-}
-.modal-box {
-    background: var(--surface);
-    border-radius: var(--radius-lg);
-    box-shadow: 0 24px 64px rgba(0, 0, 0, .22);
-    width: 100%;
-    max-width: 460px;
-    overflow: hidden;
-}
-.modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid var(--border);
-    background: #fef2f2;
-}
-.modal-header-left { display: flex; align-items: center; gap: .625rem; }
-.modal-icon-wrap {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 7px;
-    background: #fee2e2;
-    color: var(--danger);
-    flex-shrink: 0;
-}
-.modal-title { font-size: .9375rem; font-weight: 700; color: #1e293b; margin: 0; }
-.modal-close {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    background: none;
-    border: none;
-    color: #94a3b8;
-    cursor: pointer;
-    transition: background .15s, color .15s;
-}
-.modal-close:hover { background: #fee2e2; color: var(--danger); }
-
-.modal-body { padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
-
+/* ── Modal field styles (kept for textarea) ── */
 .modal-field-label {
     display: block;
     font-size: .8125rem;
@@ -440,13 +368,5 @@ const reject = () => {
     outline: none;
     border-color: var(--danger);
     box-shadow: 0 0 0 3px rgba(239, 68, 68, .12);
-}
-
-.modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: .625rem;
-    padding-top: .5rem;
-    border-top: 1px solid var(--border);
 }
 </style>

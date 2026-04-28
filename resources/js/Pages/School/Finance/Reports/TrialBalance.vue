@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -37,12 +38,8 @@ const fmtCur = (n) => '₹' + fmt(n);
 <template>
     <SchoolLayout>
         <StatementsTabNav current="trial-balance" />
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Trial Balance</h1>
-                <p class="page-header-sub">Closing balances of all ledger accounts — debits must equal credits</p>
-            </div>
-            <div style="display:flex;gap:10px;">
+        <PageHeader title="Trial Balance" subtitle="Closing balances of all ledger accounts — debits must equal credits">
+            <template #actions>
                 <Button variant="secondary" @click="exportCsv">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="margin-right:5px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                     CSV
@@ -52,8 +49,9 @@ const fmtCur = (n) => '₹' + fmt(n);
                     PDF
                 </Button>
                 <Button variant="secondary" @click="window.print()">Print</Button>
-            </div>
-        </div>
+
+            </template>
+        </PageHeader>
 
         <!-- Filter -->
         <div class="card" style="margin-bottom:16px;">

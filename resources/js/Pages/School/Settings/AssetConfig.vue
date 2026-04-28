@@ -2,6 +2,9 @@
 import { computed, ref } from 'vue';
 import { useForm, usePage, Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const props = defineProps({
     school:   { type: Object, default: () => ({}) },
@@ -129,16 +132,21 @@ const submit = () => {
     });
 };
 
-const removeAsset = (type) => {
-    if (confirm(`Are you sure you want to remove this ${type}?`)) {
-        router.delete(`/school/settings/asset-config/${type}`, {
-            preserveScroll: true,
-            onSuccess: () => {
-                previews.value[type] = null;
-                fileInfo.value[type] = null;
-            }
-        });
-    }
+const removeAsset = async (type) => {
+    const ok = await confirm({
+        title: `Remove ${type}?`,
+        message: `The current ${type} will be removed from your school's branding.`,
+        confirmLabel: 'Remove',
+        danger: true,
+    });
+    if (!ok) return;
+    router.delete(`/school/settings/asset-config/${type}`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            previews.value[type] = null;
+            fileInfo.value[type] = null;
+        }
+    });
 };
 </script>
 

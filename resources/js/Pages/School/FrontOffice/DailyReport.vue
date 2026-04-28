@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, watch } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -83,17 +84,17 @@ const barColors = [
     <SchoolLayout title="Daily Activity Report">
 
         <!-- Page Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Daily Activity Report</h1>
+        <PageHeader title="Daily Activity Report">
+            <template #subtitle>
                 <p class="page-header-sub">{{ formatDate(selectedDate) }}</p>
-            </div>
-            <div style="display: flex; align-items: center; gap: 0.75rem;">
+            </template>
+            <template #actions>
                 <Button variant="secondary" as="link" href="/school/front-office">
                     Back to Dashboard
                 </Button>
-            </div>
-        </div>
+
+            </template>
+        </PageHeader>
 
         <!-- Date Picker -->
         <div class="card mb-6">

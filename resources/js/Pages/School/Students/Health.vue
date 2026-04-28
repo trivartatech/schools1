@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -76,22 +77,24 @@ const submit = () => {
     <SchoolLayout :title="`Health Record — ${student.first_name} ${student.last_name || ''}`">
 
         <!-- Page header -->
-        <div class="page-header">
-            <div class="page-header-left">
-                <Link :href="`/school/students/${student.id}`" class="back-btn" aria-label="Back">
-                    <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                </Link>
-                <div>
+        <PageHeader>
+            <template #title>
+                <div class="page-header-left">
+                    <Link :href="`/school/students/${student.id}`" class="back-btn" aria-label="Back">
+                        <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                    </Link>
                     <h1 class="page-header-title health-page-title">
                         <span class="health-icon-wrap">
                             <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
                         </span>
                         Health Record
                     </h1>
-                    <p class="page-header-sub">{{ student.first_name }} {{ student.last_name }} &middot; {{ student.admission_no }}</p>
                 </div>
-            </div>
-        </div>
+            </template>
+            <template #subtitle>
+                <p class="page-header-sub">{{ student.first_name }} {{ student.last_name }} &middot; {{ student.admission_no }}</p>
+            </template>
+        </PageHeader>
 
         <!-- Quick stat cards -->
         <div class="health-stats" v-if="form.height_cm || form.weight_kg || bmi">

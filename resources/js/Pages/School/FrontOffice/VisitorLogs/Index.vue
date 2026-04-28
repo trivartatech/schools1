@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -128,20 +129,17 @@ const filteredVisitors = computed(() => {
 <template>
     <SchoolLayout title="Visitor Log">
 
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Visitor Log</h1>
-                <p class="page-header-sub">Manage and verify school visitors efficiently.</p>
-            </div>
-            <div style="display:flex;gap:8px;">
+        <PageHeader title="Visitor Log" subtitle="Manage and verify school visitors efficiently.">
+            <template #actions>
                 <Button variant="secondary" v-if="can('create_front_office')" @click="showPreReg = !showPreReg; showForm = false;">
                     {{ showPreReg ? 'Close' : 'Pre-Register' }}
                 </Button>
                 <Button v-if="can('create_front_office')" @click="showForm = !showForm; showPreReg = false;">
                     {{ showForm ? 'Close Entry Form' : '+ New Visitor Entry' }}
                 </Button>
-            </div>
-        </div>
+
+            </template>
+        </PageHeader>
 
         <!-- EXPECTED VISITORS BANNER -->
         <div v-if="expectedVisitors.length" class="card" style="margin-bottom:16px;border-left:4px solid #6366f1;">

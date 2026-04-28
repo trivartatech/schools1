@@ -2,6 +2,11 @@
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref, computed } from 'vue';
 import { useForm } from '@inertiajs/vue3';
+import Button from '@/Components/ui/Button.vue';
+import Modal from '@/Components/ui/Modal.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
+import Tabs from '@/Components/ui/Tabs.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
 
 const props = defineProps({
     asset:    Object,
@@ -65,17 +70,33 @@ const formatChanges = (changes) => {
         .filter(k => !['updated_at', 'created_at'].includes(k) && old[k] !== cur[k])
         .map(k => ({ field: k.replace(/_/g, ' '), from: old[k] ?? '—', to: cur[k] ?? '—' }));
 };
+
+const openMaintCount = computed(() =>
+    (props.asset.maintenance_logs ?? []).filter(m => ['open','in_progress'].includes(m.status)).length
+);
+
+const tabsConfig = computed(() => [
+    { key: 'overview',    label: 'Overview' },
+    { key: 'assignments', label: 'Assignments', count: props.asset.assignments?.length ?? 0 },
+    { key: 'maintenance', label: 'Maintenance', count: props.asset.maintenance_logs?.length ?? 0 },
+    { key: 'audit',       label: 'Audit Log',   count: props.auditLog?.length ?? 0 },
+]);
 </script>
 
 <template>
     <SchoolLayout :title="asset.name">
 
-        <!-- Breadcrumb -->
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:.82rem;color:#94a3b8;">
-            <a href="/school/inventory" style="color:#64748b;text-decoration:none;font-weight:500;">Inventory</a>
-            <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-            <span style="color:#1e293b;">{{ asset.name }}</span>
-        </div>
+        <PageHeader :title="asset.name" :breadcrumbs="[
+            { label: 'Inventory', href: '/school/inventory' },
+            { label: asset.name },
+        ]">
+            <template #actions>
+                <Button as="a" variant="secondary" :href="`/school/inventory?status=${asset.status}`">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                    Back
+                </Button>
+            </template>
+        </PageHeader>
 
         <!-- Asset Header card -->
         <div class="header-card">
@@ -101,10 +122,6 @@ const formatChanges = (changes) => {
                     <span class="condition-dot" :style="{ background: conditionDot[asset.condition] }"></span>
                     {{ asset.condition }}
                 </span>
-                <a :href="`/school/inventory?status=${asset.status}`" class="btn-outline" style="font-size:.8rem;padding:6px 12px;">
-                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                    Back
-                </a>
             </div>
         </div>
 
@@ -164,187 +181,173 @@ const formatChanges = (changes) => {
             </span>
         </div>
 
-        <!-- Tabs -->
-        <div class="tabs-bar">
-            <button class="tab-btn" :class="{ active: activeTab === 'overview' }"     @click="activeTab = 'overview'">Overview</button>
-            <button class="tab-btn" :class="{ active: activeTab === 'assignments' }"  @click="activeTab = 'assignments'">
-                Assignments <span class="tab-count">{{ asset.assignments?.length ?? 0 }}</span>
-            </button>
-            <button class="tab-btn" :class="{ active: activeTab === 'maintenance' }"  @click="activeTab = 'maintenance'">
-                Maintenance <span class="tab-count" :style="{ background: (asset.maintenance_logs?.filter(m => ['open','in_progress'].includes(m.status)).length ?? 0) > 0 ? '#fee2e2' : '', color: (asset.maintenance_logs?.filter(m => ['open','in_progress'].includes(m.status)).length ?? 0) > 0 ? '#dc2626' : '' }">{{ asset.maintenance_logs?.length ?? 0 }}</span>
-            </button>
-            <button class="tab-btn" :class="{ active: activeTab === 'audit' }"        @click="activeTab = 'audit'">
-                Audit Log <span class="tab-count">{{ auditLog?.length ?? 0 }}</span>
-            </button>
-        </div>
-
-        <!-- Tab: Overview -->
-        <div v-if="activeTab === 'overview'" class="card">
-            <div class="detail-grid">
-                <div class="detail-row"><span class="detail-label">Asset Name</span><span class="detail-val">{{ asset.name }}</span></div>
-                <div class="detail-row"><span class="detail-label">Asset Code</span><span class="detail-val">{{ asset.asset_code || '—' }}</span></div>
-                <div class="detail-row"><span class="detail-label">Category</span><span class="detail-val"><span class="cat-badge">{{ asset.category?.name ?? '—' }}</span></span></div>
-                <div class="detail-row"><span class="detail-label">Brand</span><span class="detail-val">{{ asset.brand || '—' }}</span></div>
-                <div class="detail-row"><span class="detail-label">Model</span><span class="detail-val">{{ asset.model_no || '—' }}</span></div>
-                <div class="detail-row"><span class="detail-label">Serial No</span><span class="detail-val">{{ asset.serial_no || '—' }}</span></div>
-                <div class="detail-row"><span class="detail-label">Supplier</span><span class="detail-val">{{ asset.supplier || '—' }}</span></div>
-                <div class="detail-row"><span class="detail-label">Purchase Date</span><span class="detail-val">{{ fmt(asset.purchase_date) }}</span></div>
-                <div class="detail-row"><span class="detail-label">Purchase Cost</span><span class="detail-val">{{ fmtCost(asset.purchase_cost) }}</span></div>
-                <div class="detail-row"><span class="detail-label">Useful Life</span><span class="detail-val">{{ asset.useful_life_years }} years</span></div>
-                <div class="detail-row"><span class="detail-label">Depreciation</span><span class="detail-val" style="text-transform:capitalize;">{{ (asset.depreciation_method ?? 'straight_line').replace('_', ' ') }}</span></div>
-                <div class="detail-row"><span class="detail-label">Current Book Value</span><span class="detail-val" style="color:#3b82f6;font-weight:700;">{{ fmtCost(asset.current_value) }}</span></div>
-                <div class="detail-row"><span class="detail-label">Condition</span>
-                    <span class="detail-val" style="display:inline-flex;align-items:center;gap:5px;text-transform:capitalize;">
-                        <span class="condition-dot" :style="{ background: conditionDot[asset.condition] }"></span>{{ asset.condition }}
-                    </span>
-                </div>
-                <div class="detail-row"><span class="detail-label">Status</span>
-                    <span class="detail-val">
-                        <span class="status-pill" :style="{ background: statusBadge[asset.status] + '1a', color: statusBadge[asset.status], border: '1px solid ' + statusBadge[asset.status] + '40' }">{{ statusLabel[asset.status] }}</span>
-                    </span>
-                </div>
-                <div v-if="asset.notes" class="detail-row full"><span class="detail-label">Notes</span><span class="detail-val">{{ asset.notes }}</span></div>
-            </div>
-        </div>
-
-        <!-- Tab: Assignments -->
-        <div v-if="activeTab === 'assignments'" class="card" style="overflow:hidden;">
-            <div style="overflow-x:auto;">
-                <table class="det-table">
-                    <thead>
-                        <tr>
-                            <th>Assigned On</th><th>Assign Type</th><th>Assignee</th>
-                            <th>Location</th><th>Returned</th><th>By</th><th>Notes</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="asgn in asset.assignments" :key="asgn.id">
-                            <td style="white-space:nowrap;">{{ fmt(asgn.assigned_on) }}</td>
-                            <td style="text-transform:capitalize;">{{ asgn.assignee_type || 'general' }}</td>
-                            <td>{{ asgn.assignee_name || '—' }}</td>
-                            <td>{{ asgn.location }}</td>
-                            <td>
-                                <span v-if="asgn.returned_on" style="color:#10b981;">{{ fmt(asgn.returned_on) }}</span>
-                                <span v-else class="status-pill" style="background:#dbeafe1a;color:#2563eb;border:1px solid #2563eb40;">Active</span>
-                            </td>
-                            <td style="font-size:.78rem;color:#64748b;">{{ asgn.assigned_by?.name ?? '—' }}</td>
-                            <td style="font-size:.78rem;color:#64748b;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ asgn.notes || '—' }}</td>
-                        </tr>
-                        <tr v-if="!asset.assignments?.length">
-                            <td colspan="7" class="empty-cell">No assignment history.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Tab: Maintenance -->
-        <div v-if="activeTab === 'maintenance'" class="card" style="overflow:hidden;">
-            <div style="overflow-x:auto;">
-                <table class="det-table">
-                    <thead>
-                        <tr>
-                            <th>Reported</th><th>Type</th><th>Description</th>
-                            <th>Status</th><th>Cost</th><th>Vendor</th><th>Resolved</th><th style="text-align:right;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="log in asset.maintenance_logs" :key="log.id">
-                            <td style="white-space:nowrap;">{{ fmt(log.reported_on) }}</td>
-                            <td style="text-transform:capitalize;">{{ log.type }}</td>
-                            <td>{{ log.issue_description }}</td>
-                            <td>
-                                <span class="maint-status-pill"
-                                    :style="{ background: maintStatusColor[log.status] + '1a', color: maintStatusColor[log.status], border: '1px solid ' + maintStatusColor[log.status] + '40' }">
-                                    {{ maintStatusLabel[log.status] }}
-                                </span>
-                            </td>
-                            <td>{{ log.cost > 0 ? fmtCost(log.cost) : '—' }}</td>
-                            <td style="font-size:.78rem;color:#64748b;">{{ log.vendor || '—' }}</td>
-                            <td style="font-size:.78rem;color:#64748b;">
-                                {{ fmt(log.resolved_on) }}
-                                <div v-if="log.resolution_notes" style="font-style:italic;color:#94a3b8;font-size:.72rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" :title="log.resolution_notes">
-                                    {{ log.resolution_notes }}
-                                </div>
-                            </td>
-                            <td>
-                                <div style="display:flex;gap:5px;justify-content:flex-end;">
-                                    <button v-if="log.status === 'open'" class="act-btn act-amber" @click="markInProgress(log.id)">In Progress</button>
-                                    <button v-if="['open','in_progress'].includes(log.status)" class="act-btn act-green" @click="openResolve(log)">Resolve</button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr v-if="!asset.maintenance_logs?.length">
-                            <td colspan="8" class="empty-cell">No maintenance records.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Tab: Audit Log -->
-        <div v-if="activeTab === 'audit'" class="card" style="padding:0;overflow:hidden;">
-            <div v-if="!auditLog?.length" class="empty-cell" style="padding:32px;text-align:center;">
-                No audit entries yet. Changes will appear here once the asset is modified.
-            </div>
-            <div v-else class="audit-list">
-                <div v-for="entry in auditLog" :key="entry.id" class="audit-entry">
-                    <div class="audit-dot" :style="{ background: auditEventColor[entry.event] ?? '#94a3b8' }"></div>
-                    <div class="audit-body">
-                        <div class="audit-meta">
-                            <span class="audit-event" :style="{ color: auditEventColor[entry.event] ?? '#64748b' }">{{ entry.event }}</span>
-                            <span class="audit-by">by {{ entry.causer_name }}</span>
-                            <span class="audit-time">{{ entry.created_at }}</span>
+        <Tabs v-model="activeTab" :tabs="tabsConfig">
+            <!-- Tab: Overview -->
+            <template #tab-overview>
+                <div class="card">
+                    <div class="detail-grid">
+                        <div class="detail-row"><span class="detail-label">Asset Name</span><span class="detail-val">{{ asset.name }}</span></div>
+                        <div class="detail-row"><span class="detail-label">Asset Code</span><span class="detail-val">{{ asset.asset_code || '—' }}</span></div>
+                        <div class="detail-row"><span class="detail-label">Category</span><span class="detail-val"><span class="cat-badge">{{ asset.category?.name ?? '—' }}</span></span></div>
+                        <div class="detail-row"><span class="detail-label">Brand</span><span class="detail-val">{{ asset.brand || '—' }}</span></div>
+                        <div class="detail-row"><span class="detail-label">Model</span><span class="detail-val">{{ asset.model_no || '—' }}</span></div>
+                        <div class="detail-row"><span class="detail-label">Serial No</span><span class="detail-val">{{ asset.serial_no || '—' }}</span></div>
+                        <div class="detail-row"><span class="detail-label">Supplier</span><span class="detail-val">{{ asset.supplier || '—' }}</span></div>
+                        <div class="detail-row"><span class="detail-label">Purchase Date</span><span class="detail-val">{{ fmt(asset.purchase_date) }}</span></div>
+                        <div class="detail-row"><span class="detail-label">Purchase Cost</span><span class="detail-val">{{ fmtCost(asset.purchase_cost) }}</span></div>
+                        <div class="detail-row"><span class="detail-label">Useful Life</span><span class="detail-val">{{ asset.useful_life_years }} years</span></div>
+                        <div class="detail-row"><span class="detail-label">Depreciation</span><span class="detail-val" style="text-transform:capitalize;">{{ (asset.depreciation_method ?? 'straight_line').replace('_', ' ') }}</span></div>
+                        <div class="detail-row"><span class="detail-label">Current Book Value</span><span class="detail-val" style="color:#3b82f6;font-weight:700;">{{ fmtCost(asset.current_value) }}</span></div>
+                        <div class="detail-row"><span class="detail-label">Condition</span>
+                            <span class="detail-val" style="display:inline-flex;align-items:center;gap:5px;text-transform:capitalize;">
+                                <span class="condition-dot" :style="{ background: conditionDot[asset.condition] }"></span>{{ asset.condition }}
+                            </span>
                         </div>
-                        <div v-if="formatChanges(entry.changes).length" class="audit-changes">
-                            <div v-for="ch in formatChanges(entry.changes)" :key="ch.field" class="audit-change-row">
-                                <span class="change-field">{{ ch.field }}</span>
-                                <span class="change-from">{{ ch.from }}</span>
-                                <svg width="12" height="12" fill="none" stroke="#94a3b8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                                <span class="change-to">{{ ch.to }}</span>
+                        <div class="detail-row"><span class="detail-label">Status</span>
+                            <span class="detail-val">
+                                <span class="status-pill" :style="{ background: statusBadge[asset.status] + '1a', color: statusBadge[asset.status], border: '1px solid ' + statusBadge[asset.status] + '40' }">{{ statusLabel[asset.status] }}</span>
+                            </span>
+                        </div>
+                        <div v-if="asset.notes" class="detail-row full"><span class="detail-label">Notes</span><span class="detail-val">{{ asset.notes }}</span></div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Tab: Assignments -->
+            <template #tab-assignments>
+                <div class="card" style="overflow:hidden;">
+                    <div style="overflow-x:auto;">
+                        <table class="det-table">
+                            <thead>
+                                <tr>
+                                    <th>Assigned On</th><th>Assign Type</th><th>Assignee</th>
+                                    <th>Location</th><th>Returned</th><th>By</th><th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="asgn in asset.assignments" :key="asgn.id">
+                                    <td style="white-space:nowrap;">{{ fmt(asgn.assigned_on) }}</td>
+                                    <td style="text-transform:capitalize;">{{ asgn.assignee_type || 'general' }}</td>
+                                    <td>{{ asgn.assignee_name || '—' }}</td>
+                                    <td>{{ asgn.location }}</td>
+                                    <td>
+                                        <span v-if="asgn.returned_on" style="color:#10b981;">{{ fmt(asgn.returned_on) }}</span>
+                                        <span v-else class="status-pill" style="background:#dbeafe1a;color:#2563eb;border:1px solid #2563eb40;">Active</span>
+                                    </td>
+                                    <td style="font-size:.78rem;color:#64748b;">{{ asgn.assigned_by?.name ?? '—' }}</td>
+                                    <td style="font-size:.78rem;color:#64748b;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ asgn.notes || '—' }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <EmptyState v-if="!asset.assignments?.length"
+                            variant="compact"
+                            title="No assignment history"
+                            description="Assignment records will appear here once this asset is allocated." />
+                    </div>
+                </div>
+            </template>
+
+            <!-- Tab: Maintenance -->
+            <template #tab-maintenance>
+                <div class="card" style="overflow:hidden;">
+                    <div style="overflow-x:auto;">
+                        <table class="det-table">
+                            <thead>
+                                <tr>
+                                    <th>Reported</th><th>Type</th><th>Description</th>
+                                    <th>Status</th><th>Cost</th><th>Vendor</th><th>Resolved</th><th style="text-align:right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="log in asset.maintenance_logs" :key="log.id">
+                                    <td style="white-space:nowrap;">{{ fmt(log.reported_on) }}</td>
+                                    <td style="text-transform:capitalize;">{{ log.type }}</td>
+                                    <td>{{ log.issue_description }}</td>
+                                    <td>
+                                        <span class="maint-status-pill"
+                                            :style="{ background: maintStatusColor[log.status] + '1a', color: maintStatusColor[log.status], border: '1px solid ' + maintStatusColor[log.status] + '40' }">
+                                            {{ maintStatusLabel[log.status] }}
+                                        </span>
+                                    </td>
+                                    <td>{{ log.cost > 0 ? fmtCost(log.cost) : '—' }}</td>
+                                    <td style="font-size:.78rem;color:#64748b;">{{ log.vendor || '—' }}</td>
+                                    <td style="font-size:.78rem;color:#64748b;">
+                                        {{ fmt(log.resolved_on) }}
+                                        <div v-if="log.resolution_notes" style="font-style:italic;color:#94a3b8;font-size:.72rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" :title="log.resolution_notes">
+                                            {{ log.resolution_notes }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div style="display:flex;gap:5px;justify-content:flex-end;">
+                                            <button v-if="log.status === 'open'" class="act-btn act-amber" @click="markInProgress(log.id)">In Progress</button>
+                                            <button v-if="['open','in_progress'].includes(log.status)" class="act-btn act-green" @click="openResolve(log)">Resolve</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <EmptyState v-if="!asset.maintenance_logs?.length"
+                            variant="compact"
+                            title="No maintenance records"
+                            description="Maintenance logs will appear here once any are reported." />
+                    </div>
+                </div>
+            </template>
+
+            <!-- Tab: Audit Log -->
+            <template #tab-audit>
+                <div class="card" style="padding:0;overflow:hidden;">
+                    <EmptyState v-if="!auditLog?.length"
+                        variant="compact"
+                        title="No audit entries yet"
+                        description="Changes will appear here once the asset is modified." />
+                    <div v-else class="audit-list">
+                        <div v-for="entry in auditLog" :key="entry.id" class="audit-entry">
+                            <div class="audit-dot" :style="{ background: auditEventColor[entry.event] ?? '#94a3b8' }"></div>
+                            <div class="audit-body">
+                                <div class="audit-meta">
+                                    <span class="audit-event" :style="{ color: auditEventColor[entry.event] ?? '#64748b' }">{{ entry.event }}</span>
+                                    <span class="audit-by">by {{ entry.causer_name }}</span>
+                                    <span class="audit-time">{{ entry.created_at }}</span>
+                                </div>
+                                <div v-if="formatChanges(entry.changes).length" class="audit-changes">
+                                    <div v-for="ch in formatChanges(entry.changes)" :key="ch.field" class="audit-change-row">
+                                        <span class="change-field">{{ ch.field }}</span>
+                                        <span class="change-from">{{ ch.from }}</span>
+                                        <svg width="12" height="12" fill="none" stroke="#94a3b8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                        <span class="change-to">{{ ch.to }}</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
+            </template>
+        </Tabs>
 
         <!-- ── Resolve Maintenance Modal ──────────────────────────────────── -->
-        <Teleport to="body">
-            <div v-if="showResolve" class="backdrop" @click.self="showResolve = false">
-                <div class="modal-box" style="max-width:420px;">
-                    <div class="modal-head">
-                        <span class="modal-icon" style="background:#dcfce7;color:#16a34a;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></span>
-                        <div><h3 class="modal-title">Resolve Maintenance</h3><p class="modal-sub">{{ resolveTarget?.issue_description }}</p></div>
-                        <button class="modal-close" @click="showResolve = false"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
-                    </div>
-                    <form @submit.prevent="submitResolve">
-                        <div class="modal-body">
-                            <div class="field full"><label class="field-label">Resolution Notes</label><textarea v-model="resolveForm.resolution_notes" class="field-input" rows="3" placeholder="Describe what was done…"></textarea></div>
-                            <div class="field-row">
-                                <div class="field"><label class="field-label">Cost (₹)</label><input v-model="resolveForm.cost" class="field-input" type="number" min="0" step="0.01" /></div>
-                                <div class="field"><label class="field-label">Vendor</label><input v-model="resolveForm.vendor" class="field-input" /></div>
-                            </div>
-                        </div>
-                        <div class="modal-foot">
-                            <button type="button" class="btn-outline" @click="showResolve = false">Cancel</button>
-                            <button type="submit" class="btn-primary" :disabled="resolveForm.processing">Mark Resolved</button>
-                        </div>
-                    </form>
+        <Modal v-model:open="showResolve" title="Resolve Maintenance" size="sm">
+            <p v-if="resolveTarget?.issue_description" style="font-size:.82rem;color:#64748b;margin:0 0 14px;">{{ resolveTarget.issue_description }}</p>
+            <form @submit.prevent="submitResolve" id="resolve-maint-form">
+                <div class="field full">
+                    <label class="field-label">Resolution Notes</label>
+                    <textarea v-model="resolveForm.resolution_notes" class="field-input" rows="3" placeholder="Describe what was done…"></textarea>
                 </div>
-            </div>
-        </Teleport>
+                <div class="field-row" style="margin-top:14px;">
+                    <div class="field"><label class="field-label">Cost (₹)</label><input v-model="resolveForm.cost" class="field-input" type="number" min="0" step="0.01" /></div>
+                    <div class="field"><label class="field-label">Vendor</label><input v-model="resolveForm.vendor" class="field-input" /></div>
+                </div>
+            </form>
+            <template #footer>
+                <Button variant="secondary" type="button" @click="showResolve = false">Cancel</Button>
+                <Button type="submit" form="resolve-maint-form" :loading="resolveForm.processing">Mark Resolved</Button>
+            </template>
+        </Modal>
 
     </SchoolLayout>
 </template>
 
 <style scoped>
-.btn-outline { display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:#fff;color:#374151;border:1px solid #d1d5db;border-radius:8px;font-size:.875rem;font-weight:500;cursor:pointer;transition:background .15s;text-decoration:none; }
-.btn-outline:hover { background:#f9fafb; }
-.btn-primary { display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-size:.875rem;font-weight:600;cursor:pointer;transition:background .15s; }
-.btn-primary:hover:not(:disabled) { background:#2563eb; }
-.btn-primary:disabled { opacity:.6;cursor:not-allowed; }
-
 /* ── Header card ────────────────────────────────────────────────────────── */
 .header-card { display:flex;align-items:center;justify-content:space-between;gap:16px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px 24px;margin-bottom:16px;flex-wrap:wrap; }
 .header-left { display:flex;align-items:center;gap:16px; }
@@ -366,13 +369,6 @@ const formatChanges = (changes) => {
 /* ── Banners ────────────────────────────────────────────────────────────── */
 .assign-banner { display:flex;align-items:center;gap:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 16px;margin-bottom:12px;font-size:.85rem;color:#1d4ed8; }
 .dispose-banner { display:flex;align-items:center;gap:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 16px;margin-bottom:12px;font-size:.85rem;color:#991b1b; }
-
-/* ── Tabs ───────────────────────────────────────────────────────────────── */
-.tabs-bar { display:flex;gap:2px;margin-bottom:12px;background:#f1f5f9;border-radius:10px;padding:4px; }
-.tab-btn { display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border:none;border-radius:7px;font-size:.82rem;font-weight:600;color:#64748b;background:transparent;cursor:pointer;transition:background .15s,color .15s; }
-.tab-btn:hover { color:#374151; }
-.tab-btn.active { background:#fff;color:#1e293b;box-shadow:0 1px 3px rgba(0,0,0,.08); }
-.tab-count { font-size:.68rem;font-weight:700;background:#e2e8f0;color:#64748b;padding:1px 6px;border-radius:10px; }
 
 /* ── Card ───────────────────────────────────────────────────────────────── */
 .card { background:#fff;border:1px solid #e2e8f0;border-radius:12px;margin-bottom:0; }
@@ -418,19 +414,8 @@ const formatChanges = (changes) => {
 .act-btn:hover { opacity:.8; }
 .act-amber { background:#fef3c7;color:#d97706; }
 .act-green  { background:#dcfce7;color:#16a34a; }
-.empty-cell { text-align:center;padding:32px;color:#94a3b8;font-size:.875rem; }
 
-/* ── Modal ──────────────────────────────────────────────────────────────── */
-.backdrop { position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px; }
-.modal-box { background:#fff;border-radius:16px;width:100%;box-shadow:0 25px 50px -12px rgba(0,0,0,.25);max-height:92vh;overflow-y:auto; }
-.modal-head { display:flex;align-items:flex-start;gap:14px;padding:20px 20px 16px;border-bottom:1px solid #f1f5f9;position:sticky;top:0;background:#fff;z-index:1;border-radius:16px 16px 0 0; }
-.modal-icon { width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
-.modal-title { font-size:1rem;font-weight:700;color:#0f172a;margin:0; }
-.modal-sub { font-size:.8rem;color:#64748b;margin:2px 0 0; }
-.modal-close { margin-left:auto;background:#f1f5f9;border:none;border-radius:8px;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b;transition:background .15s;flex-shrink:0; }
-.modal-close:hover { background:#e2e8f0;color:#0f172a; }
-.modal-body { padding:20px;display:flex;flex-direction:column;gap:14px; }
-.modal-foot { padding:16px 20px;border-top:1px solid #f1f5f9;background:#f8fafc;display:flex;justify-content:flex-end;gap:10px;border-radius:0 0 16px 16px;position:sticky;bottom:0; }
+/* ── Modal form fields (Tailwind-preflight workaround) ──────────────────── */
 .field-row { display:grid;grid-template-columns:1fr 1fr;gap:14px; }
 .field.full { grid-column:span 2; }
 .field-label { display:block;font-size:.78rem;font-weight:600;color:#374151;margin-bottom:5px; }

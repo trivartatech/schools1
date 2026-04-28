@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import Sortable from 'sortablejs'
@@ -82,16 +83,13 @@ const destroy = (id) => del(`/school/classes/${id}`, 'Delete this class? All sec
 
 <template>
     <SchoolLayout title="Classes">
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">Academic Classes</h2>
-                <p class="page-header-sub">Drag ⠿ to reorder classes. Order saves automatically.</p>
-            </div>
-            <div style="display:flex;align-items:center;gap:0.75rem;">
+        <PageHeader title="Academic Classes" subtitle="Drag ⠿ to reorder classes. Order saves automatically.">
+            <template #actions>
                 <span v-if="saving" class="text-sm animate-pulse" style="color:var(--accent)">Saving…</span>
                 <Button @click="openCreate">+ Add Class</Button>
-            </div>
-        </div>
+
+            </template>
+        </PageHeader>
 
         <div class="card">
             <Table>

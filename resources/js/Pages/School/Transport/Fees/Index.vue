@@ -4,10 +4,13 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const school = useSchoolStore();
+const confirm = useConfirm();
 
 const props = defineProps({
     allocations: Object,
@@ -57,8 +60,13 @@ watch(filters, (v) => {
 }, { deep: true });
 
 const batchPostingGl = ref(false);
-function batchPostGl() {
-    if (!confirm('Post all unsynced transport-fee receipts to the General Ledger?')) return;
+async function batchPostGl() {
+    const ok = await confirm({
+        title: 'Post to General Ledger?',
+        message: 'Post all unsynced transport-fee receipts to the General Ledger?',
+        confirmLabel: 'Post All',
+    });
+    if (!ok) return;
     batchPostingGl.value = true;
     router.post('/school/transport/fees/batch-post-gl', {}, {
         preserveScroll: true,
@@ -108,18 +116,15 @@ const STATUS_COLOURS = {
     <SchoolLayout title="Transport Fee Collection">
 
         <!-- Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">🚌 Transport Fee Collection</h1>
-                <p class="page-header-sub">Every transport allocation has its own outstanding balance. Receipts are numbered separately from regular fees.</p>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;">
+        <PageHeader title="🚌 Transport Fee Collection" subtitle="Every transport allocation has its own outstanding balance. Receipts are numbered separately from regular fees.">
+            <template #actions>
                 <Button variant="secondary" @click="batchPostGl" :loading="batchPostingGl" title="Post all unsynced transport-fee receipts to General Ledger">
                     <svg v-if="batchPostingGl" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle class="opacity-25" cx="12" cy="12" r="10" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
                     Sync All to GL
                 </Button>
-            </div>
-        </div>
+
+            </template>
+        </PageHeader>
 
         <!-- Summary -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">

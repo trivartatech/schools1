@@ -1,10 +1,13 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import Modal from '@/Components/ui/Modal.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
+import Table from '@/Components/ui/Table.vue';
 import { ref, reactive, watch, computed } from 'vue';
-import { router, Link } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
-import Table from '@/Components/ui/Table.vue';
 
 const props = defineProps({
     allocations: Object,
@@ -152,13 +155,11 @@ function saveTransfer() {
 <template>
     <SchoolLayout title="Student Allocations">
 
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Hostel Admissions</h1>
-                <p class="page-header-sub">Manage student room allocations across hostel buildings.</p>
-            </div>
-            <Button @click="openModal()">+ Allocate Student</Button>
-        </div>
+        <PageHeader title="Hostel Admissions" subtitle="Manage student room allocations across hostel buildings.">
+            <template #actions>
+                <Button @click="openModal()">+ Allocate Student</Button>
+            </template>
+        </PageHeader>
 
         <!-- No beds warning -->
         <div v-if="!availableBeds || !availableBeds.length" class="warning-banner">
@@ -166,47 +167,49 @@ function saveTransfer() {
         </div>
 
         <div class="card">
-            <div style="overflow-x: auto;">
-                <Table>
-                    <thead>
-                        <tr>
-                            <th>Student</th>
-                            <th>Hostel / Room / Bed</th>
-                            <th>Admission Date</th>
-                            <th>Guardian Info</th>
-                            <th>Status</th>
-                            <th style="text-align: right;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="a in allocations.data" :key="a.id">
-                            <td style="font-weight: 500;">
-                                {{ a.student.first_name }} {{ a.student.last_name }}
-                                <span class="badge badge-gray" style="margin-left: 0.25rem;">{{ a.student.admission_no }}</span>
-                            </td>
-                            <td v-if="a.bed">{{ a.bed.room.hostel.name }} / Rm {{ a.bed.room.room_number }} / {{ a.bed.name }}</td>
-                            <td v-else><span class="badge badge-amber">Unassigned</span></td>
-                            <td>{{ a.admission_date }}</td>
-                            <td>
-                                <div style="font-weight: 500;">{{ a.guardian_name }}</div>
-                                <div style="font-size: 0.75rem; color: var(--text-muted);">{{ a.guardian_phone }}</div>
-                            </td>
-                            <td>
-                                <span class="badge" :class="a.status === 'Active' ? 'badge-green' : 'badge-gray'">{{ a.status }}</span>
-                            </td>
-                            <td style="text-align: right;">
-                                <div v-if="a.status === 'Active'" style="display:flex;gap:4px;justify-content:flex-end;">
-                                    <Button variant="secondary" size="xs" @click="openTransfer(a)">Transfer</Button>
-                                    <Button variant="danger" size="xs" @click="openVacate(a)">Vacate</Button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr v-if="!allocations.data.length">
-                            <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">No allocations found.</td>
-                        </tr>
-                    </tbody>
-                </Table>
-            </div>
+            <Table :empty="!allocations.data.length">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Hostel / Room / Bed</th>
+                        <th>Admission Date</th>
+                        <th>Guardian Info</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="a in allocations.data" :key="a.id">
+                        <td style="font-weight: 500;">
+                            {{ a.student.first_name }} {{ a.student.last_name }}
+                            <span class="badge badge-gray" style="margin-left: 0.25rem;">{{ a.student.admission_no }}</span>
+                        </td>
+                        <td v-if="a.bed">{{ a.bed.room.hostel.name }} / Rm {{ a.bed.room.room_number }} / {{ a.bed.name }}</td>
+                        <td v-else><span class="badge badge-amber">Unassigned</span></td>
+                        <td>{{ a.admission_date }}</td>
+                        <td>
+                            <div style="font-weight: 500;">{{ a.guardian_name }}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">{{ a.guardian_phone }}</div>
+                        </td>
+                        <td>
+                            <span class="badge" :class="a.status === 'Active' ? 'badge-green' : 'badge-gray'">{{ a.status }}</span>
+                        </td>
+                        <td style="text-align: right;">
+                            <div v-if="a.status === 'Active'" style="display:flex;gap:4px;justify-content:flex-end;">
+                                <Button variant="secondary" size="xs" @click="openTransfer(a)">Transfer</Button>
+                                <Button variant="danger" size="xs" @click="openVacate(a)">Vacate</Button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+                <template #empty>
+                    <EmptyState
+                        variant="compact"
+                        title="No allocations found"
+                        description="No students are currently allocated to hostel rooms."
+                    />
+                </template>
+            </Table>
 
             <!-- Pagination -->
             <div v-if="allocations.last_page > 1"
@@ -226,164 +229,136 @@ function saveTransfer() {
         </div>
 
         <!-- ALLOCATE MODAL -->
-        <Teleport to="body">
-        <div v-if="showModal" class="modal-backdrop" @mousedown.self="showModal = false">
-            <div class="modal">
-                <div class="card-header">
-                    <h3 class="card-title">Allocate Room to Student</h3>
+        <Modal v-model:open="showModal" title="Allocate Room to Student" size="lg">
+            <form @submit.prevent="save" id="allocate-form">
+                <!-- Server errors -->
+                <div v-if="Object.keys(errors).length"
+                     style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;font-size:0.82rem;color:#dc2626;margin-bottom:14px;">
+                    <div v-for="(msg, field) in errors" :key="field">{{ msg }}</div>
                 </div>
-                <div class="card-body">
-                    <form @submit.prevent="save">
-                        <!-- Server errors -->
-                        <div v-if="Object.keys(errors).length"
-                             style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;font-size:0.82rem;color:#dc2626;margin-bottom:14px;">
-                            <div v-for="(msg, field) in errors" :key="field">{{ msg }}</div>
-                        </div>
 
-                        <!-- No beds warning inside modal -->
-                        <div v-if="!availableBeds || !availableBeds.length" class="warning-banner" style="margin-bottom:14px;">
-                            No available beds. Please add rooms first.
-                        </div>
-
-                        <!-- Filter by Class / Section -->
-                        <div class="form-row-2">
-                            <div class="form-field">
-                                <label>Filter by Class</label>
-                                <select v-model="filterClassId">
-                                    <option value="">All Classes</option>
-                                    <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
-                                </select>
-                            </div>
-                            <div class="form-field">
-                                <label>Filter by Section</label>
-                                <select v-model="filterSectionId" :disabled="!filterClassId || sections.length === 0">
-                                    <option value="">All Sections</option>
-                                    <option v-for="s in sections" :key="s.id" :value="s.id">{{ s.name }}</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="form-row" style="margin-top: 1rem;">
-                            <div class="form-field">
-                                <label>Student *</label>
-                                <select v-model="form.student_id" required :disabled="studentsLoading">
-                                    <option value="">{{ studentsLoading ? 'Loading…' : (visibleStudents.length ? 'Select Student' : 'No students match the filter') }}</option>
-                                    <option v-for="s in visibleStudents" :key="s.id" :value="s.id">{{ s.first_name }} {{ s.last_name }} ({{ s.admission_no }})</option>
-                                </select>
-                                <p class="hint" v-if="filterClassId">
-                                    Showing {{ visibleStudents.length }} student(s) in the selected {{ filterSectionId ? 'section' : 'class' }}.
-                                </p>
-                            </div>
-                        </div>
-                        <div class="form-row" style="margin-top: 1rem;">
-                            <div class="form-field">
-                                <label>Available Bed *</label>
-                                <select v-model="form.hostel_bed_id" required>
-                                    <option v-for="b in availableBeds" :key="b.id" :value="b.id">{{ b.room.hostel.name }} / Rm {{ b.room.room_number }} / {{ b.name }}</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-row" style="margin-top: 1rem;">
-                            <div class="form-field">
-                                <label>Admission Date *</label>
-                                <input v-model="form.admission_date" type="date" required>
-                            </div>
-                        </div>
-                        <div class="form-row-2" style="margin-top: 1rem;">
-                            <div class="form-field">
-                                <label>Guardian Name</label>
-                                <input v-model="form.guardian_name">
-                            </div>
-                            <div class="form-field">
-                                <label>Guardian Phone</label>
-                                <input v-model="form.guardian_phone">
-                            </div>
-                        </div>
-                        <div class="form-row" style="margin-top: 1rem;">
-                            <div class="form-field">
-                                <label>Mess Type</label>
-                                <select v-model="form.mess_type" required>
-                                    <option>Veg</option>
-                                    <option>Non-Veg</option>
-                                    <option>Custom</option>
-                                    <option>None</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border);">
-                            <Button variant="secondary" type="button" @click="showModal = false">Cancel</Button>
-                            <Button type="submit" :loading="loading">Allocate</Button>
-                        </div>
-                    </form>
+                <!-- No beds warning inside modal -->
+                <div v-if="!availableBeds || !availableBeds.length" class="warning-banner" style="margin-bottom:14px;">
+                    No available beds. Please add rooms first.
                 </div>
-            </div>
-        </div>
 
-        </Teleport>
+                <!-- Filter by Class / Section -->
+                <div class="form-row-2">
+                    <div class="form-field">
+                        <label>Filter by Class</label>
+                        <select v-model="filterClassId">
+                            <option value="">All Classes</option>
+                            <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label>Filter by Section</label>
+                        <select v-model="filterSectionId" :disabled="!filterClassId || sections.length === 0">
+                            <option value="">All Sections</option>
+                            <option v-for="s in sections" :key="s.id" :value="s.id">{{ s.name }}</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row" style="margin-top: 1rem;">
+                    <div class="form-field">
+                        <label>Student *</label>
+                        <select v-model="form.student_id" required :disabled="studentsLoading">
+                            <option value="">{{ studentsLoading ? 'Loading…' : (visibleStudents.length ? 'Select Student' : 'No students match the filter') }}</option>
+                            <option v-for="s in visibleStudents" :key="s.id" :value="s.id">{{ s.first_name }} {{ s.last_name }} ({{ s.admission_no }})</option>
+                        </select>
+                        <p class="hint" v-if="filterClassId">
+                            Showing {{ visibleStudents.length }} student(s) in the selected {{ filterSectionId ? 'section' : 'class' }}.
+                        </p>
+                    </div>
+                </div>
+                <div class="form-row" style="margin-top: 1rem;">
+                    <div class="form-field">
+                        <label>Available Bed *</label>
+                        <select v-model="form.hostel_bed_id" required>
+                            <option v-for="b in availableBeds" :key="b.id" :value="b.id">{{ b.room.hostel.name }} / Rm {{ b.room.room_number }} / {{ b.name }}</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row" style="margin-top: 1rem;">
+                    <div class="form-field">
+                        <label>Admission Date *</label>
+                        <input v-model="form.admission_date" type="date" required>
+                    </div>
+                </div>
+                <div class="form-row-2" style="margin-top: 1rem;">
+                    <div class="form-field">
+                        <label>Guardian Name</label>
+                        <input v-model="form.guardian_name">
+                    </div>
+                    <div class="form-field">
+                        <label>Guardian Phone</label>
+                        <input v-model="form.guardian_phone">
+                    </div>
+                </div>
+                <div class="form-row" style="margin-top: 1rem;">
+                    <div class="form-field">
+                        <label>Mess Type</label>
+                        <select v-model="form.mess_type" required>
+                            <option>Veg</option>
+                            <option>Non-Veg</option>
+                            <option>Custom</option>
+                            <option>None</option>
+                        </select>
+                    </div>
+                </div>
+            </form>
+            <template #footer>
+                <Button variant="secondary" type="button" @click="showModal = false">Cancel</Button>
+                <Button type="submit" form="allocate-form" :loading="loading">Allocate</Button>
+            </template>
+        </Modal>
 
         <!-- VACATE MODAL -->
-        <Teleport to="body">
-        <div v-if="showVacate" class="modal-backdrop" @mousedown.self="showVacate = false">
-            <div class="modal" style="max-width: 24rem;">
-                <div class="card-header">
-                    <h3 class="card-title">Vacate Room</h3>
+        <Modal v-model:open="showVacate" title="Vacate Room" size="sm">
+            <form @submit.prevent="saveVacate" id="vacate-form">
+                <div class="form-row">
+                    <div class="form-field">
+                        <label>Vacate Date *</label>
+                        <input v-model="vacateForm.vacate_date" type="date" required>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <form @submit.prevent="saveVacate">
-                        <div class="form-row">
-                            <div class="form-field">
-                                <label>Vacate Date *</label>
-                                <input v-model="vacateForm.vacate_date" type="date" required>
-                            </div>
-                        </div>
-                        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border);">
-                            <Button variant="secondary" type="button" @click="showVacate = false">Cancel</Button>
-                            <Button variant="danger" type="submit" :loading="loading">Confirm Vacate</Button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-        </Teleport>
+            </form>
+            <template #footer>
+                <Button variant="secondary" type="button" @click="showVacate = false">Cancel</Button>
+                <Button variant="danger" type="submit" form="vacate-form" :loading="loading">Confirm Vacate</Button>
+            </template>
+        </Modal>
 
         <!-- TRANSFER MODAL -->
-        <Teleport to="body">
-        <div v-if="showTransfer" class="modal-backdrop" @mousedown.self="showTransfer = false">
-            <div class="modal" style="max-width: 28rem;">
-                <div class="card-header">
-                    <h3 class="card-title">Transfer Room</h3>
+        <Modal v-model:open="showTransfer" title="Transfer Room" size="md">
+            <form @submit.prevent="saveTransfer" id="transfer-form">
+                <div v-if="Object.keys(errors).length"
+                     style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;font-size:0.82rem;color:#dc2626;margin-bottom:14px;">
+                    <div v-for="(msg, field) in errors" :key="field">{{ msg }}</div>
                 </div>
-                <div class="card-body">
-                    <form @submit.prevent="saveTransfer">
-                        <div v-if="Object.keys(errors).length"
-                             style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;font-size:0.82rem;color:#dc2626;margin-bottom:14px;">
-                            <div v-for="(msg, field) in errors" :key="field">{{ msg }}</div>
-                        </div>
-                        <div v-if="editing" style="margin-bottom:14px;padding:10px 14px;background:#f8fafc;border-radius:8px;font-size:.84rem;">
-                            <strong>{{ editing.student.first_name }} {{ editing.student.last_name }}</strong>
-                            <span style="color:var(--text-muted);margin-left:6px;">{{ editing.student.admission_no }}</span>
-                            <div v-if="editing.bed" style="color:#64748b;font-size:.78rem;margin-top:4px;">
-                                Current: {{ editing.bed.room.hostel.name }} / Rm {{ editing.bed.room.room_number }} / {{ editing.bed.name }}
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-field">
-                                <label>New Bed *</label>
-                                <select v-model="transferForm.new_bed_id" required>
-                                    <option value="">Select new bed</option>
-                                    <option v-for="b in availableBeds" :key="b.id" :value="b.id">{{ b.room.hostel.name }} / Rm {{ b.room.room_number }} / {{ b.name }}</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border);">
-                            <Button variant="secondary" type="button" @click="showTransfer = false">Cancel</Button>
-                            <Button type="submit" :disabled="loading || !transferForm.new_bed_id">{{ loading ? 'Transferring...' : 'Transfer' }}</Button>
-                        </div>
-                    </form>
+                <div v-if="editing" style="margin-bottom:14px;padding:10px 14px;background:#f8fafc;border-radius:8px;font-size:.84rem;">
+                    <strong>{{ editing.student.first_name }} {{ editing.student.last_name }}</strong>
+                    <span style="color:var(--text-muted);margin-left:6px;">{{ editing.student.admission_no }}</span>
+                    <div v-if="editing.bed" style="color:#64748b;font-size:.78rem;margin-top:4px;">
+                        Current: {{ editing.bed.room.hostel.name }} / Rm {{ editing.bed.room.room_number }} / {{ editing.bed.name }}
+                    </div>
                 </div>
-            </div>
-        </div>
-        </Teleport>
+                <div class="form-row">
+                    <div class="form-field">
+                        <label>New Bed *</label>
+                        <select v-model="transferForm.new_bed_id" required>
+                            <option value="">Select new bed</option>
+                            <option v-for="b in availableBeds" :key="b.id" :value="b.id">{{ b.room.hostel.name }} / Rm {{ b.room.room_number }} / {{ b.name }}</option>
+                        </select>
+                    </div>
+                </div>
+            </form>
+            <template #footer>
+                <Button variant="secondary" type="button" @click="showTransfer = false">Cancel</Button>
+                <Button type="submit" form="transfer-form" :disabled="loading || !transferForm.new_bed_id">{{ loading ? 'Transferring...' : 'Transfer' }}</Button>
+            </template>
+        </Modal>
 
     </SchoolLayout>
 </template>
@@ -393,17 +368,11 @@ function saveTransfer() {
     background: #fffbeb; border: 1px solid #fcd34d; border-radius: var(--radius);
     padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.84rem; color: #92400e;
 }
-.modal-backdrop {
-    position: fixed; inset: 0; background: rgba(15,23,42,.5);
-    display: flex; align-items: center; justify-content: center; z-index: 1000;
-}
-.modal {
-    background: #fff; border-radius: 0.75rem; width: 100%; max-width: 32rem;
-    max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-}
 
 /* Form layout — Tailwind preflight strips browser defaults from <input>/<select>,
-   so explicit styles are needed to make them visible inside our modals. */
+   so explicit styles are needed to make them visible inside our modals. These
+   styles are scoped to this page and applied to elements inside <Modal> via
+   Vue's data-v attribute (which travels with teleported slot content). */
 .form-row { display: flex; }
 .form-row > .form-field { flex: 1; }
 .form-row-2 {
@@ -441,4 +410,3 @@ function saveTransfer() {
 }
 .hint { font-size: 0.72rem; color: #6b7280; margin-top: 0.15rem; }
 </style>
-

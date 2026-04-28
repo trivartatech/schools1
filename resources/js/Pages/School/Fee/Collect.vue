@@ -1,12 +1,15 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, reactive, computed, watch } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useDelete } from '@/Composables/useDelete';
+import { useConfirm } from '@/Composables/useConfirm';
 import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const school = useSchoolStore();
+const confirm = useConfirm();
 
 const props = defineProps({
     student:      Object,
@@ -40,8 +43,13 @@ const postFeeGl = (paymentId) => {
 };
 
 const batchPostingGl = ref(false);
-const batchPostGl = () => {
-    if (!confirm('Post all unsynced fee payments to the General Ledger?')) return;
+const batchPostGl = async () => {
+    const ok = await confirm({
+        title: 'Post to General Ledger?',
+        message: 'Post all unsynced fee payments to the General Ledger?',
+        confirmLabel: 'Post All',
+    });
+    if (!ok) return;
     batchPostingGl.value = true;
     router.post('/school/fee/collect/batch-post-gl', {}, {
         preserveScroll: true,
@@ -252,19 +260,16 @@ const statusBadge = (status) => {
         <div class="max-w-6xl mx-auto space-y-5">
 
             <!-- Header -->
-            <div class="page-header">
-                <div>
-                    <h1 class="page-header-title">Fee Collection</h1>
-                    <p class="page-header-sub">Search for a student and record payment</p>
-                </div>
-                <div style="display:flex;gap:8px;align-items:center;">
+            <PageHeader title="Fee Collection" subtitle="Search for a student and record payment">
+                <template #actions>
                     <Button variant="secondary" @click="batchPostGl" :loading="batchPostingGl" title="Post all unsynced fee payments to General Ledger">
                         <svg v-if="batchPostingGl" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle class="opacity-25" cx="12" cy="12" r="10" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
                         Sync All to GL
                     </Button>
                     <Button variant="secondary" as="a" href="/school/fee/groups">Fee Setup</Button>
-                </div>
-            </div>
+
+                </template>
+            </PageHeader>
 
             <!-- Student search -->
             <div class="card">

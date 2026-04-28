@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -44,15 +45,13 @@ const toggleHostel = (id) => {
 
 <template>
 <SchoolLayout title="Hostel Dashboard">
-    <div class="page-header">
-        <div>
-            <h1 class="page-header-title">Hostel Dashboard</h1>
-            <p class="page-header-sub">Overview of hostel occupancy and operations</p>
-        </div>
-        <Link href="/school/hostel/fees">
-            <Button>Fee Collection</Button>
-        </Link>
-    </div>
+    <PageHeader title="Hostel Dashboard" subtitle="Overview of hostel occupancy and operations">
+        <template #actions>
+            <Link href="/school/hostel/fees">
+                        <Button>Fee Collection</Button>
+                    </Link>
+        </template>
+    </PageHeader>
 
     <!-- Stats Grid -->
     <div class="stats-grid">

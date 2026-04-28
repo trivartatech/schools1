@@ -4,9 +4,13 @@ import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import Table from '@/Components/ui/Table.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
 import ExportDropdown from '@/Components/ExportDropdown.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const props = defineProps({
     defaulters: Array,
@@ -208,7 +212,12 @@ async function sendOne(row) {
 async function sendAll() {
     const targets = (props.defaulters || []).filter(d => Number(d.total_balance || 0) > 0);
     if (targets.length === 0) return;
-    if (!confirm(`Send fee due reminders to ${targets.length} parent(s)? This will trigger SMS / WhatsApp / Voice based on your active templates.`)) return;
+    const ok = await confirm({
+        title: 'Send bulk fee reminders?',
+        message: `Send fee due reminders to ${targets.length} parent(s)? This will trigger SMS / WhatsApp / Voice based on your active templates.`,
+        confirmLabel: 'Send Reminders',
+    });
+    if (!ok) return;
     sendingBulk.value = true;
     await sendReminder(targets.map(d => d.student_id), `${targets.length} parent(s)`);
     sendingBulk.value = false;
@@ -232,7 +241,7 @@ function toggleRowDefaulter(row) {
     );
 }
 
-function bulkFlagListed(flag) {
+async function bulkFlagListed(flag) {
     // Targets students currently visible (after search + fee-type filter) with balance > 0
     // OR for "unflag", any visible student with is_defaulter === true.
     const targets = sortedRows.value.filter(r =>
@@ -246,7 +255,14 @@ function bulkFlagListed(flag) {
         return;
     }
     const verb = flag ? 'flag as defaulter' : 'unflag';
-    if (!confirm(`${verb.charAt(0).toUpperCase() + verb.slice(1)} ${targets.length} student(s) currently shown? This sets the defaulter pill on their profile.`)) return;
+    const verbCap = verb.charAt(0).toUpperCase() + verb.slice(1);
+    const ok = await confirm({
+        title: flag ? 'Flag as defaulter?' : 'Unflag students?',
+        message: `${verbCap} ${targets.length} student(s) currently shown? This sets the defaulter pill on their profile.`,
+        confirmLabel: verbCap,
+        danger: flag,
+    });
+    if (!ok) return;
     flaggingBulk.value = true;
     router.post(route('school.students.defaulter.bulk'),
         { student_ids: targets.map(t => t.student_id), is_defaulter: flag },
@@ -262,12 +278,8 @@ function bulkFlagListed(flag) {
 <template>
     <SchoolLayout>
         <!-- Page header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Due Report &amp; Defaulter List</h1>
-                <p class="page-header-sub">All students for the current academic year, with regular, transport, hostel, and stationary fee balances.</p>
-            </div>
-            <div class="flex items-center gap-3 flex-wrap">
+        <PageHeader title="Due Report &amp;amp; Defaulter List" subtitle="All students for the current academic year, with regular, transport, hostel, and stationary fee balances.">
+            <template #actions>
                 <Button
                     variant="secondary"
                     :disabled="flaggingBulk || sortedRows.length === 0"
@@ -304,8 +316,9 @@ function bulkFlagListed(flag) {
                     }"
                     :formats="['excel', 'pdf']"
                 />
-            </div>
-        </div>
+
+            </template>
+        </PageHeader>
 
         <!-- Summary cards -->
         <div class="stat-grid">

@@ -1,13 +1,16 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed, onUnmounted } from 'vue';
 import { useForm, router, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useToast } from '@/Composables/useToast';
+import { useConfirm } from '@/Composables/useConfirm';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const toast = useToast();
+const confirm = useConfirm();
 const school = useSchoolStore();
 
 const props = defineProps({
@@ -142,13 +145,17 @@ const saveAnnouncement = () => {
 
 const broadcastingId = ref(null);
 
-const broadcast = (id) => {
-    if (confirm('Start broadcasting this announcement now?')) {
-        broadcastingId.value = id;
-        router.post(route('school.communication.announcements.broadcast', id), {}, {
-            onFinish: () => { broadcastingId.value = null; },
-        });
-    }
+const broadcast = async (id) => {
+    const ok = await confirm({
+        title: 'Broadcast announcement?',
+        message: 'Start broadcasting this announcement now?',
+        confirmLabel: 'Broadcast',
+    });
+    if (!ok) return;
+    broadcastingId.value = id;
+    router.post(route('school.communication.announcements.broadcast', id), {}, {
+        onFinish: () => { broadcastingId.value = null; },
+    });
 };
 
 const audienceLabel = (type, ids) => {
@@ -172,12 +179,7 @@ const selectedTemplateContent = computed(() => {
 
 <template>
     <SchoolLayout title="Announcements">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Announcements</h1>
-                <p class="page-header-sub">Create and broadcast voice, SMS, and WhatsApp announcements</p>
-            </div>
-        </div>
+        <PageHeader title="Announcements" subtitle="Create and broadcast voice, SMS, and WhatsApp announcements" />
 
         <div class="announce-layout">
             <!-- ── Create Panel ──────────────────────────────────────── -->

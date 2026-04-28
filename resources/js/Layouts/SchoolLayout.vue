@@ -10,6 +10,7 @@ import ChatWidget from '@/Components/ChatWidget.vue';
 import AiChatbot from '@/Components/AiChatbot.vue';
 import Button from '@/Components/ui/Button.vue';
 import Toast from '@/Components/ui/Toast.vue';
+import ConfirmDialog from '@/Components/ui/ConfirmDialog.vue';
 import LanguageSwitcher from '@/Components/ui/LanguageSwitcher.vue';
 
 const props = defineProps({
@@ -338,6 +339,9 @@ const canSeeUserManagement = computed(() => {
     <!-- Toast -->
     <!-- Global toast notifications -->
     <Toast />
+
+    <!-- Global confirmation dialog (singleton, driven by useConfirm()) -->
+    <ConfirmDialog />
 
     <div class="erp-shell">
 

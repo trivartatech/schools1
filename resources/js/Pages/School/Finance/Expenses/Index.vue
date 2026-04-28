@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -7,8 +8,10 @@ import ExportDropdown from '@/Components/ExportDropdown.vue';
 import debounce from 'lodash/debounce';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const school = useSchoolStore();
+const confirm = useConfirm();
 
 const props = defineProps({
     expenses: Array,
@@ -74,8 +77,14 @@ const saveCategory = () => {
     }
 };
 
-const deleteCategory = (cat) => {
-    if (!confirm(`Delete category "${cat.name}"? Expenses tagged to it may need re-categorization.`)) return;
+const deleteCategory = async (cat) => {
+    const ok = await confirm({
+        title: 'Delete category?',
+        message: `"${cat.name}" will be removed. Expenses tagged to it may need re-categorization.`,
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
     router.delete(route('school.expense-categories.destroy', cat.id), {
         preserveScroll: true,
         onSuccess: () => router.reload({ only: ['categories'], preserveScroll: true }),
@@ -148,10 +157,15 @@ const openNewForm = () => {
     activeTab.value = 'form';
 };
 
-const deleteExpense = (exp) => {
-    if (confirm('Are you sure you want to delete this expense record?')) {
-        router.delete(route('school.expenses.destroy', exp.id), { preserveScroll: true });
-    }
+const deleteExpense = async (exp) => {
+    const ok = await confirm({
+        title: 'Delete expense record?',
+        message: 'This expense will be permanently removed.',
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
+    router.delete(route('school.expenses.destroy', exp.id), { preserveScroll: true });
 };
 
 const postToGl = (exp) => {
@@ -161,8 +175,13 @@ const postToGl = (exp) => {
 const unpostedCount = computed(() => props.expenses.filter(e => !e.gl_transaction).length);
 
 const postingAll = ref(false);
-const postAllUnposted = () => {
-    if (!confirm(`Post ${unpostedCount.value} unposted expense(s) to the General Ledger?`)) return;
+const postAllUnposted = async () => {
+    const ok = await confirm({
+        title: 'Post to General Ledger?',
+        message: `Post ${unpostedCount.value} unposted expense(s) to the General Ledger?`,
+        confirmLabel: 'Post All',
+    });
+    if (!ok) return;
     postingAll.value = true;
     router.post(route('school.expenses.post-all-unposted'), {}, {
         preserveScroll: true,
@@ -178,12 +197,8 @@ const formatCurrency = (amount) => {
 <template>
     <SchoolLayout>
         <!-- Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Expenses</h1>
-                <p class="page-header-sub">Track school expenditures and cash outflows</p>
-            </div>
-            <div class="flex gap-2">
+        <PageHeader title="Expenses" subtitle="Track school expenditures and cash outflows">
+            <template #actions>
                 <ExportDropdown
                     base-url="/school/export/expenses"
                     :params="{ category_id: filterForm.category_id, from_date: filterForm.from_date, to_date: filterForm.to_date }"
@@ -212,8 +227,9 @@ const formatCurrency = (amount) => {
                 >
                     + Record Expense
                 </Button>
-            </div>
-        </div>
+
+            </template>
+        </PageHeader>
 
         <!-- LIST TAB -->
         <div v-if="activeTab === 'list'" class="space-y-6">

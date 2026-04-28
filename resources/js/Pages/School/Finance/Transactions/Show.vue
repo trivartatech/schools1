@@ -1,10 +1,14 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { computed } from 'vue';
 import { router, Link, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const props = defineProps({
     transaction : Object,
@@ -17,15 +21,27 @@ const creditLines = computed(() => props.transaction.lines.filter(l => l.type ==
 const totalDebit  = computed(() => debitLines.value.reduce((s, l)  => s + parseFloat(l.amount), 0));
 const totalCredit = computed(() => creditLines.value.reduce((s, l) => s + parseFloat(l.amount), 0));
 
-function deleteTransaction() {
-    if (!confirm('Delete this transaction? This cannot be undone.')) return;
+async function deleteTransaction() {
+    const ok = await confirm({
+        title: 'Delete transaction?',
+        message: 'Delete this transaction? This cannot be undone.',
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
     router.delete(route('school.finance.transactions.destroy', props.transaction.id), {
         onSuccess: () => router.visit(route('school.finance.transactions.index')),
     });
 }
 
-function reverseTransaction() {
-    if (!confirm('Create a reversal entry for this transaction? The original will be voided.')) return;
+async function reverseTransaction() {
+    const ok = await confirm({
+        title: 'Reverse transaction?',
+        message: 'Create a reversal entry for this transaction? The original will be voided.',
+        confirmLabel: 'Reverse',
+        danger: true,
+    });
+    if (!ok) return;
     useForm({}).post(route('school.finance.transactions.reverse', props.transaction.id));
 }
 
@@ -57,19 +73,21 @@ const typeBg = {
 <template>
     <SchoolLayout>
         <!-- Header -->
-        <div class="page-header">
-            <div style="display:flex; align-items:center; gap:12px;">
-                <Link :href="route('school.finance.transactions.index')" class="back-btn">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
-                    </svg>
-                </Link>
-                <div>
+        <PageHeader>
+            <template #title>
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <Link :href="route('school.finance.transactions.index')" class="back-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+                        </svg>
+                    </Link>
                     <h1 class="page-header-title">{{ transaction.transaction_no }}</h1>
-                    <p class="page-header-sub">{{ school.fmtDate(transaction.date) }} &bull; {{ transaction.academic_year?.name }}</p>
                 </div>
-            </div>
-            <div style="display:flex; gap:10px; align-items:center;">
+            </template>
+            <template #subtitle>
+                <p class="page-header-sub">{{ school.fmtDate(transaction.date) }} &bull; {{ transaction.academic_year?.name }}</p>
+            </template>
+            <template #actions>
                 <!-- Status badge -->
                 <span class="status-badge" :style="{ background: statusColors[transaction.status]?.bg, color: statusColors[transaction.status]?.color }">
                     {{ transaction.status?.toUpperCase() }}
@@ -80,8 +98,8 @@ const typeBg = {
                 </Button>
                 <Button variant="secondary" @click="print">Print</Button>
                 <Button variant="danger" v-if="transaction.status !== 'void'" @click="deleteTransaction">Delete</Button>
-            </div>
-        </div>
+            </template>
+        </PageHeader>
 
         <div class="show-layout">
             <!-- Voucher card -->

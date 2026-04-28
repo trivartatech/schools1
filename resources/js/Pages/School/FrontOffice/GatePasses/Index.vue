@@ -1,5 +1,8 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import Modal from '@/Components/ui/Modal.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -110,15 +113,13 @@ const updateStatus = (pass, newStatus) => {
 <template>
     <SchoolLayout title="Gate Passes">
 
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Secure Gate Pass</h1>
-                <p class="page-header-sub">Authorized exit management with identity verification.</p>
-            </div>
-            <Button v-if="can('create_front_office')" @click="showForm = !showForm">
-                {{ showForm ? 'Close Form' : '+ Issue New Pass' }}
-            </Button>
-        </div>
+        <PageHeader title="Secure Gate Pass" subtitle="Authorized exit management with identity verification.">
+            <template #actions>
+                <Button v-if="can('create_front_office')" @click="showForm = !showForm">
+                    {{ showForm ? 'Close Form' : '+ Issue New Pass' }}
+                </Button>
+            </template>
+        </PageHeader>
 
         <!-- NEW GATE PASS FORM -->
         <Transition enter-active-class="transition duration-300 ease-out" enter-from-class="translate-y-[-20px] opacity-0"
@@ -175,7 +176,6 @@ const updateStatus = (pass, newStatus) => {
                             <div class="gp-photo-frame">
                                 <img v-if="capturedPhoto" :src="capturedPhoto" class="gp-photo-img" alt="Picker" />
                                 <div v-else class="gp-photo-placeholder">
-                                    <svg class="w-10 h-10" style="opacity:.4;margin-bottom:.5rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                                     <span class="gp-photo-label">Verify Identity</span>
                                 </div>
                                 <div class="gp-photo-overlay" @click="openCamera">
@@ -184,7 +184,6 @@ const updateStatus = (pass, newStatus) => {
                             </div>
 
                             <Button variant="secondary" size="sm" v-if="!capturedPhoto" @click.prevent="openCamera" type="button" block class="mt-3">
-                                <svg class="w-4 h-4" style="margin-right:.375rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/></svg>
                                 Scan Face
                             </Button>
                             <Button variant="secondary" size="xs" v-else @click.prevent="retakePhoto" type="button" class="mt-3">
@@ -212,96 +211,86 @@ const updateStatus = (pass, newStatus) => {
 
         <!-- GATE PASS TABLE -->
         <div class="card" style="overflow:hidden;">
-            <div style="overflow-x:auto;">
-                <Table>
-                    <thead>
-                        <tr>
-                            <th>Verified Identity</th>
-                            <th>Target</th>
-                            <th>Type & Method</th>
-                            <th style="text-align:center;">Security Status</th>
-                            <th v-if="can('edit_front_office')" style="text-align:right;">Workflow</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-if="filteredPasses.length === 0">
-                            <td colspan="5" style="text-align:center;padding:3rem;color:var(--text-muted);">
-                                No gate passes found matching this criteria.
-                            </td>
-                        </tr>
-                        <tr v-for="pass in filteredPasses" :key="pass.id">
-                            <!-- Identity -->
-                            <td>
-                                <div class="gp-identity">
-                                    <img :src="pass.picker_photo_path ? `/storage/${pass.picker_photo_path}` : `https://ui-avatars.com/api/?name=${pass.picked_up_by_name}&color=6366f1&background=e0e7ff`"
-                                         class="gp-identity-photo" />
-                                    <div>
-                                        <div style="font-weight:600;">{{ pass.picked_up_by_name || 'N/A' }}</div>
-                                        <div style="font-size:.75rem;color:var(--text-muted);">{{ pass.relationship || 'Self' }}</div>
-                                    </div>
+            <Table :empty="filteredPasses.length === 0">
+                <thead>
+                    <tr>
+                        <th>Verified Identity</th>
+                        <th>Target</th>
+                        <th>Type & Method</th>
+                        <th style="text-align:center;">Security Status</th>
+                        <th v-if="can('edit_front_office')" style="text-align:right;">Workflow</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="pass in filteredPasses" :key="pass.id">
+                        <!-- Identity -->
+                        <td>
+                            <div class="gp-identity">
+                                <img :src="pass.picker_photo_path ? `/storage/${pass.picker_photo_path}` : `https://ui-avatars.com/api/?name=${pass.picked_up_by_name}&color=6366f1&background=e0e7ff`"
+                                     class="gp-identity-photo" />
+                                <div>
+                                    <div style="font-weight:600;">{{ pass.picked_up_by_name || 'N/A' }}</div>
+                                    <div style="font-size:.75rem;color:var(--text-muted);">{{ pass.relationship || 'Self' }}</div>
                                 </div>
-                            </td>
-                            <!-- Target -->
-                            <td style="color:var(--text-secondary);">{{ pass.pass_type }}</td>
-                            <!-- Method -->
-                            <td>
-                                <span class="badge badge-gray">{{ pass.verification_method }}</span>
-                            </td>
-                            <!-- Status -->
-                            <td style="text-align:center;">
-                                <span v-if="pass.status === 'Pending'" class="badge badge-amber">Pending Auth</span>
-                                <span v-else-if="pass.status === 'Approved'" class="badge badge-green">Approved</span>
-                                <span v-else-if="pass.status === 'Exited'" class="badge badge-blue">Exited</span>
-                                <span v-else-if="pass.status === 'Returned'" class="badge badge-gray">Returned</span>
-                                <span v-else class="badge badge-red">Rejected</span>
-                            </td>
-                            <!-- Actions -->
-                            <td v-if="can('edit_front_office')" style="text-align:right;">
-                                <div class="gp-actions">
-                                    <template v-if="pass.status === 'Pending'">
-                                        <Button variant="success" size="xs" @click="updateStatus(pass, 'Approved')">Approve</Button>
-                                        <Button variant="danger" size="xs" @click="updateStatus(pass, 'Rejected')">Reject</Button>
-                                    </template>
-                                    <template v-else-if="pass.status === 'Approved'">
-                                        <Button size="xs" @click="updateStatus(pass, 'Exited')">Mark Exit</Button>
-                                    </template>
-                                    <template v-else-if="pass.status === 'Exited' && pass.pass_type === 'Staff'">
-                                        <Button variant="secondary" size="xs" @click="updateStatus(pass, 'Returned')">Mark Returned</Button>
-                                    </template>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </Table>
-            </div>
+                            </div>
+                        </td>
+                        <!-- Target -->
+                        <td style="color:var(--text-secondary);">{{ pass.pass_type }}</td>
+                        <!-- Method -->
+                        <td>
+                            <span class="badge badge-gray">{{ pass.verification_method }}</span>
+                        </td>
+                        <!-- Status -->
+                        <td style="text-align:center;">
+                            <span v-if="pass.status === 'Pending'" class="badge badge-amber">Pending Auth</span>
+                            <span v-else-if="pass.status === 'Approved'" class="badge badge-green">Approved</span>
+                            <span v-else-if="pass.status === 'Exited'" class="badge badge-blue">Exited</span>
+                            <span v-else-if="pass.status === 'Returned'" class="badge badge-gray">Returned</span>
+                            <span v-else class="badge badge-red">Rejected</span>
+                        </td>
+                        <!-- Actions -->
+                        <td v-if="can('edit_front_office')" style="text-align:right;">
+                            <div class="gp-actions">
+                                <template v-if="pass.status === 'Pending'">
+                                    <Button variant="success" size="xs" @click="updateStatus(pass, 'Approved')">Approve</Button>
+                                    <Button variant="danger" size="xs" @click="updateStatus(pass, 'Rejected')">Reject</Button>
+                                </template>
+                                <template v-else-if="pass.status === 'Approved'">
+                                    <Button size="xs" @click="updateStatus(pass, 'Exited')">Mark Exit</Button>
+                                </template>
+                                <template v-else-if="pass.status === 'Exited' && pass.pass_type === 'Staff'">
+                                    <Button variant="secondary" size="xs" @click="updateStatus(pass, 'Returned')">Mark Returned</Button>
+                                </template>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+                <template #empty>
+                    <EmptyState
+                        title="No gate passes found"
+                        description="No gate passes match this criteria."
+                    />
+                </template>
+            </Table>
         </div>
 
         <!-- CAMERA MODAL -->
-        <Teleport to="body">
-            <div v-show="showCameraModal" class="modal-backdrop" @click.self="stopCamera">
-                <div class="modal" style="width:100%;max-width:500px;">
-                    <div class="modal-header">
-                        <h3 class="modal-title">Identity Capture</h3>
-                        <button @click="stopCamera" class="modal-close">&times;</button>
-                    </div>
-                    <div class="camera-viewport">
-                        <video ref="videoRef" autoplay playsinline class="camera-video" :style="{ display: cameraActive ? 'block' : 'none' }"></video>
-                        <canvas ref="canvasRef" style="display:none;"></canvas>
-                        <div v-if="!cameraActive" class="camera-loading">
-                            <svg class="w-8 h-8 animate-spin" style="margin-bottom:.75rem;color:var(--accent);" fill="none" viewBox="0 0 24 24"><circle style="opacity:.25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path style="opacity:.75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                            Initializing Camera...
-                        </div>
-                        <div v-if="cameraActive" class="camera-overlay">
-                            <div class="camera-face-guide"></div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <span style="font-size:.75rem;color:var(--text-muted);">Align face within boundary</span>
-                        <Button @click="capturePhoto">Snap Photo</Button>
-                    </div>
+        <Modal v-model:open="showCameraModal" title="Identity Capture" size="md" @update:open="(v) => { if (!v) stopCamera(); }">
+            <div class="camera-viewport">
+                <video ref="videoRef" autoplay playsinline class="camera-video" :style="{ display: cameraActive ? 'block' : 'none' }"></video>
+                <canvas ref="canvasRef" style="display:none;"></canvas>
+                <div v-if="!cameraActive" class="camera-loading">
+                    Initializing Camera...
+                </div>
+                <div v-if="cameraActive" class="camera-overlay">
+                    <div class="camera-face-guide"></div>
                 </div>
             </div>
-        </Teleport>
+            <template #footer>
+                <span style="font-size:.75rem;color:var(--text-muted);margin-right:auto;">Align face within boundary</span>
+                <Button @click="capturePhoto">Snap Photo</Button>
+            </template>
+        </Modal>
 
     </SchoolLayout>
 </template>
@@ -399,35 +388,6 @@ const updateStatus = (pass, newStatus) => {
 }
 .gp-actions { display: flex; justify-content: flex-end; gap: .375rem; }
 
-/* Modal */
-.modal-backdrop {
-    position: fixed; inset: 0;
-    background: rgba(15,23,42,.5);
-    backdrop-filter: blur(2px);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 1000;
-}
-.modal {
-    background: #fff; border-radius: 12px;
-    box-shadow: 0 25px 50px rgba(0,0,0,.25);
-    overflow: hidden;
-}
-.modal-header {
-    padding: 16px 20px; border-bottom: 1px solid var(--border);
-    display: flex; justify-content: space-between; align-items: center;
-}
-.modal-title { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
-.modal-close {
-    background: none; border: none; font-size: 1.5rem; line-height: 1;
-    color: var(--text-muted); cursor: pointer; padding: 0 4px;
-}
-.modal-close:hover { color: var(--text-primary); }
-.modal-footer {
-    padding: 16px 20px; border-top: 1px solid var(--border);
-    background: var(--bg);
-    display: flex; justify-content: space-between; align-items: center;
-}
-
 /* Camera */
 .camera-viewport {
     background: #0f172a;
@@ -436,12 +396,13 @@ const updateStatus = (pass, newStatus) => {
     align-items: center;
     position: relative;
     height: 380px;
+    margin: -16px -20px;
 }
 .camera-video { max-width: 100%; max-height: 100%; border-radius: .5rem; }
 .camera-loading {
     position: absolute; inset: 0;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    color: var(--text-muted);
+    color: #cbd5e1;
     font-size: .875rem;
 }
 .camera-overlay {
@@ -456,4 +417,28 @@ const updateStatus = (pass, newStatus) => {
     border-radius: 40%;
     box-shadow: 0 0 0 9999px rgba(0,0,0,.4);
 }
+
+/* Form fields — Tailwind preflight workaround */
+.form-field { display: flex; flex-direction: column; gap: 0.35rem; }
+.form-field label { font-size: 0.78rem; font-weight: 600; color: #374151; }
+.form-field input,
+.form-field select,
+.form-field textarea {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    background: #fff;
+    color: #111827;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+.form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 </style>

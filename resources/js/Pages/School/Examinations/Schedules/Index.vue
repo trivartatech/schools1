@@ -1,10 +1,14 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import axios from 'axios';
 import Table from '@/Components/ui/Table.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const props = defineProps({
     schedules:      Array,
@@ -213,17 +217,26 @@ function submit() {
     }
 }
 
-function deleteSchedule(id) {
-    if (confirm('Delete this Exam Schedule?')) {
-        router.delete(`/school/exam-schedules/${id}`, { preserveScroll: true });
-    }
+async function deleteSchedule(id) {
+    const ok = await confirm({
+        title: 'Delete exam schedule?',
+        message: 'This exam schedule will be permanently removed.',
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
+    router.delete(`/school/exam-schedules/${id}`, { preserveScroll: true });
 }
 
-function togglePublish(id, currentStatus) {
+async function togglePublish(id, currentStatus) {
     const action = currentStatus === 'published' ? 'Unpublish' : 'Publish';
-    if (confirm(`Are you sure you want to ${action} this schedule?`)) {
-        router.post(`/school/exam-schedules/${id}/toggle-publish`, {}, { preserveScroll: true });
-    }
+    const ok = await confirm({
+        title: `${action} schedule?`,
+        message: `Are you sure you want to ${action.toLowerCase()} this schedule?`,
+        confirmLabel: action,
+    });
+    if (!ok) return;
+    router.post(`/school/exam-schedules/${id}/toggle-publish`, {}, { preserveScroll: true });
 }
 </script>
 
@@ -232,16 +245,14 @@ function togglePublish(id, currentStatus) {
 
         <!-- ══════════ LIST ══════════ -->
         <div v-if="view === 'list'">
-            <div class="page-header">
-                <div>
-                    <h2 class="page-header-title">Exam Schedules</h2>
-                    <p class="page-header-sub">Manage exam timetables per class, section and exam type.</p>
-                </div>
-                <Button @click="openCreate">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                    Add Exam Schedule
-                </Button>
-            </div>
+            <PageHeader title="Exam Schedules" subtitle="Manage exam timetables per class, section and exam type.">
+                <template #actions>
+                    <Button @click="openCreate">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        Add Exam Schedule
+                    </Button>
+                </template>
+            </PageHeader>
 
             <div class="card">
                 <div class="card-body" style="padding:0; overflow-x:auto;">
@@ -292,12 +303,16 @@ function togglePublish(id, currentStatus) {
 
         <!-- ══════════ FORM ══════════ -->
         <div v-else>
-            <div class="page-header">
-                <h2 class="page-header-title">{{ view === 'edit' ? 'Edit Exam Schedule' : 'Create Exam Schedule' }}</h2>
-                <Button variant="secondary" size="sm" type="button" @click="view = 'list'">
-                    ← All Schedules
-                </Button>
-            </div>
+            <PageHeader>
+                <template #title>
+                    <h1 class="page-header-title">{{ view === 'edit' ? 'Edit Exam Schedule' : 'Create Exam Schedule' }}</h1>
+                </template>
+                <template #actions>
+                    <Button variant="secondary" size="sm" type="button" @click="view = 'list'">
+                        ← All Schedules
+                    </Button>
+                </template>
+            </PageHeader>
 
             <form @submit.prevent="submit">
 

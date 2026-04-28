@@ -1,11 +1,14 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useToast } from '@/Composables/useToast';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const toast = useToast();
+const confirm = useConfirm();
 
 const props = defineProps({
     config: Object
@@ -77,8 +80,14 @@ const switchIntroMode = (mode) => {
     discardIntroAudio();
 };
 
-const deleteIntroAudio = () => {
-    if (!confirm('Delete the saved intro audio? This cannot be undone.')) return;
+const deleteIntroAudio = async () => {
+    const ok = await confirm({
+        title: 'Delete intro audio?',
+        message: 'Delete the saved intro audio? This cannot be undone.',
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
     form.intro_audio_path    = null;
     form.delete_intro_audio  = true;
     form.intro_audio         = null;
@@ -110,13 +119,11 @@ const sendTest = () => {
 
 <template>
     <SchoolLayout title="Voice Config">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Voice Configuration</h1>
-                <p class="page-header-sub">Configure Voice Gateway for automated calls and intro messages</p>
-            </div>
-            <Button variant="secondary" @click="sendTest">Trigger Test Call</Button>
-        </div>
+        <PageHeader title="Voice Configuration" subtitle="Configure Voice Gateway for automated calls and intro messages">
+            <template #actions>
+                <Button variant="secondary" @click="sendTest">Trigger Test Call</Button>
+            </template>
+        </PageHeader>
 
         <form @submit.prevent="submit" class="config-layout">
             <!-- Main Config -->

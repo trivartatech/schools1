@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
 import { ref, reactive, computed, watchEffect } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
@@ -7,9 +8,11 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const { can, isSchoolManagement } = usePermissions();
 const school = useSchoolStore();
+const confirm = useConfirm();
 const hasWriteAccess = computed(() => isSchoolManagement.value || can('create_attendance') || can('edit_attendance'));
 
 const props = defineProps({
@@ -76,13 +79,16 @@ const markAll = (status) => {
 const saving = ref(false);
 const sendingNotifications = ref(false);
 
-const submit = (withNotifications = false) => {
+const submit = async (withNotifications = false) => {
     if (!filter.class_id || !filter.date) return;
 
     if (summary.value.not_marked > 0) {
-        if (!confirm(`You have ${summary.value.not_marked} students not marked. All students must have a status. Mark them all as Present?`)) {
-            return;
-        }
+        const ok = await confirm({
+            title: 'Mark unmarked students?',
+            message: `You have ${summary.value.not_marked} students not marked. All students must have a status. Mark them all as Present?`,
+            confirmLabel: 'Mark All Present',
+        });
+        if (!ok) return;
         markAll('present');
     }
 
@@ -126,12 +132,8 @@ const summary = computed(() => {
     <SchoolLayout title="Attendance">
 
             <!-- Header -->
-            <div class="page-header">
-                <div>
-                    <h1 class="page-header-title">Mark Attendance</h1>
-                    <p class="page-header-sub">Select class, section and date to begin</p>
-                </div>
-                <div style="display:flex;align-items:center;gap:10px;">
+            <PageHeader title="Mark Attendance" subtitle="Select class, section and date to begin">
+                <template #actions>
                     <Button variant="secondary" as="link" href="/school/attendance/scanner">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
@@ -144,8 +146,9 @@ const summary = computed(() => {
                         </svg>
                         View Report
                     </Button>
-                </div>
-            </div>
+
+                </template>
+            </PageHeader>
 
             <!-- Filter bar -->
             <FilterBar>

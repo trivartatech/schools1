@@ -1,8 +1,15 @@
 <script setup>
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import Modal from '@/Components/ui/Modal.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
+import StatsRow from '@/Components/ui/StatsRow.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
 import { useForm, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const props = defineProps({
     backups: Array,
@@ -24,8 +31,14 @@ const submitCreate = () => {
     });
 };
 
-const deleteBackup = (id) => {
-    if (!confirm('Delete this backup? This cannot be undone.')) return;
+const deleteBackup = async (id) => {
+    const ok = await confirm({
+        title: 'Delete backup?',
+        message: 'This backup will be permanently deleted. This cannot be undone.',
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
     router.delete(`/school/backup/${id}`, { preserveScroll: true });
 };
 
@@ -34,71 +47,27 @@ const statusBadge = {
     running:   'badge-blue',
     failed:    'badge-red',
 };
+
+const statCards = computed(() => [
+    { label: 'Total Backups', value: props.stats.total,         color: 'accent' },
+    { label: 'Completed',     value: props.stats.completed,     color: 'success' },
+    { label: 'Failed',        value: props.stats.failed,        color: 'danger' },
+    { label: 'Last Backup',   value: props.stats.last_backup,   color: 'warning' },
+    { label: 'Storage Used',  value: props.stats.storage_used,  color: 'purple' },
+]);
 </script>
 
 <template>
     <SchoolLayout title="Backup Manager">
 
-        <!-- Page Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Backup Manager</h1>
-                <p class="page-header-sub">Create and manage database backups</p>
-            </div>
-            <Button @click="openCreate">
-                <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="margin-right:6px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                Create Backup
-            </Button>
-        </div>
+        <PageHeader title="Backup Manager" subtitle="Create and manage database backups">
+            <template #actions>
+                <Button @click="openCreate">+ Create Backup</Button>
+            </template>
+        </PageHeader>
 
         <!-- Stats -->
-        <div class="backup-stats">
-            <div class="stat-card">
-                <div class="stat-icon" style="background:#eff6ff;color:#1d4ed8;">
-                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
-                </div>
-                <div>
-                    <div class="stat-value" style="color:#1d4ed8;">{{ stats.total }}</div>
-                    <div class="stat-label">Total Backups</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon" style="background:#f0fdf4;color:#16a34a;">
-                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                </div>
-                <div>
-                    <div class="stat-value" style="color:#16a34a;">{{ stats.completed }}</div>
-                    <div class="stat-label">Completed</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon" style="background:#fef2f2;color:#dc2626;">
-                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                </div>
-                <div>
-                    <div class="stat-value" style="color:#dc2626;">{{ stats.failed }}</div>
-                    <div class="stat-label">Failed</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon" style="background:#fffbeb;color:#d97706;">
-                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                </div>
-                <div>
-                    <div class="stat-value" style="color:#d97706;font-size:1rem;">{{ stats.last_backup }}</div>
-                    <div class="stat-label">Last Backup</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon" style="background:#faf5ff;color:#7c3aed;">
-                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582 4 8 4s8-1.79 8-4"/></svg>
-                </div>
-                <div>
-                    <div class="stat-value" style="color:#7c3aed;font-size:1rem;">{{ stats.storage_used }}</div>
-                    <div class="stat-label">Storage Used</div>
-                </div>
-            </div>
-        </div>
+        <StatsRow :cols="4" :stats="statCards" />
 
         <!-- Backup List -->
         <div class="card" style="overflow:hidden;">
@@ -141,7 +110,6 @@ const statusBadge = {
                                         class="download-btn"
                                         title="Download"
                                     >
-                                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                                         Download
                                     </a>
                                     <Button variant="danger" size="xs" @click="deleteBackup(b.id)">Delete</Button>
@@ -149,8 +117,13 @@ const statusBadge = {
                             </td>
                         </tr>
                         <tr v-if="!backups?.length">
-                            <td colspan="7" style="text-align:center;padding:48px;color:#94a3b8;font-size:.9rem;">
-                                No backups yet. Click "Create Backup" to get started.
+                            <td colspan="7" style="padding:0;">
+                                <EmptyState
+                                    title="No backups yet"
+                                    description="Click 'Create Backup' to get started."
+                                    action-label="+ Create Backup"
+                                    @action="openCreate"
+                                />
                             </td>
                         </tr>
                     </tbody>
@@ -159,7 +132,6 @@ const statusBadge = {
                 <!-- Error rows inline -->
                 <template v-if="backups?.some(b => b.status === 'failed' && b.error_message)">
                     <div v-for="b in backups.filter(x => x.status === 'failed' && x.error_message)" :key="'e-' + b.id" class="error-row">
-                        <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="#dc2626"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         <span><strong>{{ b.label }}:</strong> {{ b.error_message }}</span>
                     </div>
                 </template>
@@ -167,67 +139,28 @@ const statusBadge = {
         </div>
 
         <!-- Create Backup Modal -->
-        <Teleport to="body">
-            <div v-if="showCreateModal" class="modal-backdrop" @click.self="showCreateModal = false">
-                <div class="modal create-modal">
-                    <div class="modal-header">
-                        <div>
-                            <h3 class="modal-title">Create Backup</h3>
-                            <p style="font-size:.78rem;color:#94a3b8;margin:2px 0 0;">A full database dump will be created and stored on the server.</p>
-                        </div>
-                        <button @click="showCreateModal = false" class="modal-close">&times;</button>
-                    </div>
-                    <form @submit.prevent="submitCreate">
-                        <div class="modal-body">
-                            <div class="form-field">
-                                <label>Label <span style="color:#94a3b8;font-weight:400;">(optional)</span></label>
-                                <input v-model="form.label" type="text" placeholder="e.g. Before rollover, Weekly backup…" maxlength="200" />
-                                <span v-if="form.errors.label" class="field-error">{{ form.errors.label }}</span>
-                            </div>
-                            <div class="backup-note">
-                                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#3b82f6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                This operation may take a few minutes depending on database size. Please wait after clicking Create.
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <Button variant="secondary" type="button" @click="showCreateModal = false">Cancel</Button>
-                            <Button type="submit" :loading="form.processing">Create Backup</Button>
-                        </div>
-                    </form>
+        <Modal v-model:open="showCreateModal" title="Create Backup" size="md">
+            <form @submit.prevent="submitCreate" id="backup-form">
+                <p style="font-size:.78rem;color:#94a3b8;margin:0 0 16px;">A full database dump will be created and stored on the server.</p>
+                <div class="form-field">
+                    <label>Label <span style="color:#94a3b8;font-weight:400;">(optional)</span></label>
+                    <input v-model="form.label" type="text" placeholder="e.g. Before rollover, Weekly backup…" maxlength="200" />
+                    <span v-if="form.errors.label" class="field-error">{{ form.errors.label }}</span>
                 </div>
-            </div>
-        </Teleport>
+                <div class="backup-note">
+                    This operation may take a few minutes depending on database size. Please wait after clicking Create.
+                </div>
+            </form>
+            <template #footer>
+                <Button variant="secondary" type="button" @click="showCreateModal = false">Cancel</Button>
+                <Button type="submit" form="backup-form" :loading="form.processing">Create Backup</Button>
+            </template>
+        </Modal>
 
     </SchoolLayout>
 </template>
 
 <style scoped>
-/* Stats */
-.backup-stats {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 16px;
-    margin-bottom: 20px;
-}
-.stat-card {
-    background: #fff;
-    border-radius: 12px;
-    border: 1px solid #f1f5f9;
-    padding: 16px 20px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    box-shadow: 0 1px 3px rgba(0,0,0,.04);
-}
-.stat-icon {
-    width: 44px; height: 44px;
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-}
-.stat-value { font-size: 1.6rem; font-weight: 700; line-height: 1; }
-.stat-label { font-size: .75rem; color: #94a3b8; margin-top: 3px; }
-
 /* Table */
 .backup-table { width: 100%; border-collapse: collapse; }
 .backup-table th {
@@ -267,39 +200,7 @@ const statusBadge = {
     font-size: .8rem; color: #dc2626;
 }
 
-/* Modal */
-.modal-backdrop {
-    position: fixed; inset: 0;
-    background: rgba(15, 23, 42, .45);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 9999;
-}
-.create-modal {
-    background: #fff;
-    border-radius: 14px;
-    width: 480px;
-    max-width: calc(100vw - 32px);
-    box-shadow: 0 20px 60px rgba(0,0,0,.18);
-}
-.modal-header {
-    display: flex; justify-content: space-between; align-items: flex-start;
-    padding: 20px 24px 16px;
-    border-bottom: 1px solid #f1f5f9;
-}
-.modal-title { font-size: 1rem; font-weight: 700; color: #1e293b; margin: 0; }
-.modal-close {
-    background: none; border: none; font-size: 1.4rem; color: #94a3b8;
-    cursor: pointer; padding: 0; line-height: 1;
-}
-.modal-close:hover { color: #475569; }
-.modal-body { padding: 20px 24px; }
-.modal-footer {
-    padding: 16px 24px;
-    border-top: 1px solid #f1f5f9;
-    display: flex; justify-content: flex-end; gap: 10px;
-}
-
-/* Form fields */
+/* Form fields — Tailwind preflight workaround */
 .form-field { margin-bottom: 16px; }
 .form-field label { display: block; font-size: .82rem; font-weight: 600; color: #374151; margin-bottom: 6px; }
 .form-field input {
@@ -313,17 +214,9 @@ const statusBadge = {
 
 /* Info note */
 .backup-note {
-    display: flex; align-items: flex-start; gap: 8px;
     padding: 10px 14px;
     background: #eff6ff; border-radius: 8px;
     font-size: .8rem; color: #1d4ed8;
     line-height: 1.5;
-}
-
-@media (max-width: 900px) {
-    .backup-stats { grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width: 600px) {
-    .backup-stats { grid-template-columns: 1fr; }
 }
 </style>

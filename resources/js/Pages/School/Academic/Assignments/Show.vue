@@ -1,11 +1,15 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { useForm, Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref, computed } from 'vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const school = useSchoolStore();
 
@@ -88,8 +92,14 @@ const gradeStats = computed(() => {
 });
 
 // ── Helpers ───────────────────────────────────────────────
-const closeAssignment = () => {
-    if (!confirm('Close this assignment? Students will no longer be able to submit.')) return;
+const closeAssignment = async () => {
+    const ok = await confirm({
+        title: 'Close assignment?',
+        message: 'Close this assignment? Students will no longer be able to submit.',
+        confirmLabel: 'Close',
+        danger: true,
+    });
+    if (!ok) return;
     router.post(route('school.academic.assignments.close', props.assignment.id));
 };
 
@@ -142,12 +152,14 @@ const statusLabel = () => {
 
 <template>
     <SchoolLayout title="Assignment Details">
-        <div class="page-header">
-            <div class="flex items-center gap-3 flex-wrap">
-                <h2 class="page-header-title">{{ assignment.title }}</h2>
-                <span :class="['badge', statusLabel().cls]">{{ statusLabel().text }}</span>
-            </div>
-            <div class="flex gap-2 flex-wrap">
+        <PageHeader>
+            <template #title>
+                <div class="flex items-center gap-3 flex-wrap">
+                    <h1 class="page-header-title">{{ assignment.title }}</h1>
+                    <span :class="['badge', statusLabel().cls]">{{ statusLabel().text }}</span>
+                </div>
+            </template>
+            <template #actions>
                 <Button variant="secondary" v-if="can('create_academic')" @click="duplicateAssignment" class="text-indigo-600 border-indigo-200 hover:bg-indigo-50">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
@@ -163,8 +175,8 @@ const statusLabel = () => {
                     </svg>
                     Back
                 </Button>
-            </div>
-        </div>
+            </template>
+        </PageHeader>
 
         <!-- Stats Banner -->
         <div v-if="stats" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">

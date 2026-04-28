@@ -2,6 +2,12 @@
 import { ref, computed } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import Button from '@/Components/ui/Button.vue';
+import Modal from '@/Components/ui/Modal.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const props = defineProps({
     store:     Object,
@@ -46,12 +52,17 @@ function submitItemForm() {
 }
 
 // ── Delete item ───────────────────────────────────────────────────────────────
-const deleteItemTarget = ref(null);
 const deleteItemForm   = useForm({});
-function doDeleteItem() {
-    deleteItemForm.delete(`/school/inventory-stores/items/${deleteItemTarget.value.id}`, {
+async function deleteItem(item) {
+    const ok = await confirm({
+        title: 'Delete item?',
+        message: `Delete ${item.name}? All transaction history for this item will also be permanently removed.`,
+        confirmLabel: 'Delete Item',
+        danger: true,
+    });
+    if (!ok) return;
+    deleteItemForm.delete(`/school/inventory-stores/items/${item.id}`, {
         preserveScroll: true,
-        onSuccess: () => { deleteItemTarget.value = null; },
     });
 }
 
@@ -73,32 +84,34 @@ function submitTxn() {
         onSuccess: () => { txnTarget.value = null; },
     });
 }
+
+const showTxnModal = computed({
+    get: () => txnTarget.value !== null,
+    set: (v) => { if (!v) txnTarget.value = null; },
+});
 </script>
 
 <template>
     <SchoolLayout :title="store.name">
 
-        <!-- Header -->
-        <div class="page-header">
-            <div>
-                <div class="breadcrumb">
-                    <a href="/school/inventory">Inventory</a>
-                    <span class="sep">/</span>
-                    <a href="/school/inventory-stores">Stores</a>
-                    <span class="sep">/</span>
-                    <span>{{ store.name }}</span>
-                </div>
-                <h1 class="page-header-title">{{ store.name }}</h1>
+        <PageHeader :title="store.name" :breadcrumbs="[
+            { label: 'Inventory', href: '/school/inventory' },
+            { label: 'Stores', href: '/school/inventory-stores' },
+            { label: store.name },
+        ]">
+            <template #subtitle>
                 <p v-if="store.location" style="color:#64748b;font-size:.875rem;margin-top:2px;">
                     <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:3px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                     {{ store.location }}
                 </p>
-            </div>
-            <button class="btn-primary" @click="openAddItem">
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                Add Item
-            </button>
-        </div>
+            </template>
+            <template #actions>
+                <Button @click="openAddItem">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    Add Item
+                </Button>
+            </template>
+        </PageHeader>
 
         <!-- Flash -->
         <div v-if="$page.props.flash?.success" class="flash-success">{{ $page.props.flash.success }}</div>
@@ -182,7 +195,7 @@ function submitTxn() {
                                     <button class="act-btn act-green" @click="openTxn(item, 'in')" title="Stock In">+ In</button>
                                     <button class="act-btn act-orange" @click="openTxn(item, 'out')" title="Stock Out">− Out</button>
                                     <button class="act-btn act-blue" @click="openEditItem(item)">Edit</button>
-                                    <button class="act-btn act-red" @click="deleteItemTarget = item">Del</button>
+                                    <button class="act-btn act-red" @click="deleteItem(item)">Del</button>
                                 </div>
                             </td>
                         </tr>
@@ -205,159 +218,91 @@ function submitTxn() {
         </div>
 
         <!-- Add / Edit Item Modal -->
-        <Teleport to="body">
-            <div v-if="showItemModal" class="backdrop" @click.self="showItemModal = false">
-                <div class="modal-box" style="max-width:500px;">
-                    <div class="modal-head">
-                        <span class="modal-icon" style="background:#dbeafe;color:#2563eb;">
-                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7"/></svg>
-                        </span>
-                        <div>
-                            <h3 class="modal-title">{{ editingItem ? 'Edit Item' : 'Add Item' }}</h3>
-                            <p class="modal-sub">{{ editingItem ? editingItem.name : store.name }}</p>
-                        </div>
-                        <button class="modal-close" @click="showItemModal = false"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
-                    </div>
-                    <form @submit.prevent="submitItemForm">
-                        <div class="modal-body">
-                            <div class="field full">
-                                <label class="field-label">Item Name <span class="req">*</span></label>
-                                <input v-model="itemForm.name" class="field-input" required placeholder="e.g. A4 Paper, Marker, Chalk Box" />
-                            </div>
-                            <div class="field-row">
-                                <div class="field">
-                                    <label class="field-label">Unit <span class="req">*</span></label>
-                                    <input v-model="itemForm.unit" class="field-input" placeholder="pcs / kg / L / box" required />
-                                </div>
-                                <div class="field">
-                                    <label class="field-label">Supplier</label>
-                                    <select v-model="itemForm.supplier_id" class="field-input">
-                                        <option value="">— None —</option>
-                                        <option v-for="sup in suppliers" :key="sup.id" :value="sup.id">{{ sup.name }}</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="field-row">
-                                <div v-if="!editingItem" class="field">
-                                    <label class="field-label">Opening Qty</label>
-                                    <input v-model="itemForm.quantity" type="number" min="0" step="0.01" class="field-input" placeholder="0" />
-                                </div>
-                                <div class="field">
-                                    <label class="field-label">Min Stock Alert</label>
-                                    <input v-model="itemForm.min_quantity" type="number" min="0" step="0.01" class="field-input" placeholder="0" />
-                                </div>
-                                <div class="field">
-                                    <label class="field-label">Unit Price (₹)</label>
-                                    <input v-model="itemForm.unit_price" type="number" min="0" step="0.01" class="field-input" placeholder="0.00" />
-                                </div>
-                            </div>
-                            <div class="field full">
-                                <label class="field-label">Notes</label>
-                                <textarea v-model="itemForm.notes" class="field-input" rows="2"></textarea>
-                            </div>
-                        </div>
-                        <div class="modal-foot">
-                            <button type="button" class="btn-outline" @click="showItemModal = false">Cancel</button>
-                            <button type="submit" class="btn-primary" :disabled="itemForm.processing">
-                                {{ itemForm.processing ? 'Saving…' : (editingItem ? 'Update Item' : 'Add Item') }}
-                            </button>
-                        </div>
-                    </form>
+        <Modal v-model:open="showItemModal" :title="editingItem ? 'Edit Item' : 'Add Item'" size="md">
+            <form @submit.prevent="submitItemForm" id="store-item-form">
+                <div class="field full">
+                    <label class="field-label">Item Name <span class="req">*</span></label>
+                    <input v-model="itemForm.name" class="field-input" required placeholder="e.g. A4 Paper, Marker, Chalk Box" />
                 </div>
-            </div>
-        </Teleport>
+                <div class="field-row" style="margin-top:14px;">
+                    <div class="field">
+                        <label class="field-label">Unit <span class="req">*</span></label>
+                        <input v-model="itemForm.unit" class="field-input" placeholder="pcs / kg / L / box" required />
+                    </div>
+                    <div class="field">
+                        <label class="field-label">Supplier</label>
+                        <select v-model="itemForm.supplier_id" class="field-input">
+                            <option value="">— None —</option>
+                            <option v-for="sup in suppliers" :key="sup.id" :value="sup.id">{{ sup.name }}</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="field-row" style="margin-top:14px;">
+                    <div v-if="!editingItem" class="field">
+                        <label class="field-label">Opening Qty</label>
+                        <input v-model="itemForm.quantity" type="number" min="0" step="0.01" class="field-input" placeholder="0" />
+                    </div>
+                    <div class="field">
+                        <label class="field-label">Min Stock Alert</label>
+                        <input v-model="itemForm.min_quantity" type="number" min="0" step="0.01" class="field-input" placeholder="0" />
+                    </div>
+                    <div class="field">
+                        <label class="field-label">Unit Price (₹)</label>
+                        <input v-model="itemForm.unit_price" type="number" min="0" step="0.01" class="field-input" placeholder="0.00" />
+                    </div>
+                </div>
+                <div class="field full" style="margin-top:14px;">
+                    <label class="field-label">Notes</label>
+                    <textarea v-model="itemForm.notes" class="field-input" rows="2"></textarea>
+                </div>
+            </form>
+            <template #footer>
+                <Button variant="secondary" type="button" @click="showItemModal = false">Cancel</Button>
+                <Button type="submit" form="store-item-form" :loading="itemForm.processing">
+                    {{ editingItem ? 'Update Item' : 'Add Item' }}
+                </Button>
+            </template>
+        </Modal>
 
         <!-- Stock In / Out Modal -->
-        <Teleport to="body">
-            <div v-if="txnTarget" class="backdrop" @click.self="txnTarget = null">
-                <div class="modal-box" style="max-width:420px;">
-                    <div class="modal-head">
-                        <span class="modal-icon" :style="{ background: txnForm.type === 'in' ? '#dcfce7' : '#fff7ed', color: txnForm.type === 'in' ? '#16a34a' : '#d97706' }">
-                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
-                        </span>
-                        <div>
-                            <h3 class="modal-title">Stock {{ txnForm.type === 'in' ? 'In' : 'Out' }}</h3>
-                            <p class="modal-sub">{{ txnTarget.name }}</p>
-                        </div>
-                        <button class="modal-close" @click="txnTarget = null"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
-                    </div>
-                    <form @submit.prevent="submitTxn">
-                        <div class="modal-body">
-                            <div class="txn-current">
-                                Current stock: <strong>{{ fmtQty(txnTarget.quantity) }} {{ txnTarget.unit }}</strong>
-                                <span v-if="isLow(txnTarget)" style="margin-left:8px;font-size:.72rem;font-weight:700;background:#fee2e2;color:#dc2626;padding:1px 6px;border-radius:10px;">Low</span>
-                            </div>
-                            <div class="field-row">
-                                <div class="field">
-                                    <label class="field-label">Quantity <span class="req">*</span></label>
-                                    <input v-model="txnForm.quantity" type="number" min="0.01" step="0.01" class="field-input" required placeholder="0.00" />
-                                </div>
-                                <div class="field">
-                                    <label class="field-label">Date <span class="req">*</span></label>
-                                    <input v-model="txnForm.transaction_date" type="date" class="field-input" required />
-                                </div>
-                            </div>
-                            <div class="field full">
-                                <label class="field-label">Reference</label>
-                                <input v-model="txnForm.reference" class="field-input" placeholder="PO no., invoice, dept request…" />
-                            </div>
-                            <div class="field full">
-                                <label class="field-label">Notes</label>
-                                <textarea v-model="txnForm.notes" class="field-input" rows="2"></textarea>
-                            </div>
-                        </div>
-                        <div class="modal-foot">
-                            <button type="button" class="btn-outline" @click="txnTarget = null">Cancel</button>
-                            <button type="submit" class="btn-primary" :disabled="txnForm.processing">
-                                {{ txnForm.processing ? 'Saving…' : (txnForm.type === 'in' ? 'Confirm Stock In' : 'Confirm Stock Out') }}
-                            </button>
-                        </div>
-                    </form>
+        <Modal v-model:open="showTxnModal" :title="`Stock ${txnForm.type === 'in' ? 'In' : 'Out'}`" size="sm">
+            <p v-if="txnTarget" style="font-size:.82rem;color:#64748b;margin:0 0 14px;">{{ txnTarget.name }}</p>
+            <form v-if="txnTarget" @submit.prevent="submitTxn" id="store-txn-form">
+                <div class="txn-current">
+                    Current stock: <strong>{{ fmtQty(txnTarget.quantity) }} {{ txnTarget.unit }}</strong>
+                    <span v-if="isLow(txnTarget)" style="margin-left:8px;font-size:.72rem;font-weight:700;background:#fee2e2;color:#dc2626;padding:1px 6px;border-radius:10px;">Low</span>
                 </div>
-            </div>
-        </Teleport>
-
-        <!-- Delete item confirm -->
-        <Teleport to="body">
-            <div v-if="deleteItemTarget" class="backdrop" @click.self="deleteItemTarget = null">
-                <div class="modal-box" style="max-width:420px;">
-                    <div class="modal-head">
-                        <span class="modal-icon" style="background:#fee2e2;color:#dc2626;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></span>
-                        <div><h3 class="modal-title">Delete Item</h3><p class="modal-sub">{{ deleteItemTarget.name }}</p></div>
-                        <button class="modal-close" @click="deleteItemTarget = null"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                <div class="field-row" style="margin-top:14px;">
+                    <div class="field">
+                        <label class="field-label">Quantity <span class="req">*</span></label>
+                        <input v-model="txnForm.quantity" type="number" min="0.01" step="0.01" class="field-input" required placeholder="0.00" />
                     </div>
-                    <div class="modal-body">
-                        <div class="dispose-warning">Delete <strong>{{ deleteItemTarget.name }}</strong>? All transaction history for this item will also be permanently removed.</div>
-                    </div>
-                    <div class="modal-foot">
-                        <button class="btn-outline" @click="deleteItemTarget = null">Cancel</button>
-                        <button class="btn-danger" :disabled="deleteItemForm.processing" @click="doDeleteItem">
-                            {{ deleteItemForm.processing ? 'Deleting…' : 'Delete Item' }}
-                        </button>
+                    <div class="field">
+                        <label class="field-label">Date <span class="req">*</span></label>
+                        <input v-model="txnForm.transaction_date" type="date" class="field-input" required />
                     </div>
                 </div>
-            </div>
-        </Teleport>
+                <div class="field full" style="margin-top:14px;">
+                    <label class="field-label">Reference</label>
+                    <input v-model="txnForm.reference" class="field-input" placeholder="PO no., invoice, dept request…" />
+                </div>
+                <div class="field full" style="margin-top:14px;">
+                    <label class="field-label">Notes</label>
+                    <textarea v-model="txnForm.notes" class="field-input" rows="2"></textarea>
+                </div>
+            </form>
+            <template #footer>
+                <Button variant="secondary" type="button" @click="txnTarget = null">Cancel</Button>
+                <Button type="submit" form="store-txn-form" :loading="txnForm.processing">
+                    {{ txnForm.type === 'in' ? 'Confirm Stock In' : 'Confirm Stock Out' }}
+                </Button>
+            </template>
+        </Modal>
 
     </SchoolLayout>
 </template>
 
 <style scoped>
-.btn-primary  { display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-size:.875rem;font-weight:600;cursor:pointer;transition:background .15s;text-decoration:none; }
-.btn-primary:hover:not(:disabled) { background:#2563eb; }
-.btn-primary:disabled { opacity:.6;cursor:not-allowed; }
-.btn-outline  { display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#fff;color:#374151;border:1px solid #d1d5db;border-radius:8px;font-size:.875rem;font-weight:500;cursor:pointer;transition:background .15s;text-decoration:none; }
-.btn-outline:hover { background:#f9fafb; }
-.btn-danger   { display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-size:.875rem;font-weight:600;cursor:pointer;transition:background .15s; }
-.btn-danger:hover:not(:disabled) { background:#b91c1c; }
-.btn-danger:disabled { opacity:.6;cursor:not-allowed; }
-
-.breadcrumb   { display:flex;align-items:center;gap:6px;font-size:.78rem;color:#94a3b8;margin-bottom:4px; }
-.breadcrumb a { color:#64748b;text-decoration:none; } .breadcrumb a:hover { color:#3b82f6; }
-.sep          { color:#cbd5e1; }
-.page-header  { display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:24px;flex-wrap:wrap; }
-.page-header-title { font-size:1.5rem;font-weight:800;color:#0f172a;margin:0; }
-
 .flash-success { background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;border-radius:10px;padding:10px 16px;font-size:.85rem;margin-bottom:16px; }
 .flash-error   { background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:10px;padding:10px 16px;font-size:.85rem;margin-bottom:16px; }
 
@@ -395,17 +340,6 @@ function submitTxn() {
 
 .txn-current { background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:.85rem;color:#374151; }
 
-.backdrop   { position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px; }
-.modal-box  { background:#fff;border-radius:16px;width:100%;box-shadow:0 25px 50px -12px rgba(0,0,0,.25);max-height:92vh;overflow-y:auto; }
-.modal-head { display:flex;align-items:flex-start;gap:14px;padding:20px 20px 16px;border-bottom:1px solid #f1f5f9;position:sticky;top:0;background:#fff;z-index:1;border-radius:16px 16px 0 0; }
-.modal-icon { width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
-.modal-title { font-size:1rem;font-weight:700;color:#0f172a;margin:0; }
-.modal-sub   { font-size:.8rem;color:#64748b;margin:2px 0 0; }
-.modal-close { margin-left:auto;background:#f1f5f9;border:none;border-radius:8px;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b;transition:background .15s;flex-shrink:0; }
-.modal-close:hover { background:#e2e8f0;color:#0f172a; }
-.modal-body  { padding:20px;display:flex;flex-direction:column;gap:14px; }
-.modal-foot  { padding:16px 20px;border-top:1px solid #f1f5f9;background:#f8fafc;display:flex;justify-content:flex-end;gap:10px;border-radius:0 0 16px 16px;position:sticky;bottom:0; }
-
 .field-row  { display:grid;grid-template-columns:1fr 1fr;gap:14px; }
 .field.full { grid-column:span 2; }
 .field-label { display:block;font-size:.78rem;font-weight:600;color:#374151;margin-bottom:5px; }
@@ -414,5 +348,4 @@ function submitTxn() {
 .field-input:focus { border-color:#3b82f6;box-shadow:0 0 0 3px #3b82f620; }
 textarea.field-input { resize:vertical; }
 .field-error { font-size:.75rem;color:#ef4444;margin-top:4px; }
-.dispose-warning { background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px;font-size:.85rem;color:#92400e;line-height:1.6; }
 </style>

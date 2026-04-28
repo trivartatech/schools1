@@ -1,5 +1,6 @@
 <script setup>
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { computed } from 'vue';
 
 const props = defineProps({ quiz: Object });
@@ -22,9 +23,11 @@ const { formatDateTime: fmt } = useFormat();
 
 <template>
     <SchoolLayout :title="`Results — ${quiz.title}`">
-        <div class="page-header">
-            <h1 class="page-header-title">{{ quiz.title }} — Results</h1>
-        </div>
+        <PageHeader>
+            <template #title>
+                <h1 class="page-header-title">{{ quiz.title }} — Results</h1>
+            </template>
+        </PageHeader>
 
         <!-- Summary -->
         <div class="results-stats">

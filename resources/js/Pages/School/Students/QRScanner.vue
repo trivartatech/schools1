@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, onMounted, onUnmounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -113,8 +114,8 @@ onUnmounted(() => { stopScanner(); });
         <div v-show="showFlash"
              class="fixed inset-0 z-50 bg-emerald-500/30 transition-opacity duration-200 pointer-events-none mix-blend-multiply"></div>
 
-        <div class="page-header">
-            <div>
+        <PageHeader subtitle="Point the camera at a student ID card to open their profile.">
+            <template #title>
                 <h1 class="page-header-title" style="display:flex;align-items:center;gap:8px;">
                     <svg class="w-6 h-6" style="color:var(--accent);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -122,15 +123,16 @@ onUnmounted(() => { stopScanner(); });
                     </svg>
                     Scan Student ID
                 </h1>
-                <p class="page-header-sub">Point the camera at a student ID card to open their profile.</p>
-            </div>
-            <Button variant="secondary" as="link" href="/school/students">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                </svg>
-                Back to Directory
-            </Button>
-        </div>
+            </template>
+            <template #actions>
+                <Button variant="secondary" as="link" href="/school/students">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    Back to Directory
+                </Button>
+            </template>
+        </PageHeader>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <!-- Camera viewport -->

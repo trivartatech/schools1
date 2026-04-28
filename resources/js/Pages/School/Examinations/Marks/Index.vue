@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -189,17 +190,15 @@ const saveMarks = () => {
 <template>
     <Head title="Marks Entry" />
     <SchoolLayout title="Marks Entry">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Marks Entry</h1>
-                <p class="page-header-sub">Enter scholastic and co-scholastic marks for assessing students.</p>
-            </div>
-            <Button v-if="students.length > 0" @click="saveMarks" :disabled="form.processing">
-                <svg v-if="form.processing" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle class="opacity-25" cx="12" cy="12" r="10" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
-                <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                Save Marks
-            </Button>
-        </div>
+        <PageHeader title="Marks Entry" subtitle="Enter scholastic and co-scholastic marks for assessing students.">
+            <template #actions>
+                <Button v-if="students.length > 0" @click="saveMarks" :disabled="form.processing">
+                                <svg v-if="form.processing" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle class="opacity-25" cx="12" cy="12" r="10" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+                                <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                Save Marks
+                            </Button>
+            </template>
+        </PageHeader>
 
         <!-- Filters Section -->
         <div class="card" style="margin-bottom:20px;">

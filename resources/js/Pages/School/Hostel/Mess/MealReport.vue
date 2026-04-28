@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -46,13 +47,11 @@ const messColor = (type) => ({ 'Veg': '#22c55e', 'Non-Veg': '#ef4444', 'Custom':
 
 <template>
 <SchoolLayout title="Mess Meal Report">
-    <div class="page-header">
-        <div>
-            <h1 class="page-header-title">Mess Meal Count Report</h1>
-            <p class="page-header-sub">Veg / Non-Veg / Custom meal preference counts</p>
-        </div>
-        <Button variant="secondary" as="a" :href="route('school.hostel.mess.index')">Mess Menu</Button>
-    </div>
+    <PageHeader title="Mess Meal Count Report" subtitle="Veg / Non-Veg / Custom meal preference counts">
+        <template #actions>
+            <Button variant="secondary" as="a" :href="route('school.hostel.mess.index')">Mess Menu</Button>
+        </template>
+    </PageHeader>
 
     <!-- Filters -->
     <div class="card" style="margin-bottom:16px;">

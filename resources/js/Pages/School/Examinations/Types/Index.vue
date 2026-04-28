@@ -1,9 +1,13 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const props = defineProps({
     types: Array,
@@ -56,10 +60,15 @@ const submit = () => {
     }
 };
 
-const deleteType = (id) => {
-    if (confirm('Are you sure you want to delete this Exam Type?')) {
-        router.delete(`/school/exam-types/${id}`);
-    }
+const deleteType = async (id) => {
+    const ok = await confirm({
+        title: 'Delete exam type?',
+        message: 'This exam type will be permanently removed.',
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
+    router.delete(`/school/exam-types/${id}`);
 };
 
 const getClassificationBadge = (val) => {
@@ -74,16 +83,14 @@ const getClassificationBadge = (val) => {
 
 <template>
     <SchoolLayout title="Exam Types">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Exam Types</h1>
-                <p class="page-header-sub">Manage exams within terms (e.g. Unit Test 1, Half Yearly)</p>
-            </div>
-            <Button @click="openCreateForm">
-                <svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                Add Exam Type
-            </Button>
-        </div>
+        <PageHeader title="Exam Types" subtitle="Manage exams within terms (e.g. Unit Test 1, Half Yearly)">
+            <template #actions>
+                <Button @click="openCreateForm">
+                                <svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                Add Exam Type
+                            </Button>
+            </template>
+        </PageHeader>
 
         <div v-if="terms.length === 0" class="mb-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded text-yellow-800 text-sm flex gap-3">
             <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>

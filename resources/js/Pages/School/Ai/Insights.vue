@@ -3,12 +3,7 @@
     <SchoolLayout title="AI Intelligence Hub">
 
         <!-- Page Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">🧠 AI Intelligence Hub</h1>
-                <p class="page-header-sub">Smart insights and natural language data queries powered by Gemini AI</p>
-            </div>
-        </div>
+        <PageHeader title="🧠 AI Intelligence Hub" subtitle="Smart insights and natural language data queries powered by Gemini AI" />
 
         <!-- Two column layout -->
         <div class="ai-hub-grid">
@@ -196,6 +191,7 @@
 
 <script setup>
 import { ref, computed, nextTick, onMounted } from 'vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { Head } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import axios from 'axios';

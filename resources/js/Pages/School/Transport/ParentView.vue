@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 
 const props = defineProps({
@@ -37,12 +38,7 @@ function timeAgo(dateStr) {
     <SchoolLayout title="My Transport">
 
         <!-- Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">My Transport</h1>
-                <p class="page-header-sub">View your children's transport details</p>
-            </div>
-        </div>
+        <PageHeader title="My Transport" subtitle="View your children's transport details" />
 
         <!-- Empty state -->
         <div v-if="!allocations || allocations.length === 0" class="card">

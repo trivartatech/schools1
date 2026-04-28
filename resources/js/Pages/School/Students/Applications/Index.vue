@@ -1,12 +1,15 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const school = useSchoolStore();
+const confirm = useConfirm();
 
 const props = defineProps({
     applications: { type: Object, required: true }, // paginated: { data, total, links, ... }
@@ -41,10 +44,14 @@ const submitReject = () => {
     });
 };
 
-const doApprove = (app) => {
-    if (confirm(`Approve ${app.first_name} ${app.last_name || ''}? This will create a student record.`)) {
-        router.post(`/school/registrations/${app.id}/approve`);
-    }
+const doApprove = async (app) => {
+    const ok = await confirm({
+        title: 'Approve application?',
+        message: `Approve ${app.first_name} ${app.last_name || ''}? This will create a student record.`,
+        confirmLabel: 'Approve',
+    });
+    if (!ok) return;
+    router.post(`/school/registrations/${app.id}/approve`);
 };
 
 const tabColor = computed(() => {
@@ -67,15 +74,13 @@ const statusBadge = (status) => {
     <SchoolLayout title="Student Registrations">
 
         <!-- Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Student Registration Queue</h1>
-                <p class="page-header-sub">Review and approve new student applications before they enter the directory.</p>
-            </div>
-            <Button as="link" href="/school/registrations/create">
-                + New Application
-            </Button>
-        </div>
+        <PageHeader title="Student Registration Queue" subtitle="Review and approve new student applications before they enter the directory.">
+            <template #actions>
+                <Button as="link" href="/school/registrations/create">
+                                + New Application
+                            </Button>
+            </template>
+        </PageHeader>
 
         <!-- Status Tabs -->
         <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;">

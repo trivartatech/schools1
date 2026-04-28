@@ -1,5 +1,6 @@
 <script setup>
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { Line, Bar, Doughnut } from 'vue-chartjs';
 import {
     Chart as ChartJS,
@@ -154,12 +155,11 @@ const fmtCurrency = (n) => '₹' + new Intl.NumberFormat('en-IN', { maximumFract
 
 <template>
     <SchoolLayout title="Analytics Dashboard">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Analytics Dashboard</h1>
+        <PageHeader title="Analytics Dashboard">
+            <template #subtitle>
                 <p style="color:#64748b;font-size:.9rem;">School-wide performance overview for the current academic year.</p>
-            </div>
-        </div>
+            </template>
+        </PageHeader>
 
         <!-- Summary KPI Cards -->
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px;">

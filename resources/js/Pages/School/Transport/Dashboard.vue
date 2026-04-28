@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const school = useSchoolStore();
@@ -91,12 +92,7 @@ function utilizationColor(pct) {
     <SchoolLayout title="Transport Dashboard">
 
         <!-- Page Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Transport Dashboard</h1>
-                <p class="page-header-sub">Fleet overview, alerts, and route utilization</p>
-            </div>
-        </div>
+        <PageHeader title="Transport Dashboard" subtitle="Fleet overview, alerts, and route utilization" />
 
         <!-- ====== Stats Grid ====== -->
         <div class="stats-grid">

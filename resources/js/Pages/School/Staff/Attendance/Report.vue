@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -54,15 +55,12 @@ const pct = (v, total) => total > 0 ? Math.round((v / total) * 100) : 0;
 
 <template>
     <SchoolLayout title="Staff Attendance Report">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Staff Attendance Report</h1>
-                <p class="page-header-sub">Monthly attendance overview for all staff</p>
-            </div>
-            <div style="display:flex;gap:10px;align-items:center;">
+        <PageHeader title="Staff Attendance Report" subtitle="Monthly attendance overview for all staff">
+            <template #actions>
                 <Button variant="secondary" as="a" :href="route('school.staff-attendance.index')">Mark Attendance</Button>
-            </div>
-        </div>
+
+            </template>
+        </PageHeader>
 
         <!-- Month Nav -->
         <div class="month-nav">

@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -120,18 +121,16 @@ function openResultsPrint() {
     <SchoolLayout title="Exam Results">
 
         <!-- Page Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Exam Results</h1>
-                <p class="page-header-sub">Class-wise result sheet — rank, marks per subject, pass/fail status.</p>
-            </div>
-            <Button v-if="result" variant="secondary" @click="openResultsPrint" style="margin-right:8px;">
-                Print Result Sheet
-            </Button>
-            <Button v-if="result" @click="openPrint">
-                Print Report Cards
-            </Button>
-        </div>
+        <PageHeader title="Exam Results" subtitle="Class-wise result sheet — rank, marks per subject, pass/fail status.">
+            <template #actions>
+                <Button v-if="result" variant="secondary" @click="openResultsPrint" style="margin-right:8px;">
+                                Print Result Sheet
+                            </Button>
+                            <Button v-if="result" @click="openPrint">
+                                Print Report Cards
+                            </Button>
+            </template>
+        </PageHeader>
 
         <!-- Filters -->
         <div class="card mb-6">

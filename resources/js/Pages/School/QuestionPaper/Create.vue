@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import axios from 'axios';
 import { useToast } from '@/Composables/useToast';
 
@@ -250,30 +251,34 @@ watch(generating, (val) => {
     <SchoolLayout title="Generate Question Paper">
 
         <!-- Page Header -->
-        <div class="page-header">
-            <div style="display:flex;align-items:center;gap:12px;">
-                <Button variant="icon" size="sm" as="link" href="/school/question-papers" aria-label="Back">
-                    <template #icon>
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                    </template>
-                </Button>
-                <div>
+        <PageHeader>
+            <template #title>
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <Button variant="icon" size="sm" as="link" href="/school/question-papers" aria-label="Back">
+                        <template #icon>
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                        </template>
+                    </Button>
                     <h1 class="page-header-title">Generate Question Paper</h1>
-                    <p class="page-header-sub">Configure and generate AI-powered question papers.</p>
                 </div>
-            </div>
-            <!-- Step indicator -->
-            <div class="step-indicator">
-                <span class="step-dot" :class="{ 'step-dot--active': step === 'configure', 'step-dot--done': step !== 'configure' }">
-                    <svg v-if="step !== 'configure'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                    <span v-else>1</span>
-                </span>
-                <span class="step-label" :class="{ 'step-label--active': step === 'configure' }">Configure</span>
-                <div class="step-line" :class="{ 'step-line--done': step === 'preview' }"></div>
-                <span class="step-dot" :class="{ 'step-dot--active': step === 'preview', 'step-dot--pending': step !== 'preview' }">2</span>
-                <span class="step-label" :class="{ 'step-label--active': step === 'preview' }">Review &amp; Edit</span>
-            </div>
-        </div>
+            </template>
+            <template #subtitle>
+                <p class="page-header-sub">Configure and generate AI-powered question papers.</p>
+            </template>
+            <template #actions>
+                <!-- Step indicator -->
+                <div class="step-indicator">
+                    <span class="step-dot" :class="{ 'step-dot--active': step === 'configure', 'step-dot--done': step !== 'configure' }">
+                        <svg v-if="step !== 'configure'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                        <span v-else>1</span>
+                    </span>
+                    <span class="step-label" :class="{ 'step-label--active': step === 'configure' }">Configure</span>
+                    <div class="step-line" :class="{ 'step-line--done': step === 'preview' }"></div>
+                    <span class="step-dot" :class="{ 'step-dot--active': step === 'preview', 'step-dot--pending': step !== 'preview' }">2</span>
+                    <span class="step-label" :class="{ 'step-label--active': step === 'preview' }">Review &amp; Edit</span>
+                </div>
+            </template>
+        </PageHeader>
 
         <div style="max-width:860px;margin:0 auto;">
 

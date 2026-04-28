@@ -3,6 +3,9 @@ import { ref, computed } from 'vue';
 import { useForm, usePage, Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const props = defineProps({
     contacts: { type: Array, default: () => [] },
@@ -78,8 +81,14 @@ const submitEdit = (id) => {
     });
 };
 
-const deleteContact = (contact) => {
-    if (!confirm(`Delete admin contact "${contact.name}"?`)) return;
+const deleteContact = async (contact) => {
+    const ok = await confirm({
+        title: 'Delete admin contact?',
+        message: `"${contact.name}" will no longer receive admin alerts.`,
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
     router.delete(`/school/settings/admin-contacts/${contact.id}`, {
         preserveScroll: true,
     });

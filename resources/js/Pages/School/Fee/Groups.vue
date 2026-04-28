@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -55,16 +56,13 @@ const deleteHead = (id) => {
     <SchoolLayout title="Fee Groups & Heads">
         <div class="max-w-5xl mx-auto space-y-6">
 
-            <div class="page-header">
-                <div>
-                    <h2 class="page-header-title">Fee Groups &amp; Heads</h2>
-                    <p class="page-header-sub">Organize fee categories and specific line items</p>
-                </div>
-                <div class="flex items-center gap-3">
+            <PageHeader title="Fee Groups &amp;amp; Heads" subtitle="Organize fee categories and specific line items">
+                <template #actions>
                     <Button variant="secondary" as="a" href="/school/fee/structure">Fee Structure →</Button>
                     <Button as="a" href="/school/fee/collect">Collect Fee →</Button>
-                </div>
-            </div>
+
+                </template>
+            </PageHeader>
 
             <!-- Add Group -->
             <div class="card">

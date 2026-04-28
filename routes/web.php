@@ -108,6 +108,11 @@ Route::middleware('auth')->group(function () {
     Route::group(['prefix' => 'school', 'as' => 'school.'], function () {
         Route::get('/', [DashboardController::class, 'index'])->name('index');
 
+        // UI Sandbox — manual visual QA for shared layout primitives (Phase 1
+        // of the layout-standardization migration). No controller — pure render.
+        Route::get('/_ui-sandbox', fn () => \Inertia\Inertia::render('School/UISandbox'))
+            ->name('ui-sandbox');
+
         // Staff Self-Service Punch Attendance (topbar panel — any logged-in staff)
         $SPC = \App\Http\Controllers\School\StaffPunchController::class;
         Route::post('staff-punch/clock-in',  [$SPC, 'clockIn'])  ->name('staff-punch.clock-in');

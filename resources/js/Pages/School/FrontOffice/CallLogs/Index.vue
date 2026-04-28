@@ -1,11 +1,14 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const school = useSchoolStore();
+const confirm = useConfirm();
 
 const props = defineProps({
     callLogs: { type: Array, default: () => [] },
@@ -41,10 +44,15 @@ const toggleFollowUp = (log) => {
     router.put(`/school/front-office/call-logs/${log.id}`, { follow_up_completed: !log.follow_up_completed }, { preserveScroll: true });
 };
 
-const deleteLog = (id) => {
-    if (confirm('Are you sure you want to delete this log?')) {
-        router.delete(`/school/front-office/call-logs/${id}`, { preserveScroll: true });
-    }
+const deleteLog = async (id) => {
+    const ok = await confirm({
+        title: 'Delete call log?',
+        message: 'This cannot be undone.',
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
+    router.delete(`/school/front-office/call-logs/${id}`, { preserveScroll: true });
 };
 
 const filteredLogs = computed(() => {
@@ -56,15 +64,13 @@ const filteredLogs = computed(() => {
 <template>
     <SchoolLayout title="Call Logs">
 
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Call Register</h1>
-                <p class="page-header-sub">Track incoming and outgoing communication and follow-ups.</p>
-            </div>
-            <Button @click="showForm = !showForm">
-                {{ showForm ? 'Close Directory' : '+ Record New Call' }}
-            </Button>
-        </div>
+        <PageHeader title="Call Register" subtitle="Track incoming and outgoing communication and follow-ups.">
+            <template #actions>
+                <Button @click="showForm = !showForm">
+                                {{ showForm ? 'Close Directory' : '+ Record New Call' }}
+                            </Button>
+            </template>
+        </PageHeader>
 
         <Transition enter-active-class="transition duration-300 ease-out" enter-from-class="translate-y-[-20px] opacity-0"
                     enter-to-class="translate-y-0 opacity-100" leave-active-class="transition duration-200 ease-in"

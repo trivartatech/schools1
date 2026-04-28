@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -31,12 +32,7 @@ const submit = () => {
 <template>
     <SchoolLayout title="School Profile">
 
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">School Profile</h1>
-                <p class="page-header-sub">Manage your school's identity, contact details, and affiliation information.</p>
-            </div>
-        </div>
+        <PageHeader title="School Profile" subtitle="Manage your school's identity, contact details, and affiliation information." />
 
         <form @submit.prevent="submit">
 

@@ -1,8 +1,12 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed, watch } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const props = defineProps({ leaveTypes: Array });
 
@@ -65,8 +69,14 @@ const submit = () => {
 const toggleActive = (lt) => {
     router.patch(`/school/leave-types/${lt.id}/toggle`, {}, { preserveScroll: true });
 };
-const deleteType = (lt) => {
-    if (!confirm(`Delete "${lt.name}"? This cannot be undone.`)) return;
+const deleteType = async (lt) => {
+    const ok = await confirm({
+        title: 'Delete leave type?',
+        message: `Delete "${lt.name}"? This cannot be undone.`,
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
     router.delete(`/school/leave-types/${lt.id}`, { preserveScroll: true });
 };
 
@@ -88,16 +98,14 @@ const onDropCard = (target) => {
     <SchoolLayout title="Leave Type Management">
 
         <!-- Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Leave Types</h1>
-                <p class="page-header-sub">Configure leave categories, annual allocation, and rules for your school</p>
-            </div>
-            <Button @click="openCreate">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                Add Leave Type
-            </Button>
-        </div>
+        <PageHeader title="Leave Types" subtitle="Configure leave categories, annual allocation, and rules for your school">
+            <template #actions>
+                <Button @click="openCreate">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                Add Leave Type
+                            </Button>
+            </template>
+        </PageHeader>
 
         <div class="lt-shell">
 

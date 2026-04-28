@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { useForm, Head, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 
@@ -50,17 +51,19 @@ const submit = () => {
     <SchoolLayout title="Request Profile Edit">
 
         <!-- Page header -->
-        <div class="page-header">
-            <div class="page-header-left">
-                <Link :href="`/school/students/${student.id}`" class="back-btn" aria-label="Back">
-                    <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                </Link>
-                <div>
+        <PageHeader>
+            <template #title>
+                <div class="page-header-left">
+                    <Link :href="`/school/students/${student.id}`" class="back-btn" aria-label="Back">
+                        <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                    </Link>
                     <h1 class="page-header-title">Request Profile Edit</h1>
-                    <p class="page-header-sub">Admission No: <strong>{{ student.admission_no }}</strong></p>
                 </div>
-            </div>
-        </div>
+            </template>
+            <template #subtitle>
+                <p class="page-header-sub">Admission No: <strong>{{ student.admission_no }}</strong></p>
+            </template>
+        </PageHeader>
 
         <!-- Workflow notice -->
         <div class="workflow-notice">

@@ -1,9 +1,14 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import Modal from '@/Components/ui/Modal.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
+import Table from '@/Components/ui/Table.vue';
 import { ref } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
-import Table from '@/Components/ui/Table.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const props = defineProps({
     methods: Array,
@@ -59,8 +64,14 @@ function toggleActive(m) {
     });
 }
 
-function deleteMethod(m) {
-    if (!confirm(`Delete "${m.label}"? Existing transactions tagged with this method will keep the code on record but it won't appear in dropdowns anymore.`)) return;
+async function deleteMethod(m) {
+    const ok = await confirm({
+        title: 'Delete payment method?',
+        message: `"${m.label}" will no longer appear in transaction dropdowns. Existing transactions tagged with this method will keep the code on record.`,
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
     router.delete(route('school.finance.payment-methods.destroy', m.id), {
         preserveScroll: true,
     });
@@ -75,16 +86,14 @@ function autoCode() {
 
 <template>
     <SchoolLayout>
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Payment Methods</h1>
-                <p class="page-header-sub">
-                    Manage the list of payment modes shown on every transaction screen
-                    (Fee Collection, Expenses, Payroll, Hostel, Transport, Stationary).
-                </p>
-            </div>
-            <Button @click="openCreate">+ New Payment Method</Button>
-        </div>
+        <PageHeader
+            title="Payment Methods"
+            subtitle="Manage the list of payment modes shown on every transaction screen (Fee Collection, Expenses, Payroll, Hostel, Transport, Stationary)."
+        >
+            <template #actions>
+                <Button @click="openCreate">+ New Payment Method</Button>
+            </template>
+        </PageHeader>
 
         <div class="card">
             <Table :empty="methods.length === 0" empty-text="No payment methods yet. Click '+ New Payment Method' to add one.">
@@ -117,64 +126,56 @@ function autoCode() {
         </div>
 
         <!-- Add / Edit Modal -->
-        <Teleport to="body">
-            <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
-                <div class="modal-box">
-                    <div class="modal-header">
-                        <h3>{{ isEditing ? 'Edit Payment Method' : 'New Payment Method' }}</h3>
-                        <button class="modal-close" @click="showModal = false">×</button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="form-group">
-                            <label class="form-label">Display Label <span class="req">*</span></label>
-                            <input
-                                v-model="form.label"
-                                type="text"
-                                class="form-input"
-                                placeholder="e.g. Paytm"
-                                @blur="autoCode"
-                            />
-                            <p v-if="form.errors.label" class="form-error">{{ form.errors.label }}</p>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">Code <span class="req">*</span></label>
-                            <input
-                                v-model="form.code"
-                                type="text"
-                                class="form-input"
-                                :disabled="isEditing"
-                                placeholder="e.g. paytm"
-                            />
-                            <p class="form-hint">
-                                Lowercase, no spaces (letters/digits/underscore only). Stored on every transaction record.
-                                {{ isEditing ? 'Cannot be changed once set.' : '' }}
-                            </p>
-                            <p v-if="form.errors.code" class="form-error">{{ form.errors.code }}</p>
-                        </div>
-
-                        <div class="form-group" style="flex-direction:row; align-items:center; gap:10px;">
-                            <input type="checkbox" v-model="form.is_active" id="pm_active_chk" />
-                            <label for="pm_active_chk" class="form-label" style="margin:0; cursor:pointer;">
-                                Active (visible in transaction dropdowns)
-                            </label>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">Sort Order</label>
-                            <input v-model.number="form.sort_order" type="number" min="0" class="form-input" />
-                            <p class="form-hint">Lower numbers appear first in dropdowns.</p>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <Button variant="secondary" @click="showModal = false">Cancel</Button>
-                        <Button @click="save" :loading="form.processing">
-                            {{ isEditing ? 'Update' : 'Create' }}
-                        </Button>
-                    </div>
+        <Modal v-model:open="showModal" :title="isEditing ? 'Edit Payment Method' : 'New Payment Method'" size="md">
+            <form @submit.prevent="save" id="pm-form">
+                <div class="form-group">
+                    <label class="form-label">Display Label <span class="req">*</span></label>
+                    <input
+                        v-model="form.label"
+                        type="text"
+                        class="form-input"
+                        placeholder="e.g. Paytm"
+                        @blur="autoCode"
+                    />
+                    <p v-if="form.errors.label" class="form-error">{{ form.errors.label }}</p>
                 </div>
-            </div>
-        </Teleport>
+
+                <div class="form-group">
+                    <label class="form-label">Code <span class="req">*</span></label>
+                    <input
+                        v-model="form.code"
+                        type="text"
+                        class="form-input"
+                        :disabled="isEditing"
+                        placeholder="e.g. paytm"
+                    />
+                    <p class="form-hint">
+                        Lowercase, no spaces (letters/digits/underscore only). Stored on every transaction record.
+                        {{ isEditing ? 'Cannot be changed once set.' : '' }}
+                    </p>
+                    <p v-if="form.errors.code" class="form-error">{{ form.errors.code }}</p>
+                </div>
+
+                <div class="form-group" style="flex-direction:row; align-items:center; gap:10px;">
+                    <input type="checkbox" v-model="form.is_active" id="pm_active_chk" />
+                    <label for="pm_active_chk" class="form-label" style="margin:0; cursor:pointer;">
+                        Active (visible in transaction dropdowns)
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Sort Order</label>
+                    <input v-model.number="form.sort_order" type="number" min="0" class="form-input" />
+                    <p class="form-hint">Lower numbers appear first in dropdowns.</p>
+                </div>
+            </form>
+            <template #footer>
+                <Button variant="secondary" @click="showModal = false">Cancel</Button>
+                <Button type="submit" form="pm-form" :loading="form.processing">
+                    {{ isEditing ? 'Update' : 'Create' }}
+                </Button>
+            </template>
+        </Modal>
     </SchoolLayout>
 </template>
 
@@ -200,36 +201,10 @@ function autoCode() {
 .pm-status--active   { background: #d1fae5; color: #065f46; }
 .pm-status--inactive { background: #fee2e2; color: #991b1b; }
 
-/* Modal */
-.modal-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.4);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 9000; padding: 20px;
-}
-.modal-box {
-    background: #fff; border-radius: 16px;
-    width: 100%; max-width: 480px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-    overflow: hidden; max-height: 90vh; overflow-y: auto;
-}
-.modal-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 18px 22px; border-bottom: 1px solid #f1f5f9;
-}
-.modal-header h3 { font-weight: 700; font-size: 1rem; color: #1e293b; }
-.modal-close {
-    background: none; border: none; cursor: pointer;
-    font-size: 1.4rem; color: #94a3b8; line-height: 1;
-}
-.modal-close:hover { color: #1e293b; }
-.modal-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; }
-.modal-footer {
-    display: flex; justify-content: flex-end; gap: 10px;
-    padding: 14px 22px;
-    border-top: 1px solid #f1f5f9; background: #f8fafc;
-}
-.form-group { display: flex; flex-direction: column; gap: 5px; }
+/* Modal form fields — Tailwind preflight workaround. Scoped here so styles
+   only affect this page's <Modal> contents (data-v travels with teleport). */
+.form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+.form-group:last-child { margin-bottom: 0; }
 .form-label { font-size: 0.8rem; font-weight: 600; color: #374151; }
 .req { color: #ef4444; }
 .form-input {

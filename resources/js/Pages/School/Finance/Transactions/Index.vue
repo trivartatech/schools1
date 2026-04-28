@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
 import { ref, computed } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
@@ -7,8 +8,10 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import ExportDropdown from '@/Components/ExportDropdown.vue';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const school = useSchoolStore();
+const confirm = useConfirm();
 
 const props = defineProps({
     transactions : Object,   // paginated
@@ -34,8 +37,14 @@ function resetFilter() {
     applyFilter();
 }
 
-function deleteTransaction(id) {
-    if (!confirm('Delete this transaction? This cannot be undone.')) return;
+async function deleteTransaction(id) {
+    const ok = await confirm({
+        title: 'Delete transaction?',
+        message: 'Delete this transaction? This cannot be undone.',
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
     router.delete(route('school.finance.transactions.destroy', id), { preserveScroll: true });
 }
 
@@ -73,12 +82,8 @@ const statusClass = {
 <template>
     <SchoolLayout>
         <!-- Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Transactions</h1>
-                <p class="page-header-sub">Journal entries &amp; vouchers for all accounting transactions</p>
-            </div>
-            <div style="display:flex;gap:10px;">
+        <PageHeader title="Transactions" subtitle="Journal entries &amp;amp; vouchers for all accounting transactions">
+            <template #actions>
                 <ExportDropdown
                     base-url="/school/export/transactions"
                     :params="{ type: filterType, status: filterStatus, from: filterFrom, to: filterTo }"
@@ -86,8 +91,9 @@ const statusClass = {
                 <Button as="link" :href="route('school.finance.transactions.create')">
                     + New Transaction
                 </Button>
-            </div>
-        </div>
+
+            </template>
+        </PageHeader>
 
         <!-- Stats bar -->
         <div class="stats-bar">

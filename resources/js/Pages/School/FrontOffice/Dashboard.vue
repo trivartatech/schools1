@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
@@ -75,15 +76,13 @@ const formatTime = (t) => {
     <SchoolLayout title="Front Office Dashboard">
 
         <!-- Page Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Front Office Dashboard</h1>
-                <p class="page-header-sub">Real-time overview of visitors, passes, complaints, and correspondence</p>
-            </div>
-            <Button as="link" href="/school/front-office/daily-report">
-                Daily Report
-            </Button>
-        </div>
+        <PageHeader title="Front Office Dashboard" subtitle="Real-time overview of visitors, passes, complaints, and correspondence">
+            <template #actions>
+                <Button as="link" href="/school/front-office/daily-report">
+                                Daily Report
+                            </Button>
+            </template>
+        </PageHeader>
 
         <!-- Stats Grid -->
         <div class="stats-grid">

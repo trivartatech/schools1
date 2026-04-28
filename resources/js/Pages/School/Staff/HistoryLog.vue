@@ -1,5 +1,6 @@
 <script setup>
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 
@@ -42,9 +43,7 @@ const fmtSal = (n) => n ? '₹' + Number(n).toLocaleString('en-IN') : null;
 
 <template>
     <SchoolLayout title="Staff History Log">
-        <div class="page-header">
-            <h1 class="page-header-title">Staff Career History Log</h1>
-        </div>
+        <PageHeader title="Staff Career History Log" />
 
         <!-- Filters -->
         <div class="card" style="margin-bottom:16px;padding:12px 16px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;">

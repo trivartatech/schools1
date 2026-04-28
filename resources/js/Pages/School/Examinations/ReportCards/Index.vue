@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed, watch } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -302,12 +303,8 @@ const resultTitle = computed(() => {
     <SchoolLayout title="Report Cards">
 
         <!-- Page Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">📋 Report Card Generator</h1>
-                <p class="page-header-sub">Generate report cards by exam, term, or full-year cumulative — for one student or many.</p>
-            </div>
-            <div v-if="students.length" style="display:flex;gap:10px;align-items:center;">
+        <PageHeader title="📋 Report Card Generator" subtitle="Generate report cards by exam, term, or full-year cumulative — for one student or many.">
+            <template #actions>
                 <button @click="generateAiComments" class="btn-ai-comments" :disabled="aiLoading">
                     <span v-if="aiLoading" class="ai-spin">⏳</span>
                     <span v-else>✨</span>
@@ -319,8 +316,9 @@ const resultTitle = computed(() => {
                     </svg>
                     Print {{ selectedIds.length }} Report Card{{ selectedIds.length !== 1 ? 's' : '' }}
                 </Button>
-            </div>
-        </div>
+
+            </template>
+        </PageHeader>
 
         <!-- Filters Card -->
         <div class="card mb-6">

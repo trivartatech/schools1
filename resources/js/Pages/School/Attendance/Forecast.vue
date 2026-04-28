@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { Line } from 'vue-chartjs';
 import {
     Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -122,9 +123,7 @@ const lastSevenAvg = computed(() => {
 
 <template>
     <SchoolLayout title="Attendance Forecast">
-        <div class="page-header">
-            <h1 class="page-header-title">Attendance Forecast</h1>
-        </div>
+        <PageHeader title="Attendance Forecast" />
 
         <!-- Filters -->
         <div class="card" style="margin-bottom:20px;">

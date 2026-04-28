@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -78,13 +79,11 @@ const statusBtns = [
 
 <template>
 <SchoolLayout title="Hostel Roll Call">
-    <div class="page-header">
-        <div>
-            <h1 class="page-header-title">Hostel Roll Call</h1>
-            <p class="page-header-sub">Nightly / morning bed check for hostel residents</p>
-        </div>
-        <Button variant="secondary" as="a" :href="route('school.hostel.roll-call.report')">Monthly Report</Button>
-    </div>
+    <PageHeader title="Hostel Roll Call" subtitle="Nightly / morning bed check for hostel residents">
+        <template #actions>
+            <Button variant="secondary" as="a" :href="route('school.hostel.roll-call.report')">Monthly Report</Button>
+        </template>
+    </PageHeader>
 
     <!-- Filters -->
     <div class="card" style="margin-bottom:16px;">

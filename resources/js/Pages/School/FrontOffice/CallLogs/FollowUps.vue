@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -52,16 +53,14 @@ const handlerName = (log) => {
 <template>
     <SchoolLayout title="Follow-Up Dashboard">
 
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Follow-Up Dashboard</h1>
-                <p class="page-header-sub">Track and manage pending call log follow-ups across all timelines.</p>
-            </div>
-            <Button variant="secondary" as="link" href="/school/front-office/call-logs">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                Back to Call Logs
-            </Button>
-        </div>
+        <PageHeader title="Follow-Up Dashboard" subtitle="Track and manage pending call log follow-ups across all timelines.">
+            <template #actions>
+                <Button variant="secondary" as="link" href="/school/front-office/call-logs">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                                Back to Call Logs
+                            </Button>
+            </template>
+        </PageHeader>
 
         <!-- Stats Row -->
         <div class="stats-row">

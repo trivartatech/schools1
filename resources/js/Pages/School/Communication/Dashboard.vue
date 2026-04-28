@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -82,15 +83,13 @@ const breakdownEntries = computed(() => {
     <SchoolLayout title="Communication Dashboard">
 
         <!-- Page Header -->
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">Communication Dashboard</h2>
-                <p class="page-header-sub">Overview of messaging channels, delivery stats, and recent activity</p>
-            </div>
-            <Button variant="secondary" as="link" :href="route('school.communication.logs')">
-                View All Logs
-            </Button>
-        </div>
+        <PageHeader title="Communication Dashboard" subtitle="Overview of messaging channels, delivery stats, and recent activity">
+            <template #actions>
+                <Button variant="secondary" as="link" :href="route('school.communication.logs')">
+                                View All Logs
+                            </Button>
+            </template>
+        </PageHeader>
 
         <!-- ── 1. Stat Cards ───────────────────────────────────────── -->
         <div class="stat-row">

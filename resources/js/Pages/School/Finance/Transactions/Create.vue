@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { useForm, router, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -87,19 +88,21 @@ const typeDescriptions = {
 <template>
     <SchoolLayout>
         <!-- Header -->
-        <div class="page-header">
-            <div style="display:flex; align-items:center; gap:12px;">
-                <Link :href="route('school.finance.transactions.index')" class="back-btn">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
-                    </svg>
-                </Link>
-                <div>
+        <PageHeader>
+            <template #title>
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <Link :href="route('school.finance.transactions.index')" class="back-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+                        </svg>
+                    </Link>
                     <h1 class="page-header-title">{{ editMode ? 'Edit Transaction' : 'New Transaction' }}</h1>
-                    <p class="page-header-sub">{{ editMode ? 'Update journal entry' : 'Create a double-entry accounting record' }}</p>
                 </div>
-            </div>
-        </div>
+            </template>
+            <template #subtitle>
+                <p class="page-header-sub">{{ editMode ? 'Update journal entry' : 'Create a double-entry accounting record' }}</p>
+            </template>
+        </PageHeader>
 
         <div class="create-layout">
             <!-- Left: Form -->

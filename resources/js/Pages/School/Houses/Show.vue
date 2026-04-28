@@ -3,10 +3,16 @@ import { ref, reactive, computed } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import Modal from '@/Components/ui/Modal.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
+import Tabs from '@/Components/ui/Tabs.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
 import Table from '@/Components/ui/Table.vue';
 import { usePermissions } from '@/Composables/usePermissions';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const { canDo } = usePermissions();
+const confirm = useConfirm();
 
 const props = defineProps({
     house:              { type: Object, required: true },
@@ -41,12 +47,6 @@ function openAssignModal() {
     showAssignModal.value = true;
 }
 
-function toggleStudent(id) {
-    const idx = selectedIds.value.indexOf(id);
-    if (idx === -1) selectedIds.value.push(id);
-    else selectedIds.value.splice(idx, 1);
-}
-
 function assignStudents() {
     if (!selectedIds.value.length) return;
     assignLoading.value = true;
@@ -57,8 +57,14 @@ function assignStudents() {
     });
 }
 
-function removeStudent(studentId) {
-    if (!confirm('Remove this student from the house?')) return;
+async function removeStudent(studentId) {
+    const ok = await confirm({
+        title: 'Remove from house?',
+        message: 'The student will be moved out of this house.',
+        confirmLabel: 'Remove',
+        danger: true,
+    });
+    if (!ok) return;
     router.delete(`/school/houses/${props.house.id}/students/${studentId}`);
 }
 
@@ -83,8 +89,14 @@ function savePoints() {
     });
 }
 
-function deletePoint(pointId) {
-    if (!confirm('Delete this points entry?')) return;
+async function deletePoint(pointId) {
+    const ok = await confirm({
+        title: 'Delete points entry?',
+        message: 'This will adjust the house total. This cannot be undone.',
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
     router.delete(`/school/houses/${props.house.id}/points/${pointId}`);
 }
 
@@ -109,54 +121,57 @@ function classSection(hs) {
 }
 import { useFormat } from '@/Composables/useFormat';
 const { formatDate } = useFormat();
+
+const tabsConfig = computed(() => [
+    { key: 'students', label: 'Students',    count: props.houseStudents.length },
+    { key: 'points',   label: 'Points Log',  count: props.points.length },
+]);
+
+function toggleStudent(id) {
+    const idx = selectedIds.value.indexOf(id);
+    if (idx === -1) selectedIds.value.push(id);
+    else selectedIds.value.splice(idx, 1);
+}
 </script>
 
 <template>
 <SchoolLayout :title="house.name">
-    <div class="page-header">
-        <div style="display:flex;align-items:center;gap:12px;">
-            <div class="house-color-blob" :style="{ background: house.color }"></div>
-            <div>
+    <PageHeader>
+        <template #title>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div class="house-color-blob" :style="{ background: house.color }"></div>
                 <h1 class="page-header-title">{{ house.name }}</h1>
-                <p class="page-header-sub">
-                    Incharge: <strong>{{ house.incharge?.name || '—' }}</strong>
-                    &nbsp;·&nbsp;
-                    Captain: <strong>{{ house.captain ? `${house.captain.first_name} ${house.captain.last_name}` : '—' }}</strong>
-                </p>
             </div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;">
+        </template>
+        <template #subtitle>
+            <p class="page-header-sub" style="margin-left:56px;">
+                Incharge: <strong>{{ house.incharge?.name || '—' }}</strong>
+                &nbsp;·&nbsp;
+                Captain: <strong>{{ house.captain ? `${house.captain.first_name} ${house.captain.last_name}` : '—' }}</strong>
+            </p>
+        </template>
+        <template #actions>
             <div class="points-badge" :style="{ background: house.color }">{{ total_points }} pts</div>
-            <Link href="/school/houses" class="btn btn-secondary">← Houses</Link>
-            <Link href="/school/houses/leaderboard" class="btn btn-secondary">Leaderboard</Link>
-        </div>
-    </div>
+            <Button as="link" variant="secondary" href="/school/houses">← Houses</Button>
+            <Button as="link" variant="secondary" href="/school/houses/leaderboard">Leaderboard</Button>
+        </template>
+    </PageHeader>
 
-    <!-- Tabs -->
-    <div class="tabs">
-        <button class="tab-btn" :class="{ active: activeTab === 'students' }" @click="activeTab = 'students'">
-            Students ({{ houseStudents.length }})
-        </button>
-        <button class="tab-btn" :class="{ active: activeTab === 'points' }" @click="activeTab = 'points'">
-            Points Log ({{ points.length }})
-        </button>
-    </div>
-
-    <!-- Students Tab -->
-    <div v-show="activeTab === 'students'">
-        <div class="card">
-            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
-                <h3 class="card-title">House Members</h3>
-                <Button v-if="canDo('edit','houses')" @click="openAssignModal" size="sm">+ Assign Students</Button>
-            </div>
-            <div style="overflow-x:auto;">
-                <Table>
+    <Tabs v-model="activeTab" :tabs="tabsConfig">
+        <!-- Students Tab -->
+        <template #tab-students>
+            <div class="card">
+                <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                    <h3 class="card-title">House Members</h3>
+                    <Button v-if="canDo('edit','houses')" @click="openAssignModal" size="sm">+ Assign Students</Button>
+                </div>
+                <Table :empty="!houseStudents.length">
                     <thead>
                         <tr>
                             <th>#</th>
                             <th>Student</th>
                             <th>Admission No.</th>
-                            <th>Class & Section</th>
+                            <th>Class &amp; Section</th>
                             <th>Gender</th>
                             <th v-if="canDo('edit','houses')" style="text-align:right;">Action</th>
                         </tr>
@@ -172,26 +187,26 @@ const { formatDate } = useFormat();
                                 <Button variant="danger" size="xs" @click="removeStudent(hs.student_id)">Remove</Button>
                             </td>
                         </tr>
-                        <tr v-if="!houseStudents.length">
-                            <td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">
-                                No students assigned yet.
-                            </td>
-                        </tr>
                     </tbody>
+                    <template #empty>
+                        <EmptyState
+                            variant="compact"
+                            title="No students assigned yet"
+                            description="Use 'Assign Students' to add unassigned students to this house."
+                        />
+                    </template>
                 </Table>
             </div>
-        </div>
-    </div>
+        </template>
 
-    <!-- Points Tab -->
-    <div v-show="activeTab === 'points'">
-        <div class="card">
-            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
-                <h3 class="card-title">Points Log</h3>
-                <Button v-if="canDo('edit','houses')" @click="openPointsModal" size="sm">+ Award / Deduct</Button>
-            </div>
-            <div style="overflow-x:auto;">
-                <Table>
+        <!-- Points Tab -->
+        <template #tab-points>
+            <div class="card">
+                <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                    <h3 class="card-title">Points Log</h3>
+                    <Button v-if="canDo('edit','houses')" @click="openPointsModal" size="sm">+ Award / Deduct</Button>
+                </div>
+                <Table :empty="!points.length">
                     <thead>
                         <tr>
                             <th>Date</th>
@@ -221,115 +236,94 @@ const { formatDate } = useFormat();
                                 <Button variant="danger" size="xs" @click="deletePoint(pt.id)">Delete</Button>
                             </td>
                         </tr>
-                        <tr v-if="!points.length">
-                            <td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">
-                                No points recorded yet.
-                            </td>
-                        </tr>
                     </tbody>
+                    <template #empty>
+                        <EmptyState
+                            variant="compact"
+                            title="No points recorded yet"
+                            description="Award or deduct points to track this house's performance."
+                        />
+                    </template>
                 </Table>
             </div>
-        </div>
-    </div>
+        </template>
+    </Tabs>
 
     <!-- Assign Students Modal -->
-    <Teleport to="body">
-    <div v-if="showAssignModal" class="modal-backdrop" @mousedown.self="showAssignModal = false">
-        <div class="modal">
-            <div class="card-header">
-                <h3 class="card-title">Assign Students to {{ house.name }}</h3>
-            </div>
-            <div class="card-body">
-                <div v-if="Object.keys(assignErrors).length" class="form-errors">
-                    <div v-for="(msg, f) in assignErrors" :key="f">{{ msg }}</div>
-                </div>
-
-                <input
-                    v-model="searchQuery"
-                    class="search-input"
-                    placeholder="Search by name or admission no..."
-                    style="margin-bottom:12px;"
-                >
-
-                <div class="student-list">
-                    <label
-                        v-for="s in filteredUnassigned"
-                        :key="s.id"
-                        class="student-item"
-                        :class="{ selected: selectedIds.includes(s.id) }"
-                    >
-                        <input type="checkbox" :value="s.id" v-model="selectedIds" style="display:none;">
-                        <div class="student-check">
-                            <svg v-if="selectedIds.includes(s.id)" viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                        </div>
-                        <div>
-                            <div style="font-weight:600;font-size:.85rem;">{{ s.first_name }} {{ s.last_name }}</div>
-                            <div style="font-size:.75rem;color:var(--text-muted);">{{ s.admission_no }}</div>
-                        </div>
-                    </label>
-                    <p v-if="!filteredUnassigned.length" style="text-align:center;color:var(--text-muted);padding:1.5rem;font-size:.85rem;">
-                        {{ searchQuery ? 'No matching students.' : 'All students are already assigned to a house.' }}
-                    </p>
-                </div>
-
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
-                    <span style="font-size:.8rem;color:var(--text-muted);">{{ selectedIds.length }} selected</span>
-                    <div style="display:flex;gap:8px;">
-                        <Button variant="secondary" @click="showAssignModal = false">Cancel</Button>
-                        <Button @click="assignStudents" :loading="assignLoading" :disabled="!selectedIds.length">
-                            Assign
-                        </Button>
-                    </div>
-                </div>
-            </div>
+    <Modal v-model:open="showAssignModal" :title="`Assign Students to ${house.name}`" size="md">
+        <div v-if="Object.keys(assignErrors).length" class="form-errors">
+            <div v-for="(msg, f) in assignErrors" :key="f">{{ msg }}</div>
         </div>
-    </div>
-    </Teleport>
+
+        <input
+            v-model="searchQuery"
+            class="search-input"
+            placeholder="Search by name or admission no..."
+            style="margin-bottom:12px;"
+        >
+
+        <div class="student-list">
+            <label
+                v-for="s in filteredUnassigned"
+                :key="s.id"
+                class="student-item"
+                :class="{ selected: selectedIds.includes(s.id) }"
+            >
+                <input type="checkbox" :value="s.id" v-model="selectedIds" style="display:none;">
+                <div class="student-check">
+                    <svg v-if="selectedIds.includes(s.id)" viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                </div>
+                <div>
+                    <div style="font-weight:600;font-size:.85rem;">{{ s.first_name }} {{ s.last_name }}</div>
+                    <div style="font-size:.75rem;color:var(--text-muted);">{{ s.admission_no }}</div>
+                </div>
+            </label>
+            <p v-if="!filteredUnassigned.length" style="text-align:center;color:var(--text-muted);padding:1.5rem;font-size:.85rem;">
+                {{ searchQuery ? 'No matching students.' : 'All students are already assigned to a house.' }}
+            </p>
+        </div>
+
+        <template #footer>
+            <span style="font-size:.8rem;color:var(--text-muted);margin-right:auto;">{{ selectedIds.length }} selected</span>
+            <Button variant="secondary" @click="showAssignModal = false">Cancel</Button>
+            <Button @click="assignStudents" :loading="assignLoading" :disabled="!selectedIds.length">Assign</Button>
+        </template>
+    </Modal>
 
     <!-- Points Modal -->
-    <Teleport to="body">
-    <div v-if="showPointsModal" class="modal-backdrop" @mousedown.self="showPointsModal = false">
-        <div class="modal" style="max-width:420px;">
-            <div class="card-header">
-                <h3 class="card-title">Award / Deduct Points</h3>
-            </div>
-            <div class="card-body">
-                <div v-if="Object.keys(pointsErrors).length" class="form-errors">
-                    <div v-for="(msg, f) in pointsErrors" :key="f">{{ msg }}</div>
-                </div>
-
-                <form @submit.prevent="savePoints">
-                    <div class="form-row-2">
-                        <div class="form-field">
-                            <label>Category <span class="required">*</span></label>
-                            <select v-model="pointsForm.category" required>
-                                <option value="sports">Sports</option>
-                                <option value="academic">Academic</option>
-                                <option value="cultural">Cultural</option>
-                                <option value="discipline">Discipline</option>
-                                <option value="general">General</option>
-                            </select>
-                        </div>
-                        <div class="form-field">
-                            <label>Points <span class="required">*</span></label>
-                            <input v-model.number="pointsForm.points" type="number" required placeholder="e.g. 10 or -5" min="-999" max="999">
-                            <p class="form-hint">Positive = award, negative = deduction</p>
-                        </div>
-                    </div>
-                    <div class="form-field" style="margin-top:12px;">
-                        <label>Description <span class="required">*</span></label>
-                        <input v-model="pointsForm.description" required placeholder="e.g. Won inter-house cricket match" maxlength="255">
-                    </div>
-
-                    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;padding-top:12px;border-top:1px solid var(--border);">
-                        <Button variant="secondary" type="button" @click="showPointsModal = false">Cancel</Button>
-                        <Button type="submit" :loading="pointsLoading">Save</Button>
-                    </div>
-                </form>
-            </div>
+    <Modal v-model:open="showPointsModal" title="Award / Deduct Points" size="sm">
+        <div v-if="Object.keys(pointsErrors).length" class="form-errors">
+            <div v-for="(msg, f) in pointsErrors" :key="f">{{ msg }}</div>
         </div>
-    </div>
-    </Teleport>
+
+        <form @submit.prevent="savePoints" id="points-form">
+            <div class="form-row form-row-2">
+                <div class="form-field">
+                    <label>Category <span class="required">*</span></label>
+                    <select v-model="pointsForm.category" required>
+                        <option value="sports">Sports</option>
+                        <option value="academic">Academic</option>
+                        <option value="cultural">Cultural</option>
+                        <option value="discipline">Discipline</option>
+                        <option value="general">General</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label>Points <span class="required">*</span></label>
+                    <input v-model.number="pointsForm.points" type="number" required placeholder="e.g. 10 or -5" min="-999" max="999">
+                    <p class="form-hint">Positive = award, negative = deduction</p>
+                </div>
+            </div>
+            <div class="form-field" style="margin-top:12px;">
+                <label>Description <span class="required">*</span></label>
+                <input v-model="pointsForm.description" required placeholder="e.g. Won inter-house cricket match" maxlength="255">
+            </div>
+        </form>
+        <template #footer>
+            <Button variant="secondary" type="button" @click="showPointsModal = false">Cancel</Button>
+            <Button type="submit" form="points-form" :loading="pointsLoading">Save</Button>
+        </template>
+    </Modal>
 </SchoolLayout>
 </template>
 
@@ -342,24 +336,10 @@ const { formatDate } = useFormat();
     padding: 5px 14px; border-radius: 20px; color: #fff;
     font-weight: 800; font-size: .85rem;
 }
-.btn { display:inline-flex;align-items:center;justify-content:center;padding:7px 14px;border-radius:6px;font-size:.83rem;font-weight:600;text-decoration:none;transition:all .15s;cursor:pointer; }
-.btn-secondary { background:var(--bg);border:1px solid var(--border);color:var(--text-primary); }
-.btn-secondary:hover { background:#f1f5f9; }
-
-.tabs { display:flex; gap:4px; margin-bottom:16px; border-bottom:2px solid var(--border); }
-.tab-btn {
-    padding: 8px 18px; font-size:.85rem; font-weight:600; color:var(--text-muted);
-    background:none; border:none; cursor:pointer; border-bottom:2px solid transparent;
-    margin-bottom:-2px; transition:all .15s;
-}
-.tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); }
-.tab-btn:hover:not(.active) { color:var(--text-primary); }
 
 .cat-badge { padding:2px 9px; border-radius:20px; font-size:.72rem; font-weight:700; }
 .pts-value  { font-weight:800; font-size:.95rem; }
 
-.modal-backdrop { position:fixed;inset:0;background:rgba(15,23,42,.5);display:flex;align-items:center;justify-content:center;z-index:1000; }
-.modal { background:#fff;border-radius:.75rem;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2); }
 .form-errors { background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;font-size:.82rem;color:#dc2626;margin-bottom:14px; }
 .required { color:#ef4444; }
 .form-hint { font-size:.72rem;color:var(--text-muted);margin-top:3px; }

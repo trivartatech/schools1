@@ -1,7 +1,11 @@
 <script setup>
 import { ref, computed } from 'vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { Head, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const props = defineProps({
     classes: Array,
@@ -93,16 +97,34 @@ const onDropSubject = (cs) => {
 };
 
 // ── Remove incharge ───────────────────────────────────
-const removeClassIncharge = (cls) => {
-    if (!confirm(`Remove incharge from ${cls.name}?`)) return;
+const removeClassIncharge = async (cls) => {
+    const ok = await confirm({
+        title: 'Remove class incharge?',
+        message: `Remove incharge from ${cls.name}?`,
+        confirmLabel: 'Remove',
+        danger: true,
+    });
+    if (!ok) return;
     router.post(`/school/incharge/class/${cls.id}`, { staff_id: null }, { preserveScroll: true });
 };
-const removeSectionIncharge = (section) => {
-    if (!confirm(`Remove incharge from ${section.name}?`)) return;
+const removeSectionIncharge = async (section) => {
+    const ok = await confirm({
+        title: 'Remove section incharge?',
+        message: `Remove incharge from ${section.name}?`,
+        confirmLabel: 'Remove',
+        danger: true,
+    });
+    if (!ok) return;
     router.post(`/school/incharge/section/${section.id}`, { staff_id: null }, { preserveScroll: true });
 };
-const removeSubjectIncharge = (cs) => {
-    if (!confirm('Remove subject incharge?')) return;
+const removeSubjectIncharge = async (cs) => {
+    const ok = await confirm({
+        title: 'Remove subject incharge?',
+        message: 'Remove subject incharge?',
+        confirmLabel: 'Remove',
+        danger: true,
+    });
+    if (!ok) return;
     router.post(`/school/incharge/subject/${cs.id}`, { staff_id: null }, { preserveScroll: true });
 };
 
@@ -123,12 +145,7 @@ const subjectsByClass = computed(() => {
     <SchoolLayout title="Incharge Assignment">
 
         <!-- Page Header -->
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">Incharge Assignment</h2>
-                <p class="page-header-sub">Drag a staff member from the left panel and drop on a class, section, or subject slot</p>
-            </div>
-        </div>
+        <PageHeader title="Incharge Assignment" subtitle="Drag a staff member from the left panel and drop on a class, section, or subject slot" />
 
         <div class="incharge-shell">
 

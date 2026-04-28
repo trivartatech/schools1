@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -49,17 +50,16 @@ const submit = () => {
     <SchoolLayout title="Bulk Student Photo Upload">
 
         <!-- Page header -->
-        <div class="page-header">
-            <div class="page-header-left">
-                <Link href="/school/students" class="back-btn" aria-label="Back to students">
-                    <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                </Link>
-                <div>
+        <PageHeader subtitle="Update multiple student photos at once using admission numbers.">
+            <template #title>
+                <div class="page-header-left">
+                    <Link href="/school/students" class="back-btn" aria-label="Back to students">
+                        <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                    </Link>
                     <h1 class="page-header-title">Bulk Photo Upload</h1>
-                    <p class="page-header-sub">Update multiple student photos at once using admission numbers.</p>
                 </div>
-            </div>
-        </div>
+            </template>
+        </PageHeader>
 
         <div class="upload-layout">
 

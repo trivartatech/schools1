@@ -1,13 +1,16 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed, onMounted } from 'vue';
 import { useForm, router, usePage, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const school = useSchoolStore();
+const confirm = useConfirm();
 
 const props = defineProps({
     leaves:         Object,
@@ -184,8 +187,13 @@ const submitAction = () => {
     });
 };
 
-const revertLeave = (id) => {
-    if (!confirm('Revert this leave back to pending?')) return;
+const revertLeave = async (id) => {
+    const ok = await confirm({
+        title: 'Revert leave?',
+        message: 'Revert this leave back to pending?',
+        confirmLabel: 'Revert',
+    });
+    if (!ok) return;
     router.patch(`/school/student-leaves/${id}/revert`, {}, { preserveScroll: true });
 };
 
@@ -225,20 +233,17 @@ const docTypeIcon = (mime) => {
     <SchoolLayout title="Student Leave Management">
 
             <!-- Header -->
-            <div class="page-header">
-                <div>
-                    <h1 class="page-header-title">Student Leave Requests</h1>
-                    <p class="page-header-sub">Manage and track student leave applications</p>
-                </div>
-                <div style="display:flex;gap:0.5rem;">
+            <PageHeader title="Student Leave Requests" subtitle="Manage and track student leave applications">
+                <template #actions>
                     <Button variant="secondary" as="link" v-if="isManagement" href="/school/student-leave-types">
                         Leave Types
                     </Button>
                     <Button v-if="canApply" @click="showApplyForm = !showApplyForm">
                         {{ showApplyForm ? 'Cancel' : 'Apply for Leave' }}
                     </Button>
-                </div>
-            </div>
+
+                </template>
+            </PageHeader>
 
             <!-- Apply Form -->
             <transition name="slide">

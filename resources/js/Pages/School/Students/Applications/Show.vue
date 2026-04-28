@@ -3,16 +3,23 @@ import { ref } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const props = defineProps({ application: Object });
 
 const showRejectModal = ref(false);
 const rejectForm = useForm({ rejection_reason: '' });
 
-const doApprove = () => {
-    if (confirm(`Approve ${props.application.first_name}? This will create a full student record.`)) {
-        router.post(`/school/registrations/${props.application.id}/approve`);
-    }
+const doApprove = async () => {
+    const ok = await confirm({
+        title: 'Approve application?',
+        message: `Approve ${props.application.first_name}? This will create a full student record.`,
+        confirmLabel: 'Approve',
+    });
+    if (!ok) return;
+    router.post(`/school/registrations/${props.application.id}/approve`);
 };
 
 const submitReject = () => {

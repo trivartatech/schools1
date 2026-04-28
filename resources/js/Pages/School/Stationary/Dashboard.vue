@@ -1,5 +1,6 @@
 <script setup>
 import { Link, Head } from '@inertiajs/vue3';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 
 const props = defineProps({
@@ -15,12 +16,7 @@ function fmt(n) {
 <template>
     <Head title="Stationary Dashboard" />
     <SchoolLayout title="Stationary Dashboard">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">📚 Stationary Module</h1>
-                <p class="page-header-sub">Items, allocations, issuances, returns, and fee collection at a glance.</p>
-            </div>
-        </div>
+        <PageHeader title="📚 Stationary Module" subtitle="Items, allocations, issuances, returns, and fee collection at a glance." />
 
         <!-- KPI cards -->
         <div class="stats-grid">

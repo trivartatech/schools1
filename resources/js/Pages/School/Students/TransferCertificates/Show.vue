@@ -1,5 +1,7 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import Modal from '@/Components/ui/Modal.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { router, Link, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref } from 'vue';
@@ -51,24 +53,22 @@ const formatDT   = (d) => d ? school.fmtDateTime(d) : '—';
 
 <template>
     <SchoolLayout :title="`TC — ${tc.student?.first_name} ${tc.student?.last_name}`">
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">Transfer Certificate</h2>
+        <PageHeader title="Transfer Certificate">
+            <template #subtitle>
                 <p class="page-header-sub">
                     <span :class="['inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border', statusBadge(tc.status)]">
                         {{ tc.status.toUpperCase() }}
                     </span>
                     <span v-if="tc.certificate_no" class="ml-2 font-mono text-slate-600">{{ tc.certificate_no }}</span>
                 </p>
-            </div>
-            <div class="flex gap-2">
-                <!-- Print (only when issued) -->
+            </template>
+            <template #actions>
                 <Button variant="secondary" as="a" v-if="tc.status === 'issued'" :href="route('school.transfer-certificates.print', tc.id)" target="_blank">
                     🖨 Print TC
                 </Button>
                 <Button variant="secondary" as="link" :href="route('school.transfer-certificates.index')">← Back</Button>
-            </div>
-        </div>
+            </template>
+        </PageHeader>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -234,54 +234,51 @@ const formatDT   = (d) => d ? school.fmtDateTime(d) : '—';
         </div>
 
         <!-- ── Approve Modal ── -->
-        <div v-if="showApproveModal" class="modal-overlay" @mousedown.self="showApproveModal = false">
-            <div class="modal-box">
-                <h3 class="modal-title text-blue-700">Approve TC Request</h3>
-                <p class="text-sm text-slate-500 mb-4">
-                    Approving will move this TC to the next stage. The certificate will be issued after a final confirmation.
-                </p>
+        <Modal v-model:open="showApproveModal" title="Approve TC Request" size="md">
+            <p class="text-sm text-slate-500 mb-4">
+                Approving will move this TC to the next stage. The certificate will be issued after a final confirmation.
+            </p>
+            <form @submit.prevent="doApprove" id="tc-approve-form">
                 <div class="form-field mb-4">
                     <label>Remarks (optional)</label>
                     <textarea v-model="approveForm.remarks" rows="3" class="input" placeholder="Any notes…"></textarea>
                 </div>
-                <div class="flex gap-3 justify-end">
-                    <Button variant="secondary" @click="showApproveModal = false">Cancel</Button>
-                    <Button @click="doApprove" :loading="approveForm.processing">
-                        Approve
-                    </Button>
-                </div>
-            </div>
-        </div>
+            </form>
+            <template #footer>
+                <Button variant="secondary" @click="showApproveModal = false">Cancel</Button>
+                <Button type="submit" form="tc-approve-form" :loading="approveForm.processing">
+                    Approve
+                </Button>
+            </template>
+        </Modal>
 
         <!-- ── Issue Modal ── -->
-        <div v-if="showIssueModal" class="modal-overlay" @mousedown.self="showIssueModal = false">
-            <div class="modal-box">
-                <h3 class="modal-title text-emerald-700">Issue Transfer Certificate</h3>
-                <p class="text-sm text-slate-500 mb-2">
-                    This will <strong>permanently issue</strong> the TC and mark the student's status as <span class="font-bold text-red-600">TC</span>.
-                    A unique certificate number will be generated.
-                </p>
-                <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-xs text-amber-700 mb-4">
-                    ⚠️ This action cannot be undone. Ensure all details are correct before proceeding.
-                </div>
+        <Modal v-model:open="showIssueModal" title="Issue Transfer Certificate" size="md">
+            <p class="text-sm text-slate-500 mb-2">
+                This will <strong>permanently issue</strong> the TC and mark the student's status as <span class="font-bold text-red-600">TC</span>.
+                A unique certificate number will be generated.
+            </p>
+            <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-xs text-amber-700 mb-4">
+                ⚠️ This action cannot be undone. Ensure all details are correct before proceeding.
+            </div>
+            <form @submit.prevent="doIssue" id="tc-issue-form">
                 <div class="form-field mb-4">
                     <label>Final Remarks (optional)</label>
                     <textarea v-model="issueForm.remarks" rows="3" class="input" placeholder="Any final notes for the certificate…"></textarea>
                 </div>
-                <div class="flex gap-3 justify-end">
-                    <Button variant="secondary" @click="showIssueModal = false">Cancel</Button>
-                    <Button @click="doIssue" :loading="issueForm.processing" class="bg-emerald-600 hover:bg-emerald-700 border-emerald-600">
-                        Issue TC
-                    </Button>
-                </div>
-            </div>
-        </div>
+            </form>
+            <template #footer>
+                <Button variant="secondary" @click="showIssueModal = false">Cancel</Button>
+                <Button type="submit" form="tc-issue-form" :loading="issueForm.processing" class="bg-emerald-600 hover:bg-emerald-700 border-emerald-600">
+                    Issue TC
+                </Button>
+            </template>
+        </Modal>
 
         <!-- ── Reject Modal ── -->
-        <div v-if="showRejectModal" class="modal-overlay" @mousedown.self="showRejectModal = false">
-            <div class="modal-box">
-                <h3 class="modal-title text-red-700">Reject TC Request</h3>
-                <p class="text-sm text-slate-500 mb-4">Please provide a reason for rejection.</p>
+        <Modal v-model:open="showRejectModal" title="Reject TC Request" size="md">
+            <p class="text-sm text-slate-500 mb-4">Please provide a reason for rejection.</p>
+            <form @submit.prevent="doReject" id="tc-reject-form">
                 <div class="form-field mb-4">
                     <label class="required">Reason for Rejection</label>
                     <textarea v-model="rejectForm.remarks" rows="3" class="input"
@@ -289,13 +286,13 @@ const formatDT   = (d) => d ? school.fmtDateTime(d) : '—';
                               placeholder="e.g. Pending dues, incomplete documentation…"></textarea>
                     <p v-if="rejectForm.errors.remarks" class="form-error">{{ rejectForm.errors.remarks }}</p>
                 </div>
-                <div class="flex gap-3 justify-end">
-                    <Button variant="secondary" @click="showRejectModal = false">Cancel</Button>
-                    <Button @click="doReject" :loading="rejectForm.processing" class="bg-red-600 hover:bg-red-700 border-red-600">
-                        Reject
-                    </Button>
-                </div>
-            </div>
-        </div>
+            </form>
+            <template #footer>
+                <Button variant="secondary" @click="showRejectModal = false">Cancel</Button>
+                <Button type="submit" form="tc-reject-form" variant="danger" :loading="rejectForm.processing">
+                    Reject
+                </Button>
+            </template>
+        </Modal>
     </SchoolLayout>
 </template>

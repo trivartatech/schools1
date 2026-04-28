@@ -4,8 +4,10 @@ import { Head, usePage } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import axios from 'axios';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const school = useSchoolStore();
+const confirm = useConfirm();
 
 const props = defineProps({
     conversations:   { type: Array, default: () => [] },
@@ -210,7 +212,13 @@ async function submitEdit() {
 
 // ── Delete message ─────────────────────────────────────────────────────────
 async function deleteMsg(msg) {
-    if (!confirm('Delete this message for everyone?')) return;
+    const ok = await confirm({
+        title: 'Delete message?',
+        message: 'Delete this message for everyone?',
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
     await axios.delete(`/school/chat/messages/${msg.id}`);
     const idx = messages.value.findIndex(m => m.id === msg.id);
     if (idx !== -1) messages.value[idx].deleted_at_for_all = new Date().toISOString();

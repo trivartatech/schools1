@@ -1,10 +1,17 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import Modal from '@/Components/ui/Modal.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
+import Table from '@/Components/ui/Table.vue';
 import { ref, reactive, computed } from 'vue';
-import { router, Link } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { usePermissions } from '@/Composables/usePermissions';
-import Table from '@/Components/ui/Table.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const props = defineProps({
     rooms:   Object,
@@ -86,74 +93,77 @@ function save() {
     }
 }
 
-function destroy(item) {
-    if(confirm('Delete this room and its beds?')) {
-        router.delete(`/school/hostel/rooms/${item.id}`);
-    }
+async function destroy(item) {
+    const ok = await confirm({
+        title: 'Delete room?',
+        message: 'This will also remove all beds in this room. This cannot be undone.',
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
+    router.delete(`/school/hostel/rooms/${item.id}`);
 }
 </script>
 
 <template>
     <SchoolLayout title="Rooms & Beds">
 
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Rooms &amp; Beds Management</h1>
-                <p class="page-header-sub">Configure rooms, beds, and occupancy across hostels.</p>
-            </div>
-            <Button v-if="can('create_hostel')" @click="openModal()">+ Add Room</Button>
-        </div>
+        <PageHeader title="Rooms & Beds Management" subtitle="Configure rooms, beds, and occupancy across hostels.">
+            <template #actions>
+                <Button v-if="can('create_hostel')" @click="openModal()">+ Add Room</Button>
+            </template>
+        </PageHeader>
 
         <!-- Filter bar -->
-        <div class="card filter-bar">
-            <div class="card-body filter-bar-body">
-                <div class="form-field" style="margin:0;min-width:180px;">
-                    <label>Hostel</label>
-                    <select v-model="filterForm.hostel_id" @change="applyFilter">
-                        <option value="">All Hostels</option>
-                        <option v-for="h in hostels" :key="h.id" :value="h.id">{{ h.name }}</option>
-                    </select>
-                </div>
-                <Button variant="secondary" size="sm" v-if="filterForm.hostel_id" @click="filterForm.hostel_id = ''; applyFilter()">Clear</Button>
-            </div>
-        </div>
+        <FilterBar
+            :active="!!filterForm.hostel_id"
+            @clear="filterForm.hostel_id = ''; applyFilter()"
+        >
+            <select v-model="filterForm.hostel_id" @change="applyFilter" style="width:200px;">
+                <option value="">All Hostels</option>
+                <option v-for="h in hostels" :key="h.id" :value="h.id">{{ h.name }}</option>
+            </select>
+        </FilterBar>
 
         <div class="card">
-            <div style="overflow-x: auto;">
-                <Table>
-                    <thead>
-                        <tr>
-                            <th>Room No</th>
-                            <th>Hostel / Block / Floor</th>
-                            <th>Occupancy</th>
-                            <th>Fee / Month</th>
-                            <th>Status</th>
-                            <th v-if="can('edit_hostel') || can('delete_hostel')" style="text-align: right;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="r in rooms.data" :key="r.id">
-                            <td style="font-weight: 500;">
-                                {{ r.room_number }}
-                                <span class="badge badge-gray" style="margin-left: 0.25rem;">{{ r.room_type || 'General' }}</span>
-                            </td>
-                            <td>{{ r.hostel.name }} / {{ r.block_name || '-' }} / {{ r.floor_name || '-' }}</td>
-                            <td>{{ r.beds.filter(b => b.status === "Occupied").length }} / {{ r.capacity }}</td>
-                            <td style="font-weight: 600;">₹{{ r.cost_per_month }}</td>
-                            <td>
-                                <span class="badge" :class="r.status === 'Available' ? 'badge-green' : 'badge-red'">{{ r.status }}</span>
-                            </td>
-                            <td v-if="can('edit_hostel') || can('delete_hostel')" style="text-align: right;">
-                                <Button variant="secondary" size="xs" v-if="can('edit_hostel')" @click="openModal(r)" class="mr-1.5">Edit</Button>
-                                <Button variant="danger" size="xs" v-if="can('delete_hostel')" @click="destroy(r)">Delete</Button>
-                            </td>
-                        </tr>
-                        <tr v-if="!rooms.data.length">
-                            <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">No rooms configured.</td>
-                        </tr>
-                    </tbody>
-                </Table>
-            </div>
+            <Table :empty="!rooms.data.length">
+                <thead>
+                    <tr>
+                        <th>Room No</th>
+                        <th>Hostel / Block / Floor</th>
+                        <th>Occupancy</th>
+                        <th>Fee / Month</th>
+                        <th>Status</th>
+                        <th v-if="can('edit_hostel') || can('delete_hostel')" style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="r in rooms.data" :key="r.id">
+                        <td style="font-weight: 500;">
+                            {{ r.room_number }}
+                            <span class="badge badge-gray" style="margin-left: 0.25rem;">{{ r.room_type || 'General' }}</span>
+                        </td>
+                        <td>{{ r.hostel.name }} / {{ r.block_name || '-' }} / {{ r.floor_name || '-' }}</td>
+                        <td>{{ r.beds.filter(b => b.status === "Occupied").length }} / {{ r.capacity }}</td>
+                        <td style="font-weight: 600;">₹{{ r.cost_per_month }}</td>
+                        <td>
+                            <span class="badge" :class="r.status === 'Available' ? 'badge-green' : 'badge-red'">{{ r.status }}</span>
+                        </td>
+                        <td v-if="can('edit_hostel') || can('delete_hostel')" style="text-align: right;">
+                            <Button variant="secondary" size="xs" v-if="can('edit_hostel')" @click="openModal(r)" class="mr-1.5">Edit</Button>
+                            <Button variant="danger" size="xs" v-if="can('delete_hostel')" @click="destroy(r)">Delete</Button>
+                        </td>
+                    </tr>
+                </tbody>
+                <template #empty>
+                    <EmptyState
+                        title="No rooms configured"
+                        description="Add rooms and beds across your hostels to track occupancy."
+                        :action-label="can('create_hostel') ? '+ Add Room' : ''"
+                        @action="openModal()"
+                    />
+                </template>
+            </Table>
 
             <!-- Pagination -->
             <div v-if="rooms.last_page > 1"
@@ -173,101 +183,79 @@ function destroy(item) {
         </div>
 
         <!-- MODAL -->
-        <Teleport to="body">
-        <div v-if="showModal" class="modal-backdrop" @mousedown.self="showModal = false">
-            <div class="modal">
-                <div class="card-header">
-                    <h3 class="card-title">{{ editing ? 'Edit' : 'Create' }} Room</h3>
+        <Modal v-model:open="showModal" :title="editing ? 'Edit Room' : 'Create Room'" size="md">
+            <form @submit.prevent="save" id="room-form">
+                <!-- Server errors -->
+                <div v-if="Object.keys(errors).length"
+                     style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;font-size:0.82rem;color:#dc2626;margin-bottom:14px;">
+                    <div v-for="(msg, field) in errors" :key="field">{{ msg }}</div>
                 </div>
-                <div class="card-body">
-                    <form @submit.prevent="save">
 
-                        <!-- Server errors -->
-                        <div v-if="Object.keys(errors).length"
-                             style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;font-size:0.82rem;color:#dc2626;margin-bottom:14px;">
-                            <div v-for="(msg, field) in errors" :key="field">{{ msg }}</div>
-                        </div>
-
-                        <div class="form-row">
-                            <div class="form-field">
-                                <label>Hostel *</label>
-                                <select v-model="form.hostel_id" required>
-                                    <option v-for="h in hostels" :key="h.id" :value="h.id">{{ h.name }}</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-row-2" style="margin-top: 1rem;">
-                            <div class="form-field">
-                                <label>Block Name</label>
-                                <select v-model="form.block_name">
-                                    <option value="">Select Block</option>
-                                    <option v-for="b in availableBlocks" :key="b" :value="b">{{ b }}</option>
-                                </select>
-                            </div>
-                            <div class="form-field">
-                                <label>Floor Name</label>
-                                <select v-model="form.floor_name">
-                                    <option value="">Select Floor</option>
-                                    <option v-for="f in availableFloors" :key="f" :value="f">{{ f }}</option>
-                                </select>
-                            </div>
-                            <div class="form-field">
-                                <label>Room Number *</label>
-                                <input v-model="form.room_number" required>
-                            </div>
-                            <div class="form-field">
-                                <label>Capacity (Beds) *</label>
-                                <input v-model="form.capacity" type="number" required min="1">
-                            </div>
-                            <div class="form-field">
-                                <label>Room Type</label>
-                                <select v-model="form.room_type">
-                                    <option value="">Select Room Type</option>
-                                    <option v-for="rt in availableRoomTypes" :key="rt" :value="rt">{{ rt }}</option>
-                                </select>
-                            </div>
-                            <div class="form-field">
-                                <label>Monthly Fee (₹) *</label>
-                                <input v-model="form.cost_per_month" type="number" required>
-                            </div>
-                        </div>
-                        <div class="form-row" style="margin-top: 1rem;">
-                            <div class="form-field">
-                                <label>Status</label>
-                                <select v-model="form.status" required>
-                                    <option>Available</option>
-                                    <option>Full</option>
-                                    <option>Maintenance</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border);">
-                            <Button variant="secondary" type="button" @click="showModal = false">Cancel</Button>
-                            <Button type="submit" :loading="loading">Save</Button>
-                        </div>
-                    </form>
+                <div class="form-row">
+                    <div class="form-field">
+                        <label>Hostel *</label>
+                        <select v-model="form.hostel_id" required>
+                            <option v-for="h in hostels" :key="h.id" :value="h.id">{{ h.name }}</option>
+                        </select>
+                    </div>
                 </div>
-            </div>
-        </div>
-        </Teleport>
+                <div class="form-row-2" style="margin-top: 1rem;">
+                    <div class="form-field">
+                        <label>Block Name</label>
+                        <select v-model="form.block_name">
+                            <option value="">Select Block</option>
+                            <option v-for="b in availableBlocks" :key="b" :value="b">{{ b }}</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label>Floor Name</label>
+                        <select v-model="form.floor_name">
+                            <option value="">Select Floor</option>
+                            <option v-for="f in availableFloors" :key="f" :value="f">{{ f }}</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label>Room Number *</label>
+                        <input v-model="form.room_number" required>
+                    </div>
+                    <div class="form-field">
+                        <label>Capacity (Beds) *</label>
+                        <input v-model="form.capacity" type="number" required min="1">
+                    </div>
+                    <div class="form-field">
+                        <label>Room Type</label>
+                        <select v-model="form.room_type">
+                            <option value="">Select Room Type</option>
+                            <option v-for="rt in availableRoomTypes" :key="rt" :value="rt">{{ rt }}</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label>Monthly Fee (₹) *</label>
+                        <input v-model="form.cost_per_month" type="number" required>
+                    </div>
+                </div>
+                <div class="form-row" style="margin-top: 1rem;">
+                    <div class="form-field">
+                        <label>Status</label>
+                        <select v-model="form.status" required>
+                            <option>Available</option>
+                            <option>Full</option>
+                            <option>Maintenance</option>
+                        </select>
+                    </div>
+                </div>
+            </form>
+            <template #footer>
+                <Button variant="secondary" type="button" @click="showModal = false">Cancel</Button>
+                <Button type="submit" form="room-form" :loading="loading">Save</Button>
+            </template>
+        </Modal>
 
     </SchoolLayout>
 </template>
 
 <style scoped>
-.filter-bar { margin-bottom: 1rem; }
-.filter-bar-body { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end; padding: 0.75rem 1rem; }
-.modal-backdrop {
-    position: fixed; inset: 0; background: rgba(15,23,42,.5);
-    display: flex; align-items: center; justify-content: center; z-index: 1000;
-}
-.modal {
-    background: #fff; border-radius: 0.75rem; width: 100%; max-width: 32rem;
-    max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-}
-
-/* Form layout — Tailwind preflight strips browser defaults from <input>/<select>,
-   so explicit styles are needed to make them visible inside our modals. */
+/* Form layout — Tailwind preflight workaround. */
 .form-row { display: flex; }
 .form-row > .form-field { flex: 1; }
 .form-row-2 {
@@ -299,8 +287,3 @@ function destroy(item) {
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 </style>
-
-
-
-
-

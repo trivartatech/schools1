@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { router, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { ref, computed } from 'vue';
@@ -42,13 +43,11 @@ const pctBar = (val) => (val === null || val === undefined) ? 0 : Math.min(val, 
 
 <template>
     <SchoolLayout title="Academic Health Score">
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">Academic Health Score</h2>
-                <p class="page-header-sub">Subject-wise overview of syllabus coverage, grading, and engagement</p>
-            </div>
-            <Button variant="secondary" as="link" :href="route('school.academic.dashboard')">← Dashboard</Button>
-        </div>
+        <PageHeader title="Academic Health Score" subtitle="Subject-wise overview of syllabus coverage, grading, and engagement">
+            <template #actions>
+                <Button variant="secondary" as="link" :href="route('school.academic.dashboard')">← Dashboard</Button>
+            </template>
+        </PageHeader>
 
         <!-- How it works -->
         <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-6 text-sm text-indigo-700 flex flex-wrap gap-4 items-center">

@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
 import { router, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -8,8 +9,10 @@ import { usePermissions } from '@/Composables/usePermissions';
 import axios from 'axios';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const school = useSchoolStore();
+const confirm = useConfirm();
 
 const props = defineProps({
     topics:      Array,
@@ -107,8 +110,14 @@ const updateTopic = () => {
     });
 };
 
-const destroyTopic = (topic) => {
-    if (!confirm(`Delete topic "${topic.topic_name}"? This cannot be undone.`)) return;
+const destroyTopic = async (topic) => {
+    const ok = await confirm({
+        title: 'Delete topic?',
+        message: `Delete topic "${topic.topic_name}"? This cannot be undone.`,
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
     router.delete(route('school.academic.syllabus.destroy-topic', topic.id));
 };
 
@@ -183,12 +192,8 @@ const exportCSV = () => {
 
 <template>
     <SchoolLayout title="Syllabus Tracker">
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">Syllabus Tracker</h2>
-                <p class="page-header-sub">Track curriculum completion status</p>
-            </div>
-            <div class="flex gap-2 flex-wrap">
+        <PageHeader title="Syllabus Tracker" subtitle="Track curriculum completion status">
+            <template #actions>
                 <!-- CSV Export -->
                 <Button variant="secondary" v-if="topics.length > 0" @click="exportCSV" class="text-emerald-600 border-emerald-200 hover:bg-emerald-50">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -210,8 +215,9 @@ const exportCSV = () => {
                     </svg>
                     Add Topic
                 </Button>
-            </div>
-        </div>
+
+            </template>
+        </PageHeader>
 
         <!-- Filters -->
         <FilterBar :active="!!(filterForm.class_id || filterForm.subject_id || filterForm.section_id)" @clear="filterForm = {class_id:'',subject_id:'',section_id:''}; applyFilters()">

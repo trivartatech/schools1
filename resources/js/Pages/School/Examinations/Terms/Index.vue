@@ -1,9 +1,13 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const props = defineProps({
     terms: Array
@@ -49,25 +53,28 @@ const submit = () => {
     }
 };
 
-const deleteTerm = (id) => {
-    if (confirm('Are you sure you want to delete this Exam Term?')) {
-        router.delete(`/school/exam-terms/${id}`);
-    }
+const deleteTerm = async (id) => {
+    const ok = await confirm({
+        title: 'Delete Exam Term?',
+        message: 'This cannot be undone.',
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
+    router.delete(`/school/exam-terms/${id}`);
 };
 </script>
 
 <template>
     <SchoolLayout title="Exam Terms">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Exam Terms</h1>
-                <p class="page-header-sub">Manage academic examination terms (e.g. Term 1, Term 2)</p>
-            </div>
-            <Button @click="openCreateForm">
-                <svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                Add Term
-            </Button>
-        </div>
+        <PageHeader title="Exam Terms" subtitle="Manage academic examination terms (e.g. Term 1, Term 2)">
+            <template #actions>
+                <Button @click="openCreateForm">
+                                <svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                Add Term
+                            </Button>
+            </template>
+        </PageHeader>
 
         <div class="card">
             <div class="overflow-x-auto">

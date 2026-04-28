@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref } from 'vue'
 import { useForm, router, Link } from '@inertiajs/vue3'
 import SchoolLayout from '@/Layouts/SchoolLayout.vue'
@@ -48,13 +49,11 @@ const destroy = (t) => {
 
 <template>
     <SchoolLayout title="Subject Types">
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">Subject Types / Parts</h2>
-                <p class="page-header-sub">Define reusable part labels (e.g. Part A, Part B, Language 1) that appear in the subject form dropdown.</p>
-            </div>
-            <Button @click="openCreate">+ Add Type</Button>
-        </div>
+        <PageHeader title="Subject Types / Parts" subtitle="Define reusable part labels (e.g. Part A, Part B, Language 1) that appear in the subject form dropdown.">
+            <template #actions>
+                <Button @click="openCreate">+ Add Type</Button>
+            </template>
+        </PageHeader>
 
         <div v-if="types.length === 0" class="card py-16 text-center">
             <p class="text-4xl mb-3">🏷️</p>

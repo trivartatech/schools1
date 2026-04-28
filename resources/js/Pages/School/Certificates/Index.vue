@@ -2,15 +2,23 @@
 import { Head, Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const school = useSchoolStore();
+const confirm = useConfirm();
 
 const props = defineProps({
     templates: { type: Array, required: true },
 });
 
-const deleteTemplate = (id, name) => {
-    if (!confirm(`Delete template "${name}"? This cannot be undone.`)) return;
+const deleteTemplate = async (id, name) => {
+    const ok = await confirm({
+        title: 'Delete template?',
+        message: `Delete template "${name}"? This cannot be undone.`,
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
     router.delete(`/school/utility/certificates/${id}`, { preserveScroll: true });
 };
 

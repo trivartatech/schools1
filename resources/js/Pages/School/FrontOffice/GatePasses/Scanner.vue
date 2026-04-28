@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, onBeforeUnmount } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -129,16 +130,14 @@ const formatDateTime = (dt) => {
 <template>
     <SchoolLayout title="Gate Pass QR Scanner">
 
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Gate Pass QR Scanner</h1>
-                <p class="page-header-sub">Scan QR code or enter token to verify gate passes.</p>
-            </div>
-            <Button variant="secondary" as="link" href="/school/front-office/gate-passes">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                Back to Gate Passes
-            </Button>
-        </div>
+        <PageHeader title="Gate Pass QR Scanner" subtitle="Scan QR code or enter token to verify gate passes.">
+            <template #actions>
+                <Button variant="secondary" as="link" href="/school/front-office/gate-passes">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                                Back to Gate Passes
+                            </Button>
+            </template>
+        </PageHeader>
 
         <div class="scanner-layout">
 

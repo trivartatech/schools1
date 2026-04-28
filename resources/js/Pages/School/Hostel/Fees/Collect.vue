@@ -4,8 +4,10 @@ import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
 import { usePermissions } from '@/Composables/usePermissions';
+import { useConfirm } from '@/Composables/useConfirm';
 
 const { can } = usePermissions();
+const confirm = useConfirm();
 
 const props = defineProps({
     allocation:   Object,
@@ -84,8 +86,14 @@ function printReceipt(paymentId) {
     window.open(`/school/hostel/fees/receipts/${paymentId}/receipt`, '_blank');
 }
 
-function voidReceipt(paymentId) {
-    if (!confirm('Void this receipt? The allocation balance will be recalculated.')) return;
+async function voidReceipt(paymentId) {
+    const ok = await confirm({
+        title: 'Void receipt?',
+        message: 'The allocation balance will be recalculated. This cannot be undone.',
+        confirmLabel: 'Void Receipt',
+        danger: true,
+    });
+    if (!ok) return;
     router.delete(`/school/hostel/fees/receipts/${paymentId}`, { preserveScroll: true });
 }
 

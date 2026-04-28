@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
 import { useForm, router, Link } from '@inertiajs/vue3'
 import Sortable from 'sortablejs'
@@ -114,12 +115,8 @@ const formatOptionsPreview = (opts) => {
     <SchoolLayout title="Custom Fields">
 
         <!-- Page Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Custom Fields Builder</h1>
-                <p class="page-header-sub">Add flexible data points to student profiles, staff records, and more.</p>
-            </div>
-            <div class="header-actions">
+        <PageHeader title="Custom Fields Builder" subtitle="Add flexible data points to student profiles, staff records, and more.">
+            <template #actions>
                 <transition name="fade">
                     <span v-if="saving" class="saving-pill">
                         <svg class="spin-icon" width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -130,8 +127,9 @@ const formatOptionsPreview = (opts) => {
                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
                     Add Field
                 </Button>
-            </div>
-        </div>
+
+            </template>
+        </PageHeader>
 
         <!-- Entity Type Tabs -->
         <div class="entity-tabs">

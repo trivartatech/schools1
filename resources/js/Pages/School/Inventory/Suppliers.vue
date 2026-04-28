@@ -2,6 +2,10 @@
 import { ref } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import Button from '@/Components/ui/Button.vue';
+import Modal from '@/Components/ui/Modal.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
 
 const props = defineProps({
     suppliers: Array,
@@ -57,32 +61,35 @@ const linkedCount = () => (props.suppliers ?? []).filter(s => s.assets_count > 0
 <template>
     <SchoolLayout title="Suppliers">
 
-        <!-- Header -->
-        <div class="page-header">
-            <div>
-                <div class="breadcrumb">
-                    <a href="/school/inventory">Inventory</a>
-                    <span class="sep">/</span>
-                    <span>Suppliers</span>
-                </div>
-                <h1 class="page-header-title">Item Suppliers</h1>
-                <p style="color:#64748b;font-size:.875rem;margin-top:2px;">Manage your vendors and procurement contacts.</p>
-            </div>
-            <div style="display:flex;gap:10px;">
-                <a href="/school/inventory" class="btn-outline">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7"/></svg>
+        <PageHeader
+            title="Item Suppliers"
+            subtitle="Manage your vendors and procurement contacts."
+            :breadcrumbs="[
+                { label: 'Inventory', href: '/school/inventory' },
+                { label: 'Suppliers' },
+            ]"
+        >
+            <template #actions>
+                <Button as="a" variant="secondary" href="/school/inventory">
+                    <template #icon>
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7"/></svg>
+                    </template>
                     Assets
-                </a>
-                <a href="/school/inventory-stores" class="btn-outline">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18"/></svg>
+                </Button>
+                <Button as="a" variant="secondary" href="/school/inventory-stores">
+                    <template #icon>
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18"/></svg>
+                    </template>
                     Stores
-                </a>
-                <button class="btn-primary" @click="openAdd">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                </Button>
+                <Button @click="openAdd">
+                    <template #icon>
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    </template>
                     Add Supplier
-                </button>
-            </div>
-        </div>
+                </Button>
+            </template>
+        </PageHeader>
 
         <!-- Flash -->
         <div v-if="$page.props.flash?.success" class="flash-success">{{ $page.props.flash.success }}</div>
@@ -110,7 +117,15 @@ const linkedCount = () => (props.suppliers ?? []).filter(s => s.assets_count > 0
 
         <!-- Table -->
         <div class="card" style="overflow:hidden;">
-            <div style="overflow-x:auto;">
+            <div v-if="!suppliers.length" style="padding:8px;">
+                <EmptyState
+                    title="No suppliers yet"
+                    description="Add your first supplier to get started."
+                    action-label="Add Supplier"
+                    @action="openAdd"
+                />
+            </div>
+            <div v-else style="overflow-x:auto;">
                 <table class="inv-table">
                     <thead>
                         <tr>
@@ -158,135 +173,100 @@ const linkedCount = () => (props.suppliers ?? []).filter(s => s.assets_count > 0
                                 </div>
                             </td>
                         </tr>
-                        <tr v-if="!suppliers.length">
-                            <td colspan="8" class="empty-row">
-                                <svg width="40" height="40" fill="none" stroke="#cbd5e1" viewBox="0 0 24 24" style="margin-bottom:8px;display:block;margin-inline:auto;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.4" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                                No suppliers yet. Add your first supplier to get started.
-                            </td>
-                        </tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
         <!-- Add / Edit Modal -->
-        <Teleport to="body">
-            <div v-if="showModal" class="backdrop" @click.self="showModal = false">
-                <div class="modal-box" style="max-width:580px;">
-                    <div class="modal-head">
-                        <span class="modal-icon" style="background:#dbeafe;color:#2563eb;">
-                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                        </span>
-                        <div>
-                            <h3 class="modal-title">{{ editing ? 'Edit Supplier' : 'Add Supplier' }}</h3>
-                            <p class="modal-sub">{{ editing ? editing.name : 'Fill in the supplier details' }}</p>
-                        </div>
-                        <button class="modal-close" @click="showModal = false"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+        <Modal
+            v-model:open="showModal"
+            :title="editing ? 'Edit Supplier' : 'Add Supplier'"
+            size="lg"
+        >
+            <form id="supplier-form" @submit.prevent="submitForm">
+                <div class="modal-body-inner">
+                    <div class="field full">
+                        <label class="field-label">Supplier Name <span class="req">*</span></label>
+                        <input v-model="form.name" class="field-input" required placeholder="e.g. Tech Solutions Pvt Ltd" />
+                        <p v-if="form.errors.name" class="field-error">{{ form.errors.name }}</p>
                     </div>
-                    <form @submit.prevent="submitForm">
-                        <div class="modal-body">
-                            <div class="field full">
-                                <label class="field-label">Supplier Name <span class="req">*</span></label>
-                                <input v-model="form.name" class="field-input" required placeholder="e.g. Tech Solutions Pvt Ltd" />
-                                <p v-if="form.errors.name" class="field-error">{{ form.errors.name }}</p>
-                            </div>
-                            <div class="field-row">
-                                <div class="field">
-                                    <label class="field-label">Contact Person</label>
-                                    <input v-model="form.contact_person" class="field-input" placeholder="Name of your point of contact" />
-                                </div>
-                                <div class="field">
-                                    <label class="field-label">Phone</label>
-                                    <input v-model="form.phone" class="field-input" maxlength="20" placeholder="+91 9876543210" />
-                                </div>
-                            </div>
-                            <div class="field-row">
-                                <div class="field">
-                                    <label class="field-label">Email</label>
-                                    <input v-model="form.email" type="email" class="field-input" placeholder="supplier@example.com" />
-                                    <p v-if="form.errors.email" class="field-error">{{ form.errors.email }}</p>
-                                </div>
-                                <div class="field">
-                                    <label class="field-label">GSTIN</label>
-                                    <input v-model="form.gstin" class="field-input" maxlength="20" placeholder="29ABCDE1234F1Z5" />
-                                </div>
-                            </div>
-                            <div class="field-row">
-                                <div class="field">
-                                    <label class="field-label">City</label>
-                                    <input v-model="form.city" class="field-input" />
-                                </div>
-                                <div class="field">
-                                    <label class="field-label">State</label>
-                                    <input v-model="form.state" class="field-input" />
-                                </div>
-                            </div>
-                            <div class="field full">
-                                <label class="field-label">Website</label>
-                                <input v-model="form.website" class="field-input" placeholder="https://" />
-                                <p v-if="form.errors.website" class="field-error">{{ form.errors.website }}</p>
-                            </div>
-                            <div class="field full">
-                                <label class="field-label">Address</label>
-                                <textarea v-model="form.address" class="field-input" rows="2" placeholder="Street, area…"></textarea>
-                            </div>
-                            <div class="field full">
-                                <label class="field-label">Notes</label>
-                                <textarea v-model="form.notes" class="field-input" rows="2"></textarea>
-                            </div>
+                    <div class="field-row">
+                        <div class="field">
+                            <label class="field-label">Contact Person</label>
+                            <input v-model="form.contact_person" class="field-input" placeholder="Name of your point of contact" />
                         </div>
-                        <div class="modal-foot">
-                            <button type="button" class="btn-outline" @click="showModal = false">Cancel</button>
-                            <button type="submit" class="btn-primary" :disabled="form.processing">
-                                {{ form.processing ? 'Saving…' : (editing ? 'Update Supplier' : 'Add Supplier') }}
-                            </button>
+                        <div class="field">
+                            <label class="field-label">Phone</label>
+                            <input v-model="form.phone" class="field-input" maxlength="20" placeholder="+91 9876543210" />
                         </div>
-                    </form>
+                    </div>
+                    <div class="field-row">
+                        <div class="field">
+                            <label class="field-label">Email</label>
+                            <input v-model="form.email" type="email" class="field-input" placeholder="supplier@example.com" />
+                            <p v-if="form.errors.email" class="field-error">{{ form.errors.email }}</p>
+                        </div>
+                        <div class="field">
+                            <label class="field-label">GSTIN</label>
+                            <input v-model="form.gstin" class="field-input" maxlength="20" placeholder="29ABCDE1234F1Z5" />
+                        </div>
+                    </div>
+                    <div class="field-row">
+                        <div class="field">
+                            <label class="field-label">City</label>
+                            <input v-model="form.city" class="field-input" />
+                        </div>
+                        <div class="field">
+                            <label class="field-label">State</label>
+                            <input v-model="form.state" class="field-input" />
+                        </div>
+                    </div>
+                    <div class="field full">
+                        <label class="field-label">Website</label>
+                        <input v-model="form.website" class="field-input" placeholder="https://" />
+                        <p v-if="form.errors.website" class="field-error">{{ form.errors.website }}</p>
+                    </div>
+                    <div class="field full">
+                        <label class="field-label">Address</label>
+                        <textarea v-model="form.address" class="field-input" rows="2" placeholder="Street, area…"></textarea>
+                    </div>
+                    <div class="field full">
+                        <label class="field-label">Notes</label>
+                        <textarea v-model="form.notes" class="field-input" rows="2"></textarea>
+                    </div>
                 </div>
-            </div>
-        </Teleport>
+            </form>
+            <template #footer>
+                <Button variant="secondary" @click="showModal = false">Cancel</Button>
+                <Button type="submit" form="supplier-form" :loading="form.processing">
+                    {{ editing ? 'Update Supplier' : 'Add Supplier' }}
+                </Button>
+            </template>
+        </Modal>
 
         <!-- Delete confirm -->
-        <Teleport to="body">
-            <div v-if="deleteTarget" class="backdrop" @click.self="deleteTarget = null">
-                <div class="modal-box" style="max-width:420px;">
-                    <div class="modal-head">
-                        <span class="modal-icon" style="background:#fee2e2;color:#dc2626;"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></span>
-                        <div><h3 class="modal-title">Delete Supplier</h3><p class="modal-sub">{{ deleteTarget.name }}</p></div>
-                        <button class="modal-close" @click="deleteTarget = null"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="dispose-warning">This will permanently remove <strong>{{ deleteTarget.name }}</strong> from your supplier list. This cannot be undone.</div>
-                    </div>
-                    <div class="modal-foot">
-                        <button class="btn-outline" @click="deleteTarget = null">Cancel</button>
-                        <button class="btn-danger" :disabled="deleteForm.processing" @click="doDelete">
-                            {{ deleteForm.processing ? 'Deleting…' : 'Delete Supplier' }}
-                        </button>
-                    </div>
-                </div>
+        <Modal
+            :open="!!deleteTarget"
+            title="Delete Supplier"
+            size="sm"
+            @update:open="(v) => { if (!v) deleteTarget = null; }"
+        >
+            <div v-if="deleteTarget" class="dispose-warning">
+                This will permanently remove <strong>{{ deleteTarget.name }}</strong> from your supplier list. This cannot be undone.
             </div>
-        </Teleport>
+            <template #footer>
+                <Button variant="secondary" @click="deleteTarget = null">Cancel</Button>
+                <Button variant="danger" :loading="deleteForm.processing" @click="doDelete">
+                    Delete Supplier
+                </Button>
+            </template>
+        </Modal>
 
     </SchoolLayout>
 </template>
 
 <style scoped>
-.btn-primary  { display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-size:.875rem;font-weight:600;cursor:pointer;transition:background .15s;text-decoration:none; }
-.btn-primary:hover:not(:disabled) { background:#2563eb; }
-.btn-primary:disabled { opacity:.6;cursor:not-allowed; }
-.btn-outline  { display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#fff;color:#374151;border:1px solid #d1d5db;border-radius:8px;font-size:.875rem;font-weight:500;cursor:pointer;transition:background .15s;text-decoration:none; }
-.btn-outline:hover { background:#f9fafb; }
-.btn-danger   { display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-size:.875rem;font-weight:600;cursor:pointer;transition:background .15s; }
-.btn-danger:hover:not(:disabled) { background:#b91c1c; }
-.btn-danger:disabled { opacity:.6;cursor:not-allowed; }
-
-.breadcrumb   { display:flex;align-items:center;gap:6px;font-size:.78rem;color:#94a3b8;margin-bottom:4px; }
-.breadcrumb a { color:#64748b;text-decoration:none; } .breadcrumb a:hover { color:#3b82f6; }
-.sep          { color:#cbd5e1; }
-.page-header  { display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:24px;flex-wrap:wrap; }
-.page-header-title { font-size:1.5rem;font-weight:800;color:#0f172a;margin:0; }
-
 .flash-success { background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;border-radius:10px;padding:10px 16px;font-size:.85rem;margin-bottom:16px; }
 .flash-error   { background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:10px;padding:10px 16px;font-size:.85rem;margin-bottom:16px; }
 
@@ -317,19 +297,9 @@ const linkedCount = () => (props.suppliers ?? []).filter(s => s.assets_count > 0
 .count-blue   { background:#dbeafe;color:#2563eb; }
 .count-purple { background:#ede9fe;color:#7c3aed; }
 
-.empty-row { text-align:center;padding:48px 24px;color:#94a3b8;font-size:.9rem; }
-
-.backdrop   { position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px; }
-.modal-box  { background:#fff;border-radius:16px;width:100%;box-shadow:0 25px 50px -12px rgba(0,0,0,.25);max-height:92vh;overflow-y:auto; }
-.modal-head { display:flex;align-items:flex-start;gap:14px;padding:20px 20px 16px;border-bottom:1px solid #f1f5f9;position:sticky;top:0;background:#fff;z-index:1;border-radius:16px 16px 0 0; }
-.modal-icon { width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
-.modal-title { font-size:1rem;font-weight:700;color:#0f172a;margin:0; }
-.modal-sub   { font-size:.8rem;color:#64748b;margin:2px 0 0; }
-.modal-close { margin-left:auto;background:#f1f5f9;border:none;border-radius:8px;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b;transition:background .15s;flex-shrink:0; }
-.modal-close:hover { background:#e2e8f0;color:#0f172a; }
-.modal-body  { padding:20px;display:flex;flex-direction:column;gap:14px; }
-.modal-foot  { padding:16px 20px;border-top:1px solid #f1f5f9;background:#f8fafc;display:flex;justify-content:flex-end;gap:10px;border-radius:0 0 16px 16px;position:sticky;bottom:0; }
-
+/* Form fields inside <Modal> — Tailwind preflight strips browser defaults
+   from <input>/<select>, so explicit styles are needed. */
+.modal-body-inner { display:flex;flex-direction:column;gap:14px; }
 .field-row  { display:grid;grid-template-columns:1fr 1fr;gap:14px; }
 .field.full { grid-column:span 2; }
 .field-label { display:block;font-size:.78rem;font-weight:600;color:#374151;margin-bottom:5px; }

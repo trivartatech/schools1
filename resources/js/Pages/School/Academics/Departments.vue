@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import SchoolLayout from '@/Layouts/SchoolLayout.vue'
@@ -35,16 +36,14 @@ const destroy = (id) => del(`/school/departments/${id}`, 'Delete this department
 
 <template>
     <SchoolLayout title="Departments">
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">Departments</h2>
-                <p class="page-header-sub">Manage academic streams and HR staffing groups.</p>
-            </div>
-            <Button @click="openCreate">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                Add Department
-            </Button>
-        </div>
+        <PageHeader title="Departments" subtitle="Manage academic streams and HR staffing groups.">
+            <template #actions>
+                <Button @click="openCreate">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                Add Department
+                            </Button>
+            </template>
+        </PageHeader>
 
         <div class="card" style="overflow:hidden;">
             <Table>

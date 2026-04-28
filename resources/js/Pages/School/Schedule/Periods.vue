@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -75,16 +76,14 @@ const calcDuration = (start, end) => {
     <SchoolLayout title="Periods">
 
         <!-- Page Header -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Period Configuration</h1>
-                <p class="page-header-sub">Manage bell timings and schedules for weekdays and weekends.</p>
-            </div>
-            <Button @click="openCreate">
-                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
-                Add Period
-            </Button>
-        </div>
+        <PageHeader title="Period Configuration" subtitle="Manage bell timings and schedules for weekdays and weekends.">
+            <template #actions>
+                <Button @click="openCreate">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                                Add Period
+                            </Button>
+            </template>
+        </PageHeader>
 
         <!-- Schedule Track Tabs -->
         <div class="track-tabs">

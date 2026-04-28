@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -42,13 +43,11 @@ const pct = (v, t) => t > 0 ? Math.round((v/t)*100) : 0;
 
 <template>
 <SchoolLayout title="Hostel Roll Call Report">
-    <div class="page-header">
-        <div>
-            <h1 class="page-header-title">Hostel Roll Call Report</h1>
-            <p class="page-header-sub">Monthly bed check overview</p>
-        </div>
-        <Button variant="secondary" as="a" :href="route('school.hostel.roll-call.index')">Mark Roll Call</Button>
-    </div>
+    <PageHeader title="Hostel Roll Call Report" subtitle="Monthly bed check overview">
+        <template #actions>
+            <Button variant="secondary" as="a" :href="route('school.hostel.roll-call.index')">Mark Roll Call</Button>
+        </template>
+    </PageHeader>
 
     <!-- Filters -->
     <div class="card" style="margin-bottom:16px;">

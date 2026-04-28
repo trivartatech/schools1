@@ -1,9 +1,13 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed, watchEffect } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const props = defineProps({
     attendance: Array,
@@ -76,13 +80,18 @@ const markAll = (status) => {
     });
 };
 
-const submit = () => {
+const submit = async () => {
     const unmarkedNonLeave = rows.value.filter(r => !r.status && !r.on_leave).length;
     if (unmarkedNonLeave > 0) {
         // Don't auto-mark unmarked staff — that has caused confusion in the
         // past where everyone got silently marked Present. Instead warn and
         // skip them so they stay unmarked in the DB.
-        if (!confirm(`${unmarkedNonLeave} staff are still not marked. Save the marked ones only? (Unmarked will stay unmarked.)`)) return;
+        const ok = await confirm({
+            title: 'Some staff are still unmarked',
+            message: `${unmarkedNonLeave} staff are still not marked. Save the marked ones only? (Unmarked will stay unmarked.)`,
+            confirmLabel: 'Save Marked',
+        });
+        if (!ok) return;
     }
     saving.value = true;
     // Only send rows that actually have a status. Backend forces on_leave
@@ -118,15 +127,12 @@ const fmt = (n) => String(n).padStart(2, '0');
 
 <template>
     <SchoolLayout title="Staff Attendance">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Staff Attendance</h1>
-                <p class="page-header-sub">Mark daily attendance for all staff members</p>
-            </div>
-            <div style="display:flex;gap:10px;align-items:center;">
+        <PageHeader title="Staff Attendance" subtitle="Mark daily attendance for all staff members">
+            <template #actions>
                 <Button variant="secondary" as="a" :href="route('school.staff-attendance.report')">Monthly Report</Button>
-            </div>
-        </div>
+
+            </template>
+        </PageHeader>
 
         <!-- Stats -->
         <div class="stats-row">

@@ -1,14 +1,25 @@
 <script setup>
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { Link, router } from '@inertiajs/vue3';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const props = defineProps({ quizzes: Array });
 
 const statusBadge = (s) => ({ draft: 'badge-gray', published: 'badge-green', closed: 'badge-amber' }[s] ?? 'badge-gray');
 
-const deleteQuiz = (id) => {
-    if (confirm('Delete this quiz?')) router.delete(`/school/quiz/${id}`, { preserveScroll: true });
+const deleteQuiz = async (id) => {
+    const ok = await confirm({
+        title: 'Delete quiz?',
+        message: 'This quiz and all its questions will be permanently removed.',
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
+    router.delete(`/school/quiz/${id}`, { preserveScroll: true });
 };
 
 import { useFormat } from '@/Composables/useFormat';
@@ -17,10 +28,11 @@ const { formatDateTime: fmt } = useFormat();
 
 <template>
     <SchoolLayout title="Online Quizzes">
-        <div class="page-header">
-            <h1 class="page-header-title">Online Quizzes</h1>
-            <Link href="/school/quiz/create" class="btn btn-primary btn-sm">+ Create Quiz</Link>
-        </div>
+        <PageHeader title="Online Quizzes">
+            <template #actions>
+                <Link href="/school/quiz/create" class="btn btn-primary btn-sm">+ Create Quiz</Link>
+            </template>
+        </PageHeader>
 
         <div class="card">
             <div style="overflow-x:auto;">

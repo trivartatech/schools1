@@ -4,6 +4,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import Table from '@/Components/ui/Table.vue';
 
 const props = defineProps({
@@ -70,12 +71,7 @@ const STATUS_BADGE = {
 <template>
     <Head title="Stationary Fee Collection" />
     <SchoolLayout title="Stationary Fee Collection">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">💰 Stationary Fee Collection</h1>
-                <p class="page-header-sub">Each kit allocation has its own outstanding balance. Receipts are numbered separately from regular fees.</p>
-            </div>
-        </div>
+        <PageHeader title="💰 Stationary Fee Collection" subtitle="Each kit allocation has its own outstanding balance. Receipts are numbered separately from regular fees." />
 
         <!-- Summary cards -->
         <div class="stats-grid">

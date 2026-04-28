@@ -1,5 +1,9 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import Modal from '@/Components/ui/Modal.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
+import StatsRow from '@/Components/ui/StatsRow.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
 import { ref, computed } from 'vue';
 import { useForm, router, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -41,10 +45,11 @@ const generate = () => {
 
 // ── Mark Paid ─────────────────────────────────────────────────────────────────
 const markPaidId  = ref(null);
+const showMarkPaid = ref(false);
 const markPaidForm = useForm({ payment_date: new Date().toISOString().split('T')[0], payment_mode: 'bank_transfer' });
 
-const openMarkPaid = (payrollId) => { markPaidId.value = payrollId; };
-const closeMarkPaid = () => { markPaidId.value = null; };
+const openMarkPaid = (payrollId) => { markPaidId.value = payrollId; showMarkPaid.value = true; };
+const closeMarkPaid = () => { markPaidId.value = null; showMarkPaid.value = false; };
 
 const submitMarkPaid = () => {
     markPaidForm.patch(`/school/payroll/${markPaidId.value}/mark-paid`, {
@@ -65,55 +70,33 @@ const paidCount  = computed(() => payrollList.value.filter(p => p.status === 'pa
 const totalPayout = computed(() => payrollList.value.reduce((s, p) => s + parseFloat(p.net_salary || 0), 0));
 
 const fmt = (n) => '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+
+const statCards = computed(() => [
+    { label: 'Active Staff',       value: props.summary.total_staff, color: 'accent' },
+    { label: 'Payrolls Generated', value: props.summary.generated,   color: 'warning' },
+    { label: 'Paid',               value: paidCount.value,           color: 'success' },
+    { label: 'Total Payout',       value: fmt(totalPayout.value),    color: 'purple' },
+]);
 </script>
 
 <template>
     <SchoolLayout title="Payroll">
 
-        <!-- Header + Month Navigation -->
-        <div class="page-header">
-            <div style="display:flex;align-items:center;gap:12px;">
+        <PageHeader :title="`${monthNames[curMonth]} ${curYear}`" subtitle="Manage and process monthly staff payroll.">
+            <template #actions>
                 <Button variant="icon" size="sm" aria-label="Previous month" @click="navigate(-1)">&#9664;</Button>
-                <h1 class="page-header-title" style="width:200px;text-align:center;margin:0;">{{ monthNames[curMonth] }} {{ curYear }}</h1>
                 <Button variant="icon" size="sm" aria-label="Next month" @click="navigate(1)">&#9654;</Button>
-            </div>
-            <div style="display:flex;gap:8px;">
                 <Button variant="secondary" as="a" :href="`/school/payroll/export?month=${curMonth}&year=${curYear}`" target="_blank">
                     Export Excel
                 </Button>
                 <Button @click="generate" :loading="genForm.processing">
                     Generate Payroll
                 </Button>
-            </div>
-        </div>
+            </template>
+        </PageHeader>
 
         <!-- Summary Cards -->
-        <div class="payroll-stats">
-            <div class="card stat-card-mini">
-                <div class="card-body">
-                    <div class="stat-value" style="color:#1d4ed8;">{{ summary.total_staff }}</div>
-                    <div class="stat-label">Active Staff</div>
-                </div>
-            </div>
-            <div class="card stat-card-mini">
-                <div class="card-body">
-                    <div class="stat-value" style="color:#d97706;">{{ summary.generated }}</div>
-                    <div class="stat-label">Payrolls Generated</div>
-                </div>
-            </div>
-            <div class="card stat-card-mini">
-                <div class="card-body">
-                    <div class="stat-value" style="color:var(--success);">{{ paidCount }}</div>
-                    <div class="stat-label">Paid</div>
-                </div>
-            </div>
-            <div class="card stat-card-mini">
-                <div class="card-body">
-                    <div class="stat-value" style="color:#7c3aed;font-size:1.25rem;">{{ fmt(totalPayout) }}</div>
-                    <div class="stat-label">Total Payout</div>
-                </div>
-            </div>
-        </div>
+        <StatsRow :cols="4" :stats="statCards" />
 
         <!-- Payroll Table -->
         <div class="card">
@@ -121,124 +104,110 @@ const fmt = (n) => '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDi
                 <span class="card-title">Payroll — {{ monthNames[curMonth] }} {{ curYear }}</span>
             </div>
 
-            <div v-if="staffList.length === 0" class="card-body" style="text-align:center;padding:40px;color:#94a3b8;">
-                No active staff found.
-            </div>
+            <Table :empty="staffList.length === 0">
+                <thead>
+                    <tr>
+                        <th>Staff Member</th>
+                        <th>Designation</th>
+                        <th style="text-align:right;">Basic</th>
+                        <th style="text-align:right;">Allowances</th>
+                        <th style="text-align:right;">Deductions</th>
+                        <th style="text-align:right;font-weight:700;">Net Pay</th>
+                        <th>Status</th>
+                        <th>GL</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="s in staffList" :key="s.id">
+                        <td>
+                            <div style="font-weight:500;">{{ s.user?.name }}</div>
+                            <div style="font-size:.75rem;color:#94a3b8;">{{ s.employee_id }}</div>
+                        </td>
+                        <td style="font-size:.8125rem;color:#475569;">{{ s.designation?.name || '—' }}</td>
 
-            <div v-else style="overflow-x:auto;">
-                <Table>
-                    <thead>
-                        <tr>
-                            <th>Staff Member</th>
-                            <th>Designation</th>
-                            <th style="text-align:right;">Basic</th>
-                            <th style="text-align:right;">Allowances</th>
-                            <th style="text-align:right;">Deductions</th>
-                            <th style="text-align:right;font-weight:700;">Net Pay</th>
-                            <th>Status</th>
-                            <th>GL</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="s in staffList" :key="s.id">
-                            <td>
-                                <div style="font-weight:500;">{{ s.user?.name }}</div>
-                                <div style="font-size:.75rem;color:#94a3b8;">{{ s.employee_id }}</div>
+                        <template v-if="getPayroll(s.id)">
+                            <td style="text-align:right;color:#475569;">{{ fmt(getPayroll(s.id).basic_pay) }}</td>
+                            <td style="text-align:right;color:#16a34a;">+{{ fmt(getPayroll(s.id).allowances) }}</td>
+                            <td style="text-align:right;color:#dc2626;">
+                                -{{ fmt(parseFloat(getPayroll(s.id).deductions) + parseFloat(getPayroll(s.id).unpaid_leave_deduction || 0)) }}
+                                <div v-if="getPayroll(s.id).unpaid_leave_days > 0" style="font-size:.65rem;color:#f87171;margin-top:2px;">
+                                    (inc. {{ getPayroll(s.id).unpaid_leave_days }}d LWP)
+                                </div>
                             </td>
-                            <td style="font-size:.8125rem;color:#475569;">{{ s.designation?.name || '—' }}</td>
-
-                            <template v-if="getPayroll(s.id)">
-                                <td style="text-align:right;color:#475569;">{{ fmt(getPayroll(s.id).basic_pay) }}</td>
-                                <td style="text-align:right;color:#16a34a;">+{{ fmt(getPayroll(s.id).allowances) }}</td>
-                                <td style="text-align:right;color:#dc2626;">
-                                    -{{ fmt(parseFloat(getPayroll(s.id).deductions) + parseFloat(getPayroll(s.id).unpaid_leave_deduction || 0)) }}
-                                    <div v-if="getPayroll(s.id).unpaid_leave_days > 0" style="font-size:.65rem;color:#f87171;margin-top:2px;">
-                                        (inc. {{ getPayroll(s.id).unpaid_leave_days }}d LWP)
-                                    </div>
-                                </td>
-                                <td style="text-align:right;font-weight:700;">{{ fmt(getPayroll(s.id).net_salary) }}</td>
-                                <td>
-                                    <span class="badge" :class="getPayroll(s.id).status === 'paid' ? 'badge-green' : 'badge-amber'">
-                                        {{ getPayroll(s.id).status }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span v-if="getPayroll(s.id).gl_transaction" class="gl-badge gl-posted" :title="getPayroll(s.id).gl_transaction.transaction_no">
-                                        ✓ {{ getPayroll(s.id).gl_transaction.transaction_no }}
-                                    </span>
-                                    <button v-else-if="getPayroll(s.id).status === 'paid'"
-                                        @click="postGl(getPayroll(s.id).id)"
-                                        class="gl-badge gl-pending" title="Post to General Ledger">
-                                        Post GL
-                                    </button>
-                                    <span v-else class="gl-badge gl-na">—</span>
-                                </td>
-                                <td>
-                                    <div style="display:flex;gap:6px;align-items:center;">
-                                        <Button variant="success" size="xs" v-if="getPayroll(s.id).status !== 'paid'" @click="openMarkPaid(getPayroll(s.id).id)">
-                                            Mark Paid
-                                        </Button>
-                                        <Button variant="secondary" size="xs" as="a" :href="`/school/payroll/${getPayroll(s.id).id}/payslip`" target="_blank">
-                                            Payslip
-                                        </Button>
-                                    </div>
-                                </td>
-                            </template>
-                            <template v-else>
-                                <td colspan="4" style="text-align:center;color:#94a3b8;font-size:.8125rem;">— Not generated —</td>
-                                <td><span class="badge badge-gray">Pending</span></td>
-                                <td>—</td>
-                                <td style="color:#94a3b8;font-size:.8125rem;">—</td>
-                            </template>
-                        </tr>
-                    </tbody>
-                </Table>
-            </div>
+                            <td style="text-align:right;font-weight:700;">{{ fmt(getPayroll(s.id).net_salary) }}</td>
+                            <td>
+                                <span class="badge" :class="getPayroll(s.id).status === 'paid' ? 'badge-green' : 'badge-amber'">
+                                    {{ getPayroll(s.id).status }}
+                                </span>
+                            </td>
+                            <td>
+                                <span v-if="getPayroll(s.id).gl_transaction" class="gl-badge gl-posted" :title="getPayroll(s.id).gl_transaction.transaction_no">
+                                    ✓ {{ getPayroll(s.id).gl_transaction.transaction_no }}
+                                </span>
+                                <button v-else-if="getPayroll(s.id).status === 'paid'"
+                                    @click="postGl(getPayroll(s.id).id)"
+                                    class="gl-badge gl-pending" title="Post to General Ledger">
+                                    Post GL
+                                </button>
+                                <span v-else class="gl-badge gl-na">—</span>
+                            </td>
+                            <td>
+                                <div style="display:flex;gap:6px;align-items:center;">
+                                    <Button variant="success" size="xs" v-if="getPayroll(s.id).status !== 'paid'" @click="openMarkPaid(getPayroll(s.id).id)">
+                                        Mark Paid
+                                    </Button>
+                                    <Button variant="secondary" size="xs" as="a" :href="`/school/payroll/${getPayroll(s.id).id}/payslip`" target="_blank">
+                                        Payslip
+                                    </Button>
+                                </div>
+                            </td>
+                        </template>
+                        <template v-else>
+                            <td colspan="4" style="text-align:center;color:#94a3b8;font-size:.8125rem;">— Not generated —</td>
+                            <td><span class="badge badge-gray">Pending</span></td>
+                            <td>—</td>
+                            <td style="color:#94a3b8;font-size:.8125rem;">—</td>
+                        </template>
+                    </tr>
+                </tbody>
+                <template #empty>
+                    <EmptyState
+                        title="No active staff found"
+                        description="Add staff members to start managing payroll."
+                    />
+                </template>
+            </Table>
         </div>
 
         <!-- Mark Paid Modal -->
-        <Teleport to="body">
-            <div v-if="markPaidId" class="modal-backdrop" @click.self="closeMarkPaid">
-                <div class="modal" style="width:100%;max-width:400px;">
-                    <div class="modal-header">
-                        <h3 class="modal-title">Mark as Paid</h3>
-                        <button @click="closeMarkPaid" class="modal-close">&times;</button>
+        <Modal v-model:open="showMarkPaid" title="Mark as Paid" size="sm">
+            <form @submit.prevent="submitMarkPaid" id="mark-paid-form">
+                <div style="display:flex;flex-direction:column;gap:16px;">
+                    <div class="form-field">
+                        <label>Payment Date *</label>
+                        <input v-model="markPaidForm.payment_date" type="date" required />
                     </div>
-                    <form @submit.prevent="submitMarkPaid">
-                        <div class="modal-body" style="display:flex;flex-direction:column;gap:16px;">
-                            <div class="form-field">
-                                <label>Payment Date *</label>
-                                <input v-model="markPaidForm.payment_date" type="date" required />
-                            </div>
-                            <div class="form-field">
-                                <label>Payment Mode *</label>
-                                <select v-model="markPaidForm.payment_mode" required>
-                                    <option v-for="m in $page.props.payment_methods" :key="m.code" :value="m.code">{{ m.label }}</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <Button variant="secondary" type="button" @click="closeMarkPaid">Cancel</Button>
-                            <Button variant="success" type="submit" :loading="markPaidForm.processing">
-                                Confirm Payment
-                            </Button>
-                        </div>
-                    </form>
+                    <div class="form-field">
+                        <label>Payment Mode *</label>
+                        <select v-model="markPaidForm.payment_mode" required>
+                            <option v-for="m in $page.props.payment_methods" :key="m.code" :value="m.code">{{ m.label }}</option>
+                        </select>
+                    </div>
                 </div>
-            </div>
-        </Teleport>
+            </form>
+            <template #footer>
+                <Button variant="secondary" type="button" @click="closeMarkPaid">Cancel</Button>
+                <Button variant="success" type="submit" form="mark-paid-form" :loading="markPaidForm.processing">
+                    Confirm Payment
+                </Button>
+            </template>
+        </Modal>
 
     </SchoolLayout>
 </template>
 
 <style scoped>
-.payroll-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
-.stat-card-mini { text-align: center; }
-.stat-card-mini .card-body { padding: 16px; }
-.stat-value { font-size: 1.5rem; font-weight: 700; }
-.stat-label { font-size: .75rem; color: var(--text-muted); margin-top: 4px; }
-
 .gl-badge {
     display: inline-flex; align-items: center; padding: 3px 8px;
     border-radius: 10px; font-size: 0.72rem; font-weight: 600;
@@ -252,28 +221,24 @@ const fmt = (n) => '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDi
 .gl-pending:hover { background: #fde68a; }
 .gl-na { background: #f1f5f9; color: #94a3b8; }
 
-.modal-backdrop {
-    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(15,23,42,.5); backdrop-filter: blur(2px);
-    display: flex; align-items: center; justify-content: center; z-index: 1000;
+/* Form fields — Tailwind preflight workaround */
+.form-field { display: flex; flex-direction: column; gap: 5px; }
+.form-field label { font-size: 0.78rem; font-weight: 600; color: #374151; }
+.form-field input,
+.form-field select {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    background: #fff;
+    color: #111827;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
 }
-.modal {
-    background: #fff; border-radius: 12px;
-    box-shadow: 0 20px 25px -5px rgba(0,0,0,.1), 0 10px 10px -5px rgba(0,0,0,.04);
-}
-.modal-header {
-    padding: 16px 20px; border-bottom: 1px solid #e2e8f0;
-    display: flex; justify-content: space-between; align-items: center;
-}
-.modal-title { font-size: 1rem; font-weight: 700; color: #1e293b; }
-.modal-close {
-    background: none; border: none; font-size: 1.5rem; line-height: 1;
-    color: #94a3b8; cursor: pointer; padding: 0 4px;
-}
-.modal-close:hover { color: #0f172a; }
-.modal-body { padding: 20px; }
-.modal-footer {
-    padding: 16px 20px; border-top: 1px solid #e2e8f0; background: #f8fafc;
-    border-radius: 0 0 12px 12px; display: flex; justify-content: flex-end; gap: 10px;
+.form-field input:focus,
+.form-field select:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 </style>

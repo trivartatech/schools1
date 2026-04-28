@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -44,13 +45,11 @@ const fmt = (d) => d ? school.fmtDate(d) : '';
 
 <template>
     <SchoolLayout title="Holidays & Events">
-        <div class="page-header">
-            <div>
-                <h2 class="page-header-title">Holidays &amp; Events Calendar</h2>
-                <p class="page-header-sub">Track school holidays, events, and exam days.</p>
-            </div>
-            <Button variant="success" @click="openCreate">+ Add Entry</Button>
-        </div>
+        <PageHeader title="Holidays &amp;amp; Events Calendar" subtitle="Track school holidays, events, and exam days.">
+            <template #actions>
+                <Button variant="success" @click="openCreate">+ Add Entry</Button>
+            </template>
+        </PageHeader>
 
         <div class="card">
             <Table>

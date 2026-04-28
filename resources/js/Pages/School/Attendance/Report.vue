@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
 import { reactive, ref, computed } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
@@ -82,19 +83,16 @@ const pct = (row) => {
 
 <template>
     <SchoolLayout title="Attendance Report">
-        <div class="page-header">
-            <div>
-                <h1 class="page-header-title">Student Attendance Report</h1>
-                <p class="page-header-sub">Monthly day-by-day attendance overview</p>
-            </div>
-            <div style="display:flex;gap:8px;">
+        <PageHeader title="Student Attendance Report" subtitle="Monthly day-by-day attendance overview">
+            <template #actions>
                 <ExportDropdown
                     base-url="/school/export/attendance"
                     :params="{ class_id: filter.class_id, section_id: filter.section_id, month: filter.month }"
                 />
                 <Button as="link" href="/school/attendance">Mark Attendance</Button>
-            </div>
-        </div>
+
+            </template>
+        </PageHeader>
 
         <!-- Filters -->
         <FilterBar>

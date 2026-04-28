@@ -1,6 +1,7 @@
 <script setup>
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { useForm } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 
@@ -58,9 +59,11 @@ if (form.questions.length === 0) addQuestion();
 
 <template>
     <SchoolLayout :title="isEdit ? 'Edit Quiz' : 'Create Quiz'">
-        <div class="page-header">
-            <h1 class="page-header-title">{{ isEdit ? 'Edit Quiz' : 'Create Quiz' }}</h1>
-        </div>
+        <PageHeader>
+            <template #title>
+                <h1 class="page-header-title">{{ isEdit ? 'Edit Quiz' : 'Create Quiz' }}</h1>
+            </template>
+        </PageHeader>
 
         <form @submit.prevent="submit" style="display:flex;flex-direction:column;gap:20px;">
 

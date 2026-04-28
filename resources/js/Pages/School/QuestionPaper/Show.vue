@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const school = useSchoolStore();
@@ -32,9 +33,11 @@ const DIFFICULTY_BADGE = {
     <SchoolLayout title="Question Paper">
 
         <!-- Page Header -->
-        <div class="page-header">
-            <div>
+        <PageHeader>
+            <template #title>
                 <h1 class="page-header-title">{{ paper.title }}</h1>
+            </template>
+            <template #subtitle>
                 <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px;">
                     <span class="badge badge-gray">{{ paper.course_class?.name }}</span>
                     <span class="badge badge-blue">{{ paper.subject?.name }}</span>
@@ -46,8 +49,8 @@ const DIFFICULTY_BADGE = {
                         {{ paper.total_marks }} Marks &middot; {{ paper.duration_minutes }} min
                     </span>
                 </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            </template>
+            <template #actions>
                 <button @click="showAnswers = !showAnswers" class="answer-toggle"
                         :class="{ 'answer-toggle--on': showAnswers }">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -73,8 +76,8 @@ const DIFFICULTY_BADGE = {
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                     </template>
                 </Button>
-            </div>
-        </div>
+            </template>
+        </PageHeader>
 
         <!-- General Instructions -->
         <div v-if="paper.instructions" class="card" style="margin-bottom:20px;border-left:4px solid #f59e0b;">

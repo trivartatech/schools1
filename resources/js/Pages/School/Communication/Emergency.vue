@@ -2,6 +2,9 @@
 import { ref, computed } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import { useConfirm } from '@/Composables/useConfirm';
+
+const confirm = useConfirm();
 
 const props = defineProps({
     channels: {
@@ -52,18 +55,19 @@ function toggleChannel(channel) {
     }
 }
 
-function sendBroadcast() {
+async function sendBroadcast() {
     if (!canSubmit.value) return;
 
-    const confirmed = confirm(
-        'EMERGENCY BROADCAST CONFIRMATION\n\n'
-        + 'This will immediately send a message to ALL parents and ALL staff members '
-        + 'via: ' + form.channels.join(', ').toUpperCase() + '.\n\n'
-        + 'Message:\n"' + form.message.substring(0, 100) + (form.message.length > 100 ? '...' : '') + '"\n\n'
-        + 'Are you sure you want to proceed?'
-    );
+    const channelsList = form.channels.join(', ').toUpperCase();
+    const previewMsg = form.message.substring(0, 100) + (form.message.length > 100 ? '...' : '');
+    const ok = await confirm({
+        title: 'Emergency Broadcast Confirmation',
+        message: `This will immediately send a message to ALL parents and ALL staff members via: ${channelsList}.\n\nMessage:\n"${previewMsg}"\n\nAre you sure you want to proceed?`,
+        confirmLabel: 'Send Broadcast',
+        danger: true,
+    });
 
-    if (!confirmed) return;
+    if (!ok) return;
 
     sending.value = true;
     form.post('/school/communication/emergency', {
