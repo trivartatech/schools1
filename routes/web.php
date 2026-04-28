@@ -285,8 +285,11 @@ Route::middleware('auth')->group(function () {
         Route::middleware(['school.management'])->prefix('users')->group(function () {
             Route::get('/', [\App\Http\Controllers\School\UserManagementController::class, 'index'])->name('users.index');
             Route::post('{id}/reset-password', [\App\Http\Controllers\School\UserManagementController::class, 'resetPassword'])->name('users.reset-password');
-            Route::post('{id}/toggle-status', [\App\Http\Controllers\School\UserManagementController::class, 'toggleStatus'])->name('users.toggle-status');
+            Route::post('{id}/toggle-status',  [\App\Http\Controllers\School\UserManagementController::class, 'toggleStatus'])->name('users.toggle-status');
             Route::post('{id}/update-username', [\App\Http\Controllers\School\UserManagementController::class, 'updateUsername'])->name('users.update-username');
+            Route::post('create-missing',      [\App\Http\Controllers\School\UserManagementController::class, 'createMissing'])->name('users.create-missing');
+            Route::post('bulk-reset',          [\App\Http\Controllers\School\UserManagementController::class, 'bulkReset'])->name('users.bulk-reset');
+            Route::post('export-credentials',  [\App\Http\Controllers\School\UserManagementController::class, 'exportCredentials'])->name('users.export-credentials');
         });
 
         Route::middleware(['school.management', 'module:students'])->group(function () {

@@ -25,14 +25,15 @@ class AdmissionService
 
             if (!$parent) {
                 // Create User for Parent
-                // Default password matches the artisan portal:create-users
-                // command so admins / parents always know the initial login.
+                // Default password is 'password' across the whole app —
+                // matches portal:create-users and the User Management
+                // reset / create-missing flows.
                 $parentUser = User::create([
                     'school_id' => $schoolId,
                     'name'      => $data['father_name'] ?: ($data['guardian_name'] ?: 'Parent'),
                     'username'  => $data['primary_phone'],
                     'phone'     => $data['primary_phone'],
-                    'password'  => \Illuminate\Support\Facades\Hash::make('parent123'),
+                    'password'  => \Illuminate\Support\Facades\Hash::make('password'),
                     'user_type' => 'parent',
                     'is_active' => true,
                 ]);
@@ -112,12 +113,12 @@ class AdmissionService
                 $photoPath = $data['photo']->store('students/photos', 'public');
             }
 
-            // 4. Create User for Student
+            // 4. Create User for Student — same default password as the parent
             $studentUser = User::create([
                 'school_id' => $schoolId,
                 'name'      => $data['first_name'] . (isset($data['last_name']) ? ' ' . $data['last_name'] : ''),
                 'username'  => $admissionNo,
-                'password'  => \Illuminate\Support\Facades\Hash::make(\Illuminate\Support\Str::random(10)),
+                'password'  => \Illuminate\Support\Facades\Hash::make('password'),
                 'user_type' => 'student',
                 'is_active' => true,
             ]);

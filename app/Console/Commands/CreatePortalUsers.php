@@ -58,7 +58,7 @@ class CreatePortalUsers extends Command
                 'name'      => $parent->father_name ?: ($parent->guardian_name ?: 'Parent'),
                 'username'  => $parent->primary_phone,
                 'phone'     => $parent->primary_phone,
-                'password'  => Hash::make('parent123'), // Default
+                'password'  => Hash::make('password'), // Default — change on first login
                 'user_type' => 'parent',
                 'is_active' => true,
             ]);
@@ -89,13 +89,11 @@ class CreatePortalUsers extends Command
                 continue;
             }
 
-            $dobPassword = $student->dob ? str_replace('-', '', $student->dob) : 'student123';
-
             $user = User::create([
                 'school_id' => $student->school_id,
                 'name'      => $student->first_name . ($student->last_name ? ' ' . $student->last_name : ''),
                 'username'  => $student->admission_no,
-                'password'  => Hash::make($dobPassword),
+                'password'  => Hash::make('password'), // Default — change on first login
                 'user_type' => 'student',
                 'is_active' => true,
             ]);

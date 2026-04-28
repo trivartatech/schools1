@@ -79,4 +79,14 @@ class School extends Model
             default      => 'g:i A',
         };
     }
+
+    /**
+     * Default rows-per-page from System Config. Clamped to [5, 100] to
+     * match the SystemConfig form validation. Use with paginate($school->pageLength()).
+     */
+    public function pageLength(int $fallback = 20): int
+    {
+        $n = (int) ($this->settings['page_length'] ?? $fallback);
+        return max(5, min(100, $n));
+    }
 }
