@@ -11,22 +11,58 @@ class StudentUpdateTemplate implements FromArray, WithHeadings, WithStyles
 {
     public function headings(): array
     {
+        // Update template — every column is optional; blank cells are
+        // ignored. Same field set as the create template plus erp_no
+        // (lookup key) and status. father_email / mother_email REMOVED
+        // — those columns don't exist on parents and were silently dropped.
         return [
-            'erp_no', 'admission_no', 'first_name', 'last_name', 'dob', 'gender',
+            'erp_no', 'admission_no', 'first_name', 'last_name', 'dob', 'birth_place', 'gender',
             'blood_group', 'religion', 'caste', 'category', 'mother_tongue',
             'nationality', 'aadhaar_no', 'address', 'city', 'state',
             'pincode', 'class', 'section', 'roll_no', 'status',
+            'student_type', 'enrollment_type',
             'father_name', 'mother_name', 'guardian_name', 'phone',
-            'father_phone', 'mother_phone', 'father_occupation', 'mother_occupation',
-            'father_email', 'mother_email', 'emergency_contact_name', 'emergency_contact_phone',
+            'father_phone', 'mother_phone',
+            'father_occupation', 'father_qualification',
+            'mother_occupation', 'mother_qualification',
+            'guardian_email', 'guardian_phone',
+            'parent_address',
+            'emergency_contact_name', 'emergency_contact_phone',
         ];
     }
 
     public function array(): array
     {
+        // Two example rows: address-only update + parent-only update
         return [
-            ['2025-26/0001', '', '', '', '', '', '', '', '', '', '', '', '', '456 New Address', 'Mumbai', 'Maharashtra', '400001', 'Class 6', 'A', '5', '', '', '', '', '9876543999', '', '', '', '', '', '', '', ''],
-            ['', 'STU002', '', 'Verma', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'Active', 'Suresh Verma', '', '', '', '', '', '', '', '', '', '', ''],
+            [
+                '2025-26/0001', '', '', '', '', '', '',
+                '', '', '', '', '',
+                '', '', '456 New Address', 'Mumbai', 'Maharashtra',
+                '400001', 'Class 6', 'A', '5', '',
+                'Old Student', '',
+                '', '', '', '9876543999',
+                '', '',
+                '', '',
+                '', '',
+                '', '',
+                '',
+                '', '',
+            ],
+            [
+                '', 'STU002', '', 'Verma', '', '', '',
+                '', '', '', '', '',
+                '', '', '', '', '',
+                '', '', '', '', 'Active',
+                '', '',
+                'Suresh Verma', '', '', '',
+                '', '',
+                '', 'M.Sc',
+                '', '',
+                'newparent@example.com', '9988776655',
+                '789 Updated Lane',
+                '', '',
+            ],
         ];
     }
 

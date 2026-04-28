@@ -119,11 +119,26 @@ class StudentImport implements ToCollection, WithHeadingRow
             $this->validatePhone(trim($row['phone'] ?? $row['parent_phone'] ?? ''), $rowNum, 'phone');
             $this->validatePhone(trim($row['father_phone'] ?? ''), $rowNum, 'father_phone');
             $this->validatePhone(trim($row['mother_phone'] ?? ''), $rowNum, 'mother_phone');
+            $this->validatePhone(trim($row['guardian_phone'] ?? ''), $rowNum, 'guardian_phone');
             $this->validatePhone(trim($row['emergency_contact_phone'] ?? ''), $rowNum, 'emergency_contact_phone');
 
             // Emails
-            $this->validateEmailFormat(trim($row['father_email'] ?? ''), $rowNum, 'father_email');
-            $this->validateEmailFormat(trim($row['mother_email'] ?? ''), $rowNum, 'mother_email');
+            $this->validateEmailFormat(trim($row['guardian_email'] ?? ''), $rowNum, 'guardian_email');
+
+            // Student type — must match the values the runtime fee resolver
+            // recognises. Empty is fine; falls back to count-based heuristic.
+            $studentType = trim($row['student_type'] ?? '');
+            if ($studentType !== '' && !in_array($studentType, ['New Student', 'Old Student'], true)) {
+                $this->setError($rowNum, 'student_type', "Student type must be 'New Student' or 'Old Student'.");
+            }
+
+            // Enrollment type — free-form on the column (validated max:50 in
+            // controller) but constrain the bulk path so accidental typos
+            // don't pollute the audit field.
+            $enrollmentType = trim($row['enrollment_type'] ?? '');
+            if ($enrollmentType !== '' && !in_array($enrollmentType, ['Regular', 'Transfer', 'Lateral', 'Re-admission'], true)) {
+                $this->setError($rowNum, 'enrollment_type', "Enrollment type must be Regular, Transfer, Lateral, or Re-admission.");
+            }
         }
 
         if ($this->validateOnly || $this->hasErrors()) {
@@ -143,6 +158,7 @@ class StudentImport implements ToCollection, WithHeadingRow
                     'first_name' => trim($row['first_name']),
                     'last_name' => trim($row['last_name'] ?? ''),
                     'dob' => $this->parseDate($row['dob'] ?? null),
+                    'birth_place' => trim($row['birth_place'] ?? ''),
                     'gender' => ucfirst(strtolower(trim($row['gender'] ?? ''))),
                     'blood_group' => trim($row['blood_group'] ?? ''),
                     'religion' => trim($row['religion'] ?? ''),
@@ -174,13 +190,15 @@ class StudentImport implements ToCollection, WithHeadingRow
 
                     if ($classId) {
                         StudentAcademicHistory::create([
-                            'student_id' => $student->id,
-                            'school_id' => $this->schoolId,
+                            'student_id'       => $student->id,
+                            'school_id'        => $this->schoolId,
                             'academic_year_id' => $this->academicYearId,
-                            'class_id' => $classId,
-                            'section_id' => $sectionId,
-                            'roll_no' => trim($row['roll_no'] ?? ''),
-                            'status' => 'current',
+                            'class_id'         => $classId,
+                            'section_id'       => $sectionId,
+                            'roll_no'          => trim($row['roll_no'] ?? ''),
+                            'status'           => 'current',
+                            'student_type'     => trim($row['student_type'] ?? '')    ?: 'New Student',
+                            'enrollment_type'  => trim($row['enrollment_type'] ?? '') ?: 'Regular',
                         ]);
                     }
                 }
@@ -192,26 +210,32 @@ class StudentImport implements ToCollection, WithHeadingRow
 
     protected function createParent(Collection $row): ?StudentParent
     {
-        $fatherName = trim($row['father_name'] ?? '');
-        $motherName = trim($row['mother_name'] ?? '');
+        $fatherName   = trim($row['father_name']   ?? '');
+        $motherName   = trim($row['mother_name']   ?? '');
         $guardianName = trim($row['guardian_name'] ?? '');
 
         if (!$fatherName && !$motherName && !$guardianName) {
             return null;
         }
 
+        // Field set matches StudentParent::$fillable. father_email and
+        // mother_email are intentionally not here — those columns don't
+        // exist on the parents table.
         return StudentParent::create([
-            'school_id' => $this->schoolId,
-            'father_name' => $fatherName,
-            'mother_name' => $motherName,
-            'guardian_name' => $guardianName,
-            'primary_phone' => trim($row['phone'] ?? $row['parent_phone'] ?? ''),
-            'father_phone' => trim($row['father_phone'] ?? ''),
-            'mother_phone' => trim($row['mother_phone'] ?? ''),
-            'father_occupation' => trim($row['father_occupation'] ?? ''),
-            'mother_occupation' => trim($row['mother_occupation'] ?? ''),
-            'father_email' => trim($row['father_email'] ?? ''),
-            'mother_email' => trim($row['mother_email'] ?? ''),
+            'school_id'            => $this->schoolId,
+            'father_name'          => $fatherName,
+            'mother_name'          => $motherName,
+            'guardian_name'        => $guardianName,
+            'primary_phone'        => trim($row['phone'] ?? $row['parent_phone'] ?? ''),
+            'father_phone'         => trim($row['father_phone'] ?? ''),
+            'mother_phone'         => trim($row['mother_phone'] ?? ''),
+            'guardian_email'       => trim($row['guardian_email'] ?? ''),
+            'guardian_phone'       => trim($row['guardian_phone'] ?? ''),
+            'father_occupation'    => trim($row['father_occupation']    ?? ''),
+            'father_qualification' => trim($row['father_qualification'] ?? ''),
+            'mother_occupation'    => trim($row['mother_occupation']    ?? ''),
+            'mother_qualification' => trim($row['mother_qualification'] ?? ''),
+            'address'              => trim($row['parent_address'] ?? ''),
         ]);
     }
 
