@@ -91,7 +91,7 @@ const toggleHostel = (id) => {
                             <div class="floor-label">{{ floor.name }}</div>
                             <div class="room-grid">
                                 <div v-for="room in floor.rooms" :key="room.id" class="room-cell"
-                                     :class="{'room-full': room.available === 0, 'room-inactive': room.status !== 'Active'}">
+                                     :class="{'room-full': room.available === 0, 'room-inactive': room.status === 'Maintenance'}">
                                     <div class="room-number">{{ room.room_number }}</div>
                                     <div class="room-beds">
                                         <span class="bed-occ">{{ room.occupied }}</span>/<span class="bed-total">{{ room.total_beds }}</span>

@@ -25,6 +25,10 @@ function applyFilter() {
     router.get('/school/hostel/rooms', filterForm, { preserveState: true, replace: true });
 }
 
+const form = reactive({
+    hostel_id: '', block_name: '', floor_name: '', room_number: '', capacity: 1, room_type: '', cost_per_month: 0, status: 'Available'
+});
+
 const availableRoomTypes = computed(() => {
     if (!props.hostels) return ['Standard', 'AC'];
     let hostel = props.hostels.find(h => h.id === form.hostel_id);
@@ -44,10 +48,6 @@ const availableFloors = computed(() => {
     let hostel = props.hostels.find(h => h.id === form.hostel_id);
     if (hostel && hostel.floors && hostel.floors.length > 0) return hostel.floors;
     return ['Ground Floor', '1st Floor', '2nd Floor']; // Fallback
-});
-
-const form = reactive({
-    hostel_id: '', block_name: '', floor_name: '', room_number: '', capacity: 1, room_type: '', cost_per_month: 0, status: 'Available'
 });
 
 function openModal(item = null) {

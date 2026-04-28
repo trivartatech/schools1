@@ -11,7 +11,11 @@ class HostelLeaveRequest extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = 'gate_passes';
+    // Uses the default `hostel_leave_requests` table.
+    // (A separate `gate_passes` table exists for the FrontOffice GatePass model
+    // — different columns, different feature. Pointing this model at gate_passes
+    // breaks every query that touches from_date / to_date / is_expired /
+    // parent_approval / escort_*, since none of those columns live there.)
 
     protected $fillable = [
         'school_id', 'student_id', 'leave_type', 'from_date', 'to_date', 'reason',
