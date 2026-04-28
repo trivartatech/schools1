@@ -39,6 +39,10 @@ const props = defineProps({
 // ── Date Formatting ───────────────────────────────────────────────────────────
 const formatDate = (dateString) => dateString ? school.fmtDate(dateString) : '—';
 
+// ── Photo fallback (when /storage path 404s, fall back to initials) ─────────
+const photoFailed = ref(false);
+watch(() => props.student?.id, () => { photoFailed.value = false; });
+
 // ── Active Tab ────────────────────────────────────────────────────────────────
 const activeTab = ref('basic');
 
@@ -392,10 +396,11 @@ const deleteDisc = (id) => {
             <div class="hero-card">
                 <div class="hero-top">
                     <div class="hero-avatar-wrap">
-                        <img v-if="student.photo"
+                        <img v-if="student.photo && !photoFailed"
                              :src="`/storage/${student.photo}`"
-                             alt="Student Photo"
-                             class="hero-avatar" />
+                             alt=""
+                             class="hero-avatar"
+                             @error="photoFailed = true" />
                         <div v-else class="hero-avatar hero-avatar-fallback">
                             {{ student.first_name?.charAt(0) }}{{ student.last_name?.charAt(0) ?? '' }}
                         </div>
@@ -1984,7 +1989,7 @@ const deleteDisc = (id) => {
                 <div class="modal-body id-card-body">
                     <div class="id-card-banner"></div>
                     <div class="id-card-content">
-                        <img v-if="student.photo" :src="`/storage/${student.photo}`" class="id-card-photo" />
+                        <img v-if="student.photo && !photoFailed" :src="`/storage/${student.photo}`" class="id-card-photo" alt="" @error="photoFailed = true" />
                         <div v-else class="id-card-photo id-card-photo-fallback">
                             {{ student.first_name?.charAt(0) }}
                         </div>
