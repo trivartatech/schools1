@@ -44,20 +44,20 @@ const Wrapper = computed(() => props.href ? Link : 'div')
 const containerCls = computed(() => {
     const base = 'relative block bg-white border border-gray-100 shadow-sm transition overflow-hidden'
     const radius = props.size === 'hero' ? 'rounded-2xl' : 'rounded-xl'
-    const padding = props.size === 'compact' ? 'p-4' : (props.size === 'hero' ? 'p-6' : 'p-5')
+    const padding = props.size === 'compact' ? 'p-3.5' : (props.size === 'hero' ? 'p-4' : 'p-4')
     const hover = props.href ? 'hover:border-indigo-300 hover:shadow-md cursor-pointer' : ''
     return [base, radius, padding, hover].filter(Boolean).join(' ')
 })
 
 const iconBoxCls = computed(() => {
-    const sz = props.size === 'compact' ? 'w-7 h-7 text-sm' : (props.size === 'hero' ? 'w-10 h-10 text-lg' : 'w-9 h-9 text-base')
+    const sz = props.size === 'compact' ? 'w-7 h-7 text-sm' : (props.size === 'hero' ? 'w-9 h-9 text-base' : 'w-8 h-8 text-sm')
     return `inline-flex items-center justify-center rounded-lg font-semibold ${sz} ${accentClasses.value.tile}`
 })
 
 const valueCls = computed(() => {
     if (props.size === 'compact') return 'text-xl font-semibold tracking-tight text-gray-900 leading-tight tabular-nums'
-    if (props.size === 'hero')    return 'text-3xl md:text-4xl font-bold tracking-tight text-gray-900 leading-tight tabular-nums'
-    return 'text-2xl md:text-3xl font-semibold tracking-tight text-gray-900 leading-tight tabular-nums'
+    if (props.size === 'hero')    return 'text-2xl md:text-3xl font-bold tracking-tight text-gray-900 leading-tight tabular-nums'
+    return 'text-xl md:text-2xl font-semibold tracking-tight text-gray-900 leading-tight tabular-nums'
 })
 </script>
 
@@ -75,11 +75,11 @@ const valueCls = computed(() => {
             aria-hidden
         />
 
-        <div :class="['flex items-start justify-between', size === 'compact' ? 'mb-2' : 'mb-3']">
+        <div :class="['flex items-start justify-between', size === 'compact' ? 'mb-1.5' : 'mb-2']">
             <div :class="iconBoxCls">{{ icon || label.charAt(0) }}</div>
             <span
                 v-if="deltaState"
-                :class="['inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-semibold', deltaState.cls]"
+                :class="['inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-semibold', deltaState.cls]"
             >
                 {{ deltaState.arrow }} {{ deltaState.sign }}{{ Math.abs(delta) }}{{ deltaUnit }}
             </span>
@@ -87,11 +87,11 @@ const valueCls = computed(() => {
 
         <div :class="valueCls">{{ value }}</div>
 
-        <div class="mt-1 flex items-end justify-between gap-2 min-h-[18px]">
+        <div class="mt-0.5 flex items-end justify-between gap-2">
             <p :class="['font-medium text-gray-500 truncate', size === 'compact' ? 'text-[11px]' : 'text-xs']">{{ label }}</p>
-            <Sparkline v-if="sparkline?.length && size !== 'compact'" :points="sparkline" :color="accentClasses.spark" />
+            <Sparkline v-if="sparkline?.length && size !== 'compact'" :points="sparkline" :color="accentClasses.spark" :height="22" :width="72" />
         </div>
 
-        <p v-if="sub" :class="['mt-2 text-gray-400 truncate', size === 'compact' ? 'text-[11px]' : 'text-xs']">{{ sub }}</p>
+        <p v-if="sub" :class="['mt-1 text-gray-400 truncate', size === 'compact' ? 'text-[11px]' : 'text-xs']">{{ sub }}</p>
     </component>
 </template>

@@ -147,24 +147,24 @@ const upcomingEvents = computed(() => {
 </script>
 
 <template>
-    <div class="space-y-5">
+    <div class="space-y-4">
 
         <!-- ─ Greeting & date ─────────────────────────────────────── -->
-        <header class="flex flex-wrap items-end justify-between gap-3">
+        <header class="flex flex-wrap items-center justify-between gap-3">
             <div>
-                <p class="text-sm text-gray-500">{{ todayLabel }}</p>
-                <h1 class="mt-0.5 text-2xl font-bold text-gray-900 tracking-tight">
+                <p class="text-xs text-gray-500">{{ todayLabel }}</p>
+                <h1 class="mt-0.5 text-xl md:text-2xl font-bold text-gray-900 tracking-tight">
                     {{ greeting }}, <span class="text-indigo-600">{{ d.admin_name || 'Admin' }}</span>
                 </h1>
             </div>
             <Link
                 v-if="nextExam"
                 href="/school/exam-schedules"
-                class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition"
+                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition"
             >
-                <span class="text-xs font-medium">Next exam</span>
+                <span class="text-[11px] font-medium">Next exam</span>
                 <span class="text-sm font-semibold">{{ nextExam.title }}</span>
-                <span class="text-xs opacity-75">in {{ nextExam.days_left }}d</span>
+                <span class="text-[11px] opacity-75">in {{ nextExam.days_left }}d</span>
             </Link>
         </header>
 
@@ -221,7 +221,7 @@ const upcomingEvents = computed(() => {
         <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
             <!-- Fee Summary card with progress bars -->
-            <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                 <div class="flex items-start justify-between mb-4">
                     <div>
                         <h2 class="text-base font-semibold text-gray-900 tracking-tight">Fee Summary</h2>
@@ -289,7 +289,7 @@ const upcomingEvents = computed(() => {
             </div>
 
             <!-- Course Wise Strength chart -->
-            <div class="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div class="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                 <SectionHeader
                     title="Course-wise strength"
                     subtitle="Active students per class, this academic year"
@@ -308,7 +308,7 @@ const upcomingEvents = computed(() => {
         </section>
 
         <!-- ─ Receipt vs Payment (12-month bar) ───────────────────── -->
-        <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
             <SectionHeader
                 title="Receipt vs Payment"
                 subtitle="Money in vs money out, last 12 months"
@@ -328,7 +328,7 @@ const upcomingEvents = computed(() => {
         </section>
 
         <!-- ─ Course Wise Summary (multi-bar per class) ───────────── -->
-        <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
             <SectionHeader
                 title="Course-wise fee summary"
                 subtitle="Total · Paid · Balance · Concession per class"
@@ -351,7 +351,7 @@ const upcomingEvents = computed(() => {
         <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
             <!-- Income semi-donut -->
-            <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                 <SectionHeader
                     :title="`Income — ${monthLabel}`"
                     subtitle="Non-fee income from ledger"
@@ -376,7 +376,7 @@ const upcomingEvents = computed(() => {
             </div>
 
             <!-- Expense semi-donut -->
-            <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                 <SectionHeader
                     :title="`Expense — ${monthLabel}`"
                     subtitle="Spending by category"
@@ -401,7 +401,7 @@ const upcomingEvents = computed(() => {
             </div>
 
             <!-- Attendance breakdown donut -->
-            <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                 <SectionHeader
                     title="Attendance breakdown"
                     subtitle="Students marked today"
@@ -426,7 +426,7 @@ const upcomingEvents = computed(() => {
 
         <!-- ─ Class-wise attendance + Fee Mix Today ───────────────── -->
         <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div class="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div class="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                 <SectionHeader
                     title="Class-wise attendance"
                     subtitle="Today, percent present"
@@ -444,7 +444,7 @@ const upcomingEvents = computed(() => {
                 <p v-else class="text-sm text-gray-400 italic py-12 text-center">No class attendance yet</p>
             </div>
 
-            <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                 <SectionHeader
                     title="Fee mix today"
                     :subtitle="feeMixHasData ? `${fmtCur(feeMixTotal)} collected` : 'No collections yet today'"
@@ -471,7 +471,7 @@ const upcomingEvents = computed(() => {
 
         <!-- ─ Activity & calendar ─────────────────────────────────── -->
         <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div class="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div class="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                 <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
                     <h2 class="text-base font-semibold text-gray-900 tracking-tight">Recent activity</h2>
                     <div class="inline-flex bg-gray-100 rounded-lg p-1 text-xs font-medium">
@@ -516,7 +516,7 @@ const upcomingEvents = computed(() => {
 
         <!-- ─ Alerts: defaulters + low attendance + announcements ─── -->
         <section v-if="showAlerts" class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div v-if="pendingFeeStudents.length" class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div v-if="pendingFeeStudents.length" class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                 <SectionHeader title="Top pending fees" subtitle="Largest outstanding balances"
                     actionLabel="All defaulters" actionHref="/school/finance/due-report" />
                 <RecentList :rows="pendingFeeStudents" emptyText="No pending fees">
@@ -525,7 +525,7 @@ const upcomingEvents = computed(() => {
                 </RecentList>
             </div>
 
-            <div v-if="lowAttendance.length" class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div v-if="lowAttendance.length" class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                 <SectionHeader title="Low attendance" subtitle="Students under 75% this year"
                     actionLabel="Report" actionHref="/school/attendance/report" />
                 <RecentList :rows="lowAttendance" emptyText="No low-attendance students">
@@ -536,7 +536,7 @@ const upcomingEvents = computed(() => {
                 </RecentList>
             </div>
 
-            <div v-if="announcements.length" class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div v-if="announcements.length" class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                 <SectionHeader title="Recent announcements" subtitle="Latest broadcasts"
                     actionLabel="All" actionHref="/school/announcements" />
                 <RecentList :rows="announcements" emptyText="No announcements yet">
@@ -553,20 +553,28 @@ const upcomingEvents = computed(() => {
 
         <!-- ─ People today ────────────────────────────────────────── -->
         <section v-if="showPeople" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div v-if="birthdays.length" class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-                <SectionHeader title="🎂 Birthdays today" subtitle="Send a wish" />
-                <div class="flex flex-wrap gap-2">
-                    <div v-for="(b, i) in birthdays" :key="i" class="flex items-center gap-2 bg-pink-50 text-pink-800 rounded-full pl-1 pr-3 py-1">
-                        <img v-if="b.photo" :src="b.photo" class="w-6 h-6 rounded-full object-cover" />
-                        <div v-else class="w-6 h-6 rounded-full bg-pink-200 flex items-center justify-center text-[10px] font-semibold">
+            <div v-if="birthdays.length" class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                <SectionHeader title="🎂 Birthdays today" :subtitle="`${birthdays.length} student${birthdays.length === 1 ? '' : 's'} celebrating`" />
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <div
+                        v-for="(b, i) in birthdays" :key="i"
+                        class="flex items-center gap-2.5 p-2 rounded-lg bg-pink-50/60 border border-pink-100 hover:bg-pink-50 transition min-w-0"
+                    >
+                        <img v-if="b.photo" :src="b.photo" class="w-10 h-10 rounded-full object-cover flex-shrink-0 ring-2 ring-white" />
+                        <div v-else class="w-10 h-10 rounded-full bg-pink-200 text-pink-800 flex items-center justify-center text-sm font-semibold flex-shrink-0 ring-2 ring-white">
                             {{ b.name.charAt(0) }}
                         </div>
-                        <span class="text-xs font-medium">{{ b.name }}</span>
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-gray-900 truncate leading-tight">{{ b.name }}</p>
+                            <p class="text-[11px] text-pink-700 font-medium truncate mt-0.5">
+                                {{ b.class }}<span v-if="b.section"> · {{ b.section }}</span>
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div v-if="absentStaff.length" class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div v-if="absentStaff.length" class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                 <SectionHeader title="Absent / on leave" subtitle="Staff away today"
                     actionLabel="Leaves" actionHref="/school/leaves" />
                 <RecentList :rows="absentStaff" avatarKey="photo">
@@ -577,7 +585,7 @@ const upcomingEvents = computed(() => {
         </section>
 
         <!-- ─ Upcoming events list ────────────────────────────────── -->
-        <section v-if="upcomingEvents.length" class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <section v-if="upcomingEvents.length" class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
             <SectionHeader title="Upcoming events" subtitle="Next holidays and exams"
                 actionLabel="Calendar" actionHref="/school/academic/calendar" />
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">

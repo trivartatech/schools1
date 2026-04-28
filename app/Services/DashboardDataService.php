@@ -286,7 +286,7 @@ class DashboardDataService
                 COUNT(*) as total,
                 SUM(CASE WHEN attendances.status IN ("present","late","half_day") THEN 1 ELSE 0 END) as present_count')
             ->groupBy('cc.id', 'cc.name')
-            ->orderBy('cc.name')
+            ->orderBy('cc.id')
             ->limit(10)->get()
             ->map(fn($r) => [
                 'class'   => $r->class_name,
@@ -395,10 +395,14 @@ class DashboardDataService
             ->where('status', 'active')
             ->whereMonth('dob', now()->month)
             ->whereDay('dob', now()->day)
-            ->limit(10)->get()
+            ->with(['currentAcademicHistory.courseClass', 'currentAcademicHistory.section'])
+            ->limit(12)->get()
             ->map(fn($s) => [
-                'name'  => trim($s->first_name . ' ' . $s->last_name),
-                'photo' => $s->photo_url,
+                'name'    => trim($s->first_name . ' ' . $s->last_name),
+                'photo'   => $s->photo_url,
+                'class'   => $s->currentAcademicHistory?->courseClass?->name ?? '—',
+                'section' => $s->currentAcademicHistory?->section?->name ?? null,
+                'admission_no' => $s->admission_no,
             ])->all();
     }
 
@@ -559,7 +563,7 @@ class DashboardDataService
             ->join('course_classes as cc', 'student_academic_histories.class_id', '=', 'cc.id')
             ->selectRaw('cc.id, cc.name, COUNT(DISTINCT student_academic_histories.student_id) as count')
             ->groupBy('cc.id', 'cc.name')
-            ->orderBy('cc.name')
+            ->orderBy('cc.id')
             ->get()
             ->map(fn($r) => ['class' => $r->name, 'count' => (int) $r->count])
             ->all();
@@ -625,7 +629,7 @@ class DashboardDataService
                 SUM(fee_payments.discount)     as total_discount,
                 SUM(fee_payments.fine)         as total_fine')
             ->groupBy('cc.id', 'cc.name')
-            ->orderBy('cc.name')
+            ->orderBy('cc.id')
             ->get()
             ->map(function ($r) {
                 $netDue  = max(0, (float) $r->total_due - (float) $r->total_discount + (float) $r->total_fine);
