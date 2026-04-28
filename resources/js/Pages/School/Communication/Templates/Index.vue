@@ -7,7 +7,8 @@ import Table from '@/Components/ui/Table.vue';
 
 const props = defineProps({
     templates: Array,
-    type: String
+    type: String,
+    triggers: { type: Array, default: () => [] }
 });
 
 const showModal = ref(false);
@@ -76,35 +77,23 @@ const deleteTemplate = (id) => {
     }
 };
 
-const triggers = [
-    { label: 'Attendance Update',     value: 'attendance_update',     system: true },
-    { label: 'Fee Payment Confirmed', value: 'fee_payment_confirmed', system: true },
-    { label: 'Fee Due Reminder',      value: 'fee_due_reminder',      system: true },
-    { label: 'Login OTP',             value: 'otp',                   system: true },
-    { label: 'Exam Published',        value: 'exam_published',        system: true },
-    { label: 'Test Notification',     value: 'test_sms',              system: true },
-    { label: 'New Diary Entry',       value: 'diary_created',         system: true },
-    { label: 'New Assignment',        value: 'assignment_created',    system: true },
-    { label: 'Custom / Manual',       value: 'custom',                system: false },
-];
+const triggersForChannel = computed(() =>
+    props.triggers.filter(t => !t.system || !t.channels || t.channels.includes(props.type))
+);
 
-const SYSTEM_SLUGS = triggers.filter(t => t.system).map(t => t.value);
-const isSystemTemplate = (template) => isSystemTemplate(template) || SYSTEM_SLUGS.includes(template.slug);
+const SYSTEM_SLUGS = computed(() => props.triggers.filter(t => t.system).map(t => t.value));
 
-const availableVariables = {
-    'attendance_update':      ['##NAME##', '##ATTENDANCE##', '##DATE##', '##FATHER_NAME##', '##COURSE_NAME##', '##BATCH_NAME##', '##APP_NAME##'],
-    'fee_payment_confirmed':  ['##NAME##', '##AMOUNT##', '##RECEIPT_NO##', '##DATETIME##', '##PAYMENT_METHOD##', '##COURSE_NAME##'],
-    'fee_due_reminder':       ['##NAME##', '##AMOUNT##', '##DATE##', '##COURSE_NAME##', '##BATCH_NAME##'],
-    'otp':                    ['##OTP##', '##APP_NAME##'],
-    'exam_published':         ['##NAME##', '##TITLE##', '##DATETIME##', '##CLASS_NAME##', '##TYPE##'],
-    'test_sms':               ['##NAME##', '##DATE##', '##APP_NAME##'],
-    'diary_created':          ['##NAME##', '##SUBJECT##', '##DATE##', '##COURSE_NAME##', '##BATCH_NAME##', '##APP_NAME##'],
-    'assignment_created':     ['##NAME##', '##TITLE##', '##SUBJECT##', '##DUE_DATE##', '##COURSE_NAME##', '##BATCH_NAME##', '##APP_NAME##'],
-    'custom':                 ['##NAME##', '##DATE##', '##APP_NAME##'],
-};
+const isSystemTemplate = (template) =>
+    !!template?.is_system || SYSTEM_SLUGS.value.includes(template?.slug);
+
+const availableVariables = computed(() => {
+    const map = {};
+    for (const t of props.triggers) map[t.value] = t.variables || [];
+    return map;
+});
 
 const getTriggerLabel = (slug) => {
-    const trigger = triggers.find(t => t.value === slug);
+    const trigger = props.triggers.find(t => t.value === slug);
     return trigger ? trigger.label : slug;
 };
 
@@ -209,7 +198,7 @@ const titleMap = {
                                 <label>System Trigger</label>
                                 <select v-model="form.slug" :disabled="(editingTemplate && isSystemTemplate(editingTemplate))">
                                     <option value="" disabled>Select Trigger</option>
-                                    <option v-for="t in ((editingTemplate && isSystemTemplate(editingTemplate)) ? triggers : triggers.filter(t => t.value === 'custom'))" :key="t.value" :value="t.value">{{ t.label }}</option>
+                                    <option v-for="t in ((editingTemplate && isSystemTemplate(editingTemplate)) ? triggersForChannel : triggers.filter(t => t.value === 'custom'))" :key="t.value" :value="t.value">{{ t.label }}</option>
                                 </select>
                                 <div v-if="form.errors.slug" class="form-error">{{ form.errors.slug }}</div>
                             </div>
