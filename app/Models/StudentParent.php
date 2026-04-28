@@ -16,6 +16,7 @@ class StudentParent extends Model
         'school_id', 'user_id', 'father_name', 'mother_name', 'guardian_name',
         'father_phone', 'mother_phone', 'primary_phone', 'guardian_email', 'guardian_phone',
         'father_occupation', 'father_qualification', 'mother_occupation', 'mother_qualification',
+        'father_photo', 'mother_photo',
         'address'
     ];
 

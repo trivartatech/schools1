@@ -51,6 +51,8 @@ const form = useForm({
     guardian_phone: props.student.student_parent?.guardian_phone || '',
     father_qualification: props.student.student_parent?.father_qualification || '',
     mother_qualification: props.student.student_parent?.mother_qualification || '',
+    father_photo: null,
+    mother_photo: null,
 
     // Academic-history override (persisted on the current year's row)
     student_type: props.student.current_academic_history?.student_type || 'New Student',
@@ -249,6 +251,16 @@ const submit = () => {
                                 <label>Father's Qualification</label>
                                 <input v-model="form.father_qualification" type="text" placeholder="e.g. B.Sc">
                             </div>
+                            <div class="form-field">
+                                <label>Father's Photo</label>
+                                <div class="photo-field">
+                                    <img v-if="student.student_parent?.father_photo"
+                                         :src="`/storage/${student.student_parent.father_photo}`"
+                                         class="photo-thumb" alt="Current Father Photo">
+                                    <input @input="form.father_photo = $event.target.files[0]" type="file" accept="image/*" class="file-input">
+                                </div>
+                                <span v-if="form.errors.father_photo" class="form-error">{{ form.errors.father_photo }}</span>
+                            </div>
                         </div>
 
                         <div class="parent-column">
@@ -268,6 +280,16 @@ const submit = () => {
                             <div class="form-field">
                                 <label>Mother's Qualification</label>
                                 <input v-model="form.mother_qualification" type="text" placeholder="e.g. M.A">
+                            </div>
+                            <div class="form-field">
+                                <label>Mother's Photo</label>
+                                <div class="photo-field">
+                                    <img v-if="student.student_parent?.mother_photo"
+                                         :src="`/storage/${student.student_parent.mother_photo}`"
+                                         class="photo-thumb" alt="Current Mother Photo">
+                                    <input @input="form.mother_photo = $event.target.files[0]" type="file" accept="image/*" class="file-input">
+                                </div>
+                                <span v-if="form.errors.mother_photo" class="form-error">{{ form.errors.mother_photo }}</span>
                             </div>
                         </div>
                     </div>

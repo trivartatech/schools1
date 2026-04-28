@@ -39,6 +39,15 @@ class AdmissionService
                 ]);
                 $parentUser->assignRole('parent');
 
+                $fatherPhotoPath = null;
+                if (isset($data['father_photo']) && $data['father_photo'] instanceof \Illuminate\Http\UploadedFile) {
+                    $fatherPhotoPath = $data['father_photo']->store('parents/photos', 'public');
+                }
+                $motherPhotoPath = null;
+                if (isset($data['mother_photo']) && $data['mother_photo'] instanceof \Illuminate\Http\UploadedFile) {
+                    $motherPhotoPath = $data['mother_photo']->store('parents/photos', 'public');
+                }
+
                 $parent = StudentParent::create([
                     'school_id'            => $schoolId,
                     'user_id'              => $parentUser->id,
@@ -54,6 +63,8 @@ class AdmissionService
                     'father_qualification' => $data['father_qualification'] ?? null,
                     'mother_occupation'    => $data['mother_occupation']    ?? null,
                     'mother_qualification' => $data['mother_qualification'] ?? null,
+                    'father_photo'         => $fatherPhotoPath,
+                    'mother_photo'         => $motherPhotoPath,
                     'address'              => $data['parent_address']       ?? null,
                 ]);
             }

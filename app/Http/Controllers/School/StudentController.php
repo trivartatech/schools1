@@ -604,6 +604,8 @@ class StudentController extends Controller
             'father_qualification'     => 'nullable|string|max:100',
             'mother_occupation'        => 'nullable|string|max:255',
             'mother_qualification'     => 'nullable|string|max:100',
+            'father_photo'             => 'nullable|image|max:5120',
+            'mother_photo'             => 'nullable|image|max:5120',
             'parent_address'           => 'nullable|string',
 
             // Academic-history override (persisted on the current year's row)
@@ -662,6 +664,24 @@ class StudentController extends Controller
             ->where('primary_phone', $validated['primary_phone'])
             ->where('id', '!=', $student->parent_id)
             ->first();
+
+        // Resolve which parent record will actually receive the photo upload
+        // (re-link target wins over the student's existing parent), so we can
+        // delete the right old file before writing the new one.
+        $targetParent = $existingParent ?: $student->studentParent;
+
+        if ($request->hasFile('father_photo')) {
+            if ($targetParent && $targetParent->father_photo) {
+                Storage::disk('public')->delete($targetParent->father_photo);
+            }
+            $parentData['father_photo'] = $request->file('father_photo')->store('parents/photos', 'public');
+        }
+        if ($request->hasFile('mother_photo')) {
+            if ($targetParent && $targetParent->mother_photo) {
+                Storage::disk('public')->delete($targetParent->mother_photo);
+            }
+            $parentData['mother_photo'] = $request->file('mother_photo')->store('parents/photos', 'public');
+        }
 
         if ($existingParent) {
             // Another parent record with this phone exists — re-link student to that parent

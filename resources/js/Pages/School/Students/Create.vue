@@ -56,6 +56,8 @@ const form = useForm({
     guardian_phone: '',
     father_qualification: '',
     mother_qualification: '',
+    father_photo: null,
+    mother_photo: null,
 
     // Options
     same_address: true,
@@ -349,6 +351,11 @@ const submit = () => {
                                 <label>Father's Qualification</label>
                                 <input v-model="form.father_qualification" type="text" placeholder="e.g. B.Sc">
                             </div>
+                            <div class="form-field">
+                                <label>Father's Photo</label>
+                                <input @input="form.father_photo = $event.target.files[0]" type="file" accept="image/*" class="file-input">
+                                <span v-if="form.errors.father_photo" class="form-error">{{ form.errors.father_photo }}</span>
+                            </div>
                         </div>
 
                         <div class="parent-column">
@@ -368,6 +375,11 @@ const submit = () => {
                             <div class="form-field">
                                 <label>Mother's Qualification</label>
                                 <input v-model="form.mother_qualification" type="text" placeholder="e.g. M.A">
+                            </div>
+                            <div class="form-field">
+                                <label>Mother's Photo</label>
+                                <input @input="form.mother_photo = $event.target.files[0]" type="file" accept="image/*" class="file-input">
+                                <span v-if="form.errors.mother_photo" class="form-error">{{ form.errors.mother_photo }}</span>
                             </div>
                         </div>
                     </div>

@@ -569,6 +569,32 @@ function submitAssignHostel() {
                             <span class="card-title">Guardian / Parent Details</span>
                         </div>
                         <div class="card-body">
+
+                            <div class="parent-photo-row">
+                                <div class="parent-photo-block">
+                                    <img v-if="student.student_parent?.father_photo"
+                                         :src="`/storage/${student.student_parent.father_photo}`"
+                                         alt="Father Photo"
+                                         class="parent-photo" />
+                                    <div v-else class="parent-photo parent-photo-fallback">
+                                        {{ student.student_parent?.father_name?.charAt(0)?.toUpperCase() || '👨' }}
+                                    </div>
+                                    <div class="parent-photo-role">Father</div>
+                                    <div class="parent-photo-name">{{ student.student_parent?.father_name || '—' }}</div>
+                                </div>
+                                <div class="parent-photo-block">
+                                    <img v-if="student.student_parent?.mother_photo"
+                                         :src="`/storage/${student.student_parent.mother_photo}`"
+                                         alt="Mother Photo"
+                                         class="parent-photo" />
+                                    <div v-else class="parent-photo parent-photo-fallback">
+                                        {{ student.student_parent?.mother_name?.charAt(0)?.toUpperCase() || '👩' }}
+                                    </div>
+                                    <div class="parent-photo-role">Mother</div>
+                                    <div class="parent-photo-name">{{ student.student_parent?.mother_name || '—' }}</div>
+                                </div>
+                            </div>
+
                             <div class="info-grid info-grid--3">
                                 <div class="info-field">
                                     <p class="info-label">Father Name</p>
@@ -2182,6 +2208,59 @@ function submitAssignHostel() {
 
 .sibling-row:hover {
     background: #f8faff;
+}
+
+.parent-photo-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    justify-content: center;
+    padding: 8px 0 24px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+.parent-photo-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    min-width: 140px;
+}
+
+.parent-photo {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--surface, #fff);
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.12);
+    margin-bottom: 10px;
+}
+
+.parent-photo-fallback {
+    background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+    color: #4338ca;
+    font-size: 36px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.parent-photo-role {
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 2px;
+}
+
+.parent-photo-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e293b;
 }
 
 .sibling-avatar-wrap {

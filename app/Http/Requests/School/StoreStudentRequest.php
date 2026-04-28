@@ -58,6 +58,8 @@ class StoreStudentRequest extends FormRequest
             'father_qualification'     => 'nullable|string|max:100',
             'mother_occupation'        => 'nullable|string|max:255',
             'mother_qualification'     => 'nullable|string|max:100',
+            'father_photo'             => 'nullable|image|max:5120',
+            'mother_photo'             => 'nullable|image|max:5120',
             'parent_address'           => 'nullable|string',
 
             // Transport (optional) — scoped to school
