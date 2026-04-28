@@ -449,14 +449,17 @@ class DailyReportService
         $modes = [];
 
         foreach ([FeePayment::class, TransportFeePayment::class, HostelFeePayment::class, StationaryFeePayment::class] as $model) {
+            // Alias as `pm_raw` so Eloquent skips the PaymentMode enum cast
+            // attached to `payment_mode` on the fee models — we want the raw
+            // string here so it can be used as an array key.
             $rows = $apply($model::where('school_id', $schoolId)
                 ->whereDate('payment_date', $d)
                 ->where('amount_paid', '>', 0))
-                ->selectRaw('payment_mode, SUM(amount_paid) as total, COUNT(*) as count')
+                ->selectRaw('payment_mode as pm_raw, SUM(amount_paid) as total, COUNT(*) as count')
                 ->groupBy('payment_mode')
                 ->get();
             foreach ($rows as $r) {
-                $mode = (string) $r->payment_mode ?: 'unknown';
+                $mode = $this->normalisePaymentMode($r->pm_raw);
                 $modes[$mode]['amount'] = ($modes[$mode]['amount'] ?? 0) + (float) $r->total;
                 $modes[$mode]['count']  = ($modes[$mode]['count']  ?? 0) + (int) $r->count;
             }
@@ -588,11 +591,15 @@ class DailyReportService
         return Expense::where('school_id', $schoolId)
             ->whereDate('expense_date', $date->toDateString())
             ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
-            ->selectRaw('payment_mode, SUM(amount) as total, COUNT(*) as count')
+            ->selectRaw('payment_mode as pm_raw, SUM(amount) as total, COUNT(*) as count')
             ->groupBy('payment_mode')
             ->orderByDesc('total')
             ->get()
-            ->map(fn($r) => ['mode' => $r->payment_mode ?: 'unknown', 'amount' => (float) $r->total, 'count' => (int) $r->count])
+            ->map(fn($r) => [
+                'mode'   => $this->normalisePaymentMode($r->pm_raw),
+                'amount' => (float) $r->total,
+                'count'  => (int) $r->count,
+            ])
             ->all();
     }
 
@@ -610,7 +617,7 @@ class DailyReportService
                 'title'       => $e->title ?: $e->description ?: '—',
                 'category'    => $e->category?->name ?? 'Uncategorised',
                 'amount'      => (float) $e->amount,
-                'mode'        => $e->payment_mode,
+                'mode'        => $this->normalisePaymentMode($e->payment_mode),
                 'recorded_by' => $e->recordedBy?->name ?? '—',
             ])
             ->all();
@@ -1052,5 +1059,17 @@ class DailyReportService
     {
         if ($previous == 0.0) return $current > 0 ? null : 0.0;
         return round((($current - $previous) / $previous) * 100, 1);
+    }
+
+    /**
+     * Convert a payment_mode value (which can be a BackedEnum because the fee
+     * models cast it to PaymentMode) into a plain string — safe to use as an
+     * array key and to serialise to JSON.
+     */
+    private function normalisePaymentMode(mixed $raw): string
+    {
+        if ($raw instanceof \BackedEnum) return (string) $raw->value;
+        if ($raw instanceof \UnitEnum)   return $raw->name;
+        return ((string) ($raw ?? '')) ?: 'unknown';
     }
 }
