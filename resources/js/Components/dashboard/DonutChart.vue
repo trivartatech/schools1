@@ -10,6 +10,7 @@ const props = defineProps({
     height:   { type: Number, default: 180 },
     centerLabel: { type: String, default: null },
     centerValue: { type: [String, Number], default: null },
+    semi:        { type: Boolean, default: false }, // true → top-facing half-donut
 })
 
 const total = computed(() => props.segments.reduce((s, x) => s + (x.value || 0), 0))
@@ -27,7 +28,9 @@ const data = computed(() => ({
 const options = computed(() => ({
     responsive: true,
     maintainAspectRatio: false,
-    cutout: '70%',
+    cutout: props.semi ? '65%' : '70%',
+    rotation: props.semi ? -90 : 0,
+    circumference: props.semi ? 180 : 360,
     plugins: {
         legend: { display: false },
         tooltip: {
@@ -47,7 +50,13 @@ const options = computed(() => ({
 <template>
     <div class="relative w-full" :style="{ height: height + 'px' }">
         <Doughnut :data="data" :options="options" />
-        <div v-if="centerValue !== null" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+        <div
+            v-if="centerValue !== null"
+            :class="[
+                'absolute inset-x-0 flex flex-col items-center pointer-events-none',
+                semi ? 'bottom-2' : 'inset-y-0 justify-center'
+            ]"
+        >
             <span class="text-2xl font-semibold text-gray-900 tabular-nums">{{ centerValue }}</span>
             <span v-if="centerLabel" class="text-xs text-gray-500 mt-0.5">{{ centerLabel }}</span>
         </div>

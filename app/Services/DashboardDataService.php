@@ -8,6 +8,7 @@ use App\Models\Attendance;
 use App\Models\CourseClass;
 use App\Models\EditRequest;
 use App\Models\ExamScheduleSubject;
+use App\Models\Expense;
 use App\Models\FeePayment;
 use App\Models\Holiday;
 use App\Models\HostelFeePayment;
@@ -19,10 +20,12 @@ use App\Models\Staff;
 use App\Models\StaffAttendance;
 use App\Models\StationaryFeePayment;
 use App\Models\Student;
+use App\Models\StudentAcademicHistory;
+use App\Models\TransactionLine;
 use App\Models\TransportFeePayment;
 use App\Models\TransportRoute;
-use App\Models\VisitorLog;
 use App\Models\User;
+use App\Models\VisitorLog;
 
 /**
  * Aggregates all data the school admin dashboard renders.
@@ -48,6 +51,12 @@ class DashboardDataService
             'attendance_donut'     => $this->attendanceDonut($schoolId, $today),
             'class_attendance'     => $this->classAttendance($schoolId, $today),
             'fee_mix_today'        => $this->feeMixToday($schoolId, $today),
+            'fee_summary'          => $this->feeSummary($schoolId, $academicYearId, $today, $thisMonth, $thisMonthEnd),
+            'course_strength'      => $this->courseWiseStrength($schoolId, $academicYearId),
+            'receipt_vs_payment'   => $this->receiptVsPayment($schoolId),
+            'course_summary'       => $this->courseWiseSummary($schoolId, $academicYearId),
+            'month_income'         => $this->monthIncome($schoolId, $thisMonth, $thisMonthEnd),
+            'month_expense'        => $this->monthExpense($schoolId, $thisMonth, $thisMonthEnd),
             'recent_payments'      => $this->recentPayments($schoolId),
             'recent_admissions'    => $this->recentAdmissions($schoolId),
             'today_visitors'       => $this->todayVisitors($schoolId, $today),
@@ -491,6 +500,185 @@ class DashboardDataService
             'date'      => Carbon::parse($row->exam_date)->format('d M Y'),
             'days_left' => (int) $daysLeft,
         ];
+    }
+
+    // ───────────────────────────────────────────────────────────────
+    // Fee Summary card (Paid / Balance / Concession + period totals)
+    // ───────────────────────────────────────────────────────────────
+    private function feeSummary(int $schoolId, ?int $academicYearId, Carbon $today, Carbon $thisMonth, Carbon $thisMonthEnd): array
+    {
+        // Aggregate FeePayment for the academic year. amount_due is what was
+        // billed, amount_paid is what was actually received, discount is
+        // concession granted. balance = due - paid - discount + fine.
+        $agg = FeePayment::where('school_id', $schoolId)
+            ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
+            ->selectRaw('
+                COALESCE(SUM(amount_due), 0)  as total_due,
+                COALESCE(SUM(amount_paid), 0) as total_paid,
+                COALESCE(SUM(discount), 0)    as total_discount,
+                COALESCE(SUM(fine), 0)        as total_fine
+            ')->first();
+
+        $totalDue      = (float) ($agg->total_due ?? 0);
+        $totalPaid     = (float) ($agg->total_paid ?? 0);
+        $totalDiscount = (float) ($agg->total_discount ?? 0);
+        $totalFine     = (float) ($agg->total_fine ?? 0);
+
+        // Net billable after concession + fine; balance is the unpaid portion.
+        $netBillable = max(0, $totalDue - $totalDiscount + $totalFine);
+        $balance     = max(0, $netBillable - $totalPaid);
+
+        // Period collections — full fee mix (tuition + transport + hostel + stationary).
+        $todayCollection = $this->feeSumOnDay($schoolId, $today);
+        $weekStart       = $today->copy()->startOfWeek();
+        $weekCollection  = $this->feeSumInRange($schoolId, $weekStart, $today);
+        $monthCollection = $this->feeSumInRange($schoolId, $thisMonth, $thisMonthEnd);
+
+        return [
+            'total'      => $netBillable,
+            'paid'       => $totalPaid,
+            'balance'    => $balance,
+            'concession' => $totalDiscount,
+            'paid_pct'       => $netBillable > 0 ? round($totalPaid     / $netBillable * 100, 1) : 0,
+            'balance_pct'    => $netBillable > 0 ? round($balance       / $netBillable * 100, 1) : 0,
+            'concession_pct' => $totalDue > 0    ? round($totalDiscount / $totalDue   * 100, 1) : 0,
+            'today_collection' => $todayCollection,
+            'week_collection'  => $weekCollection,
+            'month_collection' => $monthCollection,
+        ];
+    }
+
+    // ───────────────────────────────────────────────────────────────
+    // Course Wise Strength (active student count per class)
+    // ───────────────────────────────────────────────────────────────
+    private function courseWiseStrength(int $schoolId, ?int $academicYearId): array
+    {
+        if (!$academicYearId) return [];
+        return StudentAcademicHistory::where('student_academic_histories.academic_year_id', $academicYearId)
+            ->whereHas('student', fn($q) => $q->where('school_id', $schoolId)->where('status', 'active'))
+            ->join('course_classes as cc', 'student_academic_histories.class_id', '=', 'cc.id')
+            ->selectRaw('cc.id, cc.name, COUNT(DISTINCT student_academic_histories.student_id) as count')
+            ->groupBy('cc.id', 'cc.name')
+            ->orderBy('cc.name')
+            ->get()
+            ->map(fn($r) => ['class' => $r->name, 'count' => (int) $r->count])
+            ->all();
+    }
+
+    // ───────────────────────────────────────────────────────────────
+    // Receipt vs Payment (12 months: receipts = fee inflows; payments = expenses)
+    // 5 grouped queries total instead of 60 per-month iterations.
+    // ───────────────────────────────────────────────────────────────
+    private function receiptVsPayment(int $schoolId): array
+    {
+        $start = now()->subMonths(11)->startOfMonth()->toDateString();
+
+        $byKey = [];
+        foreach ([FeePayment::class, TransportFeePayment::class, HostelFeePayment::class, StationaryFeePayment::class] as $model) {
+            $rows = $model::where('school_id', $schoolId)
+                ->where('amount_paid', '>', 0)
+                ->where('payment_date', '>=', $start)
+                ->selectRaw('YEAR(payment_date) as y, MONTH(payment_date) as m, SUM(amount_paid) as total')
+                ->groupBy('y', 'm')->get();
+            foreach ($rows as $r) {
+                $key = $r->y . '-' . $r->m;
+                $byKey[$key] = ($byKey[$key] ?? 0) + (float) $r->total;
+            }
+        }
+
+        $expRows = Expense::where('school_id', $schoolId)
+            ->where('expense_date', '>=', $start)
+            ->selectRaw('YEAR(expense_date) as y, MONTH(expense_date) as m, SUM(amount) as total')
+            ->groupBy('y', 'm')->get();
+        $expByKey = $expRows->mapWithKeys(fn($r) => [$r->y . '-' . $r->m => (float) $r->total]);
+
+        $out = [];
+        for ($i = 11; $i >= 0; $i--) {
+            $m = now()->subMonths($i);
+            $key = $m->year . '-' . $m->month;
+            $out[] = [
+                'month'   => $m->format('M Y'),
+                'short'   => $m->format('M y'),
+                'receipt' => $byKey[$key] ?? 0,
+                'payment' => $expByKey[$key] ?? 0,
+            ];
+        }
+        return $out;
+    }
+
+    // ───────────────────────────────────────────────────────────────
+    // Course Wise Summary (per class: total / paid / balance / concession)
+    // ───────────────────────────────────────────────────────────────
+    private function courseWiseSummary(int $schoolId, ?int $academicYearId): array
+    {
+        if (!$academicYearId) return [];
+        return FeePayment::where('fee_payments.school_id', $schoolId)
+            ->where('fee_payments.academic_year_id', $academicYearId)
+            ->join('student_academic_histories as sah', function ($j) use ($academicYearId) {
+                $j->on('sah.student_id', '=', 'fee_payments.student_id')
+                  ->where('sah.academic_year_id', $academicYearId);
+            })
+            ->join('course_classes as cc', 'sah.class_id', '=', 'cc.id')
+            ->selectRaw('cc.id, cc.name,
+                SUM(fee_payments.amount_due)   as total_due,
+                SUM(fee_payments.amount_paid)  as total_paid,
+                SUM(fee_payments.discount)     as total_discount,
+                SUM(fee_payments.fine)         as total_fine')
+            ->groupBy('cc.id', 'cc.name')
+            ->orderBy('cc.name')
+            ->get()
+            ->map(function ($r) {
+                $netDue  = max(0, (float) $r->total_due - (float) $r->total_discount + (float) $r->total_fine);
+                $balance = max(0, $netDue - (float) $r->total_paid);
+                return [
+                    'class'      => $r->name,
+                    'total'      => $netDue,
+                    'paid'       => (float) $r->total_paid,
+                    'balance'    => $balance,
+                    'concession' => (float) $r->total_discount,
+                ];
+            })->all();
+    }
+
+    // ───────────────────────────────────────────────────────────────
+    // Income breakdown — current month, by GL ledger (Income type only)
+    // ───────────────────────────────────────────────────────────────
+    private function monthIncome(int $schoolId, Carbon $thisMonth, Carbon $thisMonthEnd): array
+    {
+        return TransactionLine::where('type', 'credit')
+            ->whereHas('transaction', fn($q) => $q
+                ->where('school_id', $schoolId)
+                ->where('status', 'posted')
+                ->whereBetween('date', [$thisMonth->toDateString(), $thisMonthEnd->toDateString()])
+            )
+            ->whereHas('ledger.ledgerType', fn($q) => $q->where('name', 'Income'))
+            ->with('ledger')
+            ->get()
+            ->groupBy(fn($l) => $l->ledger?->name ?? 'Other')
+            ->map(fn($lines) => (float) $lines->sum('amount'))
+            ->sortDesc()
+            ->take(8)
+            ->map(fn($amount, $name) => ['name' => $name, 'amount' => $amount])
+            ->values()
+            ->all();
+    }
+
+    // ───────────────────────────────────────────────────────────────
+    // Expense breakdown — current month, by Expense category
+    // ───────────────────────────────────────────────────────────────
+    private function monthExpense(int $schoolId, Carbon $thisMonth, Carbon $thisMonthEnd): array
+    {
+        return Expense::where('school_id', $schoolId)
+            ->whereBetween('expense_date', [$thisMonth->toDateString(), $thisMonthEnd->toDateString()])
+            ->with('category')
+            ->get()
+            ->groupBy(fn($e) => $e->category?->name ?? 'Uncategorised')
+            ->map(fn($items) => (float) $items->sum('amount'))
+            ->sortDesc()
+            ->take(8)
+            ->map(fn($amount, $name) => ['name' => $name, 'amount' => $amount])
+            ->values()
+            ->all();
     }
 
     // ───────────────────────────────────────────────────────────────
