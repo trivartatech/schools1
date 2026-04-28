@@ -37,9 +37,9 @@ class DailyReportAnomalies
     {
         if (!$academicYearId) return [];
 
-        $rows = Attendance::where('school_id', $schoolId)
-            ->where('date', $date->toDateString())
-            ->where('academic_year_id', $academicYearId)
+        $rows = Attendance::where('attendances.school_id', $schoolId)
+            ->where('attendances.date', $date->toDateString())
+            ->where('attendances.academic_year_id', $academicYearId)
             ->join('course_classes as cc', 'attendances.class_id', '=', 'cc.id')
             ->leftJoin('sections as s', 'attendances.section_id', '=', 's.id')
             ->selectRaw('
