@@ -27,10 +27,14 @@ const form = useForm({
     father_name: props.student?.student_parent?.father_name || '',
     father_phone: props.student?.student_parent?.father_phone || '',
     father_occupation: props.student?.student_parent?.father_occupation || '',
+    father_qualification: props.student?.student_parent?.father_qualification || '',
     mother_name: props.student?.student_parent?.mother_name || '',
     mother_phone: props.student?.student_parent?.mother_phone || '',
     mother_occupation: props.student?.student_parent?.mother_occupation || '',
+    mother_qualification: props.student?.student_parent?.mother_qualification || '',
     guardian_name: props.student?.student_parent?.guardian_name || '',
+    guardian_email: props.student?.student_parent?.guardian_email || '',
+    guardian_phone: props.student?.student_parent?.guardian_phone || '',
     parent_address: props.student?.student_parent?.address || '',
 
     reason: ''
@@ -181,6 +185,10 @@ const submit = () => {
                                 <label class="form-label">Father's Occupation</label>
                                 <input v-model="form.father_occupation" type="text" class="form-input">
                             </div>
+                            <div class="form-field">
+                                <label class="form-label">Father's Qualification</label>
+                                <input v-model="form.father_qualification" type="text" class="form-input" placeholder="e.g. B.Sc">
+                            </div>
                         </div>
 
                         <div class="parent-block">
@@ -200,11 +208,15 @@ const submit = () => {
                                 <label class="form-label">Mother's Occupation</label>
                                 <input v-model="form.mother_occupation" type="text" class="form-input">
                             </div>
+                            <div class="form-field">
+                                <label class="form-label">Mother's Qualification</label>
+                                <input v-model="form.mother_qualification" type="text" class="form-input" placeholder="e.g. M.A">
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Guardian / Address row -->
-                    <div class="form-grid form-grid--2 guardian-row">
+                    <!-- Guardian Name / Email / Phone -->
+                    <div class="form-grid form-grid--3 guardian-row">
                         <div class="form-field">
                             <label class="form-label">
                                 Guardian Name
@@ -213,9 +225,19 @@ const submit = () => {
                             <input v-model="form.guardian_name" type="text" class="form-input">
                         </div>
                         <div class="form-field">
-                            <label class="form-label">Permanent Parent Address</label>
-                            <textarea v-model="form.parent_address" rows="1" class="form-input form-textarea"></textarea>
+                            <label class="form-label">Guardian Email</label>
+                            <input v-model="form.guardian_email" type="email" class="form-input" placeholder="e.g. parent@email.com">
                         </div>
+                        <div class="form-field">
+                            <label class="form-label">Guardian Phone</label>
+                            <input v-model="form.guardian_phone" type="text" class="form-input" placeholder="Alternate mobile number">
+                        </div>
+                    </div>
+
+                    <!-- Parent address -->
+                    <div class="form-field" style="margin-top: 1rem;">
+                        <label class="form-label">Permanent Parent Address</label>
+                        <textarea v-model="form.parent_address" rows="2" class="form-input form-textarea"></textarea>
                     </div>
 
                 </div>

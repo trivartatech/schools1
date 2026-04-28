@@ -94,12 +94,34 @@ class EditRequestController extends Controller
 
         $changes = $editRequest->requested_changes;
 
-        DB::transaction(function () use ($model, $changes, $editRequest) {
-            $userUpdates = [];
-            $modelUpdates = [];
+        // Keys that live on the `parents` table (StudentParent), not on the
+        // requestable model itself. The Student request-edit form pools both
+        // student and parent fields into one flat dict keyed by their column
+        // names; without this routing, parent-field edits get silently dropped
+        // because they aren't in Student::$fillable.
+        $parentKeys = [
+            'primary_phone', 'father_name', 'mother_name', 'guardian_name',
+            'guardian_email', 'guardian_phone',
+            'father_phone', 'mother_phone',
+            'father_occupation', 'father_qualification',
+            'mother_occupation', 'mother_qualification',
+            // 'parent_address' is the form key — the column on `parents` is
+            // just `address`, so it gets mapped explicitly below.
+            'parent_address',
+        ];
+
+        DB::transaction(function () use ($model, $changes, $editRequest, $parentKeys) {
+            $userUpdates   = [];
+            $modelUpdates  = [];
+            $parentUpdates = [];
 
             foreach ($changes as $key => $value) {
-                if (in_array($key, ['name', 'phone', 'email']) && $model->user) {
+                if (in_array($key, $parentKeys, true)) {
+                    // Translate the form-only key 'parent_address' into the
+                    // actual column 'address' on the parents table.
+                    $col = $key === 'parent_address' ? 'address' : $key;
+                    $parentUpdates[$col] = $value;
+                } elseif (in_array($key, ['name', 'phone', 'email'], true) && $model->user) {
                     $userUpdates[$key] = $value;
                 } else {
                     $modelUpdates[$key] = $value;
@@ -112,6 +134,12 @@ class EditRequestController extends Controller
 
             if (!empty($modelUpdates)) {
                 $model->update($modelUpdates);
+            }
+
+            // Apply parent updates only when the model has a related parent
+            // (i.e. requestable is a Student with studentParent loaded).
+            if (!empty($parentUpdates) && method_exists($model, 'studentParent') && $model->studentParent) {
+                $model->studentParent->update($parentUpdates);
             }
 
             $editRequest->update([

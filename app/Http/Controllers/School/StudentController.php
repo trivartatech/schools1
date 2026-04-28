@@ -868,12 +868,16 @@ class StudentController extends Controller
             'father_name' => 'nullable|string|max:255',
             'mother_name' => 'nullable|string|max:255',
             'guardian_name' => 'nullable|string|max:255',
+            'guardian_email' => 'nullable|email|max:255',
+            'guardian_phone' => 'nullable|string|max:20',
             'father_phone' => 'nullable|string|max:20',
             'mother_phone' => 'nullable|string|max:20',
             'father_occupation' => 'nullable|string|max:255',
+            'father_qualification' => 'nullable|string|max:100',
             'mother_occupation' => 'nullable|string|max:255',
+            'mother_qualification' => 'nullable|string|max:100',
             'parent_address' => 'nullable|string',
-            
+
             'reason' => 'nullable|string|max:1000'
         ]);
 
@@ -904,15 +908,19 @@ class StudentController extends Controller
 
         // Parent changes
         if ($student->studentParent) {
-            $checkVal('primary_phone', $student->studentParent->primary_phone, $validated['primary_phone'] ?? null);
-            $checkVal('father_name', $student->studentParent->father_name, $validated['father_name'] ?? null);
-            $checkVal('mother_name', $student->studentParent->mother_name, $validated['mother_name'] ?? null);
-            $checkVal('guardian_name', $student->studentParent->guardian_name, $validated['guardian_name'] ?? null);
-            $checkVal('father_phone', $student->studentParent->father_phone, $validated['father_phone'] ?? null);
-            $checkVal('mother_phone', $student->studentParent->mother_phone, $validated['mother_phone'] ?? null);
-            $checkVal('father_occupation', $student->studentParent->father_occupation, $validated['father_occupation'] ?? null);
-            $checkVal('mother_occupation', $student->studentParent->mother_occupation, $validated['mother_occupation'] ?? null);
-            $checkVal('parent_address', $student->studentParent->address, $validated['parent_address'] ?? null);
+            $checkVal('primary_phone',        $student->studentParent->primary_phone,        $validated['primary_phone']        ?? null);
+            $checkVal('father_name',          $student->studentParent->father_name,          $validated['father_name']          ?? null);
+            $checkVal('mother_name',          $student->studentParent->mother_name,          $validated['mother_name']          ?? null);
+            $checkVal('guardian_name',        $student->studentParent->guardian_name,        $validated['guardian_name']        ?? null);
+            $checkVal('guardian_email',       $student->studentParent->guardian_email,       $validated['guardian_email']       ?? null);
+            $checkVal('guardian_phone',       $student->studentParent->guardian_phone,       $validated['guardian_phone']       ?? null);
+            $checkVal('father_phone',         $student->studentParent->father_phone,         $validated['father_phone']         ?? null);
+            $checkVal('mother_phone',         $student->studentParent->mother_phone,         $validated['mother_phone']         ?? null);
+            $checkVal('father_occupation',    $student->studentParent->father_occupation,    $validated['father_occupation']    ?? null);
+            $checkVal('father_qualification', $student->studentParent->father_qualification, $validated['father_qualification'] ?? null);
+            $checkVal('mother_occupation',    $student->studentParent->mother_occupation,    $validated['mother_occupation']    ?? null);
+            $checkVal('mother_qualification', $student->studentParent->mother_qualification, $validated['mother_qualification'] ?? null);
+            $checkVal('parent_address',       $student->studentParent->address,              $validated['parent_address']       ?? null);
         }
 
         if (empty($requestedChanges)) {
