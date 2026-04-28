@@ -234,6 +234,37 @@
                         </tr>
                     </tbody>
                 </table>
+
+                @if(!empty($sa['absent_list']))
+                    <h3>Absent / On Leave Today</h3>
+                    <table>
+                        <thead><tr><th>Name</th><th>Designation</th><th>Status</th></tr></thead>
+                        <tbody>
+                            @foreach($sa['absent_list'] as $st)
+                                <tr>
+                                    <td>{{ $st['name'] }}</td>
+                                    <td>{{ $st['designation'] ?? '—' }}</td>
+                                    <td>{{ ucfirst($st['status']) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @endif
+
+                @if(!empty($sa['unmarked_list']))
+                    <h3>Unmarked Staff</h3>
+                    <table>
+                        <thead><tr><th>Name</th><th>Designation</th></tr></thead>
+                        <tbody>
+                            @foreach($sa['unmarked_list'] as $st)
+                                <tr>
+                                    <td>{{ $st['name'] }}</td>
+                                    <td>{{ $st['designation'] ?? '—' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @endif
             @endif
         </div>
     @endif

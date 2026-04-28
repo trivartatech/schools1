@@ -247,22 +247,56 @@ class DailyReportService
 
     private function staffAttendance(int $schoolId, Carbon $date): array
     {
-        $row = StaffAttendance::where('school_id', $schoolId)
-            ->where('date', $date->toDateString())
-            ->selectRaw('status, COUNT(*) as count')
-            ->groupBy('status')->pluck('count', 'status')->toArray();
+        // Active staff with their current attendance row (if any) for the day
+        $activeStaff = Staff::where('school_id', $schoolId)
+            ->where('status', 'active')
+            ->with(['user:id,name', 'designation:id,name'])
+            ->get();
 
-        $totalStaff = Staff::where('school_id', $schoolId)->where('status', 'active')->count();
-        $marked = (int) array_sum($row);
+        $marked = StaffAttendance::where('school_id', $schoolId)
+            ->where('date', $date->toDateString())
+            ->get(['staff_id', 'status'])
+            ->keyBy('staff_id');
+
+        $counts = ['present' => 0, 'absent' => 0, 'late' => 0, 'half_day' => 0, 'leave' => 0, 'holiday' => 0];
+        $absentList = [];
+        $unmarkedList = [];
+
+        foreach ($activeStaff as $staff) {
+            $rec = $marked[$staff->id] ?? null;
+            if (!$rec) {
+                $unmarkedList[] = [
+                    'name'        => $staff->user?->name ?? '—',
+                    'designation' => $staff->designation?->name,
+                ];
+                continue;
+            }
+
+            $status = (string) $rec->status;
+            if (isset($counts[$status])) $counts[$status]++;
+
+            if (in_array($status, ['absent', 'leave'], true)) {
+                $absentList[] = [
+                    'name'        => $staff->user?->name ?? '—',
+                    'designation' => $staff->designation?->name,
+                    'status'      => $status,
+                ];
+            }
+        }
+
+        $totalStaff = $activeStaff->count();
+        $markedTotal = $marked->count();
 
         return [
-            'total'    => $totalStaff,
-            'marked'   => $marked,
-            'present'  => (int) (($row['present'] ?? 0) + ($row['late'] ?? 0) + ($row['half_day'] ?? 0)),
-            'absent'   => (int) ($row['absent']  ?? 0),
-            'leave'    => (int) ($row['leave']   ?? 0),
-            'half_day' => (int) ($row['half_day']?? 0),
-            'unmarked' => max(0, $totalStaff - $marked),
+            'total'         => $totalStaff,
+            'marked'        => $markedTotal,
+            'present'       => $counts['present'] + $counts['late'] + $counts['half_day'],
+            'absent'        => $counts['absent'],
+            'leave'         => $counts['leave'],
+            'half_day'      => $counts['half_day'],
+            'unmarked'      => count($unmarkedList),
+            'absent_list'   => $absentList,
+            'unmarked_list' => $unmarkedList,
         ];
     }
 
@@ -297,9 +331,17 @@ class DailyReportService
             $byKey[$key][$row->status] = (int) $row->count;
         }
 
-        // Class + section names
-        $classes  = CourseClass::where('school_id', $schoolId)->orderBy('numeric_value')->orderBy('id')->pluck('name', 'id');
-        $sections = Section::where('school_id', $schoolId)->orderBy('sort_order')->pluck('name', 'id');
+        // Class meta: name + numeric_value (for ordering)
+        $classMeta = CourseClass::where('school_id', $schoolId)
+            ->orderBy('numeric_value')->orderBy('id')
+            ->get(['id', 'name', 'numeric_value'])
+            ->keyBy('id');
+
+        // Section meta: name + sort_order (for ordering)
+        $sectionMeta = Section::where('school_id', $schoolId)
+            ->orderBy('sort_order')
+            ->get(['id', 'name', 'sort_order'])
+            ->keyBy('id');
 
         $rows = [];
         foreach ($enrolled as $key => $row) {
@@ -315,26 +357,34 @@ class DailyReportService
             $enrolledCount = (int) $row->enrolled;
             $unmarked = max(0, $enrolledCount - $totalMarked);
 
+            $cls = $classMeta[$row->class_id] ?? null;
+            $sec = $row->section_id ? ($sectionMeta[$row->section_id] ?? null) : null;
+
             $rows[] = [
-                'class_id'       => $row->class_id,
-                'class'          => $classes[$row->class_id] ?? '—',
-                'section_id'     => $row->section_id,
-                'section'        => $row->section_id ? ($sections[$row->section_id] ?? '—') : null,
-                'enrolled'       => $enrolledCount,
-                'marked'         => $totalMarked,
-                'present'        => $present + $late + $halfDay,
-                'absent'         => $absent,
-                'leave'          => $leave,
-                'unmarked'       => $unmarked,
-                'pct'            => $totalMarked > 0 ? round($effectivePresent / $totalMarked * 100, 1) : 0,
+                'class_id'         => $row->class_id,
+                'class'            => $cls?->name ?? '—',
+                'class_order'      => (int) ($cls?->numeric_value ?? PHP_INT_MAX),
+                'section_id'       => $row->section_id,
+                'section'          => $sec?->name,
+                'section_order'    => (int) ($sec?->sort_order ?? PHP_INT_MAX),
+                'enrolled'         => $enrolledCount,
+                'marked'           => $totalMarked,
+                'present'          => $present + $late + $halfDay,
+                'absent'           => $absent,
+                'leave'            => $leave,
+                'unmarked'         => $unmarked,
+                'pct'              => $totalMarked > 0 ? round($effectivePresent / $totalMarked * 100, 1) : 0,
             ];
         }
 
-        // Sort: class numeric_value, then section sort_order — class+section name
+        // Sort by class.numeric_value, then section.sort_order — so the
+        // table reflects the school's actual class progression (1, 2, 3 …)
+        // instead of an alphabetic name sort.
         usort($rows, function ($a, $b) {
-            $cmpClass = strcmp($a['class'], $b['class']);
-            if ($cmpClass !== 0) return $cmpClass;
-            return strcmp((string) $a['section'], (string) $b['section']);
+            if ($a['class_order'] !== $b['class_order']) {
+                return $a['class_order'] <=> $b['class_order'];
+            }
+            return $a['section_order'] <=> $b['section_order'];
         });
 
         return $rows;

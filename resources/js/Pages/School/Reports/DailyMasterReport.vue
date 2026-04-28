@@ -321,12 +321,37 @@ const channelBadge = (channel) => ({
         <!-- Staff attendance compact -->
         <div v-if="showSection('attendance') && attendance.staff" class="card mb-3">
             <div class="card-header"><h2 class="card-title">Staff Attendance</h2></div>
-            <div class="card-body staff-grid">
-                <div><div class="kpi-label">Total</div><div class="kpi-value">{{ attendance.staff.total }}</div></div>
-                <div><div class="kpi-label">Present</div><div class="kpi-value net-pos">{{ attendance.staff.present }}</div></div>
-                <div><div class="kpi-label">Absent</div><div class="kpi-value net-neg">{{ attendance.staff.absent }}</div></div>
-                <div><div class="kpi-label">Leave</div><div class="kpi-value">{{ attendance.staff.leave }}</div></div>
-                <div><div class="kpi-label">Unmarked</div><div class="kpi-value">{{ attendance.staff.unmarked }}</div></div>
+            <div class="card-body">
+                <div class="staff-grid">
+                    <div><div class="kpi-label">Total</div><div class="kpi-value">{{ attendance.staff.total }}</div></div>
+                    <div><div class="kpi-label">Present</div><div class="kpi-value net-pos">{{ attendance.staff.present }}</div></div>
+                    <div><div class="kpi-label">Absent</div><div class="kpi-value net-neg">{{ attendance.staff.absent }}</div></div>
+                    <div><div class="kpi-label">Leave</div><div class="kpi-value">{{ attendance.staff.leave }}</div></div>
+                    <div><div class="kpi-label">Unmarked</div><div class="kpi-value">{{ attendance.staff.unmarked }}</div></div>
+                </div>
+
+                <div class="staff-lists">
+                    <div v-if="attendance.staff.absent_list?.length" class="staff-list">
+                        <h3 class="card-subtitle">Absent / On Leave Today ({{ attendance.staff.absent_list.length }})</h3>
+                        <ul class="staff-name-list">
+                            <li v-for="(s, i) in attendance.staff.absent_list" :key="'a' + i">
+                                <strong>{{ s.name }}</strong>
+                                <span v-if="s.designation" class="muted"> · {{ s.designation }}</span>
+                                <span class="status-badge" :class="`status-${s.status}`">{{ s.status }}</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div v-if="attendance.staff.unmarked_list?.length" class="staff-list">
+                        <h3 class="card-subtitle">Unmarked Staff ({{ attendance.staff.unmarked_list.length }})</h3>
+                        <ul class="staff-name-list">
+                            <li v-for="(s, i) in attendance.staff.unmarked_list" :key="'u' + i">
+                                <strong>{{ s.name }}</strong>
+                                <span v-if="s.designation" class="muted"> · {{ s.designation }}</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -580,6 +605,15 @@ const channelBadge = (channel) => ({
 .stream-card { padding: 10px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; text-transform: capitalize; }
 
 .staff-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.staff-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #f1f5f9; }
+.staff-list .card-subtitle { margin-bottom: 6px; }
+.staff-name-list { list-style: none; padding: 0; margin: 0; max-height: 240px; overflow-y: auto; border: 1px solid #f1f5f9; border-radius: 6px; }
+.staff-name-list li { padding: 6px 10px; border-bottom: 1px solid #f1f5f9; font-size: .82rem; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.staff-name-list li:last-child { border-bottom: none; }
+.status-badge { margin-left: auto; padding: 2px 8px; border-radius: 10px; font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.status-absent { background: #fee2e2; color: #991b1b; }
+.status-leave  { background: #fef3c7; color: #92400e; }
+
 .cash-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: center; }
 
 .dmr-row { display: flex; gap: 14px; flex-wrap: wrap; }
