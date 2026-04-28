@@ -773,6 +773,13 @@ const canSeeUserManagement = computed(() => {
     --radius-xl:       18px;
 }
 
+html, body {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
+}
+
 body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background: var(--bg);
@@ -784,6 +791,7 @@ body {
 .erp-shell {
     display: flex;
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
     background: var(--bg);
 }
