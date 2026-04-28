@@ -203,7 +203,7 @@ export const SIDEBAR_MENU = [
         title: 'Daily Master Report',
         group: 'Operations',
         route: '/school/reports/daily-master',
-        permission: 'view_dashboard',
+        permission: 'view_reports',
         icon: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 17v-2a4 4 0 014-4h4M3 7h18M3 12h12M3 17h6"/>`,
     },
     {
