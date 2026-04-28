@@ -115,6 +115,53 @@ class DisciplinaryController extends Controller
         return back()->with('success', 'Disciplinary record created.');
     }
 
+    public function storeBulk(Request $request)
+    {
+        $schoolId = app('current_school_id');
+
+        $validated = $request->validate([
+            'student_ids'      => 'required|array|min:1',
+            'student_ids.*'    => [Rule::exists('students', 'id')->where('school_id', $schoolId)],
+            'categories'       => 'required|array|min:1',
+            'categories.*'     => 'string|max:100',
+            'incident_date'    => 'required|date',
+            'severity'         => 'required|in:minor,moderate,major',
+            'description'      => 'required|string',
+            'action_taken'     => 'nullable|string',
+            'consequence'      => 'nullable|in:warning,detention,parent_call,suspension,expulsion,none',
+            'consequence_from' => 'nullable|date',
+            'consequence_to'   => 'nullable|date|after_or_equal:consequence_from',
+        ]);
+
+        $rows  = [];
+        $now   = now();
+        $base  = [
+            'school_id'         => $schoolId,
+            'reported_by'       => auth()->id(),
+            'status'            => 'open',
+            'incident_date'     => $validated['incident_date'],
+            'severity'          => $validated['severity'],
+            'description'       => $validated['description'],
+            'action_taken'      => $validated['action_taken']     ?? null,
+            'consequence'       => $validated['consequence']      ?? null,
+            'consequence_from'  => $validated['consequence_from'] ?? null,
+            'consequence_to'    => $validated['consequence_to']   ?? null,
+            'created_at'        => $now,
+            'updated_at'        => $now,
+        ];
+
+        foreach ($validated['student_ids'] as $sid) {
+            foreach ($validated['categories'] as $cat) {
+                $rows[] = $base + ['student_id' => $sid, 'category' => $cat];
+            }
+        }
+
+        DisciplinaryRecord::insert($rows);
+
+        $count = count($rows);
+        return back()->with('success', "$count disciplinary record" . ($count === 1 ? '' : 's') . ' created.');
+    }
+
     public function update(Request $request, DisciplinaryRecord $disciplinaryRecord)
     {
         abort_if($disciplinaryRecord->school_id !== app('current_school_id'), 403);

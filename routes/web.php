@@ -928,6 +928,7 @@ Route::middleware('auth')->group(function () {
             $DC = \App\Http\Controllers\School\DisciplinaryController::class;
             Route::get('disciplinary',                                          [$DC, 'index'])           ->name('disciplinary.index');
             Route::post('disciplinary',                                          [$DC, 'store'])           ->name('disciplinary.store');
+            Route::post('disciplinary/bulk',                                    [$DC, 'storeBulk'])       ->name('disciplinary.store_bulk');
             Route::put('disciplinary/{disciplinaryRecord}',                     [$DC, 'update'])          ->name('disciplinary.update');
             Route::delete('disciplinary/{disciplinaryRecord}',                  [$DC, 'destroy'])         ->name('disciplinary.destroy');
             Route::get('students/{student}/disciplinary',                       [$DC, 'studentHistory'])  ->name('students.disciplinary.history');
