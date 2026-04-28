@@ -89,6 +89,25 @@ class LedgerController extends Controller
 
         $stationaryPayments = $stationaryQuery->get();
 
+        // Inflows (Hostel Fee Collections)
+        $hostelQuery = HostelFeePayment::where('school_id', $schoolId)
+            ->whereDate('payment_date', '>=', $startDate)
+            ->whereDate('payment_date', '<=', $endDate)
+            ->where('amount_paid', '>', 0)
+            ->with(['student.currentAcademicHistory.courseClass', 'student.currentAcademicHistory.section', 'allocation.bed.room.hostel']);
+
+        if ($request->filled('class_id')) {
+            $hostelQuery->whereHas('student.currentAcademicHistory', function ($q) use ($request, $academicYearId) {
+                $q->where('class_id', $request->class_id);
+                if ($request->filled('section_id')) {
+                    $q->where('section_id', $request->section_id);
+                }
+                $q->where('academic_year_id', $academicYearId);
+            });
+        }
+
+        $hostelPayments = $hostelQuery->get();
+
         // Outflows (Expenses)
         $expenses = Expense::where('school_id', $schoolId)
             ->whereDate('expense_date', '>=', $startDate)
@@ -99,7 +118,8 @@ class LedgerController extends Controller
         $totalTuitionInflow    = (float) $feePayments->sum('amount_paid');
         $totalTransportInflow  = (float) $transportPayments->sum('amount_paid');
         $totalStationaryInflow = (float) $stationaryPayments->sum('amount_paid');
-        $totalInflow           = $totalTuitionInflow + $totalTransportInflow + $totalStationaryInflow;
+        $totalHostelInflow     = (float) $hostelPayments->sum('amount_paid');
+        $totalInflow           = $totalTuitionInflow + $totalTransportInflow + $totalStationaryInflow + $totalHostelInflow;
         $totalOutflow          = (float) $expenses->sum('amount');
         $netBalance            = $totalInflow - $totalOutflow;
 
@@ -109,6 +129,7 @@ class LedgerController extends Controller
             'feePayments'        => $feePayments,
             'transportPayments'  => $transportPayments,
             'stationaryPayments' => $stationaryPayments,
+            'hostelPayments'     => $hostelPayments,
             'expenses'           => $expenses,
             'classes'            => $classes,
             'summary' => [
@@ -116,6 +137,7 @@ class LedgerController extends Controller
                 'total_tuition_inflow'    => $totalTuitionInflow,
                 'total_transport_inflow'  => $totalTransportInflow,
                 'total_stationary_inflow' => $totalStationaryInflow,
+                'total_hostel_inflow'     => $totalHostelInflow,
                 'total_outflow'           => $totalOutflow,
                 'net_balance'             => $netBalance,
             ],

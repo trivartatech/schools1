@@ -135,11 +135,18 @@ class DashboardController extends Controller
         $presentToday   = Attendance::where('school_id', $school->id)->whereDate('date', today())
             ->whereIn('status', ['present', 'late', 'half_day'])->count();
 
+        // Today's fee collection — sum across all four fee streams.
+        $sumToday = fn (string $modelClass) => (float) $modelClass::where('school_id', $school->id)
+            ->whereDate('payment_date', today())->sum('amount_paid');
+        $feeCollectedToday = $sumToday(FeePayment::class)
+            + $sumToday(\App\Models\TransportFeePayment::class)
+            + $sumToday(\App\Models\HostelFeePayment::class)
+            + $sumToday(\App\Models\StationaryFeePayment::class);
+
         return [
             'total_students'       => $totalStudents,
             'total_staff'          => \App\Models\Staff::where('school_id', $school->id)->count(),
-            'fee_collected_today'  => FeePayment::where('school_id', $school->id)
-                ->whereDate('payment_date', today())->sum('amount_paid'),
+            'fee_collected_today'  => $feeCollectedToday,
             'today_attendance_pct' => $markedToday > 0 ? round($presentToday / max(1, $totalStudents) * 100, 1) : 0,
             'today_unmarked'       => max(0, $totalStudents - $markedToday),
         ];

@@ -13,6 +13,7 @@ const props = defineProps({
     feePayments: Array,
     transportPayments: { type: Array, default: () => [] },
     stationaryPayments: { type: Array, default: () => [] },
+    hostelPayments: { type: Array, default: () => [] },
     expenses: Array,
     summary: Object,
     classes: Array,
@@ -79,7 +80,7 @@ const formatCurrency = (amount) => {
         <div class="page-header">
             <div>
                 <h1 class="page-header-title">Day Book Ledger</h1>
-                <p class="page-header-sub">Daily summary of cash inflows (tuition + transport fees) and outflows (expenses)</p>
+                <p class="page-header-sub">Daily summary of cash inflows (tuition, transport, hostel and stationary fees) and outflows (expenses)</p>
             </div>
             <div class="flex gap-2">
                 <Button variant="secondary" onclick="window.print()">🖨️ Print</Button>
@@ -161,6 +162,7 @@ const formatCurrency = (amount) => {
                 <div class="px-4 py-2 text-xs flex flex-wrap gap-4 border-b" style="background:#f7fef9;color:#15803d;border-color:#bbf7d0;">
                     <span>Tuition: <strong>{{ formatCurrency(summary.total_tuition_inflow) }}</strong></span>
                     <span>Transport: <strong>{{ formatCurrency(summary.total_transport_inflow) }}</strong></span>
+                    <span>Hostel: <strong>{{ formatCurrency(summary.total_hostel_inflow) }}</strong></span>
                     <span>Stationary: <strong>{{ formatCurrency(summary.total_stationary_inflow) }}</strong></span>
                 </div>
                 <div class="overflow-x-auto">
@@ -205,7 +207,17 @@ const formatCurrency = (amount) => {
                                 <td class="capitalize" style="color: var(--text-secondary)">{{ sp.payment_mode }}</td>
                                 <td class="text-right font-bold" style="color: var(--success)">{{ formatCurrency(sp.amount_paid) }}</td>
                             </tr>
-                            <tr v-if="feePayments.length === 0 && transportPayments.length === 0 && stationaryPayments.length === 0">
+                            <tr v-for="hp in hostelPayments" :key="`h-${hp.id}`">
+                                <td>
+                                    <span class="font-mono text-xs">{{ hp.receipt_no }}</span>
+                                    <div class="text-xs" style="color: var(--text-muted)">{{ hp.allocation?.bed?.room?.hostel?.name }}<span v-if="hp.allocation?.bed?.room?.name"> · {{ hp.allocation.bed.room.name }}</span></div>
+                                </td>
+                                <td class="font-medium">{{ hp.student?.first_name }} {{ hp.student?.last_name }}</td>
+                                <td><span class="badge-type hostel">Hostel</span></td>
+                                <td class="capitalize" style="color: var(--text-secondary)">{{ hp.payment_mode }}</td>
+                                <td class="text-right font-bold" style="color: var(--success)">{{ formatCurrency(hp.amount_paid) }}</td>
+                            </tr>
+                            <tr v-if="feePayments.length === 0 && transportPayments.length === 0 && stationaryPayments.length === 0 && hostelPayments.length === 0">
                                 <td colspan="5" class="py-8 text-center italic" style="color: var(--text-muted)">No receipts for this date.</td>
                             </tr>
                         </tbody>
@@ -261,8 +273,10 @@ const formatCurrency = (amount) => {
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
-.badge-type.tuition   { background: #d1fae5; color: #047857; }
-.badge-type.transport { background: #cffafe; color: #0891b2; }
+.badge-type.tuition    { background: #d1fae5; color: #047857; }
+.badge-type.transport  { background: #cffafe; color: #0891b2; }
+.badge-type.hostel     { background: #fef3c7; color: #b45309; }
+.badge-type.stationary { background: #ede9fe; color: #6d28d9; }
 
 @media print {
     body { background-color: white !important; }

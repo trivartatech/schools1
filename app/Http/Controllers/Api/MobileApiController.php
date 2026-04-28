@@ -1930,20 +1930,40 @@ class MobileApiController extends Controller
         $totalStudents = Student::where('school_id', $school->id)->enrolledInYear($yearId)->count();
         $totalStaff    = \App\Models\Staff::where('school_id', $school->id)->count();
 
-        $feeToday = (float) FeePayment::where('school_id', $school->id)
-            ->whereDate('payment_date', today())
-            ->where('status', '!=', 'cancelled')
-            ->sum('amount_paid');
+        // Daily / Monthly / Yearly collected — sum across all four fee streams
+        // (tuition, transport, hostel, stationary) so the KPI matches Day Book.
+        $sumPaymentsToday = function (string $modelClass) use ($school) {
+            return (float) $modelClass::where('school_id', $school->id)
+                ->whereDate('payment_date', today())
+                ->where('status', '!=', 'cancelled')
+                ->sum('amount_paid');
+        };
+        $sumPaymentsMonth = function (string $modelClass) use ($school) {
+            return (float) $modelClass::where('school_id', $school->id)
+                ->whereBetween('payment_date', [now()->startOfMonth(), now()->endOfMonth()])
+                ->where('status', '!=', 'cancelled')
+                ->sum('amount_paid');
+        };
+        $sumPaymentsYear = function (string $modelClass) use ($school, $yearId) {
+            $q = $modelClass::where('school_id', $school->id)->where('status', '!=', 'cancelled');
+            if ($yearId) $q->where('academic_year_id', $yearId);
+            return (float) $q->sum('amount_paid');
+        };
 
-        $feeMonth = (float) FeePayment::where('school_id', $school->id)
-            ->whereBetween('payment_date', [now()->startOfMonth(), now()->endOfMonth()])
-            ->where('status', '!=', 'cancelled')
-            ->sum('amount_paid');
+        $feeToday = $sumPaymentsToday(FeePayment::class)
+            + $sumPaymentsToday(\App\Models\TransportFeePayment::class)
+            + $sumPaymentsToday(\App\Models\HostelFeePayment::class)
+            + $sumPaymentsToday(\App\Models\StationaryFeePayment::class);
 
-        $feeYearQ = FeePayment::where('school_id', $school->id)
-            ->where('status', '!=', 'cancelled');
-        if ($yearId) $feeYearQ->where('academic_year_id', $yearId);
-        $feeYear = (float) $feeYearQ->sum('amount_paid');
+        $feeMonth = $sumPaymentsMonth(FeePayment::class)
+            + $sumPaymentsMonth(\App\Models\TransportFeePayment::class)
+            + $sumPaymentsMonth(\App\Models\HostelFeePayment::class)
+            + $sumPaymentsMonth(\App\Models\StationaryFeePayment::class);
+
+        $feeYear = $sumPaymentsYear(FeePayment::class)
+            + $sumPaymentsYear(\App\Models\TransportFeePayment::class)
+            + $sumPaymentsYear(\App\Models\HostelFeePayment::class)
+            + $sumPaymentsYear(\App\Models\StationaryFeePayment::class);
 
         $feePendingQ = FeePayment::where('school_id', $school->id)
             ->where('status', '!=', 'cancelled')
@@ -2015,14 +2035,24 @@ class MobileApiController extends Controller
         }
 
         // 6-month fee collection trend (current month back 5)
+        // Sums across all four fee streams (tuition, transport, hostel, stationary).
         $feeTrend = [];
+        $feeStreamModels = [
+            FeePayment::class,
+            \App\Models\TransportFeePayment::class,
+            \App\Models\HostelFeePayment::class,
+            \App\Models\StationaryFeePayment::class,
+        ];
         for ($i = 5; $i >= 0; $i--) {
             $start = now()->subMonths($i)->startOfMonth();
             $end   = now()->subMonths($i)->endOfMonth();
-            $sum   = (float) FeePayment::where('school_id', $schoolId)
-                ->where('status', '!=', 'cancelled')
-                ->whereBetween('payment_date', [$start, $end])
-                ->sum('amount_paid');
+            $sum   = 0.0;
+            foreach ($feeStreamModels as $modelClass) {
+                $sum += (float) $modelClass::where('school_id', $schoolId)
+                    ->where('status', '!=', 'cancelled')
+                    ->whereBetween('payment_date', [$start, $end])
+                    ->sum('amount_paid');
+            }
             $feeTrend[] = [
                 'label'  => $start->format('M'),
                 'month'  => $start->format('Y-m'),
