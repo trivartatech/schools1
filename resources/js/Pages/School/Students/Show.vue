@@ -323,13 +323,24 @@ function submitAssignHostel() {
 
                 <div class="hero-info">
                     <h1 class="hero-name">{{ student.first_name }} {{ student.last_name }}</h1>
-                    <div class="hero-meta">
-                        <span v-if="student.current_academic_history" class="hero-class-badge">
-                            {{ student.current_academic_history.course_class?.name }}
-                            <template v-if="student.current_academic_history.section">
-                                &middot; {{ student.current_academic_history.section?.name }}
-                            </template>
+
+                    <div v-if="student.current_academic_history" class="hero-subtitle">
+                        <svg class="hero-subtitle-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M12 14l9-5-9-5-9 5 9 5z M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                        </svg>
+                        <span class="hero-subtitle-class">
+                            {{ student.current_academic_history.course_class?.name ?? 'Unassigned class' }}
                         </span>
+                        <span v-if="student.current_academic_history.section" class="hero-subtitle-part">
+                            Section {{ student.current_academic_history.section.name }}
+                        </span>
+                        <span v-if="student.current_academic_history.roll_no" class="hero-subtitle-part">
+                            Roll {{ student.current_academic_history.roll_no }}
+                        </span>
+                    </div>
+
+                    <div class="hero-meta">
                         <span class="badge badge-green">{{ student.status ?? 'Active' }}</span>
                         <button
                             v-if="canDo('edit', 'students')"
@@ -343,9 +354,10 @@ function submitAssignHostel() {
                             <span>{{ defaulterForm.is_defaulter ? 'Defaulter' : 'Not Defaulter' }}</span>
                         </button>
                         <span v-else-if="student.is_defaulter" class="badge badge-red">Defaulter</span>
-                        <span v-if="student.erp_no" class="hero-erp-no">{{ student.erp_no }}</span>
-                        <span class="hero-adm-no">{{ student.admission_no }}</span>
+                        <span v-if="student.erp_no" class="hero-erp-no">ERP {{ student.erp_no }}</span>
+                        <span class="hero-adm-no">Adm {{ student.admission_no }}</span>
                     </div>
+
                     <div v-if="canRequestEditStudent" class="hero-notice">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         Submit a request to edit any information, or use Edit Profile.
@@ -1902,14 +1914,43 @@ function submitAssignHostel() {
     gap: 8px;
 }
 
-.hero-class-badge {
-    background: rgba(255,255,255,0.18);
-    color: #fff;
-    font-size: 13px;
+.hero-subtitle {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    margin: 0 0 10px;
+    color: rgba(255,255,255,0.92);
+    font-size: 14px;
     font-weight: 600;
-    padding: 3px 10px;
-    border-radius: 20px;
-    border: 1px solid rgba(255,255,255,0.25);
+}
+
+.hero-subtitle-icon {
+    width: 16px;
+    height: 16px;
+    color: rgba(255,255,255,0.85);
+    flex-shrink: 0;
+}
+
+.hero-subtitle-class {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+}
+
+.hero-subtitle-part {
+    color: rgba(255,255,255,0.85);
+    font-weight: 500;
+    position: relative;
+    padding-left: 14px;
+}
+
+.hero-subtitle-part::before {
+    content: '·';
+    position: absolute;
+    left: 0;
+    color: rgba(255,255,255,0.5);
+    font-weight: 700;
 }
 
 .hero-erp-no {
