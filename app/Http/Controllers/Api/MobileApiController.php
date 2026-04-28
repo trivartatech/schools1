@@ -524,8 +524,10 @@ class MobileApiController extends Controller
                 'leave'    => $records->where('status', 'leave')->count(),
                 'total'    => $records->count(),
             ];
+            // Canonical attendance % formula across the whole app:
+            // (present + late*0.5 + half_day*0.5) / total — late & half_day count as half credit.
             $summary['attendance_pct'] = $summary['total'] > 0
-                ? round(($summary['present'] + $summary['late'] * 0.5) / $summary['total'] * 100, 1)
+                ? round(($summary['present'] + $summary['late'] * 0.5 + $summary['half_day'] * 0.5) / $summary['total'] * 100, 1)
                 : 0;
 
             $dateFmt = $school->dateFmt();
@@ -557,8 +559,9 @@ class MobileApiController extends Controller
             'leave'          => $records->where('status', 'leave')->count(),
             'total'          => $records->count(),
         ];
+        // Canonical formula: (present + late*0.5 + half_day*0.5) / total
         $summary['attendance_pct'] = $summary['total'] > 0
-            ? round(($summary['present'] + $summary['late'] * 0.5) / $summary['total'] * 100, 1)
+            ? round(($summary['present'] + $summary['late'] * 0.5 + $summary['half_day'] * 0.5) / $summary['total'] * 100, 1)
             : 100;
 
         $dateFmt = $school->dateFmt();
@@ -1385,14 +1388,18 @@ class MobileApiController extends Controller
             $studentId = $this->resolveStudentId($user, $request);
             if (!$studentId || !$yearId) return [];
 
-            $totalAtt   = Attendance::where('student_id', $studentId)->where('academic_year_id', $yearId)->count();
-            $presentAtt = Attendance::where('student_id', $studentId)->where('academic_year_id', $yearId)
-                ->whereIn('status', ['present', 'late'])->count();
-            $student    = Student::find($studentId);
-            $feeSummary = $student ? $this->feeService->getStudentFeeSummary($student, $yearId, $school->id) : [];
+            // Canonical formula — (present + late*0.5 + half_day*0.5) / total
+            $totalAtt    = Attendance::where('student_id', $studentId)->where('academic_year_id', $yearId)->count();
+            $statusCount = Attendance::where('student_id', $studentId)->where('academic_year_id', $yearId)
+                ->selectRaw('status, COUNT(*) as c')->groupBy('status')->pluck('c', 'status')->toArray();
+            $weighted    = ($statusCount['present'] ?? 0)
+                         + ($statusCount['late']     ?? 0) * 0.5
+                         + ($statusCount['half_day'] ?? 0) * 0.5;
+            $student     = Student::find($studentId);
+            $feeSummary  = $student ? $this->feeService->getStudentFeeSummary($student, $yearId, $school->id) : [];
 
             return [
-                'attendance_pct'      => $totalAtt > 0 ? round($presentAtt / $totalAtt * 100) : 0,
+                'attendance_pct'      => $totalAtt > 0 ? round($weighted / $totalAtt * 100) : 0,
                 'fee_balance'         => $feeSummary['balance']   ?? 0,
                 'pending_assignments' => 0,
                 'upcoming_exams'      => ExamSchedule::where('school_id', $school->id)
@@ -1557,19 +1564,22 @@ class MobileApiController extends Controller
             ->whereBetween('date', [now()->startOfMonth(), now()->endOfMonth()])
             ->get();
 
-        $present = $records->where('status', 'present')->count();
-        $absent  = $records->where('status', 'absent')->count();
-        $late    = $records->where('status', 'late')->count();
-        $leave   = $records->where('status', 'leave')->count();
-        $total   = $records->count();
+        $present  = $records->where('status', 'present')->count();
+        $absent   = $records->where('status', 'absent')->count();
+        $late     = $records->where('status', 'late')->count();
+        $halfDay  = $records->where('status', 'half_day')->count();
+        $leave    = $records->where('status', 'leave')->count();
+        $total    = $records->count();
 
         return [
             'present'        => $present,
             'absent'         => $absent,
             'late'           => $late,
+            'half_day'       => $halfDay,
             'leave'          => $leave,
             'total'          => $total,
-            'attendance_pct' => $total > 0 ? round(($present + $late) / $total * 100) : 0,
+            // Canonical formula: (present + late*0.5 + half_day*0.5) / total
+            'attendance_pct' => $total > 0 ? round(($present + $late * 0.5 + $halfDay * 0.5) / $total * 100) : 0,
             'today_status'   => $todayRecord?->status ?? 'not_marked',
             'month'          => now()->format('M Y'),
         ];
@@ -3427,7 +3437,7 @@ class MobileApiController extends Controller
             'date'                    => 'required|date',
             'attendance'              => 'required|array|min:1',
             'attendance.*.student_id' => ['required', \Illuminate\Validation\Rule::exists('students', 'id')->where('school_id', $school->id)],
-            'attendance.*.status'     => 'required|in:present,absent,late,half_day,leave',
+            'attendance.*.status'     => 'required|in:present,absent,late,half_day,leave,holiday',
             'attendance.*.remarks'    => 'nullable|string|max:255',
             'send_notifications'      => 'boolean',
         ]);

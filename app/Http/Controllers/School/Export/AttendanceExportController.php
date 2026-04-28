@@ -90,7 +90,9 @@ class AttendanceExportController extends Controller
             }
 
             $total = $present + $absent + $late + $leave;
-            $pct   = $total > 0 ? round(($present + $late) / $total * 100) : 0;
+            // Canonical formula: (present + late*0.5 + half_day*0.5) / total
+            // Note: this exporter doesn't track half_day separately yet — late = half here.
+            $pct   = $total > 0 ? round(($present + $late * 0.5) / $total * 100) : 0;
             $row   = array_merge($row, [$present, $absent, $late, $leave, $pct . '%']);
             $rows[] = $row;
         }

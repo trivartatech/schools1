@@ -79,19 +79,33 @@ const markAll = (status) => {
 const submit = () => {
     const unmarkedNonLeave = rows.value.filter(r => !r.status && !r.on_leave).length;
     if (unmarkedNonLeave > 0) {
-        if (!confirm(`${unmarkedNonLeave} staff not marked. Mark remaining as Present?`)) return;
-        rows.value.forEach(r => { if (!r.status && !r.on_leave) r.status = 'present'; });
+        // Don't auto-mark unmarked staff — that has caused confusion in the
+        // past where everyone got silently marked Present. Instead warn and
+        // skip them so they stay unmarked in the DB.
+        if (!confirm(`${unmarkedNonLeave} staff are still not marked. Save the marked ones only? (Unmarked will stay unmarked.)`)) return;
     }
     saving.value = true;
-    router.post(route('school.staff-attendance.store'), {
-        date: selectedDate.value,
-        records: rows.value.map(r => ({
+    // Only send rows that actually have a status. Backend forces on_leave
+    // staff to 'leave' so we don't need to send those either.
+    const records = rows.value
+        .filter(r => r.status && !r.on_leave)
+        .map(r => ({
             staff_id:  r.staff_id,
             status:    r.status,
             check_in:  r.check_in || null,
             check_out: r.check_out || null,
             remarks:   r.remarks || null,
-        })),
+        }));
+
+    if (records.length === 0) {
+        saving.value = false;
+        alert('No staff have been marked yet. Click P / A / L / etc. on each row first.');
+        return;
+    }
+
+    router.post(route('school.staff-attendance.store'), {
+        date: selectedDate.value,
+        records,
     }, {
         preserveScroll: true,
         onFinish: () => { saving.value = false; },
@@ -171,10 +185,13 @@ const fmt = (n) => String(n).padStart(2, '0');
                                 <span class="leave-locked-badge">On Leave</span>
                             </div>
                             <div v-else class="status-btns">
+                                <span v-if="!row.status" class="not-marked-pill">Not marked</span>
                                 <button v-for="opt in statusOptions" :key="opt.value"
                                         class="status-btn"
                                         :class="{ active: row.status === opt.value }"
-                                        :style="row.status === opt.value ? { background: opt.active, color: '#fff', borderColor: opt.active } : { background: opt.color, color: opt.text, borderColor: 'transparent' }"
+                                        :style="row.status === opt.value
+                                            ? { background: opt.active, color: '#fff', borderColor: opt.active }
+                                            : { background: '#f1f5f9', color: '#64748b', borderColor: '#e2e8f0' }"
                                         @click="row.status = opt.value">
                                     {{ opt.label }}
                                 </button>
@@ -237,10 +254,15 @@ const fmt = (n) => String(n).padStart(2, '0');
 .staff-meta { font-size:.7rem; color:#94a3b8; }
 .dept-chip { background:#f1f5f9; padding:2px 8px; border-radius:12px; font-size:.72rem; color:#475569; }
 
-.status-btns { display:flex; gap:4px; }
+.status-btns { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
 .status-btn { border:1.5px solid transparent; border-radius:6px; padding:4px 9px; font-size:.72rem; font-weight:700; cursor:pointer; transition:all .15s; }
-.status-btn:hover { opacity:.8; }
+.status-btn:hover { opacity:.85; transform:translateY(-1px); }
 .status-btn.active { box-shadow:0 1px 3px rgba(0,0,0,.15); }
+.not-marked-pill {
+    background:#fef3c7; color:#92400e; font-size:.65rem; font-weight:700;
+    padding:2px 8px; border-radius:10px; text-transform:uppercase;
+    letter-spacing:.04em; margin-right:4px;
+}
 
 .time-input, .remarks-input { width:100%; border:1.5px solid #e2e8f0; border-radius:6px; padding:5px 8px; font-size:.78rem; outline:none; font-family:inherit; }
 .time-input:focus, .remarks-input:focus { border-color:#6366f1; }

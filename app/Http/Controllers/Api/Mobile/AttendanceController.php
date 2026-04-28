@@ -75,8 +75,9 @@ class AttendanceController extends Controller
             'leave'          => $records->where('status', 'leave')->count(),
             'total'          => $records->count(),
         ];
+        // Canonical formula: (present + late*0.5 + half_day*0.5) / total
         $summary['attendance_pct'] = $summary['total'] > 0
-            ? round(($summary['present'] + $summary['late'] * 0.5) / $summary['total'] * 100, 1)
+            ? round(($summary['present'] + $summary['late'] * 0.5 + $summary['half_day'] * 0.5) / $summary['total'] * 100, 1)
             : 100;
 
         return response()->json([

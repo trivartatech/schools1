@@ -527,11 +527,14 @@ Route::middleware('auth')->group(function () {
             Route::patch('leave-types/{leaveType}/toggle',    [$LTC, 'toggle'])  ->name('leave-types.toggle');
             Route::post('leave-types/reorder',                [$LTC, 'reorder']) ->name('leave-types.reorder');
 
-            // Staff Attendance
+            // Staff Attendance — admin / principal / school_admin only.
+            // Regular teachers must not be able to mark or view all staff attendance.
             $SAC = \App\Http\Controllers\School\StaffAttendanceController::class;
-            Route::get('staff-attendance',         [$SAC, 'index'])  ->name('staff-attendance.index');
-            Route::post('staff-attendance',        [$SAC, 'store'])  ->name('staff-attendance.store');
-            Route::get('staff-attendance/report',  [$SAC, 'report']) ->name('staff-attendance.report');
+            Route::middleware('school.management:admin_only')->group(function () use ($SAC) {
+                Route::get('staff-attendance',         [$SAC, 'index'])  ->name('staff-attendance.index');
+                Route::post('staff-attendance',        [$SAC, 'store'])  ->name('staff-attendance.store');
+                Route::get('staff-attendance/report',  [$SAC, 'report']) ->name('staff-attendance.report');
+            });
         });
 
         Route::middleware(['school.management', 'module:payroll'])->group(function () {

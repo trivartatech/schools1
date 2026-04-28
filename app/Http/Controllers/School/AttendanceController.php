@@ -113,7 +113,7 @@ class AttendanceController extends Controller
             'date'       => 'required|date',
             'attendance' => 'required|array',
             'attendance.*.student_id' => ['required', Rule::exists('students', 'id')->where('school_id', $schoolId)],
-            'attendance.*.status'     => 'required|in:present,absent,late,half_day,leave',
+            'attendance.*.status'     => 'required|in:present,absent,late,half_day,leave,holiday',
             'attendance.*.remarks'    => 'nullable|string|max:255',
         ]);
 
@@ -141,11 +141,19 @@ class AttendanceController extends Controller
             }
         });
 
-        // Trigger notifications only when explicitly requested via "Save & Send Notification" button
+        // Notifications now default to ON for non-Present statuses. The school
+        // admin can opt-out per request (send_notifications=false) or globally
+        // disable via settings.notifications_v2.attendance_auto_notify=false.
+        $school              = app('current_school');
+        $autoNotify          = $school->settings['notifications_v2']['attendance_auto_notify'] ?? true;
+        $shouldSendDefault   = $autoNotify;
+        $shouldSend          = $request->has('send_notifications')
+            ? $request->boolean('send_notifications')
+            : $shouldSendDefault;
+
         $notificationsSent = 0;
-        if ($request->boolean('send_notifications')) {
+        if ($shouldSend) {
             try {
-                $school = app('current_school');
                 $notificationService = new NotificationService($school);
                 $notifyAll = $school->settings['notifications_v2']['attendance_notify_all'] ?? false;
 

@@ -439,7 +439,12 @@ const activeTab = ref('admissions')
                     </span> on leave today
                 </div>
                 <div class="bento-sub-row">
-                    <span class="bento-sub-item">{{ fmt(kpi.total_staff - (kpi.staff_on_leave||0)) }} present</span>
+                    <template v-if="(kpi.staff_marked_today ?? 0) === 0">
+                        <span class="bento-sub-item" style="color:#b45309">Attendance not marked yet</span>
+                    </template>
+                    <template v-else>
+                        <span class="bento-sub-item">{{ fmt(kpi.staff_present_today ?? 0) }} present · {{ fmt(kpi.staff_unmarked_today ?? 0) }} unmarked</span>
+                    </template>
                 </div>
             </div>
 
@@ -462,8 +467,14 @@ const activeTab = ref('admissions')
                     </svg>
                 </div>
                 <div class="bento-attend-row">
-                    <span class="bento-attend-item bento-attend-item--green">{{ fmt(kpi.present_today) }} in</span>
-                    <span class="bento-attend-item bento-attend-item--red">{{ fmt(kpi.absent_today) }} out</span>
+                    <template v-if="(kpi.attendance_marked ?? 0) === 0">
+                        <span class="bento-attend-item" style="color:#b45309">Not marked yet</span>
+                    </template>
+                    <template v-else>
+                        <span class="bento-attend-item bento-attend-item--green">{{ fmt(kpi.present_today) }} in</span>
+                        <span class="bento-attend-item bento-attend-item--red">{{ fmt(kpi.absent_today) }} out</span>
+                        <span v-if="(kpi.student_unmarked_today ?? 0) > 0" class="bento-attend-item" style="color:#b45309">{{ fmt(kpi.student_unmarked_today) }} unmarked</span>
+                    </template>
                 </div>
             </div>
 
@@ -728,6 +739,10 @@ const activeTab = ref('admissions')
                     <div class="person-card-sub">{{ s.designation }}</div>
                 </div>
             </template>
+            <div v-else-if="(kpi.staff_marked_today ?? 0) === 0" class="person-card-empty person-card-empty--amber">
+                <span style="font-size:1.4rem">⏳</span>
+                <span>Staff attendance not marked yet</span>
+            </div>
             <div v-else class="person-card-empty person-card-empty--green">
                 <span style="font-size:1.4rem">✓</span>
                 <span>All staff present</span>

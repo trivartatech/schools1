@@ -201,6 +201,21 @@ class DashboardController extends Controller
                     ->where('end_date', '>=', $today)
                     ->count();
 
+                // Actual staff attendance for today — pulled from staff_attendances.
+                // Without this we used to assume everyone-not-on-leave was present,
+                // which displayed "All staff present" before any attendance was
+                // ever marked.
+                $staffAttnToday = \App\Models\StaffAttendance::where('school_id', $schoolId)
+                    ->where('date', $today)
+                    ->selectRaw('status, count(*) as count')
+                    ->groupBy('status')
+                    ->pluck('count', 'status')
+                    ->toArray();
+                $staffPresentToday  = ($staffAttnToday['present']  ?? 0) + ($staffAttnToday['late'] ?? 0) + ($staffAttnToday['half_day'] ?? 0);
+                $staffAbsentToday   = $staffAttnToday['absent'] ?? 0;
+                $staffMarkedToday   = array_sum($staffAttnToday);
+                $staffUnmarkedToday = max(0, $totalStaff - $staffMarkedToday);
+
                 $totalClasses  = \App\Models\CourseClass::where('school_id', $schoolId)->count();
                 $totalSections = \App\Models\Section::where('school_id', $schoolId)->forCurrentYear()->count();
 
@@ -235,9 +250,10 @@ class DashboardController extends Controller
                     ->pluck('count', 'status')
                     ->toArray();
 
-                $presentToday = ($todayAttn['present'] ?? 0) + ($todayAttn['late'] ?? 0) + ($todayAttn['half_day'] ?? 0);
-                $absentToday  = $todayAttn['absent'] ?? 0;
-                $totalMarked  = array_sum($todayAttn);
+                $presentToday   = ($todayAttn['present'] ?? 0) + ($todayAttn['late'] ?? 0) + ($todayAttn['half_day'] ?? 0);
+                $absentToday    = $todayAttn['absent'] ?? 0;
+                $totalMarked    = array_sum($todayAttn);
+                $studentUnmarkedToday = max(0, $totalStudents - $totalMarked);
 
                 // ── 6-Month Admission Trend ───────────────────────────────
                 $admissionTrend = [];
@@ -399,15 +415,23 @@ class DashboardController extends Controller
                         'photo' => $s->photo_url,
                     ]);
 
-                // ── Staff Absent Today (with names) ───────────────────────
-                $absentStaffIds = \App\Models\Leave::where('school_id', $schoolId)
+                // ── Staff Absent Today (approved leave OR marked-absent) ──
+                $leaveStaffUserIds = \App\Models\Leave::where('school_id', $schoolId)
                     ->where('status', 'approved')
                     ->where('start_date', '<=', $today)
                     ->where('end_date', '>=', $today)
                     ->pluck('user_id');
 
+                $markedAbsentStaffIds = \App\Models\StaffAttendance::where('school_id', $schoolId)
+                    ->where('date', $today)
+                    ->whereIn('status', ['absent', 'leave'])
+                    ->pluck('staff_id');
+
                 $absentStaffList = \App\Models\Staff::where('school_id', $schoolId)
-                    ->whereIn('user_id', $absentStaffIds)
+                    ->where(function ($q) use ($leaveStaffUserIds, $markedAbsentStaffIds) {
+                        $q->whereIn('user_id', $leaveStaffUserIds)
+                          ->orWhereIn('id', $markedAbsentStaffIds);
+                    })
                     ->with(['user', 'designation'])
                     ->limit(8)->get()
                     ->map(fn($s) => [
@@ -497,6 +521,10 @@ class DashboardController extends Controller
                         'new_students_month' => $newStudentsThisMonth,
                         'total_staff'        => $totalStaff,
                         'staff_on_leave'     => $staffOnLeaveToday,
+                        'staff_present_today'  => $staffPresentToday,
+                        'staff_absent_today'   => $staffAbsentToday,
+                        'staff_marked_today'   => $staffMarkedToday,
+                        'staff_unmarked_today' => $staffUnmarkedToday,
                         'total_classes'      => $totalClasses,
                         'total_sections'     => $totalSections,
                         'today_fee'          => $todayFeeCollection,
@@ -505,9 +533,10 @@ class DashboardController extends Controller
                         'active_routes'      => $activeRoutes,
                         'hostel_occupied'    => $hostelOccupied,
                         'hostel_capacity'    => $hostelCapacity,
-                        'present_today'      => $presentToday,
-                        'absent_today'       => $absentToday,
-                        'attendance_marked'  => $totalMarked,
+                        'present_today'         => $presentToday,
+                        'absent_today'          => $absentToday,
+                        'attendance_marked'     => $totalMarked,
+                        'student_unmarked_today'=> $studentUnmarkedToday,
                     ],
                     'admission_trend'      => $admissionTrend,
                     'fee_trend'            => $feeTrend,

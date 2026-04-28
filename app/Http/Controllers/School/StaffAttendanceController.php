@@ -184,10 +184,13 @@ class StaffAttendanceController extends Controller
             $counts['working_days'] = $daysInMonth - $counts['holiday'];
             $counts['unmarked'] = $daysInMonth - $staffRecords->count();
 
-            // Build day-by-day map for calendar view
+            // Build day-by-day map for calendar view. Use the requested month's
+            // year/month — NOT the first record's date — otherwise staff with
+            // their only record on (say) 2026-04-28 would have the calendar
+            // built around that one record's year/month for every day.
             $days = [];
             for ($d = 1; $d <= $daysInMonth; $d++) {
-                $dateStr = sprintf('%04d-%02d-%02d', $byDate->first()?->date->year ?? now()->year, $byDate->first()?->date->month ?? now()->month, $d);
+                $dateStr = sprintf('%04d-%02d-%02d', $startDate->year, $startDate->month, $d);
                 $rec = $byDate->get($dateStr);
                 $days[$d] = $rec ? $rec->status : null;
             }
