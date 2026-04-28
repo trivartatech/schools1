@@ -73,11 +73,14 @@ class AttendanceController extends Controller
             'late'           => $records->where('status', 'late')->count(),
             'half_day'       => $records->where('status', 'half_day')->count(),
             'leave'          => $records->where('status', 'leave')->count(),
+            'holiday'        => $records->where('status', 'holiday')->count(),
             'total'          => $records->count(),
         ];
-        // Canonical formula: (present + late*0.5 + half_day*0.5) / total
-        $summary['attendance_pct'] = $summary['total'] > 0
-            ? round(($summary['present'] + $summary['late'] * 0.5 + $summary['half_day'] * 0.5) / $summary['total'] * 100, 1)
+        // Canonical formula — holidays excluded from denominator
+        $workingDays = max(0, $summary['total'] - $summary['holiday']);
+        $summary['working_days']   = $workingDays;
+        $summary['attendance_pct'] = $workingDays > 0
+            ? round(($summary['present'] + $summary['late'] * 0.5 + $summary['half_day'] * 0.5) / $workingDays * 100, 1)
             : 100;
 
         return response()->json([

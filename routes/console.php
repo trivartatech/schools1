@@ -46,3 +46,10 @@ Schedule::command('model:prune')
     ->daily()
     ->at('03:00');
 
+// Auto-fill 'holiday' attendance rows for every active student and staff on
+// declared school holidays. Idempotent — safe to re-run. Runs early so the
+// rows exist before anyone opens the dashboard / mark page.
+Schedule::command('attendance:fill-holidays')
+    ->dailyAt('00:30')
+    ->withoutOverlapping();
+

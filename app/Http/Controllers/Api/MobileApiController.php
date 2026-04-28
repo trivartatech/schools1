@@ -513,8 +513,9 @@ class MobileApiController extends Controller
             $records = StaffAttendance::where('school_id', $school->id)
                 ->where('staff_id', $user->staff->id)
                 ->whereBetween('date', [$from, $to])
+                ->with('markedBy:id,name')
                 ->orderBy('date')
-                ->get(['date', 'status', 'remarks']);
+                ->get(['id', 'date', 'status', 'remarks', 'marked_by']);
 
             $summary = [
                 'present'  => $records->where('status', 'present')->count(),
@@ -522,21 +523,30 @@ class MobileApiController extends Controller
                 'late'     => $records->where('status', 'late')->count(),
                 'half_day' => $records->where('status', 'half_day')->count(),
                 'leave'    => $records->where('status', 'leave')->count(),
+                'holiday'  => $records->where('status', 'holiday')->count(),
                 'total'    => $records->count(),
             ];
-            // Canonical attendance % formula across the whole app:
-            // (present + late*0.5 + half_day*0.5) / total — late & half_day count as half credit.
-            $summary['attendance_pct'] = $summary['total'] > 0
-                ? round(($summary['present'] + $summary['late'] * 0.5 + $summary['half_day'] * 0.5) / $summary['total'] * 100, 1)
+            // Canonical attendance % formula:
+            // (present + late*0.5 + half_day*0.5) / (total - holiday) — holidays are not working days.
+            $workingDays = max(0, $summary['total'] - $summary['holiday']);
+            $summary['working_days']    = $workingDays;
+            $summary['attendance_pct']  = $workingDays > 0
+                ? round(($summary['present'] + $summary['late'] * 0.5 + $summary['half_day'] * 0.5) / $workingDays * 100, 1)
                 : 0;
+            // Surface days that should have been marked but weren't (Option B —
+            // doesn't penalise the % calc, just makes the gap visible).
+            $expected            = $this->expectedWorkingDays($from, $to, $school->id);
+            $summary['expected'] = $expected;
+            $summary['unmarked'] = max(0, $expected - $summary['total']);
 
             $dateFmt = $school->dateFmt();
             return response()->json([
                 'summary' => $summary,
                 'records' => $records->map(fn($r) => [
-                    'date'    => optional($r->date)->format($dateFmt),
-                    'status'  => $r->status,
-                    'remarks' => $r->remarks,
+                    'date'      => optional($r->date)->format($dateFmt),
+                    'status'    => $r->status,
+                    'remarks'   => $r->remarks,
+                    'marked_by' => $r->markedBy?->name,
                 ]),
             ]);
         }
@@ -548,8 +558,9 @@ class MobileApiController extends Controller
 
         $records = Attendance::where('student_id', $studentId)
             ->whereBetween('date', [$from, $to])
+            ->with('markedBy:id,name')
             ->orderBy('date')
-            ->get(['date', 'status', 'remarks']);
+            ->get(['id', 'date', 'status', 'remarks', 'marked_by']);
 
         $summary = [
             'present'        => $records->where('status', 'present')->count(),
@@ -557,12 +568,19 @@ class MobileApiController extends Controller
             'late'           => $records->where('status', 'late')->count(),
             'half_day'       => $records->where('status', 'half_day')->count(),
             'leave'          => $records->where('status', 'leave')->count(),
+            'holiday'        => $records->where('status', 'holiday')->count(),
             'total'          => $records->count(),
         ];
-        // Canonical formula: (present + late*0.5 + half_day*0.5) / total
-        $summary['attendance_pct'] = $summary['total'] > 0
-            ? round(($summary['present'] + $summary['late'] * 0.5 + $summary['half_day'] * 0.5) / $summary['total'] * 100, 1)
+        // Canonical formula: holidays excluded from denominator (not working days)
+        $workingDays = max(0, $summary['total'] - $summary['holiday']);
+        $summary['working_days']   = $workingDays;
+        $summary['attendance_pct'] = $workingDays > 0
+            ? round(($summary['present'] + $summary['late'] * 0.5 + $summary['half_day'] * 0.5) / $workingDays * 100, 1)
             : 100;
+        // Days that should have been marked but weren't.
+        $expected            = $this->expectedWorkingDays($from, $to, $school->id);
+        $summary['expected'] = $expected;
+        $summary['unmarked'] = max(0, $expected - $summary['total']);
 
         $dateFmt = $school->dateFmt();
         return response()->json([
@@ -570,9 +588,10 @@ class MobileApiController extends Controller
             'records'    => $records->map(fn($r) => [
                 // Attendance.date has no Eloquent cast (kept as raw "Y-m-d" so
                 // WHERE date = … lookups work), so parse before formatting.
-                'date'    => $r->date ? Carbon::parse($r->date)->format($dateFmt) : null,
-                'status'  => $r->status,
-                'remarks' => $r->remarks,
+                'date'      => $r->date ? Carbon::parse($r->date)->format($dateFmt) : null,
+                'status'    => $r->status,
+                'remarks'   => $r->remarks,
+                'marked_by' => $r->markedBy?->name,
             ]),
             'student_id' => $studentId,
         ]);
@@ -1178,6 +1197,37 @@ class MobileApiController extends Controller
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /**
+     * Count working days between two dates (inclusive), capped at today, with
+     * Sundays and declared school holidays subtracted. Used to surface an
+     * "unmarked" gap on attendance summaries — days that should have had a
+     * record but don't. Doesn't penalise the % calculation; just makes the
+     * gap visible (Option B from the audit).
+     *
+     * @param  \Carbon\Carbon  $from
+     * @param  \Carbon\Carbon  $to
+     * @param  int             $schoolId
+     */
+    private function expectedWorkingDays($from, $to, int $schoolId): int
+    {
+        $today = now()->startOfDay();
+        $end   = $to->copy()->lte($today) ? $to->copy() : $today;
+        if ($end->lt($from)) return 0;
+
+        $workingDays = 0;
+        for ($d = $from->copy(); $d->lte($end); $d->addDay()) {
+            // Treat Sunday as the only weekend by default.
+            if (!$d->isSunday()) $workingDays++;
+        }
+
+        $holidayCount = Holiday::where('school_id', $schoolId)
+            ->whereDate('date', '>=', $from->toDateString())
+            ->whereDate('date', '<=', $end->toDateString())
+            ->count();
+
+        return max(0, $workingDays - $holidayCount);
+    }
+
+    /**
      * Resolve which student's data to serve.
      * For parents with multiple children, honour the X-Active-Student-Id header
      * or `student_id` query param. Always validates ownership.
@@ -1388,10 +1438,12 @@ class MobileApiController extends Controller
             $studentId = $this->resolveStudentId($user, $request);
             if (!$studentId || !$yearId) return [];
 
-            // Canonical formula — (present + late*0.5 + half_day*0.5) / total
-            $totalAtt    = Attendance::where('student_id', $studentId)->where('academic_year_id', $yearId)->count();
+            // Canonical formula — (present + late*0.5 + half_day*0.5) / working_days
+            // working_days = total records minus 'holiday' rows (holidays aren't working days).
             $statusCount = Attendance::where('student_id', $studentId)->where('academic_year_id', $yearId)
                 ->selectRaw('status, COUNT(*) as c')->groupBy('status')->pluck('c', 'status')->toArray();
+            $totalAtt    = array_sum($statusCount);
+            $workingDays = max(0, $totalAtt - ($statusCount['holiday'] ?? 0));
             $weighted    = ($statusCount['present'] ?? 0)
                          + ($statusCount['late']     ?? 0) * 0.5
                          + ($statusCount['half_day'] ?? 0) * 0.5;
@@ -1399,7 +1451,7 @@ class MobileApiController extends Controller
             $feeSummary  = $student ? $this->feeService->getStudentFeeSummary($student, $yearId, $school->id) : [];
 
             return [
-                'attendance_pct'      => $totalAtt > 0 ? round($weighted / $totalAtt * 100) : 0,
+                'attendance_pct'      => $workingDays > 0 ? round($weighted / $workingDays * 100) : 0,
                 'fee_balance'         => $feeSummary['balance']   ?? 0,
                 'pending_assignments' => 0,
                 'upcoming_exams'      => ExamSchedule::where('school_id', $school->id)
@@ -1569,7 +1621,9 @@ class MobileApiController extends Controller
         $late     = $records->where('status', 'late')->count();
         $halfDay  = $records->where('status', 'half_day')->count();
         $leave    = $records->where('status', 'leave')->count();
+        $holiday  = $records->where('status', 'holiday')->count();
         $total    = $records->count();
+        $workingDays = max(0, $total - $holiday);
 
         return [
             'present'        => $present,
@@ -1577,9 +1631,11 @@ class MobileApiController extends Controller
             'late'           => $late,
             'half_day'       => $halfDay,
             'leave'          => $leave,
+            'holiday'        => $holiday,
             'total'          => $total,
-            // Canonical formula: (present + late*0.5 + half_day*0.5) / total
-            'attendance_pct' => $total > 0 ? round(($present + $late * 0.5 + $halfDay * 0.5) / $total * 100) : 0,
+            'working_days'   => $workingDays,
+            // Canonical: (present + late*0.5 + half_day*0.5) / working_days (excludes holidays)
+            'attendance_pct' => $workingDays > 0 ? round(($present + $late * 0.5 + $halfDay * 0.5) / $workingDays * 100) : 0,
             'today_status'   => $todayRecord?->status ?? 'not_marked',
             'month'          => now()->format('M Y'),
         ];
@@ -1616,13 +1672,20 @@ class MobileApiController extends Controller
                 }
             }
 
+            // PHP-side day counting — works on MySQL, SQLite, Postgres alike.
+            // The previous julianday() approach was SQLite-only and silently
+            // returned 0 on MySQL production deployments.
             $usedLeaves = (clone $usedQuery)
-                ->selectRaw("leave_type_id, SUM(CAST(julianday(end_date) - julianday(start_date) AS INTEGER) + 1) as days_used")
-                ->groupBy('leave_type_id')
-                ->pluck('days_used', 'leave_type_id');
+                ->get(['leave_type_id', 'start_date', 'end_date']);
+            $usedByType = [];
+            foreach ($usedLeaves as $leave) {
+                if (!$leave->leave_type_id) continue;
+                $days = Carbon::parse($leave->start_date)->diffInDays(Carbon::parse($leave->end_date)) + 1;
+                $usedByType[$leave->leave_type_id] = ($usedByType[$leave->leave_type_id] ?? 0) + $days;
+            }
 
             foreach ($types as $type) {
-                $used = (int) ($usedLeaves[$type->id] ?? 0);
+                $used = (int) ($usedByType[$type->id] ?? 0);
                 $balance[$type->id] = [
                     'allowed'   => $type->days_allowed,
                     'used'      => $used,
@@ -1792,6 +1855,38 @@ class MobileApiController extends Controller
                     return response()->json([
                         'message' => "This leave type requires at least {$leaveType->min_notice_days} day(s) advance notice.",
                         'errors'  => ['start_date' => ["Minimum {$leaveType->min_notice_days} day(s) notice required."]],
+                    ], 422);
+                }
+            }
+
+            // Balance check — reject if this application would exceed days_allowed
+            if ($leaveType->days_allowed > 0) {
+                $requestedDays = Carbon::parse($validated['start_date'])
+                    ->diffInDays(Carbon::parse($validated['end_date'])) + 1;
+
+                $yearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
+                $usedQuery = StudentLeave::where('school_id', $school->id)
+                    ->where('student_id', $student->id)
+                    ->where('leave_type_id', $leaveType->id)
+                    ->where('status', '!=', 'rejected');
+                if ($yearId) {
+                    $year = AcademicYear::find($yearId);
+                    if ($year) {
+                        $usedQuery->whereDate('start_date', '>=', $year->start_date)
+                                  ->whereDate('start_date', '<=', $year->end_date);
+                    }
+                }
+                $usedDays = 0;
+                foreach ($usedQuery->get(['start_date', 'end_date']) as $l) {
+                    $usedDays += Carbon::parse($l->start_date)->diffInDays(Carbon::parse($l->end_date)) + 1;
+                }
+                $remaining = max(0, $leaveType->days_allowed - $usedDays);
+
+                if ($requestedDays > $remaining) {
+                    return response()->json([
+                        'message' => "Insufficient leave balance. {$remaining} day(s) of {$leaveType->name} remaining; this request needs {$requestedDays}.",
+                        'errors'  => ['leave_type_id' => ["Only {$remaining} day(s) remaining."]],
+                        'balance' => ['allowed' => $leaveType->days_allowed, 'used' => $usedDays, 'remaining' => $remaining, 'requested' => $requestedDays],
                     ], 422);
                 }
             }
@@ -4348,6 +4443,7 @@ class MobileApiController extends Controller
         $validated = $request->validate([
             'latitude'  => 'required|numeric',
             'longitude' => 'required|numeric',
+            'remarks'   => 'nullable|string|max:255',
         ]);
 
         $user   = $request->user();
@@ -4398,13 +4494,14 @@ class MobileApiController extends Controller
 
         StaffAttendance::updateOrCreate(
             ['school_id' => $school->id, 'staff_id' => $staff->id, 'date' => $today],
-            [
+            array_filter([
                 'status'       => $status,
                 'check_in'     => $now,
                 'punch_in_lat' => $validated['latitude'],
                 'punch_in_lng' => $validated['longitude'],
+                'remarks'      => $validated['remarks'] ?? null,
                 'marked_by'    => $user->id,
-            ]
+            ], fn($v) => $v !== null)
         );
 
         $message = $status === 'late' ? 'Clocked in — marked late.' : 'Clocked in successfully!';
@@ -4425,6 +4522,7 @@ class MobileApiController extends Controller
         $validated = $request->validate([
             'latitude'  => 'required|numeric',
             'longitude' => 'required|numeric',
+            'remarks'   => 'nullable|string|max:255',
         ]);
 
         $user   = $request->user();
@@ -4474,11 +4572,18 @@ class MobileApiController extends Controller
 
         $now = now()->format('H:i:s');
 
-        $attendance->update([
+        $update = [
             'check_out'      => $now,
             'punch_out_lat'  => $validated['latitude'],
             'punch_out_lng'  => $validated['longitude'],
-        ]);
+        ];
+        // Append clock-out remark to existing remark if both present
+        if (!empty($validated['remarks'])) {
+            $update['remarks'] = trim(
+                ($attendance->remarks ? $attendance->remarks . ' · ' : '') . $validated['remarks']
+            );
+        }
+        $attendance->update($update);
 
         return response()->json([
             'message'   => 'Clocked out successfully!',
@@ -4725,6 +4830,39 @@ class MobileApiController extends Controller
                 return response()->json([
                     'message' => "This leave type requires at least {$leaveType->min_notice_days} day(s) advance notice.",
                     'errors'  => ['start_date' => ["Minimum {$leaveType->min_notice_days} day(s) notice required."]],
+                ], 422);
+            }
+        }
+
+        // Balance check — reject if this application would exceed days_allowed.
+        // (days_allowed = 0 means unlimited, skip the check.)
+        if ($leaveType->days_allowed > 0) {
+            $requestedDays = Carbon::parse($validated['start_date'])
+                ->diffInDays(Carbon::parse($validated['end_date'])) + 1;
+
+            $yearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
+            $usedQuery = Leave::where('school_id', $school->id)
+                ->where('user_id', $user->id)
+                ->where('leave_type_id', $leaveType->id)
+                ->where('status', '!=', 'rejected');
+            if ($yearId) {
+                $year = \App\Models\AcademicYear::find($yearId);
+                if ($year) {
+                    $usedQuery->whereDate('start_date', '>=', $year->start_date)
+                              ->whereDate('start_date', '<=', $year->end_date);
+                }
+            }
+            $usedDays = 0;
+            foreach ($usedQuery->get(['start_date', 'end_date']) as $l) {
+                $usedDays += Carbon::parse($l->start_date)->diffInDays(Carbon::parse($l->end_date)) + 1;
+            }
+            $remaining = max(0, $leaveType->days_allowed - $usedDays);
+
+            if ($requestedDays > $remaining) {
+                return response()->json([
+                    'message' => "Insufficient leave balance. You have {$remaining} day(s) of {$leaveType->name} remaining; this request needs {$requestedDays}.",
+                    'errors'  => ['leave_type_id' => ["Only {$remaining} day(s) remaining."]],
+                    'balance' => ['allowed' => $leaveType->days_allowed, 'used' => $usedDays, 'remaining' => $remaining, 'requested' => $requestedDays],
                 ], 422);
             }
         }
