@@ -120,36 +120,34 @@ class DisciplinaryController extends Controller
         $schoolId = app('current_school_id');
 
         $validated = $request->validate([
-            'assignments'              => 'required|array|min:1',
-            'assignments.*.student_id' => ['required', Rule::exists('students', 'id')->where('school_id', $schoolId)],
-            'assignments.*.category'   => 'required|string|max:100',
-            'incident_date'    => 'required|date',
-            'severity'         => 'required|in:minor,moderate,major',
-            'description'      => 'required|string',
-            'action_taken'     => 'nullable|string',
-            'consequence'      => 'nullable|in:warning,detention,parent_call,suspension,expulsion,none',
-            'consequence_from' => 'nullable|date',
-            'consequence_to'   => 'nullable|date|after_or_equal:consequence_from',
+            'assignments'                => 'required|array|min:1',
+            'assignments.*.student_id'   => ['required', Rule::exists('students', 'id')->where('school_id', $schoolId)],
+            'assignments.*.category'     => 'required|string|max:100',
+            'assignments.*.severity'     => 'required|in:minor,moderate,major',
+            'assignments.*.consequence'  => 'nullable|in:warning,detention,parent_call,suspension,expulsion,none,',
+            'incident_date'              => 'required|date',
+            'action_taken'               => 'nullable|string',
         ]);
 
         $now  = now();
         $base = [
-            'school_id'         => $schoolId,
-            'reported_by'       => auth()->id(),
-            'status'            => 'open',
-            'incident_date'     => $validated['incident_date'],
-            'severity'          => $validated['severity'],
-            'description'       => $validated['description'],
-            'action_taken'      => $validated['action_taken']     ?? null,
-            'consequence'       => $validated['consequence']      ?? null,
-            'consequence_from'  => $validated['consequence_from'] ?? null,
-            'consequence_to'    => $validated['consequence_to']   ?? null,
-            'created_at'        => $now,
-            'updated_at'        => $now,
+            'school_id'     => $schoolId,
+            'reported_by'   => auth()->id(),
+            'status'        => 'open',
+            'incident_date' => $validated['incident_date'],
+            'action_taken'  => $validated['action_taken'] ?? null,
+            'created_at'    => $now,
+            'updated_at'    => $now,
         ];
 
         $rows = array_map(
-            fn ($a) => $base + ['student_id' => $a['student_id'], 'category' => $a['category']],
+            fn ($a) => $base + [
+                'student_id'  => $a['student_id'],
+                'category'    => $a['category'],
+                'severity'    => $a['severity'],
+                'consequence' => !empty($a['consequence']) ? $a['consequence'] : null,
+                'description' => $a['category'],
+            ],
             $validated['assignments']
         );
 

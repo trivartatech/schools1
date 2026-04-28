@@ -2,7 +2,7 @@
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
 import { useForm, router } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { ref, reactive, computed, watchEffect } from 'vue';
 
 const props = defineProps({
     records: Object,
@@ -88,9 +88,17 @@ const browsedStudents = computed(() => {
 });
 
 const bulkForm = useForm({
-    assignments: [],   // [{ student_id, category }]
-    incident_date: TODAY, severity: 'minor', description: '',
-    action_taken: '', consequence: '', consequence_from: '', consequence_to: '',
+    assignments: [],   // [{ student_id, category }] (severity/consequence are merged in on submit)
+    incident_date: TODAY,
+    action_taken: '',
+});
+
+const studentMeta = reactive({}); // { [student_id]: { severity, consequence } }
+
+watchEffect(() => {
+    browsedStudents.value.forEach(s => {
+        if (!studentMeta[s.id]) studentMeta[s.id] = { severity: 'minor', consequence: '' };
+    });
 });
 
 const isAssigned = (sid, cat) =>
@@ -132,10 +140,19 @@ const openAdd = () => {
 const backToList = () => { view.value = 'list'; bulkForm.reset(); };
 
 const submitBulk = () => {
-    bulkForm.post('/school/disciplinary/bulk', {
-        preserveScroll: true,
-        onSuccess: () => { bulkForm.reset(); view.value = 'list'; },
-    });
+    bulkForm
+        .transform(data => ({
+            ...data,
+            assignments: data.assignments.map(a => ({
+                ...a,
+                severity:    studentMeta[a.student_id]?.severity    ?? 'minor',
+                consequence: studentMeta[a.student_id]?.consequence ?? '',
+            })),
+        }))
+        .post('/school/disciplinary/bulk', {
+            preserveScroll: true,
+            onSuccess: () => { bulkForm.reset(); view.value = 'list'; },
+        });
 };
 
 // ── Edit record modal ──────────────────────────────────────────────
@@ -367,7 +384,7 @@ const fmtCategory = (name) => {
             </div>
 
             <template v-else>
-                <!-- Common incident fields -->
+                <!-- Common incident fields (applied to every record) -->
                 <div class="card" style="margin-bottom:16px;">
                     <div class="card-body" style="padding:14px 18px;">
                         <div class="bulk-section-label">Incident Details (applied to every record)</div>
@@ -377,34 +394,6 @@ const fmtCategory = (name) => {
                                 <input v-model="bulkForm.incident_date" type="date" required />
                                 <span v-if="bulkForm.errors.incident_date" class="field-error">{{ bulkForm.errors.incident_date }}</span>
                             </div>
-                            <div class="form-field">
-                                <label>Severity *</label>
-                                <select v-model="bulkForm.severity" required>
-                                    <option value="minor">Minor</option>
-                                    <option value="moderate">Moderate</option>
-                                    <option value="major">Major</option>
-                                </select>
-                            </div>
-                            <div class="form-field">
-                                <label>Consequence</label>
-                                <select v-model="bulkForm.consequence">
-                                    <option value="">— None —</option>
-                                    <option v-for="c in CONSEQUENCES" :key="c" :value="c" style="text-transform:capitalize;">{{ c.replace('_', ' ') }}</option>
-                                </select>
-                            </div>
-                            <div v-if="bulkForm.consequence === 'suspension' || bulkForm.consequence === 'detention'" class="form-field bulk-grid-full">
-                                <label>Consequence Period</label>
-                                <div style="display:flex;gap:10px;align-items:center;">
-                                    <input v-model="bulkForm.consequence_from" type="date" style="flex:1;" />
-                                    <span style="color:#94a3b8;font-size:.8rem;">to</span>
-                                    <input v-model="bulkForm.consequence_to" type="date" style="flex:1;" />
-                                </div>
-                            </div>
-                            <div class="form-field bulk-grid-full">
-                                <label>Description *</label>
-                                <textarea v-model="bulkForm.description" rows="2" required placeholder="Describe the incident in detail…"></textarea>
-                                <span v-if="bulkForm.errors.description" class="field-error">{{ bulkForm.errors.description }}</span>
-                            </div>
                             <div class="form-field bulk-grid-full">
                                 <label>Action Taken</label>
                                 <input v-model="bulkForm.action_taken" type="text" placeholder="Optional — what action was taken?" />
@@ -413,11 +402,13 @@ const fmtCategory = (name) => {
                     </div>
                 </div>
 
-                <!-- Student list with inline category chips -->
+                <!-- Student list with inline severity / consequence / category chips -->
                 <div class="card" style="overflow:hidden;">
                     <div class="student-list-header">
                         <span class="col-num">#</span>
                         <span class="col-student">Student</span>
+                        <span class="col-sev">Severity *</span>
+                        <span class="col-cons">Consequence</span>
                         <span class="col-chips">
                             <span class="chips-header-label">Categories — click a code to apply / clear for all visible students</span>
                             <span class="chips-header-row">
@@ -429,7 +420,6 @@ const fmtCategory = (name) => {
                                 </button>
                             </span>
                         </span>
-                        <span class="col-roll">Roll No</span>
                     </div>
                     <div class="student-list">
                         <div v-for="(s, idx) in browsedStudents" :key="s.id"
@@ -439,6 +429,19 @@ const fmtCategory = (name) => {
                                 <span class="item-name">{{ s.first_name }} {{ s.last_name }}</span>
                                 <span class="item-adm">{{ s.admission_no }}</span>
                             </span>
+                            <span class="col-sev">
+                                <select v-if="studentMeta[s.id]" v-model="studentMeta[s.id].severity" class="row-select">
+                                    <option value="minor">Minor</option>
+                                    <option value="moderate">Moderate</option>
+                                    <option value="major">Major</option>
+                                </select>
+                            </span>
+                            <span class="col-cons">
+                                <select v-if="studentMeta[s.id]" v-model="studentMeta[s.id].consequence" class="row-select">
+                                    <option value="">— None —</option>
+                                    <option v-for="c in CONSEQUENCES" :key="c" :value="c" style="text-transform:capitalize;">{{ c.replace('_', ' ') }}</option>
+                                </select>
+                            </span>
                             <span class="col-chips">
                                 <button v-for="c in categories" :key="c.id" type="button"
                                         class="cat-chip"
@@ -447,7 +450,6 @@ const fmtCategory = (name) => {
                                     {{ c.short_code || c.name }}
                                 </button>
                             </span>
-                            <span class="col-roll" style="font-size:.85rem;color:#64748b;">{{ s.current_academic_history?.roll_no || '—' }}</span>
                         </div>
                     </div>
                     <span v-if="bulkForm.errors.assignments" class="field-error" style="display:block;padding:10px 18px;">{{ bulkForm.errors.assignments }}</span>
@@ -463,7 +465,7 @@ const fmtCategory = (name) => {
                         <button type="button" class="btn-outline" @click="backToList">Cancel</button>
                         <Button @click="submitBulk"
                                 :loading="bulkForm.processing"
-                                :disabled="!recordsPreviewCount || !bulkForm.description">
+                                :disabled="!recordsPreviewCount">
                             Save Records
                         </Button>
                     </div>
@@ -711,11 +713,19 @@ const fmtCategory = (name) => {
 
 /* ── Student list ── */
 .col-check   { width:36px;flex-shrink:0;display:flex;align-items:center;justify-content:center; }
-.col-num     { width:36px;text-align:center;flex-shrink:0; }
-.col-student { width:200px;flex-shrink:0; }
+.col-num     { width:32px;text-align:center;flex-shrink:0; }
+.col-student { width:180px;flex-shrink:0; }
+.col-sev     { width:110px;flex-shrink:0; }
+.col-cons    { width:140px;flex-shrink:0; }
 .col-chips   { flex:1;min-width:0; }
 .col-roll    { width:80px;flex-shrink:0;text-align:right; }
 .col-action  { width:150px;flex-shrink:0; }
+.row-select {
+    width:100%;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;
+    font-size:.78rem;color:#1e293b;background:#fff;cursor:pointer;
+    text-transform:capitalize;
+}
+.row-select:focus { outline:none;border-color:#3b82f6; }
 
 .student-list-header {
     display:flex;align-items:flex-start;gap:14px;padding:12px 20px;
