@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Expense;
 use App\Models\FeePayment;
+use App\Models\HostelFeePayment;
 use App\Models\Ledger;
 use App\Models\LedgerType;
 use App\Models\Payroll;
@@ -145,6 +146,94 @@ class GlPostingService
                 'date'             => now()->toDateString(),
                 'type'             => 'journal',
                 'narration'        => 'Reversal of ' . $oldTx->transaction_no . ' (void transport receipt)',
+                'reversal_of'      => $oldTx->id,
+                'created_by'       => auth()->id(),
+            ], $reversalLines);
+
+            $oldTx->update(['status' => 'void']);
+            $payment->updateQuietly(['gl_transaction_id' => null]);
+
+            return $reversal;
+        });
+    }
+
+    // ── Hostel Fee Payment ────────────────────────────────────────────────────
+
+    /**
+     * Dr  Cash/Bank ledger              (gl_cash_ledger_id)
+     * Cr  Hostel Fee Income ledger     (gl_hostel_fee_income_ledger_id)
+     *
+     * Falls back to the regular Fee Income ledger if no dedicated hostel
+     * income ledger is configured. Idempotent: returns null if the receipt
+     * is already posted, has zero amount, or GL is not configured.
+     */
+    public function postHostelFeePayment(HostelFeePayment $payment): ?Transaction
+    {
+        if ($payment->gl_transaction_id)         return null; // already posted
+        if ((float) $payment->amount_paid <= 0)  return null;
+
+        $settings        = $this->settings($payment->school_id);
+        $cashLedgerId    = $settings['gl_cash_ledger_id'] ?? null;
+        $incomeLedgerId  = $settings['gl_hostel_fee_income_ledger_id']
+                        ?? $settings['gl_fee_income_ledger_id']
+                        ?? null;
+
+        if (! $cashLedgerId || ! $incomeLedgerId)  return null; // not configured
+        if ($cashLedgerId === $incomeLedgerId)     return null; // misconfigured
+
+        $this->assertLedgersExist($payment->school_id, [$cashLedgerId, $incomeLedgerId]);
+
+        $payment->loadMissing('student');
+        $studentName = $payment->student
+            ? trim(($payment->student->first_name ?? '') . ' ' . ($payment->student->last_name ?? ''))
+            : null;
+
+        return DB::transaction(function () use ($payment, $cashLedgerId, $incomeLedgerId, $studentName) {
+            $tx = $this->createTransaction([
+                'school_id'        => $payment->school_id,
+                'academic_year_id' => $payment->academic_year_id,
+                'date'             => $payment->getRawOriginal('payment_date'),
+                'type'             => 'receipt',
+                'narration'        => 'Hostel fee receipt — ' . $payment->receipt_no
+                                    . ($studentName ? ' (' . $studentName . ')' : ''),
+                'reference_no'     => $payment->receipt_no,
+                'created_by'       => $payment->collected_by,
+            ], [
+                ['ledger_id' => $cashLedgerId,   'type' => 'debit',  'amount' => $payment->amount_paid, 'description' => 'Hostel fee collected'],
+                ['ledger_id' => $incomeLedgerId, 'type' => 'credit', 'amount' => $payment->amount_paid, 'description' => 'Hostel fee income'],
+            ]);
+
+            $payment->updateQuietly(['gl_transaction_id' => $tx->id]);
+
+            return $tx;
+        });
+    }
+
+    /**
+     * Reverse the GL entry for a hostel fee receipt that has been voided
+     * (soft-deleted). Mirrors reverseTransportFeePayment().
+     */
+    public function reverseHostelFeePayment(HostelFeePayment $payment): ?Transaction
+    {
+        if (! $payment->gl_transaction_id) return null;
+
+        $oldTx = Transaction::with('lines')->find($payment->gl_transaction_id);
+        if (! $oldTx || $oldTx->status !== 'posted') return null;
+
+        return DB::transaction(function () use ($payment, $oldTx) {
+            $reversalLines = $oldTx->lines->map(fn($l) => [
+                'ledger_id'   => $l->ledger_id,
+                'type'        => $l->type === 'debit' ? 'credit' : 'debit',
+                'amount'      => $l->amount,
+                'description' => 'Reversal: ' . $l->description,
+            ])->all();
+
+            $reversal = $this->createTransaction([
+                'school_id'        => $oldTx->school_id,
+                'academic_year_id' => $oldTx->academic_year_id,
+                'date'             => now()->toDateString(),
+                'type'             => 'journal',
+                'narration'        => 'Reversal of ' . $oldTx->transaction_no . ' (void hostel receipt)',
                 'reversal_of'      => $oldTx->id,
                 'created_by'       => auth()->id(),
             ], $reversalLines);
@@ -310,9 +399,10 @@ class GlPostingService
         $needsCash      = empty($settings['gl_cash_ledger_id']);
         $needsIncome    = empty($settings['gl_fee_income_ledger_id']);
         $needsTransport = empty($settings['gl_transport_fee_income_ledger_id']);
+        $needsHostel    = empty($settings['gl_hostel_fee_income_ledger_id']);
         $needsExpense   = empty($settings['gl_expense_ledger_id']);
 
-        if (! $needsCash && ! $needsIncome && ! $needsTransport && ! $needsExpense) {
+        if (! $needsCash && ! $needsIncome && ! $needsTransport && ! $needsHostel && ! $needsExpense) {
             return $settings;
         }
 
@@ -336,6 +426,13 @@ class GlPostingService
             $incomeType  = LedgerType::firstOrCreate(['school_id' => $schoolId, 'name' => 'Income'],            ['nature' => 'credit', 'is_system' => true]);
             $transLedger = Ledger::firstOrCreate(['school_id' => $schoolId, 'name' => 'Transport Fee Income'], ['ledger_type_id' => $incomeType->id, 'is_system' => true, 'is_active' => true, 'opening_balance' => 0, 'opening_balance_type' => 'credit']);
             $settings['gl_transport_fee_income_ledger_id'] = $transLedger->id;
+            $changed = true;
+        }
+
+        if ($needsHostel) {
+            $incomeType   = LedgerType::firstOrCreate(['school_id' => $schoolId, 'name' => 'Income'],         ['nature' => 'credit', 'is_system' => true]);
+            $hostelLedger = Ledger::firstOrCreate(['school_id' => $schoolId, 'name' => 'Hostel Fee Income'], ['ledger_type_id' => $incomeType->id, 'is_system' => true, 'is_active' => true, 'opening_balance' => 0, 'opening_balance_type' => 'credit']);
+            $settings['gl_hostel_fee_income_ledger_id'] = $hostelLedger->id;
             $changed = true;
         }
 

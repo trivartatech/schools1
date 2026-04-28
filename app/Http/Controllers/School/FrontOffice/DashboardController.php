@@ -6,7 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\CallLog;
 use App\Models\Complaint;
 use App\Models\Correspondence;
+use App\Models\FeePayment;
 use App\Models\GatePass;
+use App\Models\HostelFeePayment;
+use App\Models\TransportFeePayment;
 use App\Models\VisitorLog;
 use Carbon\Carbon;
 use Inertia\Inertia;
@@ -108,6 +111,32 @@ class DashboardController extends Controller
             'by_type' => (clone $mail)->get()->groupBy('type')->map->count(),
         ];
 
+        // ── Day's Fee Collection (Tuition + Transport + Hostel) ─────────────
+        $tuitionToday = FeePayment::where('school_id', $schoolId)
+            ->whereDate('payment_date', $date)
+            ->where('amount_paid', '>', 0)
+            ->selectRaw('COUNT(*) as receipt_count, COALESCE(SUM(amount_paid), 0) as total')
+            ->first();
+
+        $transportToday = TransportFeePayment::where('school_id', $schoolId)
+            ->whereDate('payment_date', $date)
+            ->where('amount_paid', '>', 0)
+            ->selectRaw('COUNT(*) as receipt_count, COALESCE(SUM(amount_paid), 0) as total')
+            ->first();
+
+        $hostelToday = HostelFeePayment::where('school_id', $schoolId)
+            ->whereDate('payment_date', $date)
+            ->where('amount_paid', '>', 0)
+            ->selectRaw('COUNT(*) as receipt_count, COALESCE(SUM(amount_paid), 0) as total')
+            ->first();
+
+        $collection = [
+            'tuition'   => ['receipts' => (int) $tuitionToday->receipt_count,   'total' => (float) $tuitionToday->total],
+            'transport' => ['receipts' => (int) $transportToday->receipt_count, 'total' => (float) $transportToday->total],
+            'hostel'    => ['receipts' => (int) $hostelToday->receipt_count,    'total' => (float) $hostelToday->total],
+            'grand_total' => (float) $tuitionToday->total + (float) $transportToday->total + (float) $hostelToday->total,
+        ];
+
         return Inertia::render('School/FrontOffice/DailyReport', [
             'date'       => $date,
             'visitors'   => $visitorStats,
@@ -115,6 +144,7 @@ class DashboardController extends Controller
             'complaints' => $complaintStats,
             'calls'      => $callStats,
             'mail'       => $mailStats,
+            'collection' => $collection,
         ]);
     }
 

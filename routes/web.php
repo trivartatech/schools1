@@ -774,6 +774,7 @@ Route::middleware('auth')->group(function () {
             Route::group(['prefix' => 'hostel', 'as' => 'hostel.'], function () {
                 // Dashboard
                 Route::get('/', [\App\Http\Controllers\School\Hostel\DashboardController::class, 'index'])->name('dashboard');
+                Route::get('reports/fee-defaulters', [\App\Http\Controllers\School\Hostel\DashboardController::class, 'feeDefaulters'])->name('reports.fee-defaulters');
                 
                 // Hostels Settings
                 Route::resource('hostels', \App\Http\Controllers\School\Hostel\HostelController::class)->except(['create', 'show', 'edit']);

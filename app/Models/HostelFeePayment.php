@@ -50,6 +50,16 @@ class HostelFeePayment extends Model
     public function collectedBy()   { return $this->belongsTo(User::class, 'collected_by'); }
     public function glTransaction() { return $this->belongsTo(Transaction::class, 'gl_transaction_id'); }
 
+    /**
+     * Compatibility accessor: NotificationService::notifyFeePayment() reads
+     * $payment->amount, but our column is amount_paid. Expose the same name
+     * so the unified notification flow works for hostel + tuition + transport.
+     */
+    public function getAmountAttribute()
+    {
+        return $this->amount_paid;
+    }
+
     protected static function booted(): void
     {
         static::creating(function (self $payment) {

@@ -233,6 +233,7 @@ export const SIDEBAR_MENU = [
             { title: 'Rooms & Beds',        route: '/school/hostel/rooms',        permission: 'create_hostel' },
             { title: 'Student Allocations', route: '/school/hostel/allocations',  permission: 'view_hostel' },
             { title: 'Fee Collection',      route: '/school/hostel/fees',         permission: 'view_hostel' },
+            { title: 'Fee Defaulters',      route: '/school/hostel/reports/fee-defaulters', permission: 'view_hostel' },
             { title: 'Gate Passes',         route: '/school/hostel/gate-passes',  permission: 'view_hostel' },
             { title: 'Visitor Logs',        route: '/school/hostel/visitors',     permission: 'view_hostel' },
             { title: 'Mess Menu',           route: '/school/hostel/mess',         permission: 'view_hostel' },

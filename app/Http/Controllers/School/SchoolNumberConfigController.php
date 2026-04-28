@@ -5,6 +5,7 @@ namespace App\Http\Controllers\School;
 use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
 use App\Models\FeePayment;
+use App\Models\HostelFeePayment;
 use App\Models\Student;
 use App\Models\StudentApplication;
 use App\Models\TransferCertificate;
@@ -55,11 +56,18 @@ class SchoolNumberConfigController extends Controller
             'transportDefaults' => [
                 'standard_months' => (float) ($settings['transport_standard_months'] ?? 10),
             ],
+            'hostelConfig' => [
+                'prefix'     => $settings['hostel_receipt_prefix']     ?? 'HS-',
+                'suffix'     => $settings['hostel_receipt_suffix']     ?? '',
+                'start_no'   => $settings['hostel_receipt_start_no']   ?? 1,
+                'pad_length' => $settings['hostel_receipt_pad_length'] ?? 5,
+            ],
             'admissionCount'    => Student::where('school_id', $schoolId)->enrolledInCurrentYear()->count(),
             'registrationCount' => StudentApplication::where('school_id', $schoolId)->count(),
             'feeCount'          => FeePayment::where('school_id', $schoolId)->count(),
             'tcCount'           => TransferCertificate::where('school_id', $schoolId)->where('status', 'issued')->count(),
             'transportCount'    => TransportFeePayment::where('school_id', $schoolId)->count(),
+            'hostelCount'       => HostelFeePayment::where('school_id', $schoolId)->count(),
             'academicYearName'  => $activeYear?->name ?? '??-??',
         ]);
     }
@@ -97,6 +105,11 @@ class SchoolNumberConfigController extends Controller
             'transport_pad_length' => 'required|integer|min:1|max:10',
             // Transport defaults
             'transport_standard_months' => 'required|numeric|min:0.5|max:24',
+            // Hostel Fee Receipt (standalone counter for hostel fees)
+            'hostel_prefix'     => 'nullable|string|max:20',
+            'hostel_suffix'     => 'nullable|string|max:20',
+            'hostel_start_no'   => 'required|integer|min:1',
+            'hostel_pad_length' => 'required|integer|min:1|max:10',
         ]);
 
         $settings = $school->settings ?? [];
@@ -133,6 +146,12 @@ class SchoolNumberConfigController extends Controller
 
         // Transport defaults (used by AllocationController to pro-rate stop fees)
         $settings['transport_standard_months'] = (float) $validated['transport_standard_months'];
+
+        // Hostel Fee Receipt
+        $settings['hostel_receipt_prefix']     = $validated['hostel_prefix']     ?? '';
+        $settings['hostel_receipt_suffix']     = $validated['hostel_suffix']     ?? '';
+        $settings['hostel_receipt_start_no']   = $validated['hostel_start_no'];
+        $settings['hostel_receipt_pad_length'] = $validated['hostel_pad_length'];
 
         $school->settings = $settings;
         $school->save();

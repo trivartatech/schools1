@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Portal;
 use App\Http\Controllers\Controller;
 use App\Models\FeePayment;
 use App\Models\FeeHead;
+use App\Models\HostelFeePayment;
 use App\Models\OnlinePaymentOrder;
 use App\Models\Student;
 use App\Models\StudentParent;
+use App\Models\TransportFeePayment;
 use App\Services\FeeService;
 use App\Services\GlPostingService;
 use App\Services\RazorpayService;
@@ -340,15 +342,44 @@ class PortalFeeController extends Controller
             ->orderByDesc('created_at')
             ->paginate(10, ['*'], 'orders_page');
 
+        // Transport fee receipts (standalone)
+        $transportPayments = TransportFeePayment::whereIn('student_id', $studentIds)
+            ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
+            ->where('amount_paid', '>', 0)
+            ->with([
+                'student:id,first_name,last_name,admission_no',
+                'allocation.route:id,route_name',
+                'allocation.stop:id,stop_name',
+            ])
+            ->orderByDesc('payment_date')
+            ->orderByDesc('id')
+            ->paginate(20, ['*'], 'transport_page');
+
+        // Hostel fee receipts (standalone)
+        $hostelPayments = HostelFeePayment::whereIn('student_id', $studentIds)
+            ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
+            ->where('amount_paid', '>', 0)
+            ->with([
+                'student:id,first_name,last_name,admission_no',
+                'allocation.bed:id,name,hostel_room_id',
+                'allocation.bed.room:id,room_number,hostel_id',
+                'allocation.bed.room.hostel:id,name',
+            ])
+            ->orderByDesc('payment_date')
+            ->orderByDesc('id')
+            ->paginate(20, ['*'], 'hostel_page');
+
         $studentsMap = $students->map(fn($s) => [
             'id'   => $s->id,
             'name' => $s->first_name . ' ' . $s->last_name,
         ]);
 
         return Inertia::render('Portal/Fees/History', [
-            'payments' => $payments,
-            'orders'   => $orders,
-            'students' => $studentsMap,
+            'payments'          => $payments,
+            'orders'            => $orders,
+            'transportPayments' => $transportPayments,
+            'hostelPayments'    => $hostelPayments,
+            'students'          => $studentsMap,
         ]);
     }
 }

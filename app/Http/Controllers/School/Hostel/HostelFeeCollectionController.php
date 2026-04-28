@@ -7,8 +7,10 @@ use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
 use App\Models\HostelFeePayment;
 use App\Models\HostelStudent;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class HostelFeeCollectionController extends Controller
@@ -148,8 +150,9 @@ class HostelFeeCollectionController extends Controller
             ? app('current_academic_year_id')
             : AcademicYear::where('school_id', $allocation->school_id)->where('is_current', true)->value('id');
 
-        DB::transaction(function () use ($allocation, $validated, $discount, $fine, $academicYearId) {
-            HostelFeePayment::create([
+        $payment = null;
+        DB::transaction(function () use (&$payment, $allocation, $validated, $discount, $fine, $academicYearId) {
+            $payment = HostelFeePayment::create([
                 'school_id'        => $allocation->school_id,
                 'allocation_id'    => $allocation->id,
                 'student_id'       => $allocation->student_id,
@@ -166,6 +169,16 @@ class HostelFeeCollectionController extends Controller
 
             $allocation->refresh()->recalculateTotals();
         });
+
+        // Notify parent (SMS / WhatsApp / push). Don't fail the request if it errors.
+        if ($payment && app()->bound('current_school')) {
+            try {
+                $payment->loadMissing(['student.studentParent', 'student.user', 'student.currentAcademicHistory.courseClass', 'student.currentAcademicHistory.section']);
+                (new NotificationService(app('current_school')))->notifyFeePayment($payment);
+            } catch (\Throwable $e) {
+                Log::warning('Hostel fee payment notification failed: ' . $e->getMessage());
+            }
+        }
 
         return back()->with('success', 'Hostel fee payment recorded.');
     }

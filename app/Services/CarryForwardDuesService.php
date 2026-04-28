@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Enums\FeePaymentStatus;
 use App\Enums\RolloverState;
 use App\Models\FeePayment;
+use App\Models\HostelStudent;
 use App\Models\RolloverRun;
+use App\Models\TransportStudentAllocation;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -152,6 +154,15 @@ class CarryForwardDuesService
 
             $result['total_amount'] = number_format($totalAmount, 2, '.', '');
             $run->setStat('fees', $result);
+
+            // Transport + Hostel allocations are NOT year-scoped — the same
+            // allocation row spans years, so the unpaid balance carries
+            // forward automatically. Record an audit summary so the rollover
+            // report shows operators "₹X across N students still owed for
+            // transport/hostel as of year-end".
+            $auxiliary = $this->carryAuxiliaryBalances($run, $dryRun);
+            $run->setStat('fees_auxiliary', $auxiliary);
+
             $run->transitionTo(RolloverState::FeesDone);
 
             return $result;
@@ -315,6 +326,69 @@ class CarryForwardDuesService
         ]);
 
         return $result;
+    }
+
+    /**
+     * Audit-only carry-forward summary for transport + hostel.
+     *
+     * Both `transport_student_allocation` and `hostel_students` are NOT
+     * year-scoped — the allocation row lives across academic years and the
+     * receipts attached to it are date-stamped (academic_year_id), so the
+     * unpaid balance is automatically visible in the new year's collection
+     * UI. We don't create new "carry-forward" rows like we do for tuition
+     * fee_payments. Instead we record a stat + per-allocation log items so
+     * the rollover report tells operators which students still owe transport
+     * or hostel fees as of the year-end cutover.
+     *
+     * @return array{
+     *   transport: array{allocations:int, total:string},
+     *   hostel:    array{allocations:int, total:string},
+     * }
+     */
+    private function carryAuxiliaryBalances(RolloverRun $run, bool $dryRun): array
+    {
+        $schoolId = $run->school_id;
+
+        $transportRows = TransportStudentAllocation::where('school_id', $schoolId)
+            ->where('status', 'active')
+            ->where('balance', '>', 0)
+            ->get(['id', 'student_id', 'balance']);
+
+        $hostelRows = HostelStudent::where('school_id', $schoolId)
+            ->where('status', 'Active')
+            ->where('balance', '>', 0)
+            ->get(['id', 'student_id', 'balance']);
+
+        $transportTotal = (float) $transportRows->sum('balance');
+        $hostelTotal    = (float) $hostelRows->sum('balance');
+
+        if (! $dryRun) {
+            foreach ($transportRows as $row) {
+                $run->logItem('fees', 'carry_forward_transport', $row->id, $row->id, 'success', null, [
+                    'student_id' => $row->student_id,
+                    'balance'    => number_format((float) $row->balance, 2, '.', ''),
+                    'note'       => 'Allocation persists across years — no new row created',
+                ]);
+            }
+            foreach ($hostelRows as $row) {
+                $run->logItem('fees', 'carry_forward_hostel', $row->id, $row->id, 'success', null, [
+                    'student_id' => $row->student_id,
+                    'balance'    => number_format((float) $row->balance, 2, '.', ''),
+                    'note'       => 'Allocation persists across years — no new row created',
+                ]);
+            }
+        }
+
+        return [
+            'transport' => [
+                'allocations' => $transportRows->count(),
+                'total'       => number_format($transportTotal, 2, '.', ''),
+            ],
+            'hostel' => [
+                'allocations' => $hostelRows->count(),
+                'total'       => number_format($hostelTotal, 2, '.', ''),
+            ],
+        ];
     }
 
     /**

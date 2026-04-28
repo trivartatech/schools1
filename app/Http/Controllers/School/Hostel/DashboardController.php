@@ -93,4 +93,33 @@ class DashboardController extends Controller
             'occupancy' => $occupancy,
         ]);
     }
+
+    /**
+     * Fee defaulters report — active hostel allocations with outstanding balance.
+     */
+    public function feeDefaulters()
+    {
+        $defaulters = HostelStudent::tenant()
+            ->where('status', 'Active')
+            ->whereIn('payment_status', ['unpaid', 'partial'])
+            ->where('balance', '>', 0)
+            ->with([
+                'student:id,admission_no,first_name,last_name',
+                'student.user:id,name',
+                'bed:id,name,hostel_room_id',
+                'bed.room:id,room_number,hostel_id',
+                'bed.room.hostel:id,name',
+            ])
+            ->orderByDesc('balance')
+            ->get()
+            ->map(fn ($alloc) => [
+                'allocation' => $alloc,
+                'total_due'  => (float) $alloc->balance,
+            ])
+            ->values();
+
+        return Inertia::render('School/Hostel/Reports/FeeDefaulters', [
+            'defaulters' => $defaulters,
+        ]);
+    }
 }

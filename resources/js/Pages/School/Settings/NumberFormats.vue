@@ -11,11 +11,13 @@ const props = defineProps({
     tcConfig:  Object,
     transportConfig: Object,
     transportDefaults: Object,
+    hostelConfig: Object,
     admissionCount: Number,
     registrationCount: Number,
     feeCount: Number,
     tcCount:  Number,
     transportCount: Number,
+    hostelCount: Number,
     academicYearName: String,
 });
 
@@ -70,6 +72,11 @@ const form = useForm({
     transport_pad_length: props.transportConfig?.pad_length ?? 5,
     // Transport Defaults (pro-rata fee calculation)
     transport_standard_months: props.transportDefaults?.standard_months ?? 10,
+    // Hostel Fee Receipt
+    hostel_prefix:     props.hostelConfig?.prefix     ?? 'HS-',
+    hostel_suffix:     props.hostelConfig?.suffix     ?? '',
+    hostel_start_no:   props.hostelConfig?.start_no   ?? 1,
+    hostel_pad_length: props.hostelConfig?.pad_length ?? 5,
 });
 
 // Computed previews
@@ -84,6 +91,7 @@ const regNextPreview       = computed(() => preview(form.reg_prefix,       form.
 const feeNextPreview       = computed(() => preview(form.fee_prefix,       form.fee_suffix,       form.fee_start_no,       props.feeCount,          form.fee_pad_length));
 const tcNextPreview        = computed(() => preview(form.tc_prefix,        form.tc_suffix,        form.tc_start_no,        props.tcCount,           form.tc_pad_length));
 const transportNextPreview = computed(() => preview(form.transport_prefix, form.transport_suffix, form.transport_start_no, props.transportCount,    form.transport_pad_length));
+const hostelNextPreview    = computed(() => preview(form.hostel_prefix,    form.hostel_suffix,    form.hostel_start_no,    props.hostelCount,       form.hostel_pad_length));
 
 // Token insertion target
 const activeField = ref('adm_prefix');
@@ -109,6 +117,9 @@ const warnings = computed(() => {
     }
     if (Number(form.transport_start_no) <= (props.transportCount ?? 0)) {
         list.push(`⚠️ Transport Receipt: Starting number ${form.transport_start_no} is ≤ ${props.transportCount ?? 0} already issued — may produce duplicate receipt numbers.`);
+    }
+    if (Number(form.hostel_start_no) <= (props.hostelCount ?? 0)) {
+        list.push(`⚠️ Hostel Receipt: Starting number ${form.hostel_start_no} is ≤ ${props.hostelCount ?? 0} already issued — may produce duplicate receipt numbers.`);
     }
     // If prefix/suffix changed vs saved config (different resolved value), also warn
     const savedAdmPrefix = resolveTokens(props.admConfig?.prefix ?? 'ADM');
@@ -168,6 +179,11 @@ const submit = () => form.post('/school/settings/number-formats', { preserveScro
                     <p class="text-xl font-mono font-bold text-sky-700 tracking-widest truncate">{{ transportNextPreview }}</p>
                     <p class="text-xs text-sky-400 mt-1">After {{ transportCount ?? 0 }} transport payment(s)</p>
                 </div>
+                <div class="bg-violet-50 border border-violet-200 rounded-xl p-4">
+                    <p class="text-xs font-semibold text-violet-600 uppercase tracking-wider mb-1">🏠 Next Hostel Receipt No.</p>
+                    <p class="text-xl font-mono font-bold text-violet-700 tracking-widest truncate">{{ hostelNextPreview }}</p>
+                    <p class="text-xs text-violet-400 mt-1">After {{ hostelCount ?? 0 }} hostel payment(s)</p>
+                </div>
             </div>
 
             <!-- Token Picker -->
@@ -204,6 +220,7 @@ const submit = () => form.post('/school/settings/number-formats', { preserveScro
                     { emoji: '🧾', title: 'Fee Receipt Number',  pk: 'fee',       count: feeCount,              preview: feeNextPreview,       color: 'green'  },
                     { emoji: '📜', title: 'Transfer Certificate Number', pk: 'tc', count: tcCount,              preview: tcNextPreview,        color: 'rose'   },
                     { emoji: '🚌', title: 'Transport Receipt Number', pk: 'transport', count: (transportCount ?? 0), preview: transportNextPreview, color: 'sky' },
+                    { emoji: '🏠', title: 'Hostel Receipt Number',    pk: 'hostel',    count: (hostelCount    ?? 0), preview: hostelNextPreview,    color: 'violet' },
                 ]" :key="section.pk">
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                         <div class="flex items-center gap-2 mb-5 pb-3 border-b">

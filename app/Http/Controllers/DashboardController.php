@@ -219,15 +219,34 @@ class DashboardController extends Controller
                 $totalClasses  = \App\Models\CourseClass::where('school_id', $schoolId)->count();
                 $totalSections = \App\Models\Section::where('school_id', $schoolId)->forCurrentYear()->count();
 
-                $todayFeeCollection = (float) \App\Models\FeePayment::where('school_id', $schoolId)
+                $todayTuitionFee = (float) \App\Models\FeePayment::where('school_id', $schoolId)
                     ->whereDate('payment_date', $today)
                     ->where('status', 'paid')
                     ->sum('amount_paid');
 
-                $monthFeeCollection = (float) \App\Models\FeePayment::where('school_id', $schoolId)
+                $monthTuitionFee = (float) \App\Models\FeePayment::where('school_id', $schoolId)
                     ->whereBetween('payment_date', [$thisMonth->toDateString(), $thisMonthEnd->toDateString()])
                     ->where('status', 'paid')
                     ->sum('amount_paid');
+
+                $todayTransportFee = (float) \App\Models\TransportFeePayment::where('school_id', $schoolId)
+                    ->whereDate('payment_date', $today)
+                    ->sum('amount_paid');
+
+                $monthTransportFee = (float) \App\Models\TransportFeePayment::where('school_id', $schoolId)
+                    ->whereBetween('payment_date', [$thisMonth->toDateString(), $thisMonthEnd->toDateString()])
+                    ->sum('amount_paid');
+
+                $todayHostelFee = (float) \App\Models\HostelFeePayment::where('school_id', $schoolId)
+                    ->whereDate('payment_date', $today)
+                    ->sum('amount_paid');
+
+                $monthHostelFee = (float) \App\Models\HostelFeePayment::where('school_id', $schoolId)
+                    ->whereBetween('payment_date', [$thisMonth->toDateString(), $thisMonthEnd->toDateString()])
+                    ->sum('amount_paid');
+
+                $todayFeeCollection = $todayTuitionFee + $todayTransportFee + $todayHostelFee;
+                $monthFeeCollection = $monthTuitionFee + $monthTransportFee + $monthHostelFee;
 
                 $schoolPending = $this->feeService->getSchoolPendingFees($schoolId, $academicYearId);
                 $pendingFees = $schoolPending['pending_fees'];
@@ -529,6 +548,12 @@ class DashboardController extends Controller
                         'total_sections'     => $totalSections,
                         'today_fee'          => $todayFeeCollection,
                         'month_fee'          => $monthFeeCollection,
+                        'today_fee_tuition'  => $todayTuitionFee,
+                        'today_fee_transport'=> $todayTransportFee,
+                        'today_fee_hostel'   => $todayHostelFee,
+                        'month_fee_tuition'  => $monthTuitionFee,
+                        'month_fee_transport'=> $monthTransportFee,
+                        'month_fee_hostel'   => $monthHostelFee,
                         'pending_fees'       => $pendingFees,
                         'active_routes'      => $activeRoutes,
                         'hostel_occupied'    => $hostelOccupied,

@@ -14,7 +14,10 @@ const props = defineProps({
     complaints: { type: Object, default: () => ({}) },
     calls:      { type: Object, default: () => ({}) },
     mail:       { type: Object, default: () => ({}) },
+    collection: { type: Object, default: () => ({ tuition: { receipts: 0, total: 0 }, transport: { receipts: 0, total: 0 }, hostel: { receipts: 0, total: 0 }, grand_total: 0 }) },
 });
+
+const fmtMoney = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(n || 0));
 
 const selectedDate = ref(props.date || school.today());
 
@@ -105,6 +108,33 @@ const barColors = [
                 </div>
                 <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 1.25rem;">
                     Select a date to view the front office activity summary.
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Day's Fee Collection (Tuition + Transport + Hostel) ── -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title report-card__title report-card__title--green">Fee Collection</h3>
+            </div>
+            <div class="card-body">
+                <div class="kpi-row">
+                    <div class="kpi-box">
+                        <div class="kpi-box__value kpi-val--green">{{ fmtMoney(collection.grand_total) }}</div>
+                        <div class="kpi-box__label">Total Collected</div>
+                    </div>
+                    <div class="kpi-box">
+                        <div class="kpi-box__value">{{ fmtMoney(collection.tuition?.total) }}</div>
+                        <div class="kpi-box__label">Tuition · {{ collection.tuition?.receipts ?? 0 }} receipt(s)</div>
+                    </div>
+                    <div class="kpi-box">
+                        <div class="kpi-box__value">{{ fmtMoney(collection.transport?.total) }}</div>
+                        <div class="kpi-box__label">Transport · {{ collection.transport?.receipts ?? 0 }} receipt(s)</div>
+                    </div>
+                    <div class="kpi-box">
+                        <div class="kpi-box__value">{{ fmtMoney(collection.hostel?.total) }}</div>
+                        <div class="kpi-box__label">Hostel · {{ collection.hostel?.receipts ?? 0 }} receipt(s)</div>
+                    </div>
                 </div>
             </div>
         </div>

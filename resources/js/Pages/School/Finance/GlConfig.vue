@@ -19,6 +19,7 @@ const form = useForm({
     gl_cash_ledger_id                 : props.settings.gl_cash_ledger_id                 ?? '',
     gl_fee_income_ledger_id           : props.settings.gl_fee_income_ledger_id           ?? '',
     gl_transport_fee_income_ledger_id : props.settings.gl_transport_fee_income_ledger_id ?? '',
+    gl_hostel_fee_income_ledger_id    : props.settings.gl_hostel_fee_income_ledger_id    ?? '',
     gl_expense_ledger_id              : props.settings.gl_expense_ledger_id              ?? '',
     gl_payroll_ledger_id              : props.settings.gl_payroll_ledger_id              ?? '',
 });
@@ -90,6 +91,13 @@ const mappings = [
         desc  : 'Credited when a transport fee receipt is collected. Falls back to Fee Income if blank.',
         color : '#0891b2',
         bg    : '#cffafe',
+    },
+    {
+        key   : 'gl_hostel_fee_income_ledger_id',
+        label : 'Hostel Fee Income Account',
+        desc  : 'Credited when a hostel fee receipt is collected. Falls back to Fee Income if blank.',
+        color : '#7c3aed',
+        bg    : '#ede9fe',
     },
     {
         key   : 'gl_expense_ledger_id',
@@ -182,6 +190,13 @@ const mappings = [
                         <div class="flow-text">
                             <strong>Transport Fee Collected</strong><br/>
                             Dr Cash/Bank &nbsp;→&nbsp; Cr Transport Fee Income
+                        </div>
+                    </div>
+                    <div class="flow-item">
+                        <div class="flow-icon hostel">🏠</div>
+                        <div class="flow-text">
+                            <strong>Hostel Fee Collected</strong><br/>
+                            Dr Cash/Bank &nbsp;→&nbsp; Cr Hostel Fee Income
                         </div>
                     </div>
                     <div class="flow-item">
@@ -300,6 +315,7 @@ const mappings = [
 }
 .flow-icon.fee       { background:#d1fae5;color:#059669; }
 .flow-icon.transport { background:#cffafe;color:#0891b2; }
+.flow-icon.hostel    { background:#ede9fe;color:#7c3aed; }
 .flow-icon.exp       { background:#fee2e2;color:#dc2626; }
 .flow-icon.pay       { background:#fef3c7;color:#d97706; }
 .flow-text { font-size:0.82rem;color:#374151;line-height:1.6; }

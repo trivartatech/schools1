@@ -8,12 +8,16 @@ import { useSchoolStore } from '@/stores/useSchoolStore';
 const school = useSchoolStore();
 
 const props = defineProps({
-    payments: { type: Object, default: () => ({ data: [] }) },
-    orders:   { type: Object, default: () => ({ data: [] }) },
-    students: { type: Array,  default: () => [] },
+    payments:          { type: Object, default: () => ({ data: [] }) },
+    orders:            { type: Object, default: () => ({ data: [] }) },
+    transportPayments: { type: Object, default: () => ({ data: [] }) },
+    hostelPayments:    { type: Object, default: () => ({ data: [] }) },
+    students:          { type: Array,  default: () => [] },
 });
 
 const activeTab = ref('receipts');
+
+const fmtMoney = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(n || 0));
 
 const statusBadge = (status) => ({
     paid:      'bg-emerald-100 text-emerald-700',
@@ -76,6 +80,28 @@ const modeBadge = (mode) => ({
                         <span v-if="payments.total" class="text-xs px-1.5 py-0.5 rounded-full"
                             :class="activeTab === 'receipts' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-200 text-gray-600'">
                             {{ payments.total }}
+                        </span>
+                    </span>
+                </button>
+                <button @click="activeTab = 'transport'"
+                    class="flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-all"
+                    :class="activeTab === 'transport' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'">
+                    <span class="flex items-center justify-center gap-2">
+                        🚌 Transport
+                        <span v-if="transportPayments.total" class="text-xs px-1.5 py-0.5 rounded-full"
+                            :class="activeTab === 'transport' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-200 text-gray-600'">
+                            {{ transportPayments.total }}
+                        </span>
+                    </span>
+                </button>
+                <button @click="activeTab = 'hostel'"
+                    class="flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-all"
+                    :class="activeTab === 'hostel' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'">
+                    <span class="flex items-center justify-center gap-2">
+                        🏠 Hostel
+                        <span v-if="hostelPayments.total" class="text-xs px-1.5 py-0.5 rounded-full"
+                            :class="activeTab === 'hostel' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-200 text-gray-600'">
+                            {{ hostelPayments.total }}
                         </span>
                     </span>
                 </button>
@@ -149,6 +175,117 @@ const modeBadge = (mode) => ({
                     <span>Showing {{ payments.from }}–{{ payments.to }} of {{ payments.total }}</span>
                     <div class="flex gap-1">
                         <Link v-for="link in payments.links" :key="link.label"
+                            :href="link.url" v-html="link.label"
+                            class="px-3 py-1 rounded-lg border text-xs transition-colors"
+                            :class="link.active ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                            :preserve-scroll="true"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transport Receipts -->
+            <div v-if="activeTab === 'transport'" class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b bg-gray-50">
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Receipt #</th>
+                                <th v-if="students.length > 1" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Student</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Route / Stop</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Mode</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            <tr v-for="p in transportPayments.data" :key="p.id" class="hover:bg-gray-50/60">
+                                <td class="px-4 py-3 font-mono text-xs text-gray-400">{{ p.receipt_no }}</td>
+                                <td v-if="students.length > 1" class="px-4 py-3 text-gray-700">
+                                    {{ p.student?.first_name }} {{ p.student?.last_name }}
+                                </td>
+                                <td class="px-4 py-3 font-medium text-gray-900">
+                                    {{ p.allocation?.route?.route_name ?? '—' }}
+                                    <span v-if="p.allocation?.stop?.stop_name" class="text-xs text-gray-500"> · {{ p.allocation.stop.stop_name }}</span>
+                                </td>
+                                <td class="px-4 py-3 text-gray-500 text-xs">{{ school.fmtDate(p.payment_date) }}</td>
+                                <td class="px-4 py-3 text-center">
+                                    <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize" :class="modeBadge(p.payment_mode)">
+                                        {{ p.payment_mode }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-right font-mono font-semibold text-gray-900 text-xs">
+                                    {{ fmtMoney(p.amount_paid) }}
+                                </td>
+                            </tr>
+                            <tr v-if="!transportPayments.data?.length">
+                                <td :colspan="students.length > 1 ? 6 : 5" class="px-4 py-12 text-center text-gray-400 text-sm">
+                                    No transport fee receipts found.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div v-if="transportPayments.last_page > 1" class="px-4 py-3 border-t bg-gray-50 flex items-center justify-between text-xs text-gray-500">
+                    <span>Showing {{ transportPayments.from }}–{{ transportPayments.to }} of {{ transportPayments.total }}</span>
+                    <div class="flex gap-1">
+                        <Link v-for="link in transportPayments.links" :key="link.label"
+                            :href="link.url" v-html="link.label"
+                            class="px-3 py-1 rounded-lg border text-xs transition-colors"
+                            :class="link.active ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                            :preserve-scroll="true"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hostel Receipts -->
+            <div v-if="activeTab === 'hostel'" class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b bg-gray-50">
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Receipt #</th>
+                                <th v-if="students.length > 1" class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Student</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Hostel / Room</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Mode</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            <tr v-for="p in hostelPayments.data" :key="p.id" class="hover:bg-gray-50/60">
+                                <td class="px-4 py-3 font-mono text-xs text-gray-400">{{ p.receipt_no }}</td>
+                                <td v-if="students.length > 1" class="px-4 py-3 text-gray-700">
+                                    {{ p.student?.first_name }} {{ p.student?.last_name }}
+                                </td>
+                                <td class="px-4 py-3 font-medium text-gray-900">
+                                    {{ p.allocation?.bed?.room?.hostel?.name ?? '—' }}
+                                    <span v-if="p.allocation?.bed?.room?.room_number" class="text-xs text-gray-500"> · Rm {{ p.allocation.bed.room.room_number }}</span>
+                                    <span v-if="p.allocation?.bed?.name" class="text-xs text-gray-500"> · {{ p.allocation.bed.name }}</span>
+                                </td>
+                                <td class="px-4 py-3 text-gray-500 text-xs">{{ school.fmtDate(p.payment_date) }}</td>
+                                <td class="px-4 py-3 text-center">
+                                    <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize" :class="modeBadge(p.payment_mode)">
+                                        {{ p.payment_mode }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-right font-mono font-semibold text-gray-900 text-xs">
+                                    {{ fmtMoney(p.amount_paid) }}
+                                </td>
+                            </tr>
+                            <tr v-if="!hostelPayments.data?.length">
+                                <td :colspan="students.length > 1 ? 6 : 5" class="px-4 py-12 text-center text-gray-400 text-sm">
+                                    No hostel fee receipts found.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div v-if="hostelPayments.last_page > 1" class="px-4 py-3 border-t bg-gray-50 flex items-center justify-between text-xs text-gray-500">
+                    <span>Showing {{ hostelPayments.from }}–{{ hostelPayments.to }} of {{ hostelPayments.total }}</span>
+                    <div class="flex gap-1">
+                        <Link v-for="link in hostelPayments.links" :key="link.label"
                             :href="link.url" v-html="link.label"
                             class="px-3 py-1 rounded-lg border text-xs transition-colors"
                             :class="link.active ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 hover:bg-gray-50'"
