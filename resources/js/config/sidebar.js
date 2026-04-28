@@ -154,7 +154,6 @@ export const SIDEBAR_MENU = [
             { title: 'Expenses',           route: '/school/expenses',                      permission: 'view_expense' },
             { title: 'Expense Categories', route: '/school/expense-categories',            permission: 'view_expense' },
             { title: 'Day Book',           route: '/school/finance/day-book',              permission: 'view_reports' },
-            { title: 'Fee Summary',        route: '/school/finance/fee-summary',           permission: 'view_reports' },
             { title: 'Financial Reports',  route: '/school/finance/reports',               permission: 'view_reports' },
             { title: 'Groups & Heads',     route: '/school/fee/groups',                    permission: 'create_fee' },
             { title: 'Concessions',        route: '/school/fee/concessions',               permission: 'create_fee' },

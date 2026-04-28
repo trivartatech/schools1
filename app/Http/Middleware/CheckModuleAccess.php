@@ -28,7 +28,6 @@ class CheckModuleAccess
         'payslip'            => 'view',
         'dayBook'            => 'view',
         'dueReport'          => 'view',
-        'feeSummaryReport'   => 'view',
         'routeReport'        => 'view',
         'feeDefaulters'      => 'view',
         'parentView'         => 'view',

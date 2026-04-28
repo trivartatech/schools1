@@ -315,7 +315,6 @@ const ERP_MENU = [
                 { title: 'Receipt Settings',   route: '/school/fee/config' },
                 { title: 'Due Report',         route: '/school/finance/due-report' },
                 { title: 'Day Book',           route: '/school/finance/day-book' },
-                { title: 'Fee Summary',        route: '/school/finance/fee-summary' },
                 { title: 'Financial Reports',  route: '/school/finance/reports' },
                 { title: 'Expenses',           route: '/school/expenses' },
                 { title: 'Expense Categories', route: '/school/expense-categories' },

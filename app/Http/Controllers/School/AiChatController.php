@@ -317,7 +317,7 @@ ADMINISTRATION:
 
 FINANCE:
 - Fee: /school/fee/collect, /school/fee/structure, /school/fee/groups, /school/fee/concessions, /school/fee/config (receipt settings)
-- Finance Reports: /school/finance/due-report, /school/finance/day-book, /school/finance/fee-summary, /school/finance/reports
+- Finance Reports: /school/finance/due-report, /school/finance/day-book, /school/finance/reports
 - Expenses: /school/expenses, /school/expense-categories
 - Accounting: /school/finance/ledger-types, /school/finance/ledgers (chart of accounts), /school/finance/transactions
 - Statements: /school/finance/statements/trial-balance, /school/finance/statements/profit-loss, /school/finance/statements/balance-sheet
