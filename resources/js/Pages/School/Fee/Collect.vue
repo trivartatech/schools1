@@ -380,13 +380,13 @@ const statusBadge = (status) => {
                                         ⏮ Previous Year{{ s.source_year_name ? ' · ' + s.source_year_name : '' }}
                                     </span>
                                     <span v-else-if="s.source === 'payment' && s.status === 'paid'" class="badge badge-green text-[10px]">✓ paid</span>
-                                    <span v-else-if="s.source === 'payment' && s.fee_head?.is_hostel_fee" class="badge badge-purple text-[10px]">Hostel</span>
+                                    <span v-else-if="s.source === 'hostel'" class="badge badge-purple text-[10px]">Hostel</span>
                                     <span v-if="s.is_optional" class="badge badge-purple text-[10px]">Optional</span>
                                     <span v-if="s.fee_head?.is_taxable" class="badge badge-red text-[10px]" title="Includes GST">GST {{ s.fee_head?.gst_percent }}%</span>
                                 </div>
                                 <p class="text-xs mt-0.5" style="color: var(--text-muted)">
                                     {{ s.term.startsWith('Installment') ? s.term : s.term.charAt(0).toUpperCase() + s.term.slice(1).replace('_', ' ') }}
-                                    · {{ s.fee_head?.fee_group?.name ?? (s.fee_head?.is_hostel_fee ? 'Hostel' : 'Fee') }}
+                                    · {{ s.fee_head?.fee_group?.name ?? (s.source === 'hostel' ? 'Hostel' : 'Fee') }}
                                 </p>
                             </div>
                             <div class="text-right">

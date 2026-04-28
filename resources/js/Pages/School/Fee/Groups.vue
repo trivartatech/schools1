@@ -36,7 +36,7 @@ const deleteGroup = (id) => {
 };
 
 // Head form
-const newHead = useForm({ fee_group_id: '', name: '', short_code: '', is_taxable: false, gst_percent: 0, is_hostel_fee: false });
+const newHead = useForm({ fee_group_id: '', name: '', short_code: '', is_taxable: false, gst_percent: 0 });
 
 const addHead = (groupId) => {
     newHead.fee_group_id = groupId;
@@ -135,18 +135,6 @@ const deleteHead = (id) => {
                         <label class="text-blue-700">GST %</label>
                         <input v-model="newHead.gst_percent" type="number" step="0.01" min="0" max="28" class="w-20">
                     </div>
-                    <!-- Hostel Fee toggle -->
-                    <div class="flex items-center gap-2 mt-4 px-3 py-2 rounded-lg" :class="newHead.is_hostel_fee ? 'bg-purple-100 border border-purple-300' : 'bg-white border border-gray-200'">
-                        <button type="button"
-                            @click="newHead.is_hostel_fee = !newHead.is_hostel_fee"
-                            :class="newHead.is_hostel_fee ? 'bg-purple-600' : 'bg-gray-300'"
-                            class="relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none">
-                            <span :class="newHead.is_hostel_fee ? 'translate-x-4' : 'translate-x-0'"
-                                  class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
-                        </button>
-                        <span class="text-xs font-semibold" :class="newHead.is_hostel_fee ? 'text-purple-700' : 'text-gray-500'">🏠 Hostel Fee Head</span>
-                        <span v-if="newHead.is_hostel_fee" class="text-[10px] text-purple-500">(Only one allowed per school — auto-links hostel allocations)</span>
-                    </div>
                     <Button @click="addHead(group.id)" :loading="newHead.processing">Add</Button>
                     <Button variant="secondary" @click="showNewHead = null; newHead.reset(); newHead.clearErrors()">Cancel</Button>
                 </div>
@@ -158,7 +146,6 @@ const deleteHead = (id) => {
                         <div class="flex items-center gap-2">
                             <span v-if="head.short_code" class="badge badge-gray font-mono">{{ head.short_code }}</span>
                             <span class="text-sm font-medium text-gray-800">{{ head.name }}</span>
-                            <span v-if="head.is_hostel_fee" class="badge badge-purple">🏠 Hostel</span>
                             <span v-if="head.is_taxable" class="badge badge-amber">GST {{ head.gst_percent }}%</span>
                         </div>
                         <button @click="deleteHead(head.id)"

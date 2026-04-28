@@ -69,17 +69,10 @@ class FeeController extends Controller
             ],
             'is_taxable'    => 'boolean',
             'gst_percent'   => 'numeric|min:0|max:28',
-            'is_hostel_fee' => 'boolean',
         ]);
 
-        // Only one hostel fee head per school
-        if ($request->boolean('is_hostel_fee')) {
-            FeeHead::where('school_id', $schoolId)->update(['is_hostel_fee' => false]);
-        }
-
         FeeHead::create(array_merge($request->only(['fee_group_id', 'name', 'short_code', 'is_taxable', 'gst_percent', 'sort_order']), [
-            'school_id'     => $schoolId,
-            'is_hostel_fee' => $request->boolean('is_hostel_fee'),
+            'school_id' => $schoolId,
         ]));
         return back()->with('success', 'Fee head added.');
     }
@@ -98,17 +91,9 @@ class FeeController extends Controller
                 'nullable', 'string', 'max:10',
                 Rule::unique('fee_heads')->where('school_id', $schoolId)->ignore($feeHead->id)
             ],
-            'is_hostel_fee' => 'boolean',
         ]);
 
-        // Only one hostel fee head per school
-        if ($request->boolean('is_hostel_fee')) {
-            FeeHead::where('school_id', $schoolId)
-                ->where('id', '!=', $feeHead->id)
-                ->update(['is_hostel_fee' => false]);
-        }
-
-        $feeHead->update($request->only(['name', 'short_code', 'is_taxable', 'gst_percent', 'sort_order', 'is_hostel_fee']));
+        $feeHead->update($request->only(['name', 'short_code', 'is_taxable', 'gst_percent', 'sort_order']));
         return back()->with('success', 'Fee head updated.');
     }
 
@@ -303,51 +288,42 @@ class FeeController extends Controller
                     ->with(['feeHead', 'collectedBy:id,name', 'glTransaction:id,transaction_no', 'sourceYear:id,name'])
                     ->get();
 
-                // ── Extract configured hostel term before stripping it ───────────────
-                // Transport is fully decoupled — handled in the Transport module only.
-                $hostelTerm = $structures->first(fn($s) => $s->feeHead?->is_hostel_fee ?? false)?->term ?? 'annual';
-
-                // ── Strip hostel fee heads from class structures ─────────────────────
-                // Hostel amount is per-student (from allocation), not per-class.
-                $structures = $structures->filter(fn($s) => !($s->feeHead?->is_hostel_fee ?? false))->values();
-
-                // ── Hostel Fee Schedule from Allocation (source of truth) ────────────
-                $hostelHead = \App\Models\FeeHead::where('school_id', $schoolId)
-                    ->where('is_hostel_fee', true)
-                    ->first();
-
+                // ── Hostel Fee row (read-only, sourced from Hostel module) ──────────
+                // Hostel is fully decoupled like Transport — collection happens in the
+                // Hostel module via HostelFeePayment, never through fee_payments. We
+                // inject a read-only summary row so admins viewing Fee Collection see
+                // the student's full obligation. Transport gets the same treatment
+                // elsewhere via FeeService.
                 $hostelAllocation = \App\Models\HostelStudent::with('bed.room')
                     ->where('student_id', $student->id)
                     ->whereNull('vacate_date')
-                    ->where('status', 'Active')
+                    ->whereRaw('LOWER(status) = ?', ['active'])
                     ->first();
 
-                if ($hostelHead && $hostelAllocation && $hostelAllocation->bed && $hostelAllocation->bed->room) {
+                if ($hostelAllocation && $hostelAllocation->bed && $hostelAllocation->bed->room) {
                     $monthlyHostelFee = (float) $hostelAllocation->bed->room->cost_per_month;
 
                     if ($monthlyHostelFee > 0) {
-                        $hostelPayments = $payments
-                            ->where('fee_head_id', $hostelHead->id)
-                            ->where('amount_paid', '>', 0);
-
-                        $totalPaid     = $hostelPayments->sum('amount_paid');
-                        $totalDiscount = $hostelPayments->sum('discount');
-                        $totalFine     = $hostelPayments->sum('fine');
+                        $hPayments     = \App\Models\HostelFeePayment::where('allocation_id', $hostelAllocation->id)->get();
+                        $totalPaid     = (float) $hPayments->sum('amount_paid');
+                        $totalDiscount = (float) $hPayments->sum('discount');
+                        $totalFine     = (float) $hPayments->sum('fine');
 
                         $balance = max(0, $monthlyHostelFee - $totalPaid - $totalDiscount + $totalFine);
                         $status  = $balance <= 0 ? 'paid' : (($totalPaid + $totalDiscount) > 0 ? 'partial' : 'due');
 
                         $structures = $structures->concat([[
                             'id'          => 'hostel-alloc-' . $hostelAllocation->id,
-                            'fee_head_id' => $hostelHead->id,
-                            'fee_head'    => $hostelHead->load('feeGroup'),
-                            'term'        => $hostelTerm,
+                            'fee_head_id' => null,
+                            'fee_head'    => null,
+                            'term'        => 'annual',
                             'amount'      => $monthlyHostelFee,
                             'is_optional' => false,
-                            'source'      => 'payment',
+                            'source'      => 'hostel',
                             'payment_id'  => null,
                             'balance'     => $balance,
                             'status'      => $status,
+                            'read_only'   => true,
                         ]]);
                     }
                 }
@@ -361,7 +337,6 @@ class FeeController extends Controller
                 $existingHeadIds = $structures->pluck('fee_head_id')->unique();
 
                 $adhocDue = $payments->filter(function ($p) use ($existingHeadIds) {
-                    if ($p->feeHead?->is_hostel_fee ?? false) return false; // handled above
                     // status is cast to FeePaymentStatus enum — compare via ->value, not the enum instance
                     $statusVal = is_object($p->status) ? $p->status->value : $p->status;
                     if (!in_array($statusVal, ['due', 'partial'])) return false;
@@ -403,9 +378,8 @@ class FeeController extends Controller
                 // shows up in history as expected.
                 $payments = $payments->filter(function ($p) {
                     $isBlankDue     = $p->status === \App\Enums\FeePaymentStatus::Due && (float) $p->amount_paid === 0.0;
-                    $isHostel       = $p->feeHead?->is_hostel_fee ?? false;
                     $isCarryForward = (bool) $p->is_carry_forward;
-                    return !($isBlankDue && ($isHostel || $isCarryForward));
+                    return !($isBlankDue && $isCarryForward);
                 })->values();
                 // ─────────────────────────────────────────────────────────────────────
 

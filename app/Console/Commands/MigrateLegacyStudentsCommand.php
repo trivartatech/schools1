@@ -43,7 +43,7 @@ class MigrateLegacyStudentsCommand extends Command
         ['name' => 'Tuition Fee',    'short_code' => 'TF',  'sort_order' => 1],
         ['name' => 'Admission Fee',  'short_code' => 'AF',  'sort_order' => 2],
         ['name' => 'Stationery Fee', 'short_code' => 'SF',  'sort_order' => 3],
-        ['name' => 'Hostel Fee',     'short_code' => 'HF',  'sort_order' => 4, 'is_hostel_fee' => true],
+        ['name' => 'Hostel Fee',     'short_code' => 'HF',  'sort_order' => 4],
         ['name' => 'Transport Fee',  'short_code' => 'TRF', 'sort_order' => 5],
         ['name' => 'Other Fee',      'short_code' => 'OF',  'sort_order' => 6],
         ['name' => 'Extra Fee',      'short_code' => 'EF',  'sort_order' => 7],
@@ -316,7 +316,6 @@ class MigrateLegacyStudentsCommand extends Command
             $head->fee_group_id  = $feeGroup->id;
             $head->short_code    = $def['short_code'];
             $head->sort_order    = $def['sort_order'];
-            $head->is_hostel_fee = $def['is_hostel_fee'] ?? false;
             if (method_exists($head, 'trashed') && $head->trashed()) {
                 $head->restore();
             }

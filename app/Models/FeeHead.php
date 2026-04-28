@@ -13,13 +13,11 @@ class FeeHead extends Model
     protected $fillable = [
         'school_id', 'fee_group_id', 'name', 'short_code',
         'description', 'is_taxable', 'gst_percent', 'sort_order',
-        'is_hostel_fee',
     ];
 
     protected $casts = [
-        'is_taxable'    => 'boolean',
-        'is_hostel_fee' => 'boolean',
-        'gst_percent'   => 'decimal:2',
+        'is_taxable'  => 'boolean',
+        'gst_percent' => 'decimal:2',
     ];
 
     public function feeGroup()

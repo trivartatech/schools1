@@ -95,10 +95,10 @@ class FeeService
             $hostelFee = (float) $hostelAllocation->bed->room->cost_per_month;
         }
 
-        // C. Class fees total (excluding hostel heads — transport is fully decoupled)
-        $classTotal = $structures->filter(
-            fn($s) => !($s->feeHead?->is_hostel_fee ?? false)
-        )->sum('amount');
+        // C. Class fees total — transport and hostel are both fully decoupled
+        // (transport via TransportStudentAllocation, hostel via HostelStudent +
+        // HostelFeePayment), so structure rows are all class fees now.
+        $classTotal = $structures->sum('amount');
 
         // D. Ad-hoc fees (payments not in class structures)
         // NOTE: carry-forward rows are EXCLUDED here — they often share fee_head_id with
@@ -108,7 +108,6 @@ class FeeService
         $structureHeadIds = $structures->pluck('fee_head_id')->unique();
         $adhocFeesTotal = $payments->filter(function($p) use ($structureHeadIds) {
             if ((bool) $p->is_carry_forward) return false;
-            if ($p->feeHead?->is_hostel_fee ?? false) return false;
             $statusVal = is_object($p->status) ? $p->status->value : $p->status;
             return !in_array($p->fee_head_id, $structureHeadIds->toArray()) &&
                    in_array($statusVal, ['due', 'partial', 'paid']);
@@ -150,10 +149,8 @@ class FeeService
         // 5. Build Head-wise Breakdown — ALL fee heads visible with status
         $feeHeadsArr = [];
 
-        // A. Class Fees — every structure entry is always shown (hostel is surfaced separately)
+        // A. Class Fees — every structure entry is shown
         foreach ($structures as $s) {
-            if ($s->feeHead?->is_hostel_fee) continue;
-
             // Exclude carry-forward payments — they belong to previous-year balances,
             // not to current-year class fee terms, even if they share fee_head_id.
             $p = $payments->where('fee_head_id', $s->fee_head_id)
@@ -202,33 +199,41 @@ class FeeService
             ];
         }
 
-        // C. Hostel Fee
+        // C. Hostel Fee — read-only summary sourced from the Hostel module.
+        // Obligation comes from HostelStudent.bed.room.cost_per_month; paid amounts
+        // come from HostelFeePayment tied to the same allocation. Collection happens
+        // in the Hostel module, NOT in Finance > Fee Collection.
         if ($hostelFee > 0) {
-            $hHead = \App\Models\FeeHead::where('school_id', $schoolId)->where('is_hostel_fee', true)->first();
-            $hPayments = $hHead ? $payments->where('fee_head_id', $hHead->id) : collect();
+            $hostelPaid     = 0.0;
+            $hostelDiscount = 0.0;
+            $hostelBalance  = $hostelFee;
+            $hStatus        = 'unpaid';
 
-            $hPaid = $hPayments->sum('amount_paid');
-            $hDiscount = $hPayments->sum('discount');
-            $hFine = $hPayments->sum('fine');
-            $hBal = max(0, $hostelFee - ($hPaid + $hDiscount) + $hFine);
+            if ($hostelAllocation) {
+                $hPayments      = \App\Models\HostelFeePayment::where('allocation_id', $hostelAllocation->id)->get();
+                $hostelPaid     = (float) $hPayments->sum('amount_paid');
+                $hostelDiscount = (float) $hPayments->sum('discount');
+                $hostelFine     = (float) $hPayments->sum('fine');
+                $hostelBalance  = max(0, $hostelFee - ($hostelPaid + $hostelDiscount) + $hostelFine);
 
-            if ($hBal <= 0) {
-                $hStatus = 'paid';
-            } elseif ($hPaid > 0 || $hDiscount > 0) {
-                $hStatus = 'partial';
-            } else {
-                $hStatus = 'unpaid';
+                if ($hostelBalance <= 0) {
+                    $hStatus = 'paid';
+                } elseif ($hostelPaid > 0 || $hostelDiscount > 0) {
+                    $hStatus = 'partial';
+                }
             }
 
             $feeHeadsArr[] = [
-                'fee_head_id' => $hHead->id ?? null,
+                'fee_head_id' => null,
                 'head_name'   => 'Hostel Fee',
                 'term'        => 'Annual',
                 'amount_due'  => $hostelFee,
-                'amount_paid' => $hPaid,
-                'discount'    => $hDiscount,
-                'balance'     => $hBal,
+                'amount_paid' => $hostelPaid,
+                'discount'    => $hostelDiscount,
+                'balance'     => $hostelBalance,
                 'status'      => $hStatus,
+                'source'      => 'hostel',
+                'read_only'   => true,
             ];
         }
 
@@ -236,7 +241,6 @@ class FeeService
         // Exclude carry-forward — those are shown in their own section below.
         $adhocList = $payments->filter(function($p) use ($structureHeadIds) {
             if ((bool) $p->is_carry_forward) return false;
-            if ($p->feeHead?->is_hostel_fee ?? false) return false;
             $statusVal = is_object($p->status) ? $p->status->value : $p->status;
             return !in_array($p->fee_head_id, $structureHeadIds->toArray()) &&
                    in_array($statusVal, ['due', 'partial', 'paid']);
@@ -362,7 +366,6 @@ class FeeService
                 if ($s->class_id != $classId) return false;
                 if (!in_array($s->gender, ['all', $gender])) return false;
                 if (!in_array($s->student_type, ['all', $studentType])) return false;
-                if ($s->feeHead?->is_hostel_fee) return false;
                 return true;
             })->sum('amount');
 
@@ -408,8 +411,6 @@ class FeeService
                 $studentDues[$p->student_id] = ($studentDues[$p->student_id] ?? 0) + (float) $p->amount_due;
                 continue;
             }
-
-            if ($p->feeHead?->is_hostel_fee ?? false) continue;
 
             $key = $p->fee_head_id . '|' . $p->term;
             if (!in_array($key, $structureHeadTermKeys)) {
