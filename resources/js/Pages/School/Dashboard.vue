@@ -96,13 +96,23 @@ const feeMixSegments = computed(() => [
 const feeMixTotal   = computed(() => feeMixSegments.value.reduce((s, x) => s + x.value, 0))
 const feeMixHasData = computed(() => feeMixTotal.value > 0)
 
-const donutSegments = computed(() => [
-    { label: 'Present',  value: donut.value.present  || 0, color: '#10b981' },
-    { label: 'Absent',   value: donut.value.absent   || 0, color: '#ef4444' },
-    { label: 'Late',     value: donut.value.late     || 0, color: '#f59e0b' },
-    { label: 'Half Day', value: donut.value.half_day || 0, color: '#6366f1' },
-])
-const donutTotal = computed(() => donutSegments.value.reduce((s, x) => s + x.value, 0))
+// Attendance breakdown — list view (replaces the donut)
+const attendanceRows = computed(() => {
+    const total = +k.value.total_students || 0
+    const rows = [
+        { label: 'Present',  count: +donut.value.present  || 0, color: '#10b981' },
+        { label: 'Absent',   count: +donut.value.absent   || 0, color: '#ef4444' },
+        { label: 'Half Day', count: +donut.value.half_day || 0, color: '#f97316' },
+        { label: 'Late',     count: +donut.value.late     || 0, color: '#f59e0b' },
+        { label: 'On Leave', count: +donut.value.leave    || 0, color: '#8b5cf6' },
+    ]
+    return rows.map(r => ({
+        ...r,
+        total,
+        pct: total > 0 ? Math.min(100, Math.round(r.count / total * 100)) : 0,
+    }))
+})
+const attendanceMarked = computed(() => attendanceRows.value.reduce((s, r) => s + r.count, 0))
 
 const hostelPct = computed(() => {
     const cap = +k.value.hostel_capacity || 0
@@ -147,7 +157,7 @@ const upcomingEvents = computed(() => {
 </script>
 
 <template>
-    <div class="space-y-4">
+    <div class="space-y-5">
 
         <!-- ─ Greeting & date ─────────────────────────────────────── -->
         <header class="flex flex-wrap items-center justify-between gap-3">
@@ -400,27 +410,40 @@ const upcomingEvents = computed(() => {
                 </div>
             </div>
 
-            <!-- Attendance breakdown donut -->
+            <!-- Student Attendance — list breakdown -->
             <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                <SectionHeader
-                    title="Attendance breakdown"
-                    subtitle="Students marked today"
-                    actionLabel="Mark"
-                    actionHref="/school/attendance"
-                />
-                <DonutChart
-                    v-if="donutTotal > 0"
-                    :segments="donutSegments" :height="180"
-                    :centerValue="`${k.attendance_pct ?? 0}%`" centerLabel="present"
-                />
-                <p v-else class="text-sm text-gray-400 italic py-12 text-center">No attendance marked today</p>
-                <div v-if="donutTotal > 0" class="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
-                    <div v-for="seg in donutSegments" :key="seg.label" class="flex items-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full" :style="{ background: seg.color }" />
-                        <span class="text-gray-600">{{ seg.label }}</span>
-                        <span class="ml-auto font-semibold text-gray-900 tabular-nums">{{ seg.value }}</span>
+                <div class="flex items-start justify-between mb-3">
+                    <div>
+                        <h2 class="text-base font-semibold text-gray-900 tracking-tight flex items-center gap-1.5">
+                            Student Attendance
+                            <span class="text-gray-400 text-sm">👥</span>
+                        </h2>
+                        <p class="text-xs text-gray-500 mt-0.5">
+                            {{ attendanceMarked }} of {{ k.total_students || 0 }} marked today
+                        </p>
                     </div>
+                    <Link
+                        href="/school/attendance/report"
+                        class="w-7 h-7 inline-flex items-center justify-center rounded-md bg-gray-50 text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 transition"
+                        title="Open report"
+                    >↗</Link>
                 </div>
+
+                <ul class="divide-y divide-gray-100">
+                    <li v-for="row in attendanceRows" :key="row.label" class="py-2.5 first:pt-1 last:pb-1">
+                        <div class="flex items-baseline justify-between gap-2 mb-1">
+                            <span class="text-sm font-medium text-gray-700">{{ row.label }}</span>
+                            <span class="text-xs text-gray-500 tabular-nums whitespace-nowrap">
+                                <span class="font-semibold text-gray-900">{{ row.count }}</span>
+                                <span class="text-gray-400"> / {{ row.total }}</span>
+                            </span>
+                        </div>
+                        <div class="h-1 bg-gray-100 rounded-full overflow-hidden">
+                            <div class="h-full rounded-full transition-all"
+                                 :style="{ width: row.pct + '%', background: row.color }"></div>
+                        </div>
+                    </li>
+                </ul>
             </div>
         </section>
 
@@ -514,8 +537,12 @@ const upcomingEvents = computed(() => {
             <MiniCalendar :holidays="d.upcoming_holidays || []" :exams="d.calendar_exams || []" />
         </section>
 
-        <!-- ─ Alerts: defaulters + low attendance + announcements ─── -->
-        <section v-if="showAlerts" class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <!-- ─ Alerts + People today (auto-fit grid, no empty cells) ── -->
+        <section
+            v-if="showAlerts || showPeople"
+            class="grid gap-4"
+            style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));"
+        >
             <div v-if="pendingFeeStudents.length" class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                 <SectionHeader title="Top pending fees" subtitle="Largest outstanding balances"
                     actionLabel="All defaulters" actionHref="/school/finance/due-report" />
@@ -549,30 +576,6 @@ const upcomingEvents = computed(() => {
                     </template>
                 </RecentList>
             </div>
-        </section>
-
-        <!-- ─ People today ────────────────────────────────────────── -->
-        <section v-if="showPeople" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div v-if="birthdays.length" class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                <SectionHeader title="🎂 Birthdays today" :subtitle="`${birthdays.length} student${birthdays.length === 1 ? '' : 's'} celebrating`" />
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    <div
-                        v-for="(b, i) in birthdays" :key="i"
-                        class="flex items-center gap-2.5 p-2 rounded-lg bg-pink-50/60 border border-pink-100 hover:bg-pink-50 transition min-w-0"
-                    >
-                        <img v-if="b.photo" :src="b.photo" class="w-10 h-10 rounded-full object-cover flex-shrink-0 ring-2 ring-white" />
-                        <div v-else class="w-10 h-10 rounded-full bg-pink-200 text-pink-800 flex items-center justify-center text-sm font-semibold flex-shrink-0 ring-2 ring-white">
-                            {{ b.name.charAt(0) }}
-                        </div>
-                        <div class="min-w-0">
-                            <p class="text-sm font-medium text-gray-900 truncate leading-tight">{{ b.name }}</p>
-                            <p class="text-[11px] text-pink-700 font-medium truncate mt-0.5">
-                                {{ b.class }}<span v-if="b.section"> · {{ b.section }}</span>
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             <div v-if="absentStaff.length" class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                 <SectionHeader title="Absent / on leave" subtitle="Staff away today"
@@ -581,6 +584,34 @@ const upcomingEvents = computed(() => {
                     <template #primary="{ row }">{{ row.name }}</template>
                     <template #secondary="{ row }">{{ row.designation }}</template>
                 </RecentList>
+            </div>
+
+            <div v-if="birthdays.length" class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                <SectionHeader title="🎂 Birthdays today"
+                    :subtitle="`${birthdays.length} student${birthdays.length === 1 ? '' : 's'} celebrating`" />
+                <div class="grid gap-2" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));">
+                    <div
+                        v-for="(b, i) in birthdays" :key="i"
+                        class="flex items-center gap-2.5 p-2 rounded-lg bg-pink-50/70 border border-pink-100 min-w-0"
+                    >
+                        <img v-if="b.photo" :src="b.photo" class="w-10 h-10 rounded-full object-cover flex-shrink-0 ring-2 ring-white" />
+                        <div v-else class="w-10 h-10 rounded-full bg-pink-200 text-pink-700 flex items-center justify-center text-sm font-bold flex-shrink-0 ring-2 ring-white">
+                            {{ b.name.charAt(0) }}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-sm font-medium text-gray-900 truncate leading-tight" :title="b.name">{{ b.name }}</p>
+                            <p class="text-[11px] text-pink-700 font-medium truncate mt-0.5"
+                               :title="(b.class || '') + (b.section ? ' · ' + b.section : '')">
+                                <template v-if="b.class && b.class !== '—'">
+                                    {{ b.class }}<span v-if="b.section"> · {{ b.section }}</span>
+                                </template>
+                                <template v-else>
+                                    Adm. {{ b.admission_no || '—' }}
+                                </template>
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
 

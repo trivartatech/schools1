@@ -274,6 +274,7 @@ class DashboardDataService
             'absent'   => $row['absent']   ?? 0,
             'late'     => $row['late']     ?? 0,
             'half_day' => $row['half_day'] ?? 0,
+            'leave'    => $row['leave']    ?? 0,
         ];
     }
 
@@ -286,7 +287,7 @@ class DashboardDataService
                 COUNT(*) as total,
                 SUM(CASE WHEN attendances.status IN ("present","late","half_day") THEN 1 ELSE 0 END) as present_count')
             ->groupBy('cc.id', 'cc.name')
-            ->orderBy('cc.id')
+            ->orderBy('cc.numeric_value')->orderBy('cc.id')
             ->limit(10)->get()
             ->map(fn($r) => [
                 'class'   => $r->class_name,
@@ -563,7 +564,7 @@ class DashboardDataService
             ->join('course_classes as cc', 'student_academic_histories.class_id', '=', 'cc.id')
             ->selectRaw('cc.id, cc.name, COUNT(DISTINCT student_academic_histories.student_id) as count')
             ->groupBy('cc.id', 'cc.name')
-            ->orderBy('cc.id')
+            ->orderBy('cc.numeric_value')->orderBy('cc.id')
             ->get()
             ->map(fn($r) => ['class' => $r->name, 'count' => (int) $r->count])
             ->all();
@@ -629,7 +630,7 @@ class DashboardDataService
                 SUM(fee_payments.discount)     as total_discount,
                 SUM(fee_payments.fine)         as total_fine')
             ->groupBy('cc.id', 'cc.name')
-            ->orderBy('cc.id')
+            ->orderBy('cc.numeric_value')->orderBy('cc.id')
             ->get()
             ->map(function ($r) {
                 $netDue  = max(0, (float) $r->total_due - (float) $r->total_discount + (float) $r->total_fine);
