@@ -667,7 +667,7 @@ const activeTab = ref('admissions')
             <div class="surf-card surf-card--left-emerald">
                 <div class="surf-card-hd">
                     <span class="surf-card-title">RECENT PAYMENTS</span>
-                    <Link href="/school/finance/payments" class="surf-card-link">View All →</Link>
+                    <Link href="/school/finance/day-book" class="surf-card-link">View All →</Link>
                 </div>
                 <div v-if="!d.recent_payments?.length" class="surf-empty">No recent payments</div>
                 <div v-for="p in (d.recent_payments||[])" :key="p.id" class="surf-row">
