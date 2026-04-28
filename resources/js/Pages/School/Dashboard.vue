@@ -1,13 +1,14 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
-import KpiCard       from '@/Components/dashboard/KpiCard.vue'
-import TrendChart    from '@/Components/dashboard/TrendChart.vue'
-import DonutChart    from '@/Components/dashboard/DonutChart.vue'
-import MiniCalendar  from '@/Components/dashboard/MiniCalendar.vue'
-import RecentList    from '@/Components/dashboard/RecentList.vue'
-import SectionHeader from '@/Components/dashboard/SectionHeader.vue'
-import ActionChip    from '@/Components/dashboard/ActionChip.vue'
+import KpiCard         from '@/Components/dashboard/KpiCard.vue'
+import TrendChart      from '@/Components/dashboard/TrendChart.vue'
+import DonutChart      from '@/Components/dashboard/DonutChart.vue'
+import MiniCalendar    from '@/Components/dashboard/MiniCalendar.vue'
+import RecentList      from '@/Components/dashboard/RecentList.vue'
+import SectionHeader   from '@/Components/dashboard/SectionHeader.vue'
+import ActionChip      from '@/Components/dashboard/ActionChip.vue'
+import QuickActionsBar from '@/Components/dashboard/QuickActionsBar.vue'
 
 const props = defineProps({
     school: Object,
@@ -36,6 +37,16 @@ const greeting = computed(() => {
     return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
 })
 const todayLabel = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+
+// ── quick actions ──────────────────────────────────────────
+const quickActions = [
+    { label: 'Collect Fee',     icon: '💰', href: '/school/fee/collect',       accent: 'emerald' },
+    { label: 'Mark Attendance', icon: '✅', href: '/school/attendance',        accent: 'indigo' },
+    { label: 'Add Student',     icon: '➕', href: '/school/students/create',   accent: 'blue' },
+    { label: 'Announcement',    icon: '📢', href: '/school/announcements',     accent: 'violet' },
+    { label: 'Day Book',        icon: '📒', href: '/school/finance/day-book',  accent: 'amber' },
+    { label: 'Due Report',      icon: '📊', href: '/school/finance/due-report',accent: 'pink' },
+]
 
 // ── chart data ─────────────────────────────────────────────
 const feeTrend  = computed(() => d.value.fee_trend || [])
@@ -70,7 +81,7 @@ const feeMixSegments = computed(() => [
     { label: 'Hostel',     value: feeMix.value.hostel     || 0, color: '#f59e0b' },
     { label: 'Stationary', value: feeMix.value.stationary || 0, color: '#3b82f6' },
 ])
-const feeMixTotal = computed(() => (feeMix.value.tuition || 0) + (feeMix.value.transport || 0) + (feeMix.value.hostel || 0) + (feeMix.value.stationary || 0))
+const feeMixTotal = computed(() => feeMixSegments.value.reduce((s, x) => s + x.value, 0))
 const feeMixHasData = computed(() => feeMixTotal.value > 0)
 
 const donutSegments = computed(() => [
@@ -80,6 +91,13 @@ const donutSegments = computed(() => [
     { label: 'Half Day', value: donut.value.half_day || 0, color: '#6366f1' },
 ])
 const donutTotal = computed(() => donutSegments.value.reduce((s, x) => s + x.value, 0))
+
+// ── secondary KPIs ─────────────────────────────────────────
+const hostelPct = computed(() => {
+    const cap = +k.value.hostel_capacity || 0
+    if (!cap) return 0
+    return Math.round((+k.value.hostel_occupied || 0) / cap * 100)
+})
 
 // ── activity tabs ──────────────────────────────────────────
 const activityTab = ref('payments')
@@ -92,14 +110,33 @@ const pendingFeeStudents = computed(() => d.value.pending_fee_students || [])
 const lowAttendance      = computed(() => d.value.low_attendance || [])
 const birthdays          = computed(() => d.value.birthdays_today || [])
 const absentStaff        = computed(() => d.value.absent_staff || [])
+const announcements      = computed(() => d.value.announcements || [])
 const nextExam           = computed(() => d.value.next_exam || null)
 
-const showAlerts = computed(() => pendingFeeStudents.value.length || lowAttendance.value.length)
+const showAlerts = computed(() => pendingFeeStudents.value.length || lowAttendance.value.length || announcements.value.length)
 const showPeople = computed(() => birthdays.value.length || absentStaff.value.length)
+
+// ── upcoming events (next 5 holidays + exams, merged & sorted) ─
+const upcomingEvents = computed(() => {
+    const holidays = (d.value.upcoming_holidays || []).map(h => ({
+        kind: 'holiday', date: h.date, title: h.title, color: 'red',
+    }))
+    const exams = (d.value.calendar_exams || []).map(e => ({
+        kind: 'exam', date: e.date, title: e.title, color: 'indigo',
+    }))
+    return [...holidays, ...exams]
+        .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+        .slice(0, 6)
+        .map(e => ({
+            ...e,
+            dateLabel: new Date(e.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+            daysAway: Math.max(0, Math.round((new Date(e.date) - new Date()) / 86400000)),
+        }))
+})
 </script>
 
 <template>
-    <div class="space-y-6">
+    <div class="space-y-5">
 
         <!-- ─ Greeting & date ─────────────────────────────────────── -->
         <header class="flex flex-wrap items-end justify-between gap-3">
@@ -120,40 +157,25 @@ const showPeople = computed(() => birthdays.value.length || absentStaff.value.le
             </Link>
         </header>
 
+        <!-- ─ Quick actions strip (always visible) ────────────────── -->
+        <QuickActionsBar :actions="quickActions" />
+
         <!-- ─ Action chips (only-if-data) ─────────────────────────── -->
         <div
-            v-if="(k.attendance_unmarked > 0 && k.total_students > 0) || d.pending_edit_count > 0 || k.pending_fee_count > 0 || k.staff_unmarked_today > 0"
+            v-if="k.attendance_unmarked > 0 || d.pending_edit_count > 0 || d.pending_leave_count > 0 || k.pending_fee_count > 0 || k.staff_unmarked_today > 0"
             class="flex flex-wrap gap-2"
         >
-            <ActionChip
-                :count="k.attendance_unmarked"
-                label="students unmarked today"
-                href="/school/attendance"
-                severity="amber"
-            />
-            <ActionChip
-                :count="k.staff_unmarked_today"
-                label="staff unmarked today"
-                href="/school/staff-attendance"
-                severity="blue"
-            />
-            <ActionChip
-                :count="d.pending_edit_count"
-                label="edit requests pending"
-                href="/school/edit-requests"
-                severity="amber"
-            />
-            <ActionChip
-                :count="k.pending_fee_count"
-                label="students with pending fees"
-                href="/school/finance/due-report"
-                severity="red"
-            />
+            <ActionChip :count="k.attendance_unmarked" label="students unmarked today" href="/school/attendance" severity="amber" />
+            <ActionChip :count="k.staff_unmarked_today" label="staff unmarked today" href="/school/staff-attendance" severity="blue" />
+            <ActionChip :count="d.pending_edit_count" label="edit requests pending" href="/school/edit-requests" severity="amber" />
+            <ActionChip :count="d.pending_leave_count" label="leave requests pending" href="/school/leaves" severity="blue" />
+            <ActionChip :count="k.pending_fee_count" label="students with pending fees" href="/school/finance/due-report" severity="red" />
         </div>
 
-        <!-- ─ Hero KPI grid ───────────────────────────────────────── -->
+        <!-- ─ Hero KPI grid (4 cards, larger) ─────────────────────── -->
         <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard
+                size="hero"
                 label="Today's collection"
                 :value="fmtCompact(k.today_fee || 0)"
                 :delta="k.today_fee_delta_pct"
@@ -164,6 +186,7 @@ const showPeople = computed(() => birthdays.value.length || absentStaff.value.le
                 icon="₹"
             />
             <KpiCard
+                size="hero"
                 label="Attendance today"
                 :value="`${k.attendance_pct ?? 0}%`"
                 :delta="k.attendance_delta_pp"
@@ -175,6 +198,7 @@ const showPeople = computed(() => birthdays.value.length || absentStaff.value.le
                 icon="✓"
             />
             <KpiCard
+                size="hero"
                 label="New admissions this month"
                 :value="fmtNum(k.new_students_month)"
                 :delta="k.new_students_delta_pct"
@@ -185,12 +209,53 @@ const showPeople = computed(() => birthdays.value.length || absentStaff.value.le
                 icon="👥"
             />
             <KpiCard
+                size="hero"
                 label="Pending fees"
                 :value="fmtCompact(k.pending_fees || 0)"
                 :sub="`${fmtNum(k.pending_fee_count)} students owe`"
                 href="/school/finance/due-report"
                 accent="red"
                 icon="!"
+            />
+        </section>
+
+        <!-- ─ Secondary KPI strip (4 compact stat tiles) ──────────── -->
+        <section class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <KpiCard
+                size="compact"
+                label="Staff active"
+                :value="fmtNum(k.total_staff)"
+                :sub="`${fmtNum(k.staff_present_today)} present · ${fmtNum(k.staff_on_leave)} on leave`"
+                href="/school/staff"
+                accent="violet"
+                icon="🧑‍🏫"
+            />
+            <KpiCard
+                size="compact"
+                label="Classes & sections"
+                :value="`${fmtNum(k.total_classes)} / ${fmtNum(k.total_sections)}`"
+                sub="Class · section count"
+                href="/school/classes"
+                accent="indigo"
+                icon="🏫"
+            />
+            <KpiCard
+                size="compact"
+                label="Active transport routes"
+                :value="fmtNum(k.active_routes)"
+                sub="Routes running"
+                href="/school/transport"
+                accent="amber"
+                icon="🚌"
+            />
+            <KpiCard
+                size="compact"
+                label="Hostel occupancy"
+                :value="`${hostelPct}%`"
+                :sub="`${fmtNum(k.hostel_occupied)} of ${fmtNum(k.hostel_capacity)} beds`"
+                href="/school/hostel"
+                accent="pink"
+                icon="🏠"
             />
         </section>
 
@@ -365,8 +430,8 @@ const showPeople = computed(() => birthdays.value.length || absentStaff.value.le
             />
         </section>
 
-        <!-- ─ Alerts (only when there's something to alert about) ─── -->
-        <section v-if="showAlerts" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <!-- ─ Alerts: defaulters + low attendance + announcements ─── -->
+        <section v-if="showAlerts" class="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div v-if="pendingFeeStudents.length" class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
                 <SectionHeader
                     title="Top pending fees"
@@ -398,13 +463,31 @@ const showPeople = computed(() => birthdays.value.length || absentStaff.value.le
                     </template>
                 </RecentList>
             </div>
+
+            <div v-if="announcements.length" class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+                <SectionHeader
+                    title="Recent announcements"
+                    subtitle="Latest broadcasts"
+                    actionLabel="All"
+                    actionHref="/school/announcements"
+                />
+                <RecentList :rows="announcements" emptyText="No announcements yet">
+                    <template #primary="{ row }">{{ row.title }}</template>
+                    <template #secondary="{ row }">
+                        <span class="capitalize">{{ row.audience || 'all' }}</span> · by {{ row.sender }}
+                    </template>
+                    <template #right="{ row }">
+                        <span class="text-xs font-normal text-gray-400">{{ row.sent_at }}</span>
+                    </template>
+                </RecentList>
+            </div>
         </section>
 
         <!-- ─ People today ────────────────────────────────────────── -->
         <section v-if="showPeople" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div v-if="birthdays.length" class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-                <SectionHeader title="Birthdays today" subtitle="Send a wish" />
-                <div class="flex flex-wrap gap-3">
+                <SectionHeader title="🎂 Birthdays today" subtitle="Send a wish" />
+                <div class="flex flex-wrap gap-2">
                     <div v-for="(b, i) in birthdays" :key="i" class="flex items-center gap-2 bg-pink-50 text-pink-800 rounded-full pl-1 pr-3 py-1">
                         <img v-if="b.photo" :src="b.photo" class="w-6 h-6 rounded-full object-cover" />
                         <div v-else class="w-6 h-6 rounded-full bg-pink-200 flex items-center justify-center text-[10px] font-semibold">
@@ -426,6 +509,34 @@ const showPeople = computed(() => birthdays.value.length || absentStaff.value.le
                     <template #primary="{ row }">{{ row.name }}</template>
                     <template #secondary="{ row }">{{ row.designation }}</template>
                 </RecentList>
+            </div>
+        </section>
+
+        <!-- ─ Upcoming events list (combined holidays + exams) ────── -->
+        <section v-if="upcomingEvents.length" class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <SectionHeader
+                title="Upcoming events"
+                subtitle="Next holidays and exams"
+                actionLabel="Calendar"
+                actionHref="/school/academic/calendar"
+            />
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div
+                    v-for="(e, i) in upcomingEvents" :key="i"
+                    class="flex flex-col p-3 rounded-lg border border-gray-100 hover:border-indigo-300 transition"
+                >
+                    <span class="text-[10px] font-semibold uppercase tracking-wide"
+                          :class="e.kind === 'holiday' ? 'text-red-500' : 'text-indigo-500'">
+                        {{ e.kind }}
+                    </span>
+                    <span class="text-sm font-medium text-gray-900 mt-1 line-clamp-2 leading-tight">{{ e.title }}</span>
+                    <div class="mt-auto pt-2 flex items-end justify-between">
+                        <span class="text-xs text-gray-500">{{ e.dateLabel }}</span>
+                        <span class="text-[10px] font-semibold text-gray-400 tabular-nums">
+                            {{ e.daysAway === 0 ? 'today' : 'in ' + e.daysAway + 'd' }}
+                        </span>
+                    </div>
+                </div>
             </div>
         </section>
 

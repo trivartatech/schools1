@@ -9,19 +9,22 @@ const props = defineProps({
     sub:      { type: String, default: null },
     delta:    { type: [Number, null], default: null },          // percent change vs prev period
     deltaUnit:{ type: String, default: '%' },                   // '%' or 'pp'
-    deltaInverted: { type: Boolean, default: false },           // true → up is bad (e.g. absent count)
+    deltaInverted: { type: Boolean, default: false },           // true → up is bad
     href:     { type: String, default: null },
     sparkline:{ type: Array, default: null },
-    accent:   { type: String, default: 'indigo' },              // indigo|emerald|amber|red|blue
+    accent:   { type: String, default: 'indigo' },              // indigo|emerald|amber|red|blue|violet|pink
     icon:     { type: String, default: null },                  // emoji or single char
+    size:     { type: String, default: 'default' },             // 'default' | 'compact' | 'hero'
 })
 
 const accentMap = {
-    indigo:  { tile: 'bg-indigo-50 text-indigo-600',   spark: '#6366f1' },
-    emerald: { tile: 'bg-emerald-50 text-emerald-600', spark: '#10b981' },
-    amber:   { tile: 'bg-amber-50 text-amber-600',     spark: '#f59e0b' },
-    red:     { tile: 'bg-red-50 text-red-600',         spark: '#ef4444' },
-    blue:    { tile: 'bg-blue-50 text-blue-600',       spark: '#3b82f6' },
+    indigo:  { tile: 'bg-indigo-50 text-indigo-600',   spark: '#6366f1', ringColor: '#6366f1' },
+    emerald: { tile: 'bg-emerald-50 text-emerald-600', spark: '#10b981', ringColor: '#10b981' },
+    amber:   { tile: 'bg-amber-50 text-amber-600',     spark: '#f59e0b', ringColor: '#f59e0b' },
+    red:     { tile: 'bg-red-50 text-red-600',         spark: '#ef4444', ringColor: '#ef4444' },
+    blue:    { tile: 'bg-blue-50 text-blue-600',       spark: '#3b82f6', ringColor: '#3b82f6' },
+    violet:  { tile: 'bg-violet-50 text-violet-600',   spark: '#8b5cf6', ringColor: '#8b5cf6' },
+    pink:    { tile: 'bg-pink-50 text-pink-600',       spark: '#ec4899', ringColor: '#ec4899' },
 }
 const accentClasses = computed(() => accentMap[props.accent] ?? accentMap.indigo)
 
@@ -37,21 +40,43 @@ const deltaState = computed(() => {
 })
 
 const Wrapper = computed(() => props.href ? Link : 'div')
+
+const containerCls = computed(() => {
+    const base = 'relative block bg-white border border-gray-100 shadow-sm transition overflow-hidden'
+    const radius = props.size === 'hero' ? 'rounded-2xl' : 'rounded-xl'
+    const padding = props.size === 'compact' ? 'p-4' : (props.size === 'hero' ? 'p-6' : 'p-5')
+    const hover = props.href ? 'hover:border-indigo-300 hover:shadow-md cursor-pointer' : ''
+    return [base, radius, padding, hover].filter(Boolean).join(' ')
+})
+
+const iconBoxCls = computed(() => {
+    const sz = props.size === 'compact' ? 'w-7 h-7 text-sm' : (props.size === 'hero' ? 'w-10 h-10 text-lg' : 'w-9 h-9 text-base')
+    return `inline-flex items-center justify-center rounded-lg font-semibold ${sz} ${accentClasses.value.tile}`
+})
+
+const valueCls = computed(() => {
+    if (props.size === 'compact') return 'text-xl font-semibold tracking-tight text-gray-900 leading-tight tabular-nums'
+    if (props.size === 'hero')    return 'text-3xl md:text-4xl font-bold tracking-tight text-gray-900 leading-tight tabular-nums'
+    return 'text-2xl md:text-3xl font-semibold tracking-tight text-gray-900 leading-tight tabular-nums'
+})
 </script>
 
 <template>
     <component
         :is="Wrapper"
         :href="href || undefined"
-        :class="[
-            'block bg-white rounded-xl border border-gray-100 shadow-sm p-5 transition',
-            href ? 'hover:border-indigo-300 hover:shadow-md cursor-pointer' : ''
-        ]"
+        :class="containerCls"
     >
-        <div class="flex items-start justify-between mb-3">
-            <div :class="['inline-flex items-center justify-center w-9 h-9 rounded-lg text-base font-semibold', accentClasses.tile]">
-                {{ icon || label.charAt(0) }}
-            </div>
+        <!-- subtle accent corner glow on hero -->
+        <div
+            v-if="size === 'hero'"
+            class="pointer-events-none absolute -top-16 -right-16 w-48 h-48 rounded-full"
+            :style="{ background: `radial-gradient(closest-side, ${accentClasses.ringColor}1f, transparent)` }"
+            aria-hidden
+        />
+
+        <div :class="['flex items-start justify-between', size === 'compact' ? 'mb-2' : 'mb-3']">
+            <div :class="iconBoxCls">{{ icon || label.charAt(0) }}</div>
             <span
                 v-if="deltaState"
                 :class="['inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-semibold', deltaState.cls]"
@@ -60,15 +85,13 @@ const Wrapper = computed(() => props.href ? Link : 'div')
             </span>
         </div>
 
-        <div class="text-2xl md:text-3xl font-semibold tracking-tight text-gray-900 leading-tight tabular-nums">
-            {{ value }}
+        <div :class="valueCls">{{ value }}</div>
+
+        <div class="mt-1 flex items-end justify-between gap-2 min-h-[18px]">
+            <p :class="['font-medium text-gray-500 truncate', size === 'compact' ? 'text-[11px]' : 'text-xs']">{{ label }}</p>
+            <Sparkline v-if="sparkline?.length && size !== 'compact'" :points="sparkline" :color="accentClasses.spark" />
         </div>
 
-        <div class="mt-1 flex items-end justify-between gap-2 min-h-[20px]">
-            <p class="text-xs font-medium text-gray-500 truncate">{{ label }}</p>
-            <Sparkline v-if="sparkline?.length" :points="sparkline" :color="accentClasses.spark" />
-        </div>
-
-        <p v-if="sub" class="mt-2 text-xs text-gray-400 truncate">{{ sub }}</p>
+        <p v-if="sub" :class="['mt-2 text-gray-400 truncate', size === 'compact' ? 'text-[11px]' : 'text-xs']">{{ sub }}</p>
     </component>
 </template>

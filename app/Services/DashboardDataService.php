@@ -61,6 +61,7 @@ class DashboardDataService
             'announcements'        => $this->announcements($schoolId),
             'next_exam'            => $this->nextExam($schoolId, $today),
             'pending_edit_count'   => EditRequest::where('school_id', $schoolId)->where('status', 'pending')->count(),
+            'pending_leave_count'  => Leave::where('school_id', $schoolId)->where('status', 'pending')->count(),
             'admin_name'           => $user->name,
             'generated_at'         => now()->toIso8601String(),
         ];
