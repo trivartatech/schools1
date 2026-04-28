@@ -20,6 +20,14 @@ class CommunicationTemplateController extends Controller
             ->orderByRaw('is_system DESC, name ASC')
             ->get();
 
+        $allVariables = collect(CommunicationTemplate::SYSTEM_TRIGGERS)
+            ->flatMap(fn ($cfg) => $cfg['variables'])
+            ->unique()
+            ->map(fn ($v) => '##'.strtoupper($v).'##')
+            ->sort()
+            ->values()
+            ->all();
+
         $triggers = collect(CommunicationTemplate::SYSTEM_TRIGGERS)
             ->map(fn ($cfg, $slug) => [
                 'value'     => $slug,
@@ -34,14 +42,15 @@ class CommunicationTemplateController extends Controller
                 'label'     => 'Custom / Manual',
                 'system'    => false,
                 'channels'  => ['sms', 'whatsapp', 'voice', 'push'],
-                'variables' => ['##NAME##', '##DATE##', '##APP_NAME##'],
+                'variables' => $allVariables,
             ])
             ->all();
 
         return Inertia::render('School/Communication/Templates/Index', [
-            'templates' => $templates,
-            'type'      => $type,
-            'triggers'  => $triggers,
+            'templates'    => $templates,
+            'type'         => $type,
+            'triggers'     => $triggers,
+            'allVariables' => $allVariables,
         ]);
     }
 

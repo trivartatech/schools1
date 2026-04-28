@@ -1,6 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
-import { ref, computed } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
@@ -8,8 +8,11 @@ import Table from '@/Components/ui/Table.vue';
 const props = defineProps({
     templates: Array,
     type: String,
-    triggers: { type: Array, default: () => [] }
+    triggers: { type: Array, default: () => [] },
+    allVariables: { type: Array, default: () => [] }
 });
+
+const contentTextarea = ref(null);
 
 const showModal = ref(false);
 const editingTemplate = ref(null);
@@ -91,6 +94,37 @@ const availableVariables = computed(() => {
     for (const t of props.triggers) map[t.value] = t.variables || [];
     return map;
 });
+
+const variablesForCurrentForm = computed(() => {
+    if (form.slug && availableVariables.value[form.slug]?.length) {
+        return availableVariables.value[form.slug];
+    }
+    return props.allVariables;
+});
+
+const variablesPanelLabel = computed(() => {
+    if (!form.slug) return 'All Available Variables';
+    if (form.slug === 'custom') return 'All Available Variables (Custom Template)';
+    return `Available Variables for ${getTriggerLabel(form.slug)}`;
+});
+
+const insertVariable = (variable) => {
+    const ta = contentTextarea.value;
+    if (!ta) {
+        form.content = (form.content || '') + variable;
+        return;
+    }
+    const start = ta.selectionStart ?? form.content.length;
+    const end = ta.selectionEnd ?? form.content.length;
+    const before = (form.content || '').substring(0, start);
+    const after = (form.content || '').substring(end);
+    form.content = before + variable + after;
+    nextTick(() => {
+        ta.focus();
+        const cursor = start + variable.length;
+        ta.setSelectionRange(cursor, cursor);
+    });
+};
 
 const getTriggerLabel = (slug) => {
     const trigger = props.triggers.find(t => t.value === slug);
@@ -237,14 +271,21 @@ const titleMap = {
                         <div class="form-row" style="margin-top:14px;">
                             <div class="form-field">
                                 <label>Message Body / TTS Content</label>
-                                <textarea v-model="form.content" rows="4" placeholder="Use ##NAME##, ##DATE## as placeholders"></textarea>
+                                <textarea ref="contentTextarea" v-model="form.content" rows="4" placeholder="Use ##NAME##, ##DATE## as placeholders. Click any variable below to insert it."></textarea>
 
-                                <div v-if="form.slug && availableVariables[form.slug]" class="variables-box">
-                                    <label style="font-size:.72rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.03em;display:block;text-align:center;margin-bottom:8px;">
-                                        Available Variables for {{ getTriggerLabel(form.slug) }}
+                                <div v-if="variablesForCurrentForm.length" class="variables-box">
+                                    <label style="font-size:.72rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.03em;display:block;text-align:center;margin-bottom:4px;">
+                                        {{ variablesPanelLabel }}
                                     </label>
+                                    <p style="font-size:.68rem;color:var(--text-muted);text-align:center;margin:0 0 8px 0;">Click a variable to insert it at the cursor</p>
                                     <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;">
-                                        <code v-for="variable in availableVariables[form.slug]" :key="variable" class="var-tag">{{ variable }}</code>
+                                        <code
+                                            v-for="variable in variablesForCurrentForm"
+                                            :key="variable"
+                                            class="var-tag var-tag-clickable"
+                                            :title="`Insert ${variable}`"
+                                            @click="insertVariable(variable)"
+                                        >{{ variable }}</code>
                                     </div>
                                 </div>
                             </div>
@@ -291,6 +332,15 @@ const titleMap = {
 .var-tag {
     font-size: .72rem; font-weight: 700; background: #fff; color: var(--accent);
     padding: 3px 8px; border-radius: 6px; border: 1px solid #c7d2fe;
+}
+.var-tag-clickable {
+    cursor: pointer; user-select: none; transition: background .12s, transform .12s;
+}
+.var-tag-clickable:hover {
+    background: var(--accent); color: #fff; transform: translateY(-1px);
+}
+.var-tag-clickable:active {
+    transform: translateY(0);
 }
 .toggle-row {
     display: flex; align-items: center; justify-content: space-between;
