@@ -296,16 +296,35 @@ class DashboardController extends Controller
                 }
 
                 // ── 6-Month Fee Collection Chart ──────────────────────────
+                // Sums all four fee streams to match today_fee / month_fee KPI tiles.
                 $feeTrend = [];
                 for ($i = 5; $i >= 0; $i--) {
                     $m = now()->subMonths($i);
+
+                    $tuition = (float) \App\Models\FeePayment::where('school_id', $schoolId)
+                        ->whereYear('payment_date', $m->year)
+                        ->whereMonth('payment_date', $m->month)
+                        ->where('status', 'paid')
+                        ->sum('amount_paid');
+
+                    $transport = (float) \App\Models\TransportFeePayment::where('school_id', $schoolId)
+                        ->whereYear('payment_date', $m->year)
+                        ->whereMonth('payment_date', $m->month)
+                        ->sum('amount_paid');
+
+                    $hostel = (float) \App\Models\HostelFeePayment::where('school_id', $schoolId)
+                        ->whereYear('payment_date', $m->year)
+                        ->whereMonth('payment_date', $m->month)
+                        ->sum('amount_paid');
+
+                    $stationary = (float) \App\Models\StationaryFeePayment::where('school_id', $schoolId)
+                        ->whereYear('payment_date', $m->year)
+                        ->whereMonth('payment_date', $m->month)
+                        ->sum('amount_paid');
+
                     $feeTrend[] = [
                         'month'  => $m->format('M Y'),
-                        'amount' => (float) \App\Models\FeePayment::where('school_id', $schoolId)
-                            ->whereYear('payment_date', $m->year)
-                            ->whereMonth('payment_date', $m->month)
-                            ->where('status', 'paid')
-                            ->sum('amount_paid'),
+                        'amount' => $tuition + $transport + $hostel + $stationary,
                     ];
                 }
 
