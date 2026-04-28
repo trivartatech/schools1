@@ -52,7 +52,7 @@ const hoveredEvents = computed(() => hoveredDay.value ? dotsFor(hoveredDay.value
 </script>
 
 <template>
-    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+    <div class="card" style="padding: 16px;">
         <div class="flex items-center justify-between mb-3">
             <h3 class="text-sm font-semibold text-gray-900">{{ monthLabel }}</h3>
             <div class="flex gap-1">
