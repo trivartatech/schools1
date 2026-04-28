@@ -124,9 +124,13 @@ watch([search, selectedClass, selectedSection, selectedHouse, defaulterFilter, p
                 <option value="1">Defaulters Only</option>
                 <option value="0">Non-Defaulters</option>
             </select>
+            <Button variant="secondary" size="sm" as="a" :href="`/school/students/export-qr-pdf?class_id=${selectedClass}&section_id=${selectedSection}`" target="_blank" title="Print-ready PDF — 8 badges per A4 page">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m0 14v1m8-9h-1M5 12H4m11.314-6.314l-.707.707M6.393 17.607l-.707.707M17.607 17.607l-.707-.707M6.393 6.393l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                QR Badges PDF
+            </Button>
             <Button variant="secondary" size="sm" as="a" :href="`/school/students/export-qr?class_id=${selectedClass}&section_id=${selectedSection}`" title="Export QR codes to Excel">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                Export QRs
+                QR Excel
             </Button>
         </FilterBar>
 

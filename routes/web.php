@@ -297,7 +297,8 @@ Route::middleware('auth')->group(function () {
             Route::get('students/search', [\App\Http\Controllers\School\StudentController::class, 'search'])->name('students.search');
             Route::get('students/scanner', [\App\Http\Controllers\School\StudentController::class, 'qrProfileScanner'])->name('students.scanner');
             Route::post('students/scan-by-uuid', [\App\Http\Controllers\School\StudentController::class, 'scanByUuid'])->name('students.scan-by-uuid');
-            Route::get('students/export-qr', [\App\Http\Controllers\School\StudentController::class, 'exportQRCodes'])->name('students.export-qr');
+            Route::get('students/export-qr',     [\App\Http\Controllers\School\StudentController::class, 'exportQRCodes'])->name('students.export-qr');
+            Route::get('students/export-qr-pdf', [\App\Http\Controllers\School\StudentController::class, 'exportQrCodesPdf'])->name('students.export-qr-pdf');
             Route::get('students/bulk-photo', [\App\Http\Controllers\School\StudentController::class, 'bulkPhotoUploadForm'])->name('students.bulk-photo');
             Route::post('students/bulk-photo', [\App\Http\Controllers\School\StudentController::class, 'processBulkPhotoUpload'])->name('students.bulk-photo.store');
             Route::get('students/{student}/request-edit', [\App\Http\Controllers\School\StudentController::class, 'createRequest'])->name('students.request-edit');
@@ -504,6 +505,10 @@ Route::middleware('auth')->group(function () {
             Route::resource('designations', $DesigC)->except(['create', 'show', 'edit']);
             
             // Staff Directory & HR
+            // Bulk QR exports — must come BEFORE Route::resource('staff', ...)
+            // otherwise "qr-codes" gets caught by the {staff} parameter binding.
+            Route::get('staff/qr-codes/excel', [\App\Http\Controllers\School\StaffController::class, 'exportQrCodesExcel'])->name('staff.qr-codes.excel');
+            Route::get('staff/qr-codes/pdf',   [\App\Http\Controllers\School\StaffController::class, 'exportQrCodesPdf'])->name('staff.qr-codes.pdf');
             Route::get('staff/{staff}/salary', [\App\Http\Controllers\School\StaffController::class, 'salaryForm'])->name('staff.salary');
             Route::patch('staff/{staff}/salary', [\App\Http\Controllers\School\StaffController::class, 'updateSalary'])->name('staff.update-salary');
             Route::get('staff/{staff}/request-edit', [\App\Http\Controllers\School\StaffController::class, 'createRequest'])->name('staff.request-edit');

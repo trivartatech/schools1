@@ -289,6 +289,69 @@ class StaffController extends Controller
         return redirect()->route('school.staff.index')->with('success', 'Staff member updated successfully.');
     }
 
+    /**
+     * GET /school/staff/qr-codes/excel
+     * Bulk export of every active staff member with embedded QR codes.
+     */
+    public function exportQrCodesExcel(Request $request)
+    {
+        $schoolId     = app('current_school_id');
+        $departmentId = $request->integer('department_id') ?: null;
+
+        $fileName = 'Staff_QRs_' . date('Y_m_d_His') . '.xlsx';
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\StaffQRExport($schoolId, $departmentId),
+            $fileName
+        );
+    }
+
+    /**
+     * GET /school/staff/qr-codes/pdf
+     * Print-ready PDF — 8 badges per A4 page, each with name, designation,
+     * employee ID and a 26mm QR linking to /q/staff/<employee_id>.
+     */
+    public function exportQrCodesPdf(Request $request)
+    {
+        $schoolId     = app('current_school_id');
+        $departmentId = $request->integer('department_id') ?: null;
+        $school       = app('current_school');
+
+        $staffList = Staff::with(['user:id,name,phone', 'designation:id,name', 'department:id,name'])
+            ->where('school_id', $schoolId)
+            ->where('status', 'active')
+            ->whereNotNull('employee_id')
+            ->when($departmentId, fn($q) => $q->where('department_id', $departmentId))
+            ->orderBy('employee_id')
+            ->get();
+
+        $writer = new \Endroid\QrCode\Writer\PngWriter();
+        $rows = $staffList->map(function ($s) use ($writer) {
+            $url = url('/q/staff/' . $s->employee_id);
+            $qr  = new \Endroid\QrCode\QrCode($url);
+            $qr->setSize(280);
+            $qr->setMargin(6);
+            $png = $writer->write($qr)->getString();
+            return [
+                'employee_id' => $s->employee_id,
+                'name'        => $s->user?->name ?? '—',
+                'designation' => $s->designation?->name ?? '—',
+                'department'  => $s->department?->name,
+                'phone'       => $s->user?->phone,
+                'qr_data_uri' => 'data:image/png;base64,' . base64_encode($png),
+            ];
+        })->all();
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.staff-badges', [
+            'rows'    => $rows,
+            'school'  => $school,
+            'title'   => ($school?->name ?? 'School') . ' — Staff Badges',
+            'printed' => now()->format('d M Y, h:i A'),
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->download('staff-badges-' . now()->format('Y-m-d_His') . '.pdf');
+    }
+
     public function destroy(Staff $staff)
     {
         abort_if($staff->school_id !== app('current_school_id'), 403);

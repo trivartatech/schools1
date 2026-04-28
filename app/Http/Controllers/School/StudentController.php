@@ -913,6 +913,61 @@ class StudentController extends Controller
     }
 
     /**
+     * GET /school/students/export-qr-pdf
+     * Print-ready PDF — 8 student badges per A4 page, each with the school
+     * header, name, class · section, admission_no pill, and a 26mm QR linking
+     * to /q/<student-uuid>. Filterable by class_id and section_id.
+     */
+    public function exportQrCodesPdf(Request $request)
+    {
+        $schoolId       = app('current_school_id');
+        $academicYearId = app('current_academic_year_id');
+        $classId        = $request->integer('class_id') ?: null;
+        $sectionId      = $request->integer('section_id') ?: null;
+        $school         = app('current_school');
+
+        $query = \App\Models\Student::with(['currentAcademicHistory.courseClass', 'currentAcademicHistory.section'])
+            ->where('school_id', $schoolId)
+            ->whereNotNull('uuid');
+
+        if ($classId) {
+            $query->whereHas('currentAcademicHistory', fn($q) => $q->where('academic_year_id', $academicYearId)->where('class_id', $classId));
+        }
+        if ($sectionId) {
+            $query->whereHas('currentAcademicHistory', fn($q) => $q->where('academic_year_id', $academicYearId)->where('section_id', $sectionId));
+        }
+
+        $students = $query->orderBy('first_name')->get();
+
+        $writer = new \Endroid\QrCode\Writer\PngWriter();
+        $rows = $students->map(function ($s) use ($writer) {
+            $url = url('/q/' . $s->uuid);
+            $qr  = new \Endroid\QrCode\QrCode($url);
+            $qr->setSize(280);
+            $qr->setMargin(6);
+            $png = $writer->write($qr)->getString();
+            $h = $s->currentAcademicHistory;
+            return [
+                'admission_no' => $s->admission_no,
+                'roll_no'      => $s->roll_no,
+                'name'         => trim(($s->first_name ?? '') . ' ' . ($s->last_name ?? '')),
+                'class'        => $h?->courseClass?->name,
+                'section'      => $h?->section?->name,
+                'qr_data_uri'  => 'data:image/png;base64,' . base64_encode($png),
+            ];
+        })->all();
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.student-badges', [
+            'rows'    => $rows,
+            'school'  => $school,
+            'title'   => ($school?->name ?? 'School') . ' — Student ID Badges',
+            'printed' => now()->format('d M Y, h:i A'),
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->download('student-badges-' . now()->format('Y-m-d_His') . '.pdf');
+    }
+
+    /**
      * GET /school/students/bulk-photo
      */
     public function bulkPhotoUploadForm()

@@ -43,11 +43,20 @@ const deleteStaff = (id, name) => del(`/school/staff/${id}`, `Delete staff membe
                 <h1 class="page-header-title">Staff Directory</h1>
                 <p class="page-header-sub">Manage all school employees and their information</p>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                 <ExportDropdown
                     base-url="/school/export/staff"
                     :params="{ search: filters.search, status: filters.status }"
                 />
+                <!-- Staff QR badges — print/sheet for the whole roster -->
+                <Button variant="secondary" size="sm" as="a" href="/school/staff/qr-codes/pdf" target="_blank">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m0 14v1m8-9h-1M5 12H4m11.314-6.314l-.707.707M6.393 17.607l-.707.707M17.607 17.607l-.707-.707M6.393 6.393l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                    QR Badges PDF
+                </Button>
+                <Button variant="secondary" size="sm" as="a" href="/school/staff/qr-codes/excel">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    QR Excel
+                </Button>
                 <Button variant="secondary" size="sm" as="link" v-if="canDo('create', 'staff')" href="/school/bulk-import?type=staff">
                     <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
                     Bulk Import

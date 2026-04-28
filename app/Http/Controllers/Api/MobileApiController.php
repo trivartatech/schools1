@@ -3707,6 +3707,130 @@ class MobileApiController extends Controller
     }
 
     /**
+     * GET /mobile/staff-qr/me
+     * Returns the current staff member's QR code as a base64 PNG data URI,
+     * so the mobile app can render <Image source={{ uri: data_uri }} />
+     * without needing a QR-generation library on the client.
+     *
+     * The QR encodes the same /q/staff/<employee_id> URL the bulk PDF/Excel
+     * exports use — so a phone-shown QR is interchangeable with a printed
+     * badge at the scanner end.
+     */
+    public function staffQrSelf(Request $request): JsonResponse
+    {
+        $user   = $request->user();
+        $school = app('current_school');
+
+        $staff = \App\Models\Staff::with('designation:id,name', 'department:id,name')
+            ->where('user_id', $user->id)
+            ->where('school_id', $school->id)
+            ->where('status', 'active')
+            ->first();
+
+        if (!$staff) {
+            return response()->json(['message' => 'No active staff record found.'], 404);
+        }
+        if (!$staff->employee_id) {
+            return response()->json(['message' => 'Your record has no Employee ID — ask admin.'], 422);
+        }
+
+        $url    = url('/q/staff/' . $staff->employee_id);
+        $qr     = new \Endroid\QrCode\QrCode($url);
+        $qr->setSize(360);
+        $qr->setMargin(8);
+        $writer = new \Endroid\QrCode\Writer\PngWriter();
+        $png    = $writer->write($qr)->getString();
+
+        return response()->json([
+            'data_uri'    => 'data:image/png;base64,' . base64_encode($png),
+            'employee_id' => $staff->employee_id,
+            'name'        => $user->name,
+            'designation' => $staff->designation?->name,
+            'department'  => $staff->department?->name,
+            'school_name' => $school->name,
+            'scan_url'    => $url,
+        ]);
+    }
+
+    /**
+     * POST /mobile/staff-attendance/rapid-scan
+     * Mirrors the student rapid-scan flow for staff. Admin / principal /
+     * school_admin scans a staff QR (which encodes the employee_id) and the
+     * row is marked Present for today via updateOrCreate.
+     *
+     * QR payload formats accepted:
+     *   - bare "EMP123"
+     *   - "staff:EMP123"
+     *   - "/staff/EMP123" or any URL containing /staff/<id>
+     */
+    public function rapidScanStaffAttendance(Request $request): JsonResponse
+    {
+        $user   = $request->user();
+        $school = app('current_school');
+
+        // Only management can mark staff attendance — same gate as the web
+        // staff-attendance routes.
+        $userType = $user->user_type instanceof \BackedEnum ? $user->user_type->value : (string) $user->user_type;
+        if (!in_array($userType, ['admin', 'school_admin', 'principal', 'super_admin'])) {
+            return response()->json(['error' => 'Only school management can mark staff attendance.'], 403);
+        }
+
+        $request->validate(['code' => 'required|string|max:512']);
+        $raw = trim($request->code);
+
+        // Pull the employee_id segment out of common payloads
+        if (preg_match('~/staff/([^/?#]+)~', $raw, $m)) {
+            $code = $m[1];
+        } elseif (preg_match('~^staff:(.+)$~', $raw, $m)) {
+            $code = $m[1];
+        } else {
+            $code = $raw;
+        }
+
+        $staff = \App\Models\Staff::with(['user:id,name', 'designation:id,name'])
+            ->where('school_id', $school->id)
+            ->where('employee_id', $code)
+            ->where('status', 'active')
+            ->first();
+
+        if (!$staff) {
+            return response()->json(['error' => 'Staff not found or inactive.'], 404);
+        }
+
+        // Determine late vs present using the school's late_threshold setting
+        $lateThreshold = $school->settings['late_threshold'] ?? '09:30';
+        $now           = now()->format('H:i:s');
+        $status        = Carbon::parse($now)->gt(Carbon::parse($lateThreshold)) ? 'late' : 'present';
+
+        StaffAttendance::updateOrCreate(
+            [
+                'school_id' => $school->id,
+                'staff_id'  => $staff->id,
+                'date'      => now()->toDateString(),
+            ],
+            [
+                'status'    => $status,
+                'check_in'  => $now,
+                'marked_by' => $user->id,
+            ]
+        );
+
+        return response()->json([
+            'success'   => true,
+            'message'   => $status === 'late' ? 'Marked Late.' : 'Marked Present.',
+            'staff'     => [
+                'id'          => $staff->id,
+                'employee_id' => $staff->employee_id,
+                'name'        => $staff->user?->name ?? 'Unknown',
+                'designation' => $staff->designation?->name ?? '',
+                'photo_url'   => $this->publicFileUrl($staff->photo ?? null),
+            ],
+            'status'    => $status,
+            'timestamp' => now()->format('Y-m-d H:i:s'),
+        ]);
+    }
+
+    /**
      * POST /mobile/students/lookup-by-uuid
      * Resolves a scanned student QR (raw uuid or "/q/<uuid>" url) to the
      * minimum info the app needs to navigate into StudentDetailScreen.
