@@ -35,7 +35,21 @@ class ReturnController extends Controller
             'lines.*.condition'              => 'required|in:good,damaged',
             'lines.*.restock'                => 'required|boolean',
             'refund_amount'                  => 'nullable|numeric|min:0',
-            'refund_mode'                    => 'required|in:cash,cheque,adjust,none',
+            // 'none' = no refund, 'adjust' = applied against future balance (no GL).
+            // Anything else must be an active payment method code for this school.
+            'refund_mode'                    => [
+                'required', 'string',
+                function ($attribute, $value, $fail) use ($allocation) {
+                    if (in_array($value, ['none', 'adjust'], true)) return;
+                    $exists = \App\Models\PaymentMethod::where('school_id', $allocation->school_id)
+                        ->where('code', $value)
+                        ->where('is_active', true)
+                        ->exists();
+                    if (! $exists) {
+                        $fail('The selected refund mode is invalid.');
+                    }
+                },
+            ],
             'remarks'                        => 'nullable|string|max:2000',
         ]);
 

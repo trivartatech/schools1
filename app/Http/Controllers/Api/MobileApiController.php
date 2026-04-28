@@ -4403,7 +4403,11 @@ class MobileApiController extends Controller
             ],
             'fee_heads'     => $collectable,
             'all_fee_heads' => $summary['fee_heads'] ?? [],
-            'payment_modes' => ['cash', 'cheque', 'online', 'upi', 'dd', 'card'],
+            'payment_modes' => \App\Models\PaymentMethod::where('school_id', $student->school_id)
+                ->where('is_active', true)
+                ->orderBy('sort_order')->orderBy('label')
+                ->pluck('code')
+                ->all(),
         ]);
     }
 
@@ -4437,7 +4441,12 @@ class MobileApiController extends Controller
             'amount_paid'     => 'required|numeric|min:0',
             'discount'        => 'nullable|numeric|min:0',
             'fine'            => 'nullable|numeric|min:0',
-            'payment_mode'    => 'required|in:cash,cheque,online,upi,dd,card',
+            'payment_mode'    => [
+                'required', 'string',
+                \Illuminate\Validation\Rule::exists('payment_methods', 'code')
+                    ->where('school_id', $school->id)
+                    ->where('is_active', true),
+            ],
             'payment_date'    => 'required|date|before_or_equal:today',
             'transaction_ref' => 'nullable|string|max:100',
             'remarks'         => 'nullable|string',

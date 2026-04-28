@@ -161,6 +161,23 @@ class HandleInertiaRequests extends Middleware
                     'name'      => $y->name,
                     'is_active' => $y->status === 'active',
                 ])) : [],
+            // Payment methods are dynamic per school. Active list shared globally so any
+            // transaction surface (fee collect, expenses, payroll, etc.) can render the
+            // dropdown from one source of truth. Falls back to the legacy hardcoded
+            // PaymentMode enum if the table is empty (fresh install before migration).
+            'payment_methods' => $school ? once(function () use ($school) {
+                $rows = \App\Models\PaymentMethod::where('school_id', $school->id)
+                    ->where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->orderBy('label')
+                    ->get(['code', 'label']);
+                if ($rows->isEmpty()) {
+                    return collect(\App\Models\PaymentMethod::defaultsForSchool($school->id))
+                        ->map(fn ($r) => ['code' => $r['code'], 'label' => $r['label']])
+                        ->values();
+                }
+                return $rows->map(fn ($r) => ['code' => $r->code, 'label' => $r->label])->values();
+            }) : [],
             'all_schools' => ($user && $user->user_type === 'super_admin') ? once(fn () =>
                 \App\Models\School::where('status', 'active')->get()->map(fn($s) => [
                     'id'   => $s->id,

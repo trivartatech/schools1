@@ -564,7 +564,12 @@ class FeeController extends Controller
             'amount_paid'         => 'required|numeric|min:0',
             'discount'            => 'nullable|numeric|min:0',
             'fine'                => 'nullable|numeric|min:0',
-            'payment_mode'        => 'required|in:cash,cheque,online,upi,dd,card',
+            'payment_mode'        => [
+                'required', 'string',
+                \Illuminate\Validation\Rule::exists('payment_methods', 'code')
+                    ->where('school_id', $schoolId)
+                    ->where('is_active', true),
+            ],
             // FIX #10: disallow future payment dates
             'payment_date'        => 'required|date|before_or_equal:today',
             'transaction_ref'     => 'nullable|string|max:100',
@@ -731,7 +736,12 @@ class FeeController extends Controller
             'amount_paid'    => 'required|numeric|min:0',
             'discount'       => 'nullable|numeric|min:0',
             'fine'           => 'nullable|numeric|min:0',
-            'payment_mode'   => 'required|in:cash,cheque,online,upi,dd,card',
+            'payment_mode'   => [
+                'required', 'string',
+                \Illuminate\Validation\Rule::exists('payment_methods', 'code')
+                    ->where('school_id', $schoolId)
+                    ->where('is_active', true),
+            ],
             'payment_date'   => 'required|date',
             'transaction_ref'=> 'nullable|string|max:100',
             'remarks'        => 'nullable|string',

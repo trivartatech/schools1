@@ -342,11 +342,7 @@ const formatCurrency = (amount) => {
                             <div class="form-field mb-0">
                                 <label>Mode <span style="color: var(--danger)">*</span></label>
                                 <select v-model="form.payment_mode" required class="w-full">
-                                    <option value="cash">Cash</option>
-                                    <option value="cheque">Cheque</option>
-                                    <option value="online">Online/NEFT</option>
-                                    <option value="upi">UPI</option>
-                                    <option value="card">Card</option>
+                                    <option v-for="m in $page.props.payment_methods" :key="m.code" :value="m.code">{{ m.label }}</option>
                                 </select>
                             </div>
                             <div class="form-field mb-0">

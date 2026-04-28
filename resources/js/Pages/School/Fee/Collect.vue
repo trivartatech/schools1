@@ -481,12 +481,7 @@ const statusBadge = (status) => {
                                 <div>
                                     <label class="block text-xs mb-1" style="color: var(--text-muted)">Payment Mode *</label>
                                     <select v-model="feeForm.payment_mode" class="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                        <option value="cash">Cash</option>
-                                        <option value="cheque">Cheque</option>
-                                        <option value="online">Online</option>
-                                        <option value="upi">UPI</option>
-                                        <option value="dd">Demand Draft</option>
-                                        <option value="card">Card</option>
+                                        <option v-for="m in $page.props.payment_methods" :key="m.code" :value="m.code">{{ m.label }}</option>
                                     </select>
                                 </div>
                                 <div>

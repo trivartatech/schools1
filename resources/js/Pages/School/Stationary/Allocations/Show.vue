@@ -361,8 +361,7 @@ function voidReturn(ret) {
                             <label>Refund Mode</label>
                             <select v-model="returnForm.refund_mode" class="form-input">
                                 <option value="none">No refund</option>
-                                <option value="cash">Cash (GL: Dr Income / Cr Cash)</option>
-                                <option value="cheque">Cheque (GL: Dr Income / Cr Cash)</option>
+                                <option v-for="m in $page.props.payment_methods" :key="m.code" :value="m.code">{{ m.label }}</option>
                                 <option value="adjust">Adjust against balance (no GL)</option>
                             </select>
                         </div>

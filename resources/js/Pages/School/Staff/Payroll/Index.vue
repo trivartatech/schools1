@@ -214,10 +214,7 @@ const fmt = (n) => '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDi
                             <div class="form-field">
                                 <label>Payment Mode *</label>
                                 <select v-model="markPaidForm.payment_mode" required>
-                                    <option value="bank_transfer">Bank Transfer</option>
-                                    <option value="cash">Cash</option>
-                                    <option value="cheque">Cheque</option>
-                                    <option value="upi">UPI</option>
+                                    <option v-for="m in $page.props.payment_methods" :key="m.code" :value="m.code">{{ m.label }}</option>
                                 </select>
                             </div>
                         </div>

@@ -162,6 +162,7 @@ export const SIDEBAR_MENU = [
             // ── Financial Statements (Trial Balance / P&L / Balance Sheet as tabs) ──
             { title: 'Financial Statements', route: '/school/finance/statements/trial-balance',  permission: 'view_reports' },
             // ── Finance Config ──
+            { title: 'Payment Methods',      route: '/school/finance/payment-methods',           permission: 'edit_fee' },
             { title: 'Budget Management',    route: '/school/finance/budgets',                   permission: 'view_fee' },
             { title: 'GL Auto-Posting',      route: '/school/finance/gl-config',                 permission: 'edit_fee' },
         ],

@@ -216,7 +216,12 @@ class PayrollController extends Controller
 
         $validated = $request->validate([
             'payment_date' => 'required|date',
-            'payment_mode' => 'required|in:bank_transfer,cash,cheque,upi',
+            'payment_mode' => [
+                'required', 'string',
+                \Illuminate\Validation\Rule::exists('payment_methods', 'code')
+                    ->where('school_id', $payroll->school_id)
+                    ->where('is_active', true),
+            ],
         ]);
 
         $payroll->update([

@@ -479,6 +479,14 @@ Route::middleware('auth')->group(function () {
             Route::get ('finance/gl-config',                    [$GLC, 'show'])                 ->name('finance.gl-config.show');
             Route::post('finance/gl-config/update',             [$GLC, 'update'])               ->name('finance.gl-config.update');
             Route::post('finance/gl-config/category-mapping',  [$GLC, 'updateCategoryMapping'])->name('finance.gl-config.category-mapping');
+
+            // Payment Methods (used across all transactions)
+            $PMC = \App\Http\Controllers\School\Finance\PaymentMethodController::class;
+            Route::get   ('finance/payment-methods',                          [$PMC, 'index'])       ->name('finance.payment-methods.index');
+            Route::post  ('finance/payment-methods',                          [$PMC, 'store'])       ->name('finance.payment-methods.store');
+            Route::put   ('finance/payment-methods/{paymentMethod}',          [$PMC, 'update'])      ->name('finance.payment-methods.update');
+            Route::patch ('finance/payment-methods/{paymentMethod}/toggle',   [$PMC, 'toggleActive'])->name('finance.payment-methods.toggle');
+            Route::delete('finance/payment-methods/{paymentMethod}',          [$PMC, 'destroy'])     ->name('finance.payment-methods.destroy');
         });
 
         Route::middleware(['school.management', 'module:settings'])->group(function () {

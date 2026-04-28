@@ -97,10 +97,12 @@ class StationaryFeeCollectionController extends Controller
 
         return Inertia::render('School/Stationary/Fees/Collect', [
             'allocation'   => $allocation,
-            'paymentModes' => collect(PaymentMode::cases())->map(fn ($m) => [
-                'value' => $m->value,
-                'label' => $m->label(),
-            ])->values(),
+            'paymentModes' => \App\Models\PaymentMethod::where('school_id', $allocation->school_id)
+                ->where('is_active', true)
+                ->orderBy('sort_order')->orderBy('label')
+                ->get(['code', 'label'])
+                ->map(fn ($m) => ['value' => $m->code, 'label' => $m->label])
+                ->values(),
         ]);
     }
 
@@ -116,7 +118,12 @@ class StationaryFeeCollectionController extends Controller
             'discount'        => 'nullable|numeric|min:0',
             'fine'            => 'nullable|numeric|min:0',
             'payment_date'    => 'required|date',
-            'payment_mode'    => 'required|string',
+            'payment_mode'    => [
+                'required', 'string',
+                \Illuminate\Validation\Rule::exists('payment_methods', 'code')
+                    ->where('school_id', $allocation->school_id)
+                    ->where('is_active', true),
+            ],
             'transaction_ref' => 'nullable|string|max:100',
             'remarks'         => 'nullable|string|max:500',
         ]);

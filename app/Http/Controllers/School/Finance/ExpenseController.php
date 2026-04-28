@@ -53,7 +53,12 @@ class ExpenseController extends Controller
             'amount'          => 'required|numeric|min:0',
             // FIX #10: disallow future-dated expenses
             'expense_date'    => 'required|date|before_or_equal:today',
-            'payment_mode'    => 'required|in:cash,cheque,online,upi,dd,card',
+            'payment_mode'    => [
+                'required', 'string',
+                Rule::exists('payment_methods', 'code')
+                    ->where('school_id', $schoolId)
+                    ->where('is_active', true),
+            ],
             'transaction_ref' => 'nullable|string|max:100',
             'title'           => 'required|string|max:255',
             'description'     => 'nullable|string',
@@ -98,7 +103,12 @@ class ExpenseController extends Controller
             'amount'          => 'required|numeric|min:0',
             // FIX #10: disallow future-dated expenses
             'expense_date'    => 'required|date|before_or_equal:today',
-            'payment_mode'    => 'required|in:cash,cheque,online,upi,dd,card',
+            'payment_mode'    => [
+                'required', 'string',
+                Rule::exists('payment_methods', 'code')
+                    ->where('school_id', $schoolId)
+                    ->where('is_active', true),
+            ],
             'transaction_ref' => 'nullable|string|max:100',
             'title'           => 'required|string|max:255',
             'description'     => 'nullable|string',
