@@ -845,6 +845,7 @@ Route::middleware('auth')->group(function () {
                     Route::get('fees/{allocation}',                 [$HFC, 'show'])->name('fees.show');
 
                     Route::middleware(['permission:collect_hostel_fee'])->group(function () use ($HFC) {
+                        Route::post('fees/batch-post-gl',                [$HFC, 'batchPostGl'])->name('fees.batch-post-gl');
                         Route::post('fees/{allocation}/collect',         [$HFC, 'store'])->name('fees.store');
                         Route::delete('fees/receipts/{payment}',         [$HFC, 'destroy'])->name('fees.receipt.destroy');
                     });
@@ -1096,6 +1097,7 @@ Route::middleware('auth')->group(function () {
                     Route::get('fees/{allocation}',                 [$TFC, 'show'])->name('fees.show');
 
                     Route::middleware(['permission:collect_transport_fee'])->group(function () use ($TFC) {
+                        Route::post('fees/batch-post-gl',                [$TFC, 'batchPostGl'])->name('fees.batch-post-gl');
                         Route::post('fees/{allocation}/collect',         [$TFC, 'store'])->name('fees.store');
                         Route::delete('fees/receipts/{payment}',         [$TFC, 'destroy'])->name('fees.receipt.destroy');
                     });

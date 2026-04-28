@@ -56,6 +56,16 @@ watch(filters, (v) => {
     }, 350);
 }, { deep: true });
 
+const batchPostingGl = ref(false);
+function batchPostGl() {
+    if (!confirm('Post all unsynced transport-fee receipts to the General Ledger?')) return;
+    batchPostingGl.value = true;
+    router.post('/school/transport/fees/batch-post-gl', {}, {
+        preserveScroll: true,
+        onFinish: () => { batchPostingGl.value = false; },
+    });
+}
+
 function fmt(n) {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(Number(n || 0));
 }
@@ -102,6 +112,12 @@ const STATUS_COLOURS = {
             <div>
                 <h1 class="page-header-title">🚌 Transport Fee Collection</h1>
                 <p class="page-header-sub">Every transport allocation has its own outstanding balance. Receipts are numbered separately from regular fees.</p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <Button variant="secondary" @click="batchPostGl" :loading="batchPostingGl" title="Post all unsynced transport-fee receipts to General Ledger">
+                    <svg v-if="batchPostingGl" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle class="opacity-25" cx="12" cy="12" r="10" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+                    Sync All to GL
+                </Button>
             </div>
         </div>
 

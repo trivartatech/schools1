@@ -236,4 +236,35 @@ class TransportFeeCollectionController extends Controller
     {
         abort_unless($allocation->school_id === app('current_school_id'), 403);
     }
+
+    /**
+     * POST /school/transport/fees/batch-post-gl
+     * Sync every unposted transport-fee receipt to the General Ledger. Safe
+     * to retry — already-posted receipts are skipped, and rows where GL is
+     * not yet configured silently no-op.
+     */
+    public function batchPostGl()
+    {
+        $schoolId  = app('current_school_id');
+        $glService = app(\App\Services\GlPostingService::class);
+
+        $unposted = TransportFeePayment::where('school_id', $schoolId)
+            ->whereNull('gl_transaction_id')
+            ->where('amount_paid', '>', 0)
+            ->get();
+
+        $posted = 0;
+        foreach ($unposted as $payment) {
+            $tx = $glService->postTransportFeePayment($payment);
+            if ($tx) $posted++;
+        }
+
+        if ($posted === 0) {
+            return back()->with('info', $unposted->isEmpty()
+                ? 'All transport-fee payments are already synced to GL.'
+                : 'GL is not configured. Go to Finance → GL Config to set up Cash and Transport Fee Income ledger accounts.');
+        }
+
+        return back()->with('success', "{$posted} transport-fee payment(s) posted to General Ledger.");
+    }
 }
