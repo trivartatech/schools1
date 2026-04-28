@@ -23,8 +23,8 @@ return new class extends Migration
 
             $table->timestamps();
 
-            $table->index(['school_id', 'report_date']);
-            $table->index(['school_id', 'admin_contact_id', 'report_date']);
+            $table->index(['school_id', 'report_date'], 'drd_school_date_idx');
+            $table->index(['school_id', 'admin_contact_id', 'report_date'], 'drd_school_contact_date_idx');
         });
     }
 
