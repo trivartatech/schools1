@@ -318,8 +318,8 @@ ADMINISTRATION:
 FINANCE:
 - Fee: /school/fee/collect, /school/fee/structure, /school/fee/groups, /school/fee/concessions
 - Finance Reports: /school/finance/due-report, /school/finance/day-book, /school/finance/reports
-- Expenses: /school/expenses (manage expense categories via "Manage Categories" button on this page)
-- Accounting: /school/finance/ledgers (chart of accounts; manage ledger types via "Manage Types" button on this page), /school/finance/transactions
+- Expenses: /school/expenses (manage expense categories via the Manage Categories button on this page)
+- Accounting: /school/finance/ledgers (chart of accounts; manage ledger types via the Manage Types button on this page), /school/finance/transactions
 - Financial Statements (tabbed page): /school/finance/statements/trial-balance, /school/finance/statements/profit-loss, /school/finance/statements/balance-sheet
 - Finance Config: /school/finance/budgets, /school/finance/gl-config (GL auto-posting)
 
