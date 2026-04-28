@@ -20,12 +20,19 @@ class DueReportExportController extends Controller
             ? $request->query('status')
             : 'all';
 
+        $feeTypesIn = $request->query('fee_types', []);
+        if (is_string($feeTypesIn)) {
+            $feeTypesIn = array_filter(array_map('trim', explode(',', $feeTypesIn)));
+        }
+        $feeTypes = array_values(array_intersect(['regular', 'transport', 'hostel'], (array) $feeTypesIn));
+
         $rows = $service->rowsFor(
             $schoolId,
             $academicYearId,
             $request->filled('class_id')   ? (int) $request->query('class_id')   : null,
             $request->filled('section_id') ? (int) $request->query('section_id') : null,
             $status,
+            $feeTypes,
         );
 
         $search = trim((string) $request->query('search', ''));
@@ -38,7 +45,12 @@ class DueReportExportController extends Controller
             ));
         }
 
-        $numericKeys = ['total_fee', 'paid_fee', 'fee_due', 'transport_fee', 'transport_paid', 'transport_due', 'total_balance'];
+        $numericKeys = [
+            'total_fee', 'paid_fee', 'fee_due',
+            'transport_fee', 'transport_paid', 'transport_due',
+            'hostel_fee', 'hostel_paid', 'hostel_due',
+            'total_balance',
+        ];
         $textKeys    = ['name', 'class', 'father_contact', 'mother_contact'];
 
         $sortKey = $request->query('sort_key');
@@ -63,6 +75,9 @@ class DueReportExportController extends Controller
             'Transportation Fee',
             'Transportation Fee Paid',
             'Transportation Fee Due',
+            'Hostel Fee',
+            'Hostel Fee Paid',
+            'Hostel Fee Due',
             'Total Fee Balance',
         ];
 
@@ -77,6 +92,9 @@ class DueReportExportController extends Controller
             number_format($r['transport_fee'], 2),
             number_format($r['transport_paid'], 2),
             number_format($r['transport_due'], 2),
+            number_format($r['hostel_fee'], 2),
+            number_format($r['hostel_paid'], 2),
+            number_format($r['hostel_due'], 2),
             number_format($r['total_balance'], 2),
         ], $rows);
 
@@ -93,6 +111,9 @@ class DueReportExportController extends Controller
             number_format($totals['transport_fee'], 2),
             number_format($totals['transport_paid'], 2),
             number_format($totals['transport_due'], 2),
+            number_format($totals['hostel_fee'], 2),
+            number_format($totals['hostel_paid'], 2),
+            number_format($totals['hostel_due'], 2),
             number_format($totals['total_balance'], 2),
         ];
 

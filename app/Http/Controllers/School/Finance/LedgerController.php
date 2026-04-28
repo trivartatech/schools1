@@ -120,12 +120,21 @@ class LedgerController extends Controller
             ? $request->status
             : 'all';
 
+        // fee_types comes either as repeated query params (?fee_types[]=regular)
+        // or comma-separated (?fee_types=regular,transport). Normalize either way.
+        $feeTypesIn = $request->input('fee_types', []);
+        if (is_string($feeTypesIn)) {
+            $feeTypesIn = array_filter(array_map('trim', explode(',', $feeTypesIn)));
+        }
+        $feeTypes = array_values(array_intersect(['regular', 'transport', 'hostel'], (array) $feeTypesIn));
+
         $rows = $service->rowsFor(
             $schoolId,
             $academicYearId,
             $request->filled('class_id')   ? (int) $request->class_id   : null,
             $request->filled('section_id') ? (int) $request->section_id : null,
             $status,
+            $feeTypes,
         );
 
         $classes = \App\Models\CourseClass::where('school_id', $schoolId)
@@ -140,6 +149,7 @@ class LedgerController extends Controller
                 'class_id'   => $request->class_id,
                 'section_id' => $request->section_id,
                 'status'     => $status,
+                'fee_types'  => $feeTypes,
             ],
         ]);
     }

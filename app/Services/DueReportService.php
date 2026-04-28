@@ -19,7 +19,12 @@ class DueReportService
      * which the user toggles from the student profile page (the "Defaulter /
      * Not Defaulter" pill). It is intentionally NOT derived from total_balance.
      *
-     * @param  string  $status  'all' | 'defaulter' | 'not_defaulter'
+     * @param  string        $status     'all' | 'defaulter' | 'not_defaulter'
+     * @param  array<string> $feeTypes   subset of ['regular','transport','hostel'].
+     *                                   When non-empty, only return rows whose
+     *                                   balance is > 0 in at least one of the
+     *                                   selected fee types. Empty = no fee-type
+     *                                   filter (show everyone).
      * @return array<int, array<string, mixed>>
      */
     public function rowsFor(
@@ -27,7 +32,8 @@ class DueReportService
         int $academicYearId,
         ?int $classId = null,
         ?int $sectionId = null,
-        string $status = 'all'
+        string $status = 'all',
+        array $feeTypes = []
     ): array {
         $students = Student::where('school_id', $schoolId)
             ->whereHas('currentAcademicHistory', fn($q) => $q->where('academic_year_id', $academicYearId))
@@ -36,6 +42,7 @@ class DueReportService
                 'currentAcademicHistory.section',
                 'studentParent',
                 'transportAllocation',
+                'hostelAllocation',
             ])
             ->select('id', 'first_name', 'last_name', 'admission_no', 'gender', 'parent_id', 'is_defaulter')
             ->when($status === 'defaulter',     fn($q) => $q->where('is_defaulter', true))
@@ -65,6 +72,11 @@ class DueReportService
             ->groupBy('student_id')
             ->pluck('count', 'student_id');
 
+        // Normalize the fee-type filter
+        $allowed   = ['regular', 'transport', 'hostel'];
+        $feeTypes  = array_values(array_intersect($allowed, $feeTypes));
+        $hasFilter = count($feeTypes) > 0;
+
         $rows = [];
 
         foreach ($students as $student) {
@@ -92,7 +104,22 @@ class DueReportService
             $transportPaid = (float) ($alloc->amount_paid ?? 0);
             $transportDue  = (float) ($alloc->balance ?? 0);
 
-            $totalBalance = $feeDue + $transportDue;
+            $hostel        = $student->hostelAllocation;
+            $hostelFee     = (float) ($hostel->hostel_fee ?? 0);
+            $hostelPaid    = (float) ($hostel->amount_paid ?? 0);
+            $hostelDue     = (float) ($hostel->balance ?? 0);
+
+            $totalBalance = $feeDue + $transportDue + $hostelDue;
+
+            // Fee-type filter: keep the row only if at least one of the
+            // selected categories has an outstanding balance.
+            if ($hasFilter) {
+                $matches = false;
+                if (in_array('regular',   $feeTypes, true) && $feeDue       > 0) $matches = true;
+                if (in_array('transport', $feeTypes, true) && $transportDue > 0) $matches = true;
+                if (in_array('hostel',    $feeTypes, true) && $hostelDue    > 0) $matches = true;
+                if (! $matches) continue;
+            }
 
             $className = trim(
                 ($history->courseClass?->name ?? '') . ' - ' . ($history->section?->name ?? ''),
@@ -111,6 +138,9 @@ class DueReportService
                 'transport_fee'  => $transportFee,
                 'transport_paid' => $transportPaid,
                 'transport_due'  => $transportDue,
+                'hostel_fee'     => $hostelFee,
+                'hostel_paid'    => $hostelPaid,
+                'hostel_due'     => $hostelDue,
                 'total_balance'  => $totalBalance,
                 'is_defaulter'   => (bool) $student->is_defaulter,
             ];

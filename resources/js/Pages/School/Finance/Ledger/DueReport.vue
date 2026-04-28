@@ -18,6 +18,7 @@ const filterForm = ref({
     class_id:   props.filters.class_id   || '',
     section_id: props.filters.section_id || '',
     status:     props.filters.status     || 'all',
+    fee_types:  Array.isArray(props.filters.fee_types) ? [...props.filters.fee_types] : [],
 });
 
 const sections = ref([]);
@@ -30,8 +31,23 @@ const perPage = ref(25);
 const numericKeys = new Set([
     'total_fee', 'paid_fee', 'fee_due',
     'transport_fee', 'transport_paid', 'transport_due',
+    'hostel_fee', 'hostel_paid', 'hostel_due',
     'total_balance',
 ]);
+
+const FEE_TYPE_OPTIONS = [
+    { value: 'regular',   label: 'Normal Fee' },
+    { value: 'transport', label: 'Transport Fee' },
+    { value: 'hostel',    label: 'Hostel Fee' },
+];
+
+function toggleFeeType(value) {
+    const arr = filterForm.value.fee_types;
+    const idx = arr.indexOf(value);
+    if (idx >= 0) arr.splice(idx, 1);
+    else arr.push(value);
+    fetchReport();
+}
 
 const fetchSections = () => {
     if (!filterForm.value.class_id) {
@@ -62,6 +78,7 @@ const resetFilter = () => {
     filterForm.value.class_id = '';
     filterForm.value.section_id = '';
     filterForm.value.status = 'all';
+    filterForm.value.fee_types = [];
     sections.value = [];
     searchQuery.value = '';
     fetchReport();
@@ -139,7 +156,8 @@ const stats = computed(() => {
     const d = props.defaulters || [];
     const defaulters = d.filter(r => r.is_defaulter).length;
     const outstanding = d.reduce((s, r) => s + Number(r.total_balance || 0), 0);
-    const collected = d.reduce((s, r) => s + Number(r.paid_fee || 0) + Number(r.transport_paid || 0), 0);
+    const collected = d.reduce((s, r) =>
+        s + Number(r.paid_fee || 0) + Number(r.transport_paid || 0) + Number(r.hostel_paid || 0), 0);
     return { total: d.length, defaulters, outstanding, collected };
 });
 
@@ -147,6 +165,7 @@ const filteredTotals = computed(() => {
     const acc = {
         total_fee: 0, paid_fee: 0, fee_due: 0,
         transport_fee: 0, transport_paid: 0, transport_due: 0,
+        hostel_fee: 0, hostel_paid: 0, hostel_due: 0,
         total_balance: 0,
     };
     for (const r of sortedRows.value) {
@@ -199,7 +218,7 @@ async function sendAll() {
         <div class="page-header">
             <div>
                 <h1 class="page-header-title">Due Report &amp; Defaulter List</h1>
-                <p class="page-header-sub">All students for the current academic year, with regular and transport fee balances.</p>
+                <p class="page-header-sub">All students for the current academic year, with regular, transport and hostel fee balances.</p>
             </div>
             <div class="flex items-center gap-3">
                 <Button
@@ -215,6 +234,7 @@ async function sendAll() {
                         class_id:   filterForm.class_id,
                         section_id: filterForm.section_id,
                         status:     filterForm.status,
+                        fee_types:  filterForm.fee_types.join(','),
                         search:     searchQuery,
                         sort_key:   sortKey,
                         sort_dir:   sortDir,
@@ -246,7 +266,7 @@ async function sendAll() {
 
         <!-- Filters -->
         <FilterBar
-            :active="!!(filterForm.class_id || filterForm.section_id || (filterForm.status && filterForm.status !== 'all') || searchQuery)"
+            :active="!!(filterForm.class_id || filterForm.section_id || (filterForm.status && filterForm.status !== 'all') || filterForm.fee_types.length || searchQuery)"
             @clear="resetFilter"
         >
             <div class="form-field">
@@ -272,6 +292,19 @@ async function sendAll() {
                     <option value="defaulter">Defaulters Only</option>
                     <option value="not_defaulter">Non-Defaulters Only</option>
                 </select>
+            </div>
+
+            <div class="form-field fee-type-field">
+                <label>Show Students With Dues In</label>
+                <div class="fee-type-chips">
+                    <label v-for="opt in FEE_TYPE_OPTIONS" :key="opt.value" class="fee-chip"
+                           :class="{ active: filterForm.fee_types.includes(opt.value) }">
+                        <input type="checkbox"
+                               :checked="filterForm.fee_types.includes(opt.value)"
+                               @change="toggleFeeType(opt.value)" />
+                        <span>{{ opt.label }}</span>
+                    </label>
+                </div>
             </div>
 
             <div class="fb-search">
@@ -319,6 +352,15 @@ async function sendAll() {
                             <th class="sortable text-right" @click="setSort('transport_due')">
                                 Transport Due <span class="sort-arrow" :class="sortIndicator('transport_due')"></span>
                             </th>
+                            <th class="sortable text-right" @click="setSort('hostel_fee')">
+                                Hostel Fee <span class="sort-arrow" :class="sortIndicator('hostel_fee')"></span>
+                            </th>
+                            <th class="sortable text-right" @click="setSort('hostel_paid')">
+                                Hostel Paid <span class="sort-arrow" :class="sortIndicator('hostel_paid')"></span>
+                            </th>
+                            <th class="sortable text-right" @click="setSort('hostel_due')">
+                                Hostel Due <span class="sort-arrow" :class="sortIndicator('hostel_due')"></span>
+                            </th>
                             <th class="sortable text-right balance-col" @click="setSort('total_balance')">
                                 Total Balance <span class="sort-arrow" :class="sortIndicator('total_balance')"></span>
                             </th>
@@ -340,6 +382,9 @@ async function sendAll() {
                             <td class="text-right text-sm">{{ formatCurrency(row.transport_fee) }}</td>
                             <td class="text-right text-sm" style="color: var(--success)">{{ formatCurrency(row.transport_paid) }}</td>
                             <td class="text-right text-sm">{{ formatCurrency(row.transport_due) }}</td>
+                            <td class="text-right text-sm">{{ formatCurrency(row.hostel_fee) }}</td>
+                            <td class="text-right text-sm" style="color: var(--success)">{{ formatCurrency(row.hostel_paid) }}</td>
+                            <td class="text-right text-sm">{{ formatCurrency(row.hostel_due) }}</td>
                             <td class="text-right font-bold balance-col"
                                 :class="{ 'balance-zero': Number(row.total_balance) === 0 }">
                                 {{ formatCurrency(row.total_balance) }}
@@ -366,7 +411,7 @@ async function sendAll() {
                             </td>
                         </tr>
                         <tr v-if="sortedRows.length === 0">
-                            <td colspan="12" class="empty-row">
+                            <td colspan="15" class="empty-row">
                                 No students found matching the current filters.
                             </td>
                         </tr>
@@ -380,6 +425,9 @@ async function sendAll() {
                             <td class="text-right">{{ formatCurrency(filteredTotals.transport_fee) }}</td>
                             <td class="text-right" style="color: var(--success)">{{ formatCurrency(filteredTotals.transport_paid) }}</td>
                             <td class="text-right">{{ formatCurrency(filteredTotals.transport_due) }}</td>
+                            <td class="text-right">{{ formatCurrency(filteredTotals.hostel_fee) }}</td>
+                            <td class="text-right" style="color: var(--success)">{{ formatCurrency(filteredTotals.hostel_paid) }}</td>
+                            <td class="text-right">{{ formatCurrency(filteredTotals.hostel_due) }}</td>
                             <td class="text-right balance-col">{{ formatCurrency(filteredTotals.total_balance) }}</td>
                             <td></td>
                         </tr>
@@ -644,5 +692,48 @@ async function sendAll() {
     text-transform: uppercase;
     letter-spacing: 0.06em;
     white-space: nowrap;
+}
+
+/* Fee-type checkbox chips */
+.fee-type-field {
+    min-width: 220px;
+}
+.fee-type-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    height: 36px;
+}
+.fee-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    background: #fff;
+    color: #475569;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.12s;
+    user-select: none;
+    white-space: nowrap;
+}
+.fee-chip:hover {
+    border-color: #1169cd;
+    color: #1169cd;
+}
+.fee-chip input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    accent-color: #1169cd;
+    cursor: pointer;
+}
+.fee-chip.active {
+    background: #eff6ff;
+    border-color: #1169cd;
+    color: #1169cd;
 }
 </style>
