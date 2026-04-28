@@ -142,6 +142,13 @@ Route::middleware('auth')->group(function () {
         Route::get('settings/system-config',  [\App\Http\Controllers\School\SystemConfigController::class, 'index']) ->name('settings.system-config');
         Route::post('settings/system-config', [\App\Http\Controllers\School\SystemConfigController::class, 'update'])->name('settings.system-config.update');
 
+        // Admin Contacts (admin numbers for system notifications)
+        $ACC = \App\Http\Controllers\School\AdminContactController::class;
+        Route::get   ('settings/admin-contacts',           [$ACC, 'index'])  ->name('settings.admin-contacts');
+        Route::post  ('settings/admin-contacts',           [$ACC, 'store'])  ->name('settings.admin-contacts.store');
+        Route::put   ('settings/admin-contacts/{contact}', [$ACC, 'update']) ->name('settings.admin-contacts.update');
+        Route::delete('settings/admin-contacts/{contact}', [$ACC, 'destroy'])->name('settings.admin-contacts.destroy');
+
         // Mobile App QR Code — generate scannable QR for EduConnect app onboarding
         Route::get('settings/mobile-qr', [\App\Http\Controllers\School\MobileQrController::class, 'index'])->name('settings.mobile-qr');
 
