@@ -361,8 +361,13 @@ const submit = () => {
                         </div>
                     </div>
 
-                    <!-- Guardian Email & Phone -->
-                    <div class="form-row form-row-2" style="margin-top: 20px;">
+                    <!-- Guardian Name / Email / Phone -->
+                    <div class="form-row form-row-3" style="margin-top: 20px;">
+                        <div class="form-field">
+                            <label>Guardian Name</label>
+                            <input v-model="form.guardian_name" type="text" placeholder="If different from father/mother">
+                            <span v-if="form.errors.guardian_name" class="form-error">{{ form.errors.guardian_name }}</span>
+                        </div>
                         <div class="form-field">
                             <label>Guardian Email</label>
                             <input v-model="form.guardian_email" type="email" placeholder="e.g. parent@email.com">

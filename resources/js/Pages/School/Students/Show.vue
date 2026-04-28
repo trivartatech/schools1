@@ -542,6 +542,10 @@ function submitAssignHostel() {
                                     <span class="info-value info-mono">{{ student.student_parent?.father_phone || '—' }}</span>
                                 </div>
                                 <div class="info-field">
+                                    <p class="info-label">Father Qualification</p>
+                                    <span class="info-value">{{ student.student_parent?.father_qualification || '—' }}</span>
+                                </div>
+                                <div class="info-field">
                                     <p class="info-label">Mother Name</p>
                                     <span class="info-value">{{ student.student_parent?.mother_name || '—' }}</span>
                                 </div>
@@ -554,8 +558,20 @@ function submitAssignHostel() {
                                     <span class="info-value info-mono">{{ student.student_parent?.mother_phone || '—' }}</span>
                                 </div>
                                 <div class="info-field">
+                                    <p class="info-label">Mother Qualification</p>
+                                    <span class="info-value">{{ student.student_parent?.mother_qualification || '—' }}</span>
+                                </div>
+                                <div class="info-field">
                                     <p class="info-label">Guardian Name</p>
                                     <span class="info-value">{{ student.student_parent?.guardian_name || '—' }}</span>
+                                </div>
+                                <div class="info-field">
+                                    <p class="info-label">Guardian Email</p>
+                                    <span class="info-value info-mono">{{ student.student_parent?.guardian_email || '—' }}</span>
+                                </div>
+                                <div class="info-field">
+                                    <p class="info-label">Guardian Phone</p>
+                                    <span class="info-value info-mono">{{ student.student_parent?.guardian_phone || '—' }}</span>
                                 </div>
                                 <div class="info-field info-field--full">
                                     <p class="info-label">Address</p>
