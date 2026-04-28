@@ -7,9 +7,11 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue'
 import axios from 'axios'
 import { useFormat } from '@/Composables/useFormat';
 import { useConfirm } from '@/Composables/useConfirm';
+import { useToast } from '@/Composables/useToast';
 
 const { formatDateTime } = useFormat();
 const confirm = useConfirm();
+const toast = useToast();
 
 const props = defineProps({
     years:      { type: Array,  default: () => [] },
@@ -86,7 +88,7 @@ const runCarryDryRun = async (run) => {
         )
         dryRunResult.value = { phase: 'fees', ...data.summary }
     } catch (e) {
-        alert('Dry-run failed: ' + (e?.response?.data?.message || e.message))
+        toast.error('Dry-run failed: ' + (e?.response?.data?.message || e.message))
     } finally {
         runBusy.value = false
     }

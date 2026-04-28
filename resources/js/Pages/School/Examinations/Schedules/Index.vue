@@ -7,8 +7,10 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import axios from 'axios';
 import Table from '@/Components/ui/Table.vue';
 import { useConfirm } from '@/Composables/useConfirm';
+import { useToast } from '@/Composables/useToast';
 
 const confirm = useConfirm();
+const toast = useToast();
 
 const props = defineProps({
     schedules:      Array,
@@ -105,6 +107,7 @@ async function loadSubjects() {
         });
     } catch (e) {
         console.error('Failed to load subjects', e);
+        toast.error('Could not load subjects for the selected class. Try again.');
     } finally {
         loadingSubjects.value = false;
     }

@@ -10,9 +10,11 @@ import { router, usePage } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import { useConfirm } from '@/Composables/useConfirm';
+import { useToast } from '@/Composables/useToast';
 
 const { can } = usePermissions();
 const confirm = useConfirm();
+const toast = useToast();
 const page = usePage();
 const formErrors = computed(() => page.props.errors || {});
 
@@ -47,7 +49,10 @@ watch(() => form.class_id, async (val) => {
     try {
         const res = await fetch(`/school/classes/${val}/sections`);
         sections.value = await res.json();
-    } catch (e) { console.error('Error fetching sections', e); }
+    } catch (e) {
+        console.error('Error fetching sections', e);
+        toast.error('Could not load sections for this class. Try again.');
+    }
     fetchStudents();
 });
 
@@ -67,6 +72,7 @@ async function fetchStudents() {
         students.value = await res.json();
     } catch (e) {
         console.error('Error fetching students', e);
+        toast.error('Failed to load students for this section. Try again.');
     } finally {
         fetchingStudents.value = false;
     }

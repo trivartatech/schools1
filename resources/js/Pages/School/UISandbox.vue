@@ -336,6 +336,26 @@ const sortedStudents = computed(() => sortRows(sampleStudents.value));
             <Button @click="showNoHeader = true" size="sm" variant="secondary">Open no-header</Button>
         </div>
 
+        <!-- ─── Toast variants ─────────────────────────────────────────── -->
+        <h2 class="section-heading">Toast notifications — useToast() composable</h2>
+        <p style="font-size:0.8rem;color:var(--text-muted);margin:-6px 0 8px;">
+            Stack appears bottom-right, auto-dismisses with progress bar, max 5 visible.
+            Inertia flash messages from any controller (<code>back()-&gt;with('success', '...')</code>)
+            automatically become toasts via SchoolLayout — no per-page code needed.
+        </p>
+        <div class="card" style="padding:16px;margin-bottom:20px;display:flex;flex-wrap:wrap;gap:8px;">
+            <Button size="sm" variant="success" @click="toast.success('Record saved successfully')">toast.success</Button>
+            <Button size="sm" variant="danger"  @click="toast.error('Could not save — server returned an error')">toast.error</Button>
+            <Button size="sm" variant="warning" @click="toast.warning('Please select at least one student')">toast.warning</Button>
+            <Button size="sm" variant="secondary" @click="toast.info('Password copied to clipboard!')">toast.info</Button>
+            <Button size="sm" variant="secondary" @click="
+                toast.success('Saved');
+                setTimeout(() => toast.info('Synced to cloud'), 200);
+                setTimeout(() => toast.warning('1 row needs review'), 400);
+                setTimeout(() => toast.error('Email service unavailable'), 600);
+            ">Stack 4 in a row</Button>
+        </div>
+
         <!-- ─── ConfirmDialog variants ──────────────────────────────────── -->
         <h2 class="section-heading">ConfirmDialog (replaces native confirm())</h2>
         <div class="card" style="padding:16px;margin-bottom:20px;display:flex;flex-wrap:wrap;gap:8px;">

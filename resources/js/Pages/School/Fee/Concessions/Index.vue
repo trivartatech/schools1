@@ -6,9 +6,11 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
 import { useConfirm } from '@/Composables/useConfirm';
+import { useToast } from '@/Composables/useToast';
 import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const confirm = useConfirm();
+const toast = useToast();
 
 const props = defineProps({
     concessions:     Object,
@@ -126,6 +128,7 @@ const onStudentInput = async (e) => {
             }
         } catch (err) {
             console.error('Search failed', err);
+            toast.error('Student search failed. Try again.');
         }
     }, 300);
 };

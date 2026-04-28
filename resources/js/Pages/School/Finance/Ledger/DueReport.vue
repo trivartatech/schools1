@@ -9,8 +9,10 @@ import Table from '@/Components/ui/Table.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
 import ExportDropdown from '@/Components/ExportDropdown.vue';
 import { useConfirm } from '@/Composables/useConfirm';
+import { useToast } from '@/Composables/useToast';
 
 const confirm = useConfirm();
+const toast = useToast();
 
 const props = defineProps({
     defaulters: Array,
@@ -197,9 +199,9 @@ async function sendReminder(studentIds, label) {
             route('school.finance.due-report.send-reminder'),
             { student_ids: studentIds }
         );
-        alert(data.message ?? `Reminders sent to ${label}.`);
+        toast.success(data.message ?? `Reminders sent to ${label}.`);
     } catch (e) {
-        alert(e.response?.data?.message ?? 'Could not send reminders.');
+        toast.error(e.response?.data?.message ?? 'Could not send reminders.');
     }
 }
 
@@ -249,7 +251,7 @@ async function bulkFlagListed(flag) {
              : r.is_defaulter
     );
     if (!targets.length) {
-        alert(flag
+        toast.warning(flag
             ? 'No matching students to flag — everyone with dues is already flagged.'
             : 'No flagged students in the current view to unflag.');
         return;

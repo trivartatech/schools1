@@ -124,6 +124,7 @@ const handleResetPassword = async (user) => {
         }
     } catch (error) {
         console.error('Error resetting password:', error);
+        toast.error('Could not reset password. Try again.');
     }
 };
 

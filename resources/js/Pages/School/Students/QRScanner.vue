@@ -6,6 +6,9 @@ import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { Html5Qrcode } from 'html5-qrcode';
 import axios from 'axios';
+import { useToast } from '@/Composables/useToast';
+
+const toast = useToast();
 
 // ── state ────────────────────────────────────────────────────────────────────
 const html5QrCode    = ref(null);
@@ -88,6 +91,7 @@ const startScanner = async () => {
     } catch (err) {
         console.error('Scanner init error:', err);
         errorMessage.value = 'Camera access denied or unavailable. Please grant permissions.';
+        toast.error('Camera not available. Please grant permission and reload.');
     }
 };
 

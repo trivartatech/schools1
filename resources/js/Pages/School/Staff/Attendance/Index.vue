@@ -6,9 +6,11 @@ import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
 import { useConfirm } from '@/Composables/useConfirm';
+import { useToast } from '@/Composables/useToast';
 import FilterBar from '@/Components/ui/FilterBar.vue';
 
 const confirm = useConfirm();
+const toast = useToast();
 
 const props = defineProps({
     attendance: Array,
@@ -109,7 +111,7 @@ const submit = async () => {
 
     if (records.length === 0) {
         saving.value = false;
-        alert('No staff have been marked yet. Click P / A / L / etc. on each row first.');
+        toast.warning('No staff have been marked yet. Click P / A / L / etc. on each row first.');
         return;
     }
 

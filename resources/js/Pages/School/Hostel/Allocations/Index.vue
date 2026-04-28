@@ -8,6 +8,9 @@ import { ref, reactive, watch, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import { useToast } from '@/Composables/useToast';
+
+const toast = useToast();
 
 const props = defineProps({
     allocations: Object,
@@ -55,6 +58,7 @@ watch(filterClassId, async (classId) => {
         classStudents.value = stuRes.data || [];
     } catch (e) {
         console.error('Failed to load sections/students for class', e);
+        toast.error('Could not load students for the selected class. Try again.');
     }
 });
 
@@ -69,6 +73,7 @@ watch(filterSectionId, async (sectionId) => {
         classStudents.value = data || [];
     } catch (e) {
         console.error('Failed to load students for section', e);
+        toast.error('Could not load students for the selected section. Try again.');
     } finally {
         studentsLoading.value = false;
     }
