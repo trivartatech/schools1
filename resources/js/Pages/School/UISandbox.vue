@@ -19,6 +19,8 @@ import Button from '@/Components/ui/Button.vue';
 import Table from '@/Components/ui/Table.vue';
 import SortableTh from '@/Components/ui/SortableTh.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
+import PrintButton from '@/Components/ui/PrintButton.vue';
+import ExportDropdown from '@/Components/ExportDropdown.vue';
 import { useConfirm } from '@/Composables/useConfirm';
 import { useToast } from '@/Composables/useToast';
 import { useTableSort } from '@/Composables/useTableSort';
@@ -335,6 +337,38 @@ const sortedStudents = computed(() => sortRows(sampleStudents.value));
             <Button @click="showNoFooter = true" size="sm" variant="secondary">Open no-footer</Button>
             <Button @click="showNoHeader = true" size="sm" variant="secondary">Open no-header</Button>
         </div>
+
+        <!-- ─── Export & Print primitives ──────────────────────────────── -->
+        <h2 class="section-heading">ExportDropdown — multi-format download</h2>
+        <p style="font-size:0.8rem;color:var(--text-muted);margin:-6px 0 8px;">
+            Server-generated downloads. Click a format to fetch the file. Backend route receives
+            <code>?output=excel|pdf|csv</code> + your filter params.
+            <strong>This is the canonical way to export — produces real downloadable files, never print preview.</strong>
+        </p>
+        <div class="card" style="padding:16px;margin-bottom:20px;display:flex;flex-wrap:wrap;gap:8px;">
+            <ExportDropdown base-url="/school/export/students" :params="{ search: '', class_id: '' }" />
+            <ExportDropdown base-url="/school/export/staff" label="Download" :formats="['excel', 'pdf']" />
+            <ExportDropdown base-url="/school/export/example" label="Excel only" :formats="['excel']" />
+        </div>
+
+        <h2 class="section-heading">PrintButton — print current page or open print view</h2>
+        <p style="font-size:0.8rem;color:var(--text-muted);margin:-6px 0 8px;">
+            Two modes. <code>&lt;PrintButton /&gt;</code> calls <code>window.print()</code> on the current page.
+            <code>&lt;PrintButton href="…" /&gt;</code> opens that URL in a new tab — typically a print-view template
+            or a server-generated PDF endpoint.
+        </p>
+        <div class="card" style="padding:16px;margin-bottom:20px;display:flex;flex-wrap:wrap;gap:8px;">
+            <PrintButton />
+            <PrintButton label="Print Receipt" href="/school/_ui-sandbox" />
+            <PrintButton label="Download PDF" href="/school/export/example?output=pdf" variant="primary" />
+            <PrintButton label="Disabled" disabled />
+        </div>
+
+        <p style="font-size:0.78rem;color:var(--text-muted);margin:-10px 0 14px;padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;">
+            <strong>Convention:</strong> <em>"Print"</em> = browser print dialog (or print-view template).
+            <em>"PDF"</em> / <em>"Excel"</em> / <em>"CSV"</em> = a real downloadable file from a backend endpoint.
+            Don't label a print preview as "PDF".
+        </p>
 
         <!-- ─── Toast variants ─────────────────────────────────────────── -->
         <h2 class="section-heading">Toast notifications — useToast() composable</h2>

@@ -4,6 +4,7 @@ import Modal from '@/Components/ui/Modal.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import StatsRow from '@/Components/ui/StatsRow.vue';
 import EmptyState from '@/Components/ui/EmptyState.vue';
+import ExportDropdown from '@/Components/ExportDropdown.vue';
 import { ref, computed } from 'vue';
 import { useForm, router, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -86,9 +87,7 @@ const statCards = computed(() => [
             <template #actions>
                 <Button variant="icon" size="sm" aria-label="Previous month" @click="navigate(-1)">&#9664;</Button>
                 <Button variant="icon" size="sm" aria-label="Next month" @click="navigate(1)">&#9654;</Button>
-                <Button variant="secondary" as="a" :href="`/school/payroll/export?month=${curMonth}&year=${curYear}`" target="_blank">
-                    Export Excel
-                </Button>
+                <ExportDropdown base-url="/school/payroll/export" :params="{ month: curMonth, year: curYear }" :formats="['excel']" />
                 <Button @click="generate" :loading="genForm.processing">
                     Generate Payroll
                 </Button>

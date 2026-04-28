@@ -1,6 +1,7 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import PrintButton from '@/Components/ui/PrintButton.vue';
 import { ref, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 import axios from 'axios';
@@ -81,7 +82,7 @@ const formatCurrency = (amount) => {
         <!-- Header -->
         <PageHeader title="Day Book Ledger" subtitle="Daily summary of cash inflows (tuition, transport, hostel and stationary fees) and outflows (expenses)">
             <template #actions>
-                <Button variant="secondary" onclick="window.print()">🖨️ Print</Button>
+                <PrintButton />
 
             </template>
         </PageHeader>

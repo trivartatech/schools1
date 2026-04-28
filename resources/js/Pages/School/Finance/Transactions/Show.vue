@@ -1,6 +1,7 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import PrintButton from '@/Components/ui/PrintButton.vue';
 import { computed } from 'vue';
 import { router, Link, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -96,7 +97,7 @@ const typeBg = {
                 <Button variant="warning" v-if="transaction.status === 'posted' && !transaction.is_reversed" @click="reverseTransaction">
                     ↩ Reverse
                 </Button>
-                <Button variant="secondary" @click="print">Print</Button>
+                <PrintButton />
                 <Button variant="danger" v-if="transaction.status !== 'void'" @click="deleteTransaction">Delete</Button>
             </template>
         </PageHeader>

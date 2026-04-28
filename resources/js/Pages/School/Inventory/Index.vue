@@ -7,6 +7,7 @@ import StatsRow from '@/Components/ui/StatsRow.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
 import EmptyState from '@/Components/ui/EmptyState.vue';
 import Table from '@/Components/ui/Table.vue';
+import ExportDropdown from '@/Components/ExportDropdown.vue';
 import { useForm, router } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import { useConfirm } from '@/Composables/useConfirm';
@@ -281,7 +282,7 @@ const statCards = computed(() => [
                 <Button as="link" variant="secondary" size="sm" href="/school/inventory-suppliers">Suppliers</Button>
                 <Button as="link" variant="secondary" size="sm" href="/school/inventory-stores">Stores</Button>
                 <Button as="link" variant="secondary" size="sm" href="/school/inventory/reports">Reports</Button>
-                <Button as="a" variant="secondary" size="sm" :href="`/school/inventory/export?status=${statusF}&category_id=${categoryF}`">Export</Button>
+                <ExportDropdown base-url="/school/inventory/export" :params="{ status: statusF, category_id: categoryF }" />
                 <Button variant="secondary" size="sm" @click="showImport = true">Import</Button>
                 <Button variant="secondary" size="sm" @click="showManageCats = true">Categories</Button>
                 <Button size="sm" @click="showAdd = true">+ Add Asset</Button>

@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import PrintButton from '@/Components/ui/PrintButton.vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import { useConfirm } from '@/Composables/useConfirm';
 
@@ -284,7 +285,7 @@ const STATUS_COLOURS = {
                             <td class="px-4 py-2 uppercase text-xs">{{ p.payment_mode }}</td>
                             <td class="px-4 py-2 text-xs">{{ p.collected_by?.name ?? '—' }}</td>
                             <td class="px-4 py-2 text-right space-x-1">
-                                <button @click="printReceipt(p.id)" class="text-indigo-600 hover:underline text-xs">Print</button>
+                                <PrintButton :href="`/school/hostel/fees/receipts/${p.id}/receipt`" label="Receipt" size="xs" />
                                 <button v-if="can('collect_hostel_fee')" @click="voidReceipt(p.id)" class="text-rose-600 hover:underline text-xs">Void</button>
                             </td>
                         </tr>

@@ -5,6 +5,8 @@ import Table from '@/Components/ui/Table.vue';
 import SortableTh from '@/Components/ui/SortableTh.vue';
 import { useTableSort } from '@/Composables/useTableSort';
 import { ref, computed } from 'vue';
+import PrintButton from '@/Components/ui/PrintButton.vue';
+import ExportDropdown from '@/Components/ExportDropdown.vue';
 
 const props = defineProps({
     deprAssets:       Array,
@@ -46,14 +48,8 @@ const statusLabel = { available: 'Available', assigned: 'Assigned', under_mainte
                 <p style="color:#64748b;font-size:.875rem;margin-top:2px;">Depreciation schedule, maintenance costs and asset lifecycle overview.</p>
             </template>
             <template #actions>
-                <button class="btn-outline" onclick="window.print()">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                    Print
-                </button>
-                <a href="/school/inventory/export" class="btn-outline">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                    Export CSV
-                </a>
+                <PrintButton />
+                <ExportDropdown base-url="/school/inventory/export" />
                 <a href="/school/inventory" class="btn-outline">
                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                     Back

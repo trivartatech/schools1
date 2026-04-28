@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import PrintButton from '@/Components/ui/PrintButton.vue';
 import Table from '@/Components/ui/Table.vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import { useConfirm } from '@/Composables/useConfirm';
@@ -244,7 +245,7 @@ const STATUS_COLOURS = {
                         <div class="text-right">
                             <p class="font-bold text-green-600">{{ fmt(p.amount_paid) }}</p>
                             <div class="flex gap-2 justify-end mt-1">
-                                <button @click="printReceipt(p.id)" class="text-xs text-indigo-600">📄 PDF</button>
+                                <PrintButton :href="`/school/stationary/fees/receipts/${p.id}/receipt`" label="PDF" size="xs" />
                                 <button v-if="can('collect_stationary_fee')" @click="voidReceipt(p.id)" class="text-xs text-rose-600">Void</button>
                             </div>
                         </div>
