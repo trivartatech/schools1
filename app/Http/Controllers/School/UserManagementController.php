@@ -63,9 +63,44 @@ class UserManagementController extends Controller
             }
         }
 
+        // Eager-load class/section through the relevant relations so the UI
+        // can render them under each row's name.
+        $query->with([
+            'student.currentAcademicHistory.courseClass:id,name',
+            'student.currentAcademicHistory.section:id,name',
+            'studentParent.students.currentAcademicHistory.courseClass:id,name',
+            'studentParent.students.currentAcademicHistory.section:id,name',
+        ]);
+
         // Page size honours the school's System Config "Page Length" setting.
         $perPage = app('current_school')?->pageLength() ?? 20;
         $users = $query->latest()->paginate($perPage)->withQueryString();
+
+        // Decorate each user with class_name / section_name so the Vue page
+        // doesn't have to traverse three levels of relations to render them.
+        $users->getCollection()->transform(function ($u) {
+            $type = $u->user_type instanceof \BackedEnum ? $u->user_type->value : (string) $u->user_type;
+            $className = null;
+            $sectionName = null;
+
+            if ($type === 'student' && $u->student?->currentAcademicHistory) {
+                $h = $u->student->currentAcademicHistory;
+                $className   = $h->courseClass?->name;
+                $sectionName = $h->section?->name;
+            } elseif ($type === 'parent' && $u->studentParent) {
+                // Use the FIRST child's class/section as a representative label
+                $firstChild = $u->studentParent->students->first();
+                if ($firstChild?->currentAcademicHistory) {
+                    $h = $firstChild->currentAcademicHistory;
+                    $className   = $h->courseClass?->name;
+                    $sectionName = $h->section?->name;
+                }
+            }
+
+            $u->setAttribute('class_name',   $className);
+            $u->setAttribute('section_name', $sectionName);
+            return $u;
+        });
 
         return Inertia::render('School/Users/Index', [
             'users'     => $users,
@@ -75,6 +110,7 @@ class UserManagementController extends Controller
             'missing_counts' => [
                 'parents'  => StudentParent::where('school_id', $schoolId)->whereNull('user_id')->count(),
                 'students' => Student::where('school_id', $schoolId)->whereNull('user_id')->count(),
+                'staff'    => \App\Models\Staff::where('school_id', $schoolId)->whereNull('user_id')->count(),
             ],
         ]);
     }
@@ -183,11 +219,71 @@ class UserManagementController extends Controller
                     $user->assignRole('parent');
                     $parent->update(['user_id' => $user->id]);
 
+                    // First child's class/section as a label
+                    $firstChild = $parent->students()->with('currentAcademicHistory.courseClass', 'currentAcademicHistory.section')->first();
+                    $h = $firstChild?->currentAcademicHistory;
+
                     $created[] = [
-                        'name'     => $user->name,
-                        'role'     => 'Parent',
-                        'username' => $user->username,
-                        'password' => $password,
+                        'name'         => $user->name,
+                        'role'         => 'Parent',
+                        'username'     => $user->username,
+                        'password'     => $password,
+                        'class_name'   => $h?->courseClass?->name,
+                        'section_name' => $h?->section?->name,
+                    ];
+                }
+            }
+
+            // ── Staff (teachers / drivers / accountants / etc.) ──
+            // Defensive — Staff is normally created with a User, but if any
+            // record was imported with user_id = null, this catches it.
+            if (in_array($type, ['staff', 'all'], true)) {
+                $staffMembers = \App\Models\Staff::where('school_id', $schoolId)
+                    ->whereNull('user_id')
+                    ->with('user')
+                    ->get();
+
+                foreach ($staffMembers as $staff) {
+                    // Try to derive a reasonable username — phone first, then employee_id
+                    $username = $staff->user?->phone
+                        ?? $staff->employee_id
+                        ?? null;
+
+                    if (!$username) continue;
+
+                    $existing = User::where('school_id', $schoolId)
+                        ->where(function ($q) use ($username) {
+                            $q->where('username', $username)
+                              ->orWhere('phone',    $username);
+                        })
+                        ->first();
+
+                    if ($existing) {
+                        $staff->update(['user_id' => $existing->id]);
+                        continue;
+                    }
+
+                    $password = 'password';
+                    $name = $staff->user?->name ?? trim(($staff->employee_id ?? '') . ' (staff)');
+                    $user = User::create([
+                        'school_id' => $schoolId,
+                        'name'      => $name,
+                        'username'  => $username,
+                        'phone'     => $username,
+                        'password'  => Hash::make($password),
+                        'user_type' => 'teacher', // safe default; admin can adjust later
+                        'is_active' => true,
+                    ]);
+                    $user->assignRole('teacher');
+                    $staff->update(['user_id' => $user->id]);
+
+                    $created[] = [
+                        'name'         => $user->name,
+                        'role'         => 'Staff',
+                        'username'     => $user->username,
+                        'password'     => $password,
+                        'class_name'   => null,
+                        'section_name' => null,
                     ];
                 }
             }
@@ -222,11 +318,16 @@ class UserManagementController extends Controller
                     $user->assignRole('student');
                     $student->update(['user_id' => $user->id]);
 
+                    $student->load('currentAcademicHistory.courseClass', 'currentAcademicHistory.section');
+                    $h = $student->currentAcademicHistory;
+
                     $created[] = [
-                        'name'     => $user->name,
-                        'role'     => 'Student',
-                        'username' => $user->username,
-                        'password' => $password,
+                        'name'         => $user->name,
+                        'role'         => 'Student',
+                        'username'     => $user->username,
+                        'password'     => $password,
+                        'class_name'   => $h?->courseClass?->name,
+                        'section_name' => $h?->section?->name,
                     ];
                 }
             }
@@ -270,6 +371,14 @@ class UserManagementController extends Controller
             ->where('id', '!=', auth()->id()) // never bulk-reset your own
             ->get();
 
+        // Eager load class/section relationships
+        $users->load([
+            'student.currentAcademicHistory.courseClass:id,name',
+            'student.currentAcademicHistory.section:id,name',
+            'studentParent.students.currentAcademicHistory.courseClass:id,name',
+            'studentParent.students.currentAcademicHistory.section:id,name',
+        ]);
+
         DB::transaction(function () use ($users, &$rows) {
             foreach ($users as $u) {
                 $newPassword = 'password';
@@ -279,11 +388,16 @@ class UserManagementController extends Controller
                 $role = $u->user_type instanceof \BackedEnum
                     ? $u->user_type->value
                     : (string) ($u->user_type ?? '');
+
+                [$class, $section] = $this->classSectionFor($u, $role);
+
                 $rows[] = [
-                    'name'     => $u->name,
-                    'role'     => ucfirst(str_replace('_', ' ', $role)),
-                    'username' => $u->username,
-                    'password' => $newPassword,
+                    'name'         => $u->name,
+                    'role'         => ucfirst(str_replace('_', ' ', $role)),
+                    'username'     => $u->username ?: $u->phone ?: $u->email ?: '—',
+                    'password'     => $newPassword,
+                    'class_name'   => $class,
+                    'section_name' => $section,
                 ];
             }
         });
@@ -337,5 +451,113 @@ class UserManagementController extends Controller
         ])->setPaper('a4', 'portrait');
 
         return $pdf->download($base . '.pdf');
+    }
+
+    /**
+     * GET /school/users/export-list — directly export the currently filtered
+     * user list as Excel/PDF without resetting passwords. The "password"
+     * column shows the system default ('password') as a hint to the admin —
+     * if a user has changed their password, it won't reflect here.
+     *
+     * Query params mirror index() so admins can export "all parents in
+     * Class 5 / Section A" with one click.
+     */
+    public function exportList(Request $request)
+    {
+        $request->validate(['format' => 'required|in:xlsx,pdf']);
+        $schoolId = app('current_school_id');
+
+        $query = User::where('school_id', $schoolId)
+            ->with([
+                'student.currentAcademicHistory.courseClass:id,name',
+                'student.currentAcademicHistory.section:id,name',
+                'studentParent.students.currentAcademicHistory.courseClass:id,name',
+                'studentParent.students.currentAcademicHistory.section:id,name',
+            ]);
+
+        if ($request->filled('user_type')) {
+            $query->where('user_type', $request->user_type);
+        } else {
+            $query->whereIn('user_type', ['teacher', 'student', 'parent', 'principal', 'accountant', 'driver']);
+        }
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('name', 'like', "%{$s}%")
+                  ->orWhere('username', 'like', "%{$s}%")
+                  ->orWhere('phone', 'like', "%{$s}%")
+                  ->orWhere('email', 'like', "%{$s}%");
+            });
+        }
+        if ($request->filled('status')) {
+            $query->where('is_active', $request->status === 'active');
+        }
+        if ($request->filled('class_id') || $request->filled('section_id')) {
+            if ($request->user_type === 'student') {
+                $query->whereHas('student.currentAcademicHistory', function ($q) use ($request) {
+                    if ($request->filled('class_id'))   $q->where('class_id',   $request->class_id);
+                    if ($request->filled('section_id')) $q->where('section_id', $request->section_id);
+                });
+            } elseif ($request->user_type === 'parent') {
+                $query->whereHas('studentParent.students.currentAcademicHistory', function ($q) use ($request) {
+                    if ($request->filled('class_id'))   $q->where('class_id',   $request->class_id);
+                    if ($request->filled('section_id')) $q->where('section_id', $request->section_id);
+                });
+            }
+        }
+
+        $users = $query->orderBy('name')->get();
+
+        $rows = $users->map(function ($u) {
+            $role = $u->user_type instanceof \BackedEnum
+                ? $u->user_type->value
+                : (string) ($u->user_type ?? '');
+            [$class, $section] = $this->classSectionFor($u, $role);
+            return [
+                'name'         => $u->name,
+                'role'         => ucfirst(str_replace('_', ' ', $role)),
+                'username'     => $u->username ?: $u->phone ?: $u->email ?: '—',
+                'password'     => 'password',          // system default
+                'class_name'   => $class,
+                'section_name' => $section,
+            ];
+        })->values()->all();
+
+        $school = app('current_school');
+        $title  = ($school?->name ?? 'School') . ' — User Credentials';
+        $stamp  = now()->format('Y-m-d_His');
+        $base   = 'user-credentials-' . $stamp;
+
+        if (empty($rows)) {
+            return response()->json(['message' => 'Nothing to export.'], 422);
+        }
+
+        if ($request->format === 'xlsx') {
+            return Excel::download(new UserCredentialsExport($rows, $title), $base . '.xlsx');
+        }
+
+        $pdf = Pdf::loadView('exports.user-credentials', [
+            'rows'    => $rows,
+            'school'  => $school,
+            'title'   => $title,
+            'printed' => now()->format('d M Y, h:i A'),
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->download($base . '.pdf');
+    }
+
+    /** Resolve display class / section for a User by role. */
+    private function classSectionFor($u, string $role): array
+    {
+        if ($role === 'student' && $u->student?->currentAcademicHistory) {
+            $h = $u->student->currentAcademicHistory;
+            return [$h->courseClass?->name, $h->section?->name];
+        }
+        if ($role === 'parent' && $u->studentParent) {
+            $first = $u->studentParent->students->first();
+            $h = $first?->currentAcademicHistory;
+            return [$h?->courseClass?->name, $h?->section?->name];
+        }
+        return [null, null];
     }
 }

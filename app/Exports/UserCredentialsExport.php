@@ -23,16 +23,18 @@ class UserCredentialsExport implements FromArray, WithHeadings, WithStyles, With
     public function array(): array
     {
         return array_map(fn($r) => [
-            $r['name']     ?? '',
-            $r['role']     ?? '',
-            $r['username'] ?? '',
-            $r['password'] ?? '',
+            $r['name']         ?? '',
+            $r['role']         ?? '',
+            $r['class_name']   ?? '',
+            $r['section_name'] ?? '',
+            $r['username']     ?? '',
+            $r['password']     ?? '',
         ], $this->rows);
     }
 
     public function headings(): array
     {
-        return ['Name', 'Role', 'Username', 'Password'];
+        return ['Name', 'Role', 'Class', 'Section', 'Username', 'Password'];
     }
 
     public function title(): string

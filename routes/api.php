@@ -32,6 +32,8 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('v1')->name('api.v1.')->gr
     Route::post('/create-group',                     [$CA, 'createGroup'])->name('create-group');
     Route::post('/sync-section',                     [$CA, 'syncSection'])->name('sync-section');
     Route::get('/chats/{conversation}/poll',         [$CA, 'poll'])->name('chats.poll');
+    Route::get('/users/search',                      [$CA, 'searchUsers'])->name('users.search');
+    Route::post('/start-direct-chat',                [$CA, 'startDirect'])->name('start-direct');
 });
 
 // GPS Device Update (no auth; secured by device_id lookup)

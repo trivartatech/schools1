@@ -138,6 +138,74 @@ class ChatApiController extends Controller
         return response()->json(['message' => 'Section group synced.', 'member_count' => count($studentUserIds)]);
     }
 
+    // GET /api/v1/users/search — search users in the school for a new chat
+    public function searchUsers(Request $request)
+    {
+        $request->validate([
+            'q'         => 'nullable|string|max:100',
+            'user_type' => 'nullable|string|max:30',
+        ]);
+
+        $user     = $this->authUser();
+        $schoolId = $user->school_id;
+        $q        = trim((string) $request->input('q', ''));
+        $type     = $request->input('user_type');
+
+        $query = \App\Models\User::where('school_id', $schoolId)
+            ->where('id', '!=', $user->id)
+            ->where('is_active', true)
+            ->select(['id', 'name', 'phone', 'avatar', 'user_type']);
+
+        if ($q !== '') {
+            $query->where(function ($w) use ($q) {
+                $w->where('name', 'like', "%{$q}%")
+                  ->orWhere('phone', 'like', "%{$q}%")
+                  ->orWhere('email', 'like', "%{$q}%");
+            });
+        }
+        if ($type) {
+            $query->where('user_type', $type);
+        }
+
+        $users = $query->orderBy('name')->limit(50)->get()->map(function ($u) {
+            $type = $u->user_type instanceof \BackedEnum ? $u->user_type->value : (string) ($u->user_type ?? '');
+            return [
+                'id'        => $u->id,
+                'name'      => $u->name,
+                'phone'     => $u->phone,
+                'avatar'    => $u->avatar,
+                'user_type' => $type,
+                'role'      => ucfirst(str_replace('_', ' ', $type)),
+            ];
+        });
+
+        return response()->json(['data' => $users]);
+    }
+
+    // POST /api/v1/start-direct-chat — find-or-create a 1-to-1 conversation
+    public function startDirect(Request $request)
+    {
+        $request->validate(['user_id' => 'required|integer|exists:users,id']);
+
+        $user  = $this->authUser();
+        $other = \App\Models\User::where('school_id', $user->school_id)
+            ->where('is_active', true)
+            ->findOrFail($request->user_id);
+
+        if ($other->id === $user->id) {
+            return response()->json(['message' => "You can't chat with yourself."], 422);
+        }
+
+        $conv = $this->chatService->findOrCreateDirect($user, $other, $user->school_id);
+
+        return response()->json([
+            'data' => [
+                'conversation_id' => $conv->id,
+                'display_name'    => $other->name,
+            ],
+        ], 201);
+    }
+
     // GET /api/v1/chats/{conversation}/poll — for mobile long-polling
     public function poll(ChatConversation $conversation, Request $request)
     {

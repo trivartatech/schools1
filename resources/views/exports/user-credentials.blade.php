@@ -54,11 +54,13 @@
 <table>
     <thead>
         <tr>
-            <th style="width: 4%;">#</th>
-            <th style="width: 32%;">Name</th>
-            <th style="width: 14%;">Role</th>
-            <th style="width: 22%;">Username</th>
-            <th style="width: 28%;">Password</th>
+            <th style="width: 3%;">#</th>
+            <th style="width: 26%;">Name</th>
+            <th style="width: 11%;">Role</th>
+            <th style="width: 12%;">Class</th>
+            <th style="width: 8%;">Section</th>
+            <th style="width: 18%;">Username</th>
+            <th style="width: 22%;">Password</th>
         </tr>
     </thead>
     <tbody>
@@ -67,6 +69,8 @@
             <td>{{ $i + 1 }}</td>
             <td>{{ $row['name'] ?? '—' }}</td>
             <td><span class="role-badge">{{ $row['role'] ?? '—' }}</span></td>
+            <td>{{ $row['class_name']   ?? '—' }}</td>
+            <td>{{ $row['section_name'] ?? '—' }}</td>
             <td class="username">{{ $row['username'] ?? '—' }}</td>
             <td class="password">{{ $row['password'] ?? '—' }}</td>
         </tr>

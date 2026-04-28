@@ -290,6 +290,7 @@ Route::middleware('auth')->group(function () {
             Route::post('create-missing',      [\App\Http\Controllers\School\UserManagementController::class, 'createMissing'])->name('users.create-missing');
             Route::post('bulk-reset',          [\App\Http\Controllers\School\UserManagementController::class, 'bulkReset'])->name('users.bulk-reset');
             Route::post('export-credentials',  [\App\Http\Controllers\School\UserManagementController::class, 'exportCredentials'])->name('users.export-credentials');
+            Route::get('export-list',          [\App\Http\Controllers\School\UserManagementController::class, 'exportList'])->name('users.export-list');
         });
 
         Route::middleware(['school.management', 'module:students'])->group(function () {

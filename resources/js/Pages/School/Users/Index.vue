@@ -47,6 +47,26 @@ const sectionsForClass = computed(() => {
 // Show class+section filter for both students AND parents now
 const showClassFilter = computed(() => userType.value === 'student' || userType.value === 'parent');
 
+// Sum of all missing-login categories (parents + students + staff)
+const totalMissing = computed(() => {
+    const m = props.missing_counts ?? {};
+    return (m.parents ?? 0) + (m.students ?? 0) + (m.staff ?? 0);
+});
+
+// Direct export of the currently filtered list (no reset required)
+const exportList = (format) => {
+    const params = new URLSearchParams({
+        format,
+        ...(search.value    ? { search:     search.value    } : {}),
+        ...(userType.value  ? { user_type:  userType.value  } : {}),
+        ...(status.value    ? { status:     status.value    } : {}),
+        ...(classId.value   ? { class_id:   classId.value   } : {}),
+        ...(sectionId.value ? { section_id: sectionId.value } : {}),
+    });
+    // Stream-download the file in a new window so we don't navigate away
+    window.location.href = `/school/users/export-list?${params.toString()}`;
+};
+
 watch([search, userType, status, classId, sectionId], debounce(([v1, v2, v3, v4, v5]) => {
     router.get('/school/users', {
         search: v1, user_type: v2, status: v3, class_id: v4, section_id: v5,
@@ -215,12 +235,23 @@ const getStatusBadgeClass = (active) => active
                     <h2 class="text-2xl font-black text-gray-900 tracking-tight">User Login Management</h2>
                     <p class="text-sm text-gray-500 font-medium">Manage access credentials for staff, students, and parents.</p>
                 </div>
-                <!-- Quick action: Create missing logins -->
+                <!-- Quick actions: Export + Create missing logins -->
                 <div class="flex flex-wrap gap-2 items-center">
-                    <span v-if="missing_counts.parents > 0 || missing_counts.students > 0"
+                    <span v-if="totalMissing > 0"
                           class="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
-                        Missing: {{ missing_counts.parents }} parents · {{ missing_counts.students }} students
+                        Missing: {{ missing_counts.parents }} parents · {{ missing_counts.students }} students<span v-if="missing_counts.staff"> · {{ missing_counts.staff }} staff</span>
                     </span>
+
+                    <!-- Direct export of currently filtered list (no reset required) -->
+                    <Button size="sm" variant="secondary" @click="exportList('xlsx')" :disabled="bulkBusy">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                        Excel
+                    </Button>
+                    <Button size="sm" variant="secondary" @click="exportList('pdf')" :disabled="bulkBusy">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        PDF
+                    </Button>
+
                     <Button size="sm" :disabled="bulkBusy" @click="createMissing('all')">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
                         Create Missing Logins
@@ -313,6 +344,7 @@ const getStatusBadgeClass = (active) => active
                                 <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Name &amp; Profile</th>
                                 <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">System Role</th>
                                 <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Username</th>
+                                <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Password</th>
                                 <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Access Status</th>
                                 <th class="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Manage</th>
                             </tr>
@@ -332,6 +364,10 @@ const getStatusBadgeClass = (active) => active
                                         </div>
                                         <div>
                                             <div class="text-sm font-black text-gray-900">{{ user.name }}</div>
+                                            <!-- Class · Section for students/parents, phone/email for everyone else -->
+                                            <div v-if="user.class_name || user.section_name" class="text-xs text-indigo-600 font-bold mt-0.5">
+                                                {{ [user.class_name, user.section_name].filter(Boolean).join(' · ') }}
+                                            </div>
                                             <div class="text-xs text-gray-500 font-medium">{{ user.phone || user.email || '-' }}</div>
                                         </div>
                                     </div>
@@ -343,7 +379,13 @@ const getStatusBadgeClass = (active) => active
                                 </td>
                                 <td class="px-6 py-4">
                                     <div class="flex items-center gap-2">
-                                        <code class="text-[11px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">{{ user.username }}</code>
+                                        <code class="text-[11px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">{{ user.username || user.phone || user.email || '—' }}</code>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center gap-1.5">
+                                        <code class="text-[11px] font-black text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md">password</code>
+                                        <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">default</span>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4">
@@ -366,7 +408,7 @@ const getStatusBadgeClass = (active) => active
                                 </td>
                             </tr>
                             <tr v-if="users.data.length === 0">
-                                <td colspan="6" class="px-6 py-20 text-center">
+                                <td colspan="7" class="px-6 py-20 text-center">
                                     <div class="flex flex-col items-center">
                                         <div class="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4 text-gray-300">
                                             <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
