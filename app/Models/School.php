@@ -56,4 +56,27 @@ class School extends Model
     {
         return isset($this->features[$feature]) && $this->features[$feature] === true;
     }
+
+    /** PHP date() format string from the admin's system-config date_format setting. */
+    public function dateFmt(): string
+    {
+        return match($this->settings['date_format'] ?? '') {
+            'DD/MM/YYYY'  => 'd/m/Y',
+            'MM/DD/YYYY'  => 'm/d/Y',
+            'YYYY-MM-DD'  => 'Y-m-d',
+            'D MMM, YYYY' => 'j M, Y',
+            default        => 'd/m/Y',
+        };
+    }
+
+    /** PHP date() format string from the admin's system-config time_format setting. */
+    public function timeFmt(): string
+    {
+        return match($this->settings['time_format'] ?? '') {
+            'h:mm A'    => 'g:i A',
+            'H:mm'      => 'H:i',
+            'h:mm:ss A' => 'g:i:s A',
+            default      => 'g:i A',
+        };
+    }
 }

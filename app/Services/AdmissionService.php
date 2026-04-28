@@ -25,12 +25,14 @@ class AdmissionService
 
             if (!$parent) {
                 // Create User for Parent
+                // Default password matches the artisan portal:create-users
+                // command so admins / parents always know the initial login.
                 $parentUser = User::create([
                     'school_id' => $schoolId,
                     'name'      => $data['father_name'] ?: ($data['guardian_name'] ?: 'Parent'),
                     'username'  => $data['primary_phone'],
                     'phone'     => $data['primary_phone'],
-                    'password'  => \Illuminate\Support\Facades\Hash::make(\Illuminate\Support\Str::random(10)),
+                    'password'  => \Illuminate\Support\Facades\Hash::make('parent123'),
                     'user_type' => 'parent',
                     'is_active' => true,
                 ]);

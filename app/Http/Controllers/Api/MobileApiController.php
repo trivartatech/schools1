@@ -500,12 +500,44 @@ class MobileApiController extends Controller
     public function attendance(Request $request): JsonResponse
     {
         $user   = $request->user();
+        $school = app('current_school');
         $yearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
         $month  = $request->input('month', now()->format('Y-m'));
 
         [$year, $mon] = explode('-', $month);
         $from = Carbon::createFromDate((int)$year, (int)$mon, 1)->startOfMonth();
         $to   = $from->copy()->endOfMonth();
+
+        // Teacher view: own staff_attendances records (populated by punch system / admin marking)
+        if ($user->isTeacher() && $user->staff) {
+            $records = StaffAttendance::where('school_id', $school->id)
+                ->where('staff_id', $user->staff->id)
+                ->whereBetween('date', [$from, $to])
+                ->orderBy('date')
+                ->get(['date', 'status', 'remarks']);
+
+            $summary = [
+                'present'  => $records->where('status', 'present')->count(),
+                'absent'   => $records->where('status', 'absent')->count(),
+                'late'     => $records->where('status', 'late')->count(),
+                'half_day' => $records->where('status', 'half_day')->count(),
+                'leave'    => $records->where('status', 'leave')->count(),
+                'total'    => $records->count(),
+            ];
+            $summary['attendance_pct'] = $summary['total'] > 0
+                ? round(($summary['present'] + $summary['late'] * 0.5) / $summary['total'] * 100, 1)
+                : 0;
+
+            $dateFmt = $school->dateFmt();
+            return response()->json([
+                'summary' => $summary,
+                'records' => $records->map(fn($r) => [
+                    'date'    => optional($r->date)->format($dateFmt),
+                    'status'  => $r->status,
+                    'remarks' => $r->remarks,
+                ]),
+            ]);
+        }
 
         $studentId = $this->resolveStudentId($user, $request);
         if (!$studentId) {
@@ -529,9 +561,14 @@ class MobileApiController extends Controller
             ? round(($summary['present'] + $summary['late'] * 0.5) / $summary['total'] * 100, 1)
             : 100;
 
+        $dateFmt = $school->dateFmt();
         return response()->json([
             'summary'    => $summary,
-            'records'    => $records,
+            'records'    => $records->map(fn($r) => [
+                'date'    => optional($r->date)->format($dateFmt),
+                'status'  => $r->status,
+                'remarks' => $r->remarks,
+            ]),
             'student_id' => $studentId,
         ]);
     }
@@ -596,6 +633,12 @@ class MobileApiController extends Controller
         $yearId    = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
         $schedule  = [];
 
+        // day_of_week is stored as int (1=Mon..7=Sun); mobile app expects lowercase day names.
+        $dayNames = [
+            1 => 'monday', 2 => 'tuesday', 3 => 'wednesday',
+            4 => 'thursday', 5 => 'friday', 6 => 'saturday', 7 => 'sunday',
+        ];
+
         if ($user->isTeacher() && $user->staff) {
             $items = Timetable::where('school_id', $school->id)
                 ->where('staff_id', $user->staff->id)
@@ -603,7 +646,9 @@ class MobileApiController extends Controller
                 ->get();
 
             foreach ($items as $item) {
-                $schedule[$item->day_of_week][] = [
+                $dayKey = $dayNames[$item->day_of_week] ?? null;
+                if (!$dayKey) continue;
+                $schedule[$dayKey][] = [
                     'period_name'  => $item->period->name        ?? "Period {$item->period_id}",
                     'subject_name' => $item->subject->name       ?? 'Unknown',
                     'class_name'   => $item->courseClass->name   ?? '',
@@ -627,7 +672,9 @@ class MobileApiController extends Controller
                     ->get();
 
                 foreach ($items as $item) {
-                    $schedule[$item->day_of_week][] = [
+                    $dayKey = $dayNames[$item->day_of_week] ?? null;
+                    if (!$dayKey) continue;
+                    $schedule[$dayKey][] = [
                         'period_name'  => $item->period->name           ?? "Period {$item->period_id}",
                         'subject_name' => $item->subject->name          ?? 'Unknown',
                         'teacher_name' => $item->staff->user->name      ?? '',
@@ -648,6 +695,67 @@ class MobileApiController extends Controller
     }
 
     // ── Transport ─────────────────────────────────────────────────────────────
+
+    /**
+     * Live bus status for the current parent's active child (or student themselves).
+     * Polled every 15 s by the mobile parent BusTracking screen.
+     */
+    public function busStatus(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $studentId = $this->resolveStudentId($user, $request);
+        if (!$studentId) {
+            return response()->json(['status' => 'idle']);
+        }
+
+        $alloc = TransportStudentAllocation::where('student_id', $studentId)
+            ->where('status', 'active')
+            ->with([
+                'vehicle.liveLocation',
+                'vehicle.route:id,route_name',
+                'vehicle.driver:id,user_id',
+                'vehicle.driver.user:id,name',
+            ])
+            ->first();
+
+        if (!$alloc || !$alloc->vehicle) {
+            return response()->json(['status' => 'idle']);
+        }
+
+        $vehicle    = $alloc->vehicle;
+        $live       = $vehicle->liveLocation;
+        $driverName = $vehicle->driver?->user?->name;
+        $routeName  = $vehicle->route?->route_name;
+
+        if (!$live) {
+            return response()->json([
+                'status'      => 'idle',
+                'driver_name' => $driverName,
+                'route_name'  => $routeName,
+            ]);
+        }
+
+        // The driver-tracking endpoint stops a trip by setting updated_at to 10 min ago.
+        // Treat anything within 5 min as live; 5–30 min as recently stopped; older as idle.
+        $minutesAgo = (int) $live->updated_at->diffInMinutes(now());
+        if ($minutesAgo <= 5) {
+            $status = 'running';
+        } elseif ($minutesAgo <= 30) {
+            $status = 'stopped';
+        } else {
+            $status = 'idle';
+        }
+
+        return response()->json([
+            'status'      => $status,
+            'driver_name' => $driverName,
+            'route_name'  => $routeName,
+            'latitude'    => $live->latitude,
+            'longitude'   => $live->longitude,
+            'stopped_at'  => $status === 'stopped' ? $live->updated_at?->toIso8601String() : null,
+        ]);
+    }
 
     public function transport(Request $request): JsonResponse
     {
@@ -1102,17 +1210,32 @@ class MobileApiController extends Controller
         $parent = $user->studentParent;
         if (!$parent) return [];
 
+        $yearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
+
         return $parent->students()
             ->with(['currentAcademicHistory.courseClass', 'currentAcademicHistory.section'])
             ->get()
-            ->map(fn($s) => [
-                'id'           => $s->id,
-                'name'         => $s->name,
-                'admission_no' => $s->admission_no,
-                'photo_url'    => $s->photo_url,
-                'class'        => $s->currentAcademicHistory?->courseClass?->name ?? '',
-                'section'      => $s->currentAcademicHistory?->section?->name ?? '',
-            ])
+            ->map(function ($s) use ($yearId) {
+                // Per-child attendance % for the current academic year
+                $attPct = null;
+                if ($yearId) {
+                    $tot  = Attendance::where('student_id', $s->id)->where('academic_year_id', $yearId)->count();
+                    $pres = $tot > 0 ? Attendance::where('student_id', $s->id)->where('academic_year_id', $yearId)
+                        ->whereIn('status', ['present', 'late'])->count() : 0;
+                    $attPct = $tot > 0 ? round($pres / $tot * 100) : null;
+                }
+
+                return [
+                    'id'               => $s->id,
+                    'name'             => $s->name,
+                    'admission_number' => $s->admission_no,
+                    'roll_number'      => $s->roll_no,
+                    'photo_url'        => $s->photo_url,
+                    'class_name'       => $s->currentAcademicHistory?->courseClass?->name ?? '',
+                    'section_name'     => $s->currentAcademicHistory?->section?->name ?? '',
+                    'attendance_pct'   => $attPct,
+                ];
+            })
             ->toArray();
     }
 
@@ -2895,7 +3018,8 @@ class MobileApiController extends Controller
             ->orderByDesc('created_at')
             ->paginate(20, ['*'], 'page', $page);
 
-        $data = collect($payments->items())->map(function ($p) {
+        $dateFmt = $school->dateFmt();
+        $data = collect($payments->items())->map(function ($p) use ($dateFmt) {
             $mode = $p->payment_mode instanceof \BackedEnum
                 ? $p->payment_mode->value
                 : $p->payment_mode;
@@ -2904,20 +3028,21 @@ class MobileApiController extends Controller
                 : $p->status;
 
             return [
-                'id'              => $p->id,
-                'receipt_no'      => $p->receipt_no,
-                'fee_head'        => $p->feeHead?->name ?? 'Other',
-                'term'            => $p->term,
-                'amount'          => (float) $p->amount_paid,
-                'amount_paid'     => (float) $p->amount_paid,
-                'balance'         => (float) ($p->balance ?? 0),
-                'payment_date'    => $p->payment_date?->toDateString(),
-                'payment_mode'    => $mode,
-                'status'          => strtolower((string) ($status ?? 'pending')),
-                'transaction_id'  => $p->transaction_ref ?: $p->receipt_no,
-                'transaction_ref' => $p->transaction_ref,
-                'created_at'      => $p->created_at?->toIso8601String(),
-                'has_receipt'     => !empty($p->receipt_no),
+                'id'                   => $p->id,
+                'receipt_no'           => $p->receipt_no,
+                'fee_head'             => $p->feeHead?->name ?? 'Other',
+                'term'                 => $p->term,
+                'amount'               => (float) $p->amount_paid,
+                'amount_paid'          => (float) $p->amount_paid,
+                'balance'              => (float) ($p->balance ?? 0),
+                'payment_date'         => $p->payment_date?->toDateString(),
+                'payment_date_display' => $p->payment_date?->format($dateFmt),
+                'payment_mode'         => $mode,
+                'status'               => strtolower((string) ($status ?? 'pending')),
+                'transaction_id'       => $p->transaction_ref ?: $p->receipt_no,
+                'transaction_ref'      => $p->transaction_ref,
+                'created_at'           => $p->created_at?->toIso8601String(),
+                'has_receipt'          => !empty($p->receipt_no),
             ];
         });
 
@@ -2970,10 +3095,11 @@ class MobileApiController extends Controller
                 'logo_url' => $this->publicFileUrl($school->logo),
             ],
             'payment' => [
-                'id'              => $payment->id,
-                'receipt_no'      => $payment->receipt_no,
-                'payment_date'    => $payment->payment_date?->toDateString(),
-                'payment_mode'    => strtoupper($mode ?? ''),
+                'id'                   => $payment->id,
+                'receipt_no'           => $payment->receipt_no,
+                'payment_date'         => $payment->payment_date?->toDateString(),
+                'payment_date_display' => $payment->payment_date?->format($school->dateFmt()),
+                'payment_mode'         => strtoupper($mode ?? ''),
                 'transaction_ref' => $payment->transaction_ref,
                 'fee_head'        => $payment->feeHead?->name ?? 'Other',
                 'fee_group'       => $payment->feeHead?->feeGroup?->name ?? '',

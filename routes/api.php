@@ -82,6 +82,14 @@ Route::post('/login',   [\App\Http\Controllers\AuthController::class, 'apiLogin'
     ->middleware('throttle:10,1')
     ->name('api.login');
 
+// Bus status — auth'd but outside the /mobile prefix because the mobile app
+// polls /api/bus/status directly. Returns the live state of the parent's
+// active child's bus (or own bus for students).
+Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
+    Route::get('/bus/status', [\App\Http\Controllers\Api\MobileApiController::class, 'busStatus'])
+        ->name('api.bus.status');
+});
+
 // Authenticated mobile routes
 Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function () {
     $MA = MobileApiController::class;
