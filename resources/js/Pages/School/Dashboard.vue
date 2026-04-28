@@ -120,7 +120,8 @@ const hostelPct = computed(() => {
     return Math.round((+k.value.hostel_occupied || 0) / cap * 100)
 })
 
-// ── activity tabs ──────────────────────────────────────────
+// ── view toggles ───────────────────────────────────────────
+const financeView = ref('rvp')          // 'rvp' (Receipt vs Payment) | 'csum' (Course-wise summary)
 const activityTab = ref('payments')
 const recentPayments  = computed(() => d.value.recent_payments || [])
 const recentAdmissions = computed(() => d.value.recent_admissions || [])
@@ -317,44 +318,68 @@ const upcomingEvents = computed(() => {
             </div>
         </section>
 
-        <!-- ─ Receipt vs Payment (12-month bar) ───────────────────── -->
+        <!-- ─ Receipt vs Payment / Course-wise fee summary (toggle) ─── -->
         <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-            <SectionHeader
-                title="Receipt vs Payment"
-                subtitle="Money in vs money out, last 12 months"
-                actionLabel="Day book"
-                actionHref="/school/finance/day-book"
-            />
-            <TrendChart
-                v-if="rvp.length"
-                type="bar"
-                :labels="receiptVsPaymentChart.labels"
-                :datasets="receiptVsPaymentChart.datasets"
-                :currency="currency"
-                :legend="true"
-                :height="290"
-            />
-            <p v-else class="text-sm text-gray-400 italic py-12 text-center">No financial activity yet</p>
-        </section>
+            <div class="flex items-start justify-between mb-4 flex-wrap gap-3">
+                <div>
+                    <h2 class="text-base font-semibold text-gray-900 tracking-tight">
+                        {{ financeView === 'rvp' ? 'Receipt vs Payment' : 'Course-wise fee summary' }}
+                    </h2>
+                    <p class="text-xs text-gray-500 mt-0.5">
+                        {{ financeView === 'rvp'
+                            ? 'Money in vs money out, last 12 months'
+                            : 'Total · Paid · Balance · Concession per class' }}
+                    </p>
+                </div>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <div class="inline-flex bg-gray-100 rounded-lg p-1 text-xs font-medium">
+                        <button
+                            v-for="t in [
+                                { id: 'rvp',  label: 'Receipt vs Payment' },
+                                { id: 'csum', label: 'Course-wise summary' },
+                            ]"
+                            :key="t.id"
+                            @click="financeView = t.id"
+                            :class="[
+                                'px-3 py-1 rounded-md transition whitespace-nowrap',
+                                financeView === t.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                            ]"
+                        >{{ t.label }}</button>
+                    </div>
+                    <Link
+                        :href="financeView === 'rvp' ? '/school/finance/day-book' : '/school/finance/due-report'"
+                        class="text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                    >
+                        {{ financeView === 'rvp' ? 'Day book' : 'Due report' }} →
+                    </Link>
+                </div>
+            </div>
 
-        <!-- ─ Course Wise Summary (multi-bar per class) ───────────── -->
-        <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-            <SectionHeader
-                title="Course-wise fee summary"
-                subtitle="Total · Paid · Balance · Concession per class"
-                actionLabel="Due report"
-                actionHref="/school/finance/due-report"
-            />
-            <TrendChart
-                v-if="csum.length"
-                type="bar"
-                :labels="courseSummaryChart.labels"
-                :datasets="courseSummaryChart.datasets"
-                :currency="currency"
-                :legend="true"
-                :height="320"
-            />
-            <p v-else class="text-sm text-gray-400 italic py-12 text-center">No fee allocations for any class yet</p>
+            <template v-if="financeView === 'rvp'">
+                <TrendChart
+                    v-if="rvp.length"
+                    type="bar"
+                    :labels="receiptVsPaymentChart.labels"
+                    :datasets="receiptVsPaymentChart.datasets"
+                    :currency="currency"
+                    :legend="true"
+                    :height="300"
+                />
+                <p v-else class="text-sm text-gray-400 italic py-12 text-center">No financial activity yet</p>
+            </template>
+
+            <template v-else>
+                <TrendChart
+                    v-if="csum.length"
+                    type="bar"
+                    :labels="courseSummaryChart.labels"
+                    :datasets="courseSummaryChart.datasets"
+                    :currency="currency"
+                    :legend="true"
+                    :height="300"
+                />
+                <p v-else class="text-sm text-gray-400 italic py-12 text-center">No fee allocations for any class yet</p>
+            </template>
         </section>
 
         <!-- ─ Income / Expense / Attendance donuts ────────────────── -->
