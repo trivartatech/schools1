@@ -1,6 +1,9 @@
 <script setup>
 import { computed } from 'vue';
 import { Head } from '@inertiajs/vue3';
+import { useFormat } from '@/Composables/useFormat';
+
+const { formatDateTime } = useFormat();
 
 const props = defineProps({
     schedule:     Object,  // {id, name, class_name}
@@ -125,7 +128,7 @@ function getSubjectMark(row, subjectId) {
 
         <!-- Print date -->
         <div class="rs-footer">
-            Printed on: {{ new Date().toLocaleString() }}
+            Printed on: {{ formatDateTime(new Date()) }}
         </div>
 
     </div>

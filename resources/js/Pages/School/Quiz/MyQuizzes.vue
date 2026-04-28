@@ -4,7 +4,8 @@ import { Link } from '@inertiajs/vue3';
 
 const props = defineProps({ quizzes: Array });
 
-const fmt = (d) => d ? new Date(d).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+import { useFormat } from '@/Composables/useFormat';
+const { formatDateTime: fmt } = useFormat();
 
 const statusLabel = (q) => {
     if (q.attempt_status === 'submitted' || q.attempt_status === 'graded') return 'Completed';

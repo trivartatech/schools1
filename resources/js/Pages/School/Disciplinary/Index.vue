@@ -150,7 +150,8 @@ const deleteRecord = (id) => {
 
 const severityColor = { minor: '#d97706', moderate: '#f97316', major: '#dc2626' };
 const statusBadge   = { open: 'badge-amber', under_review: 'badge-blue', resolved: 'badge-green', escalated: 'badge-red' };
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+import { useFormat } from '@/Composables/useFormat';
+const { formatDate: fmtDate } = useFormat();
 </script>
 
 <template>

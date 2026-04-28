@@ -565,7 +565,9 @@ class MobileApiController extends Controller
         return response()->json([
             'summary'    => $summary,
             'records'    => $records->map(fn($r) => [
-                'date'    => optional($r->date)->format($dateFmt),
+                // Attendance.date has no Eloquent cast (kept as raw "Y-m-d" so
+                // WHERE date = … lookups work), so parse before formatting.
+                'date'    => $r->date ? Carbon::parse($r->date)->format($dateFmt) : null,
                 'status'  => $r->status,
                 'remarks' => $r->remarks,
             ]),
@@ -1702,8 +1704,20 @@ class MobileApiController extends Controller
             'rejected' => $statusCounts['rejected'] ?? 0,
         ];
 
+        // Add _display variants formatted per the school's System Config so
+        // mobile screens can render dates without re-parsing locale-style.
+        $dateFmt = $school->dateFmt();
+        $leavesData = collect($leaves->items())->map(function ($l) use ($dateFmt) {
+            $arr = $l->toArray();
+            $arr['start_date_display'] = $l->start_date instanceof \Carbon\Carbon
+                ? $l->start_date->format($dateFmt) : ($l->start_date ? \Carbon\Carbon::parse($l->start_date)->format($dateFmt) : null);
+            $arr['end_date_display']   = $l->end_date instanceof \Carbon\Carbon
+                ? $l->end_date->format($dateFmt) : ($l->end_date ? \Carbon\Carbon::parse($l->end_date)->format($dateFmt) : null);
+            return $arr;
+        });
+
         return response()->json([
-            'leaves'  => $leaves->items(),
+            'leaves'  => $leavesData,
             'summary' => $summary,
             'total'   => $leaves->total(),
             'page'    => $leaves->currentPage(),
@@ -2391,24 +2405,26 @@ class MobileApiController extends Controller
             $query->with(['submissions' => fn($q) => $q->where('student_id', $studentId)]);
         }
 
-        $assignments = $query->get()->map(function ($a) use ($studentId) {
+        $dateFmt = $school->dateFmt();
+        $assignments = $query->get()->map(function ($a) use ($studentId, $dateFmt) {
             $submission = $studentId ? $a->submissions->first() : null;
 
             $daysLeft = $a->due_date ? (int) now()->diffInDays($a->due_date, false) : 0;
 
             return [
-                'id'           => $a->id,
-                'title'        => $a->title,
-                'description'  => $a->description,
-                'subject'      => $a->subject?->name ?? '',
-                'teacher'      => $a->teacher?->user?->name ?? '',
-                'due_date'     => $a->due_date?->toDateString(),
-                'max_marks'    => $a->max_marks,
-                'days_left'    => $daysLeft,
-                'is_overdue'   => $daysLeft < 0,
-                'submitted'    => $submission !== null,
-                'grade'        => $submission?->marks !== null ? (string) $submission->marks : null,
-                'has_attachments' => !empty($a->attachments),
+                'id'                => $a->id,
+                'title'             => $a->title,
+                'description'       => $a->description,
+                'subject'           => $a->subject?->name ?? '',
+                'teacher'           => $a->teacher?->user?->name ?? '',
+                'due_date'          => $a->due_date?->toDateString(),
+                'due_date_display'  => $a->due_date?->format($dateFmt),
+                'max_marks'         => $a->max_marks,
+                'days_left'         => $daysLeft,
+                'is_overdue'        => $daysLeft < 0,
+                'submitted'         => $submission !== null,
+                'grade'             => $submission?->marks !== null ? (string) $submission->marks : null,
+                'has_attachments'   => !empty($a->attachments),
             ];
         });
 
@@ -2421,16 +2437,19 @@ class MobileApiController extends Controller
     {
         $school = app('current_school');
 
+        $dateFmt  = $school->dateFmt();
         $holidays = Holiday::where('school_id', $school->id)
             ->orderBy('date')
             ->get()
             ->map(fn($h) => [
-                'id'          => $h->id,
-                'name'        => $h->title,
-                'date'        => $h->date?->toDateString(),
-                'end_date'    => $h->end_date?->toDateString(),
-                'type'        => $h->type ?? 'holiday',
-                'description' => $h->description,
+                'id'               => $h->id,
+                'name'             => $h->title,
+                'date'             => $h->date?->toDateString(),
+                'date_display'     => $h->date?->format($dateFmt),
+                'end_date'         => $h->end_date?->toDateString(),
+                'end_date_display' => $h->end_date?->format($dateFmt),
+                'type'             => $h->type ?? 'holiday',
+                'description'      => $h->description,
             ]);
 
         return response()->json(['data' => $holidays]);
@@ -2476,6 +2495,7 @@ class MobileApiController extends Controller
             ->selectRaw('diary_id, count(*) as cnt')
             ->groupBy('diary_id')->pluck('cnt', 'diary_id')->toArray();
 
+        $dateFmt = $school->dateFmt();
         $data = collect($entries->items())->map(fn($d) => [
             'id'               => $d->id,
             'subject'          => $d->subject?->name ?? 'General',
@@ -2486,6 +2506,7 @@ class MobileApiController extends Controller
             'completed'        => in_array($d->id, $completions),
             'completion_count' => $completionCounts[$d->id] ?? 0,
             'date'             => $d->date?->toDateString(),
+            'date_display'     => $d->date?->format($dateFmt),
             'created_at'       => $d->created_at?->toIso8601String(),
         ]);
 
@@ -2585,8 +2606,9 @@ class MobileApiController extends Controller
             : collect();
 
         $today = now()->toDateString();
+        $dateFmt = $school->dateFmt();
 
-        $data = collect($assignments->items())->map(function ($a) use ($submissionsMap, $today) {
+        $data = collect($assignments->items())->map(function ($a) use ($submissionsMap, $today, $dateFmt) {
             $sub = $submissionsMap->get($a->id);
             if ($sub) {
                 $status = $sub->marks !== null ? 'graded' : ($sub->is_late ? 'late' : 'submitted');
@@ -2596,16 +2618,17 @@ class MobileApiController extends Controller
                 $status = 'pending';
             }
             return [
-                'id'          => $a->id,
-                'title'       => $a->title,
-                'description' => $a->description,
-                'subject'     => $a->subject?->name ?? '',
-                'teacher'     => $a->teacher?->user?->name ?? '',
-                'due_date'    => $a->due_date?->toDateString(),
-                'max_marks'   => $a->max_marks,
-                'status'      => $status,
-                'marks'       => $sub?->marks,
-                'attachments' => $this->absolutizeAttachments($a->attachments ?? []),
+                'id'                => $a->id,
+                'title'             => $a->title,
+                'description'       => $a->description,
+                'subject'           => $a->subject?->name ?? '',
+                'teacher'           => $a->teacher?->user?->name ?? '',
+                'due_date'          => $a->due_date?->toDateString(),
+                'due_date_display'  => $a->due_date?->format($dateFmt),
+                'max_marks'         => $a->max_marks,
+                'status'            => $status,
+                'marks'             => $sub?->marks,
+                'attachments'       => $this->absolutizeAttachments($a->attachments ?? []),
             ];
         });
 
@@ -2748,6 +2771,7 @@ class MobileApiController extends Controller
                 'term_name'           => $schedule->examType?->name ?? 'Exam',
                 'academic_year'       => $schedule->academicYear?->name ?? '',
                 'issued_date'         => $schedule->updated_at?->toDateString(),
+                'issued_date_display' => $schedule->updated_at?->format(app('current_school')->dateFmt()),
                 'overall_percentage'  => $percentage,
                 'overall_grade'       => $this->calculateGrade($totalObtained, $totalMax),
                 'rank'                => null,
@@ -4641,8 +4665,18 @@ class MobileApiController extends Controller
             'rejected' => $statusCounts['rejected'] ?? 0,
         ];
 
+        $dateFmt = $school->dateFmt();
+        $leavesData = collect($leaves->items())->map(function ($l) use ($dateFmt) {
+            $arr = $l->toArray();
+            $arr['start_date_display'] = $l->start_date instanceof \Carbon\Carbon
+                ? $l->start_date->format($dateFmt) : ($l->start_date ? \Carbon\Carbon::parse($l->start_date)->format($dateFmt) : null);
+            $arr['end_date_display']   = $l->end_date instanceof \Carbon\Carbon
+                ? $l->end_date->format($dateFmt) : ($l->end_date ? \Carbon\Carbon::parse($l->end_date)->format($dateFmt) : null);
+            return $arr;
+        });
+
         return response()->json([
-            'leaves'  => $leaves->items(),
+            'leaves'  => $leavesData,
             'summary' => $summary,
             'total'   => $leaves->total(),
             'page'    => $leaves->currentPage(),

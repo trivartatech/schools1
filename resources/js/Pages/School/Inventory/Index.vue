@@ -214,7 +214,8 @@ const statusLabel  = { available: 'Available', assigned: 'Assigned', under_maint
 const conditionDot = { excellent: '#10b981', good: '#3b82f6', fair: '#f59e0b', poor: '#ef4444', condemned: '#6b7280' };
 const maintStatusColor = { open: '#ef4444', in_progress: '#f59e0b', resolved: '#10b981', scrapped: '#94a3b8' };
 const maintStatusLabel = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved', scrapped: 'Scrapped' };
-const fmt     = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+import { useFormat } from '@/Composables/useFormat';
+const { formatDate: fmt } = useFormat();
 const fmtCost = (n) => n ? '₹' + Number(n).toLocaleString('en-IN') : '—';
 const maintTotal = (logs) => logs?.reduce((s, l) => s + parseFloat(l.cost || 0), 0) ?? 0;
 </script>

@@ -107,9 +107,8 @@ function classSection(hs) {
     if (!h) return '—';
     return [h.course_class?.name, h.section?.name].filter(Boolean).join(' – ');
 }
-function formatDate(dt) {
-    return dt ? new Date(dt).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' }) : '';
-}
+import { useFormat } from '@/Composables/useFormat';
+const { formatDate } = useFormat();
 </script>
 
 <template>

@@ -46,7 +46,8 @@ const eventTypeColor = {
     other:               'badge-gray',
 };
 
-const fmt = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+import { useFormat } from '@/Composables/useFormat';
+const { formatDate: fmt } = useFormat();
 const fmtSal = (n) => n ? '₹' + Number(n).toLocaleString('en-IN') : '—';
 
 const needsDesignation = (et) => ['promotion', 'demotion', 'designation_change', 'confirmation'].includes(et);

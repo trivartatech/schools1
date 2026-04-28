@@ -4,6 +4,9 @@ import { ref, computed } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import SchoolLayout from '@/Layouts/SchoolLayout.vue'
 import axios from 'axios'
+import { useFormat } from '@/Composables/useFormat';
+
+const { formatDateTime } = useFormat();
 
 const props = defineProps({
     years:      { type: Array,  default: () => [] },
@@ -328,7 +331,7 @@ const nextPhaseActionFor = (state) => {
                         <td>{{ r.id }}</td>
                         <td>{{ r.source_year?.name }} → {{ r.target_year?.name }}</td>
                         <td><span class="run-state" :data-state="r.state">{{ phaseLabel(r.state) }}</span></td>
-                        <td>{{ r.started_at ? new Date(r.started_at).toLocaleString() : '—' }}</td>
+                        <td>{{ formatDateTime(r.started_at) }}</td>
                         <td>{{ r.started_by?.name || '—' }}</td>
                         <td><a :href="`/school/settings/rollover/runs/${r.id}`" class="run-link">View</a></td>
                     </tr>

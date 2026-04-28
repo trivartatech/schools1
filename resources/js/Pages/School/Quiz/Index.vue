@@ -11,7 +11,8 @@ const deleteQuiz = (id) => {
     if (confirm('Delete this quiz?')) router.delete(`/school/quiz/${id}`, { preserveScroll: true });
 };
 
-const fmt = (d) => d ? new Date(d).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+import { useFormat } from '@/Composables/useFormat';
+const { formatDateTime: fmt } = useFormat();
 </script>
 
 <template>

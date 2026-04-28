@@ -4,6 +4,9 @@ import { router, usePage } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
+import { useFormat } from '@/Composables/useFormat';
+
+const { formatDate } = useFormat();
 
 const school = useSchoolStore();
 
@@ -31,7 +34,7 @@ const timeStr = computed(() => {
     const ss = String(t.getSeconds()).padStart(2, '0');
     return school.fmtTime(`${hh}:${mm}:${ss}`);
 });
-const dateStr = computed(() => currentTime.value.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
+const dateStr = computed(() => formatDate(currentTime.value));
 
 // ── Geolocation ─────────────────────────────────────────────
 const geoStatus = ref('idle');   // idle | loading | success | error | denied

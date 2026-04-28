@@ -47,10 +47,8 @@ function tripLabel(type) {
     return type === 'pickup' ? 'Pickup' : 'Drop';
 }
 
-function formatDate(d) {
-    if (!d) return '—';
-    return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-}
+import { useFormat } from '@/Composables/useFormat';
+const { formatDate } = useFormat();
 </script>
 
 <template>

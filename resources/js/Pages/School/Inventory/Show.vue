@@ -31,7 +31,8 @@ const conditionDot = { excellent: '#10b981', good: '#3b82f6', fair: '#f59e0b', p
 const maintStatusColor = { open: '#ef4444', in_progress: '#f59e0b', resolved: '#10b981', scrapped: '#94a3b8' };
 const maintStatusLabel = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved', scrapped: 'Scrapped' };
 
-const fmt     = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+import { useFormat } from '@/Composables/useFormat';
+const { formatDate: fmt } = useFormat();
 const fmtCost = (n) => n != null && n !== '' ? '₹' + Number(n).toLocaleString('en-IN') : '—';
 const pct     = (a, b) => (b && b > 0) ? Math.round((a / b) * 100) : 0;
 

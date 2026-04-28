@@ -16,7 +16,8 @@ const passRate = computed(() => {
     return Math.round(graded.filter(a => a.passed).length / graded.length * 100);
 });
 
-const fmt = (d) => d ? new Date(d).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+import { useFormat } from '@/Composables/useFormat';
+const { formatDateTime: fmt } = useFormat();
 </script>
 
 <template>

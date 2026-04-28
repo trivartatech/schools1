@@ -3,6 +3,9 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
 import { useForm, router, Link } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
+import { useFormat } from '@/Composables/useFormat';
+
+const { formatDate: fmt } = useFormat();
 
 const props = defineProps({ session: Object });
 
@@ -44,7 +47,7 @@ const statusBadge = { booked: 'badge-amber', completed: 'badge-green', cancelled
             <div>
                 <Link href="/school/ptm" style="font-size:.8rem;color:#94a3b8;">← Back to Sessions</Link>
                 <h1 class="page-header-title" style="margin-top:4px;">{{ session.title }}</h1>
-                <div style="font-size:.85rem;color:#64748b;">{{ new Date(session.date).toLocaleDateString('en-IN', { weekday:'long', day:'2-digit', month:'long', year:'numeric' }) }} · {{ session.start_time?.slice(0,5) }}–{{ session.end_time?.slice(0,5) }}</div>
+                <div style="font-size:.85rem;color:#64748b;">{{ fmt(session.date) }} · {{ session.start_time?.slice(0,5) }}–{{ session.end_time?.slice(0,5) }}</div>
             </div>
             <span class="badge" :class="{ 'badge-gray': session.status === 'draft', 'badge-green': session.status === 'open', 'badge-amber': session.status === 'closed' }" style="font-size:.9rem;padding:6px 14px;">{{ session.status }}</span>
         </div>

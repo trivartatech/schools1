@@ -26,7 +26,8 @@ const search = () => {
     }, { preserveState: true, preserveScroll: true });
 };
 
-const fmt = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+import { useFormat } from '@/Composables/useFormat';
+const { formatDate: fmt } = useFormat();
 
 const currentEntry = computed(() => props.history.find(h => !h.effective_to));
 const archivedEntries = computed(() => props.history.filter(h => h.effective_to));

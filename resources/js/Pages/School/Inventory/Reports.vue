@@ -30,7 +30,8 @@ const setSort = (key) => {
     else deprSort.value = { key, dir: 'desc' };
 };
 
-const fmt     = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+import { useFormat } from '@/Composables/useFormat';
+const { formatDate: fmt } = useFormat();
 const fmtCost = (n) => n != null ? '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '—';
 const pct     = (a, b) => b ? Math.round((a / b) * 100) : 0;
 

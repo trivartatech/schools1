@@ -54,7 +54,8 @@ const markFinePaid = (id) => {
     router.patch(`/school/library/issues/${id}/fine-paid`, {}, { preserveScroll: true });
 };
 
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+import { useFormat } from '@/Composables/useFormat';
+const { formatDate: fmtDate } = useFormat();
 </script>
 
 <template>

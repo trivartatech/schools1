@@ -21,7 +21,8 @@ const updateStatus = (id, status) => {
     router.patch(`/school/ptm/${id}/status`, { status }, { preserveScroll: true });
 };
 
-const fmt = (d) => d ? new Date(d).toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+import { useFormat } from '@/Composables/useFormat';
+const { formatDate: fmt } = useFormat();
 
 const statusConfig = {
     draft:  { label: 'Draft',  color: '#64748b', bg: '#f1f5f9', dot: '#94a3b8' },
