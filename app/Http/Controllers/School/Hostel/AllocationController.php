@@ -38,12 +38,60 @@ class AllocationController extends Controller
             ->with('studentParent:id,guardian_name,father_name,mother_name,primary_phone,father_phone')
             ->get(['id', 'first_name', 'last_name', 'admission_no', 'parent_id']);
 
+        $classes = \App\Models\CourseClass::where('school_id', $schoolId)
+            ->orderBy('numeric_value')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         return Inertia::render('School/Hostel/Allocations/Index', [
-            'allocations' => $allocations,
+            'allocations'   => $allocations,
             'availableBeds' => $availableBeds,
-            'students' => $students,
-            'filters' => $request->only('status')
+            'students'      => $students,
+            'classes'       => $classes,
+            'filters'       => $request->only('status')
         ]);
+    }
+
+    /**
+     * AJAX endpoint: students enrolled in a given class (and optionally section)
+     * for the current academic year. Used by the allocate-room modal to filter
+     * the student dropdown.
+     */
+    public function studentsByClass(Request $request)
+    {
+        $schoolId       = app('current_school_id');
+        $academicYearId = app('current_academic_year_id');
+        $classId        = $request->get('class_id');
+        $sectionId      = $request->get('section_id');
+
+        if (!$classId) {
+            return response()->json([]);
+        }
+
+        $query = \App\Models\StudentAcademicHistory::with('student:id,first_name,last_name,admission_no,parent_id')
+            ->with('student.studentParent:id,guardian_name,father_name,mother_name,primary_phone,father_phone')
+            ->where('school_id', $schoolId)
+            ->where('academic_year_id', $academicYearId)
+            ->where('class_id', $classId)
+            ->where('status', 'current');
+
+        if ($sectionId) {
+            $query->where('section_id', $sectionId);
+        }
+
+        $students = $query->get()
+            ->filter(fn($h) => $h->student !== null)
+            ->map(function ($h) {
+                return [
+                    'id'              => $h->student_id,
+                    'first_name'      => $h->student->first_name,
+                    'last_name'       => $h->student->last_name,
+                    'admission_no'    => $h->student->admission_no,
+                    'student_parent'  => $h->student->studentParent,
+                ];
+            })->values();
+
+        return response()->json($students);
     }
 
     public function store(Request $request)

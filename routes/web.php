@@ -786,6 +786,7 @@ Route::middleware('auth')->group(function () {
                 
                 // Allocations (Student Registration)
                 Route::get('allocations', [\App\Http\Controllers\School\Hostel\AllocationController::class, 'index'])->name('allocations.index');
+                Route::get('allocations/students-by-class', [\App\Http\Controllers\School\Hostel\AllocationController::class, 'studentsByClass'])->name('allocations.students-by-class');
                 Route::post('allocations', [\App\Http\Controllers\School\Hostel\AllocationController::class, 'store'])->name('allocations.store');
                 Route::put('allocations/{allocation}', [\App\Http\Controllers\School\Hostel\AllocationController::class, 'update'])->name('allocations.update');
                 Route::post('allocations/{allocation}/vacate', [\App\Http\Controllers\School\Hostel\AllocationController::class, 'vacate'])->name('allocations.vacate');

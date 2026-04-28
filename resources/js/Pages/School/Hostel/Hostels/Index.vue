@@ -205,6 +205,44 @@ function destroy(item) {
     background: #fff; border-radius: 0.75rem; width: 100%; max-width: 32rem;
     max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
 }
+
+/* Form layout — Tailwind preflight strips browser defaults from <input>/<select>,
+   so explicit styles are needed to make them visible inside our modals. */
+.form-row { display: flex; }
+.form-row > .form-field { flex: 1; }
+.form-row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+}
+.form-field { display: flex; flex-direction: column; gap: 0.35rem; }
+.form-field label {
+    font-size: 0.78rem; font-weight: 600; color: #374151;
+}
+.form-field input,
+.form-field select,
+.form-field textarea {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    background: #fff;
+    color: #111827;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.form-field textarea { min-height: 80px; resize: vertical; }
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+.section-heading {
+    font-size: 0.72rem; font-weight: 700; color: #6b7280;
+    text-transform: uppercase; letter-spacing: 0.05em;
+}
 </style>
 
 

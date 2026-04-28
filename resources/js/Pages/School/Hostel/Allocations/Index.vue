@@ -1,14 +1,16 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
-import { ref, reactive, watch } from 'vue';
+import { ref, reactive, watch, computed } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
+import axios from 'axios';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
 
 const props = defineProps({
     allocations: Object,
     availableBeds: Array,
-    students: Array,
+    students: Array,    // fallback "all students" list (used when no class is picked)
+    classes: { type: Array, default: () => [] },
 });
 
 const showModal    = ref(false);
@@ -25,9 +27,53 @@ const form = reactive({
 const vacateForm = reactive({ vacate_date: '' });
 const transferForm = reactive({ new_bed_id: '' });
 
+// ── Class / Section filter state for the allocate modal ──────────────────
+const filterClassId   = ref('');
+const filterSectionId = ref('');
+const sections        = ref([]);          // sections of the chosen class
+const classStudents   = ref(null);        // students filtered by class+section (null = no filter applied yet)
+const studentsLoading = ref(false);
+
+// What the dropdown actually shows: filtered list when set, otherwise the full list.
+const visibleStudents = computed(() => classStudents.value ?? props.students ?? []);
+
+watch(filterClassId, async (classId) => {
+    filterSectionId.value = '';
+    sections.value        = [];
+    classStudents.value   = null;
+    form.student_id       = '';
+    if (!classId) return;
+    try {
+        const [secRes, stuRes] = await Promise.all([
+            axios.get(`/school/classes/${classId}/sections`),
+            axios.get('/school/hostel/allocations/students-by-class', { params: { class_id: classId } }),
+        ]);
+        sections.value      = secRes.data || [];
+        classStudents.value = stuRes.data || [];
+    } catch (e) {
+        console.error('Failed to load sections/students for class', e);
+    }
+});
+
+watch(filterSectionId, async (sectionId) => {
+    if (!filterClassId.value) return;
+    studentsLoading.value = true;
+    form.student_id       = '';
+    try {
+        const { data } = await axios.get('/school/hostel/allocations/students-by-class', {
+            params: { class_id: filterClassId.value, section_id: sectionId || undefined },
+        });
+        classStudents.value = data || [];
+    } catch (e) {
+        console.error('Failed to load students for section', e);
+    } finally {
+        studentsLoading.value = false;
+    }
+});
+
 watch(() => form.student_id, (newId) => {
     if (newId && !editing.value) { // Only auto-fill if not editing manually
-        const st = props.students?.find(s => s.id === newId);
+        const st = visibleStudents.value?.find(s => s.id === newId);
         if (st && st.student_parent) {
             let p = st.student_parent;
             form.guardian_name = p.guardian_name || p.father_name || p.mother_name || '';
@@ -42,8 +88,12 @@ watch(() => form.student_id, (newId) => {
 const hasBeds = () => props.availableBeds && props.availableBeds.length > 0;
 
 function openModal() {
-    editing.value = null;
-    errors.value  = {};
+    editing.value         = null;
+    errors.value          = {};
+    filterClassId.value   = '';
+    filterSectionId.value = '';
+    sections.value        = [];
+    classStudents.value   = null;
     Object.assign(form, {
         student_id:       '',
         hostel_bed_id:    hasBeds() ? props.availableBeds[0].id : '',
@@ -195,13 +245,34 @@ function saveTransfer() {
                             No available beds. Please add rooms first.
                         </div>
 
-                        <div class="form-row">
+                        <!-- Filter by Class / Section -->
+                        <div class="form-row-2">
+                            <div class="form-field">
+                                <label>Filter by Class</label>
+                                <select v-model="filterClassId">
+                                    <option value="">All Classes</option>
+                                    <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label>Filter by Section</label>
+                                <select v-model="filterSectionId" :disabled="!filterClassId || sections.length === 0">
+                                    <option value="">All Sections</option>
+                                    <option v-for="s in sections" :key="s.id" :value="s.id">{{ s.name }}</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row" style="margin-top: 1rem;">
                             <div class="form-field">
                                 <label>Student *</label>
-                                <select v-model="form.student_id" required>
-                                    <option value="">Select Student</option>
-                                    <option v-for="s in students" :key="s.id" :value="s.id">{{ s.first_name }} {{ s.last_name }} ({{ s.admission_no }})</option>
+                                <select v-model="form.student_id" required :disabled="studentsLoading">
+                                    <option value="">{{ studentsLoading ? 'Loading…' : (visibleStudents.length ? 'Select Student' : 'No students match the filter') }}</option>
+                                    <option v-for="s in visibleStudents" :key="s.id" :value="s.id">{{ s.first_name }} {{ s.last_name }} ({{ s.admission_no }})</option>
                                 </select>
+                                <p class="hint" v-if="filterClassId">
+                                    Showing {{ visibleStudents.length }} student(s) in the selected {{ filterSectionId ? 'section' : 'class' }}.
+                                </p>
                             </div>
                         </div>
                         <div class="form-row" style="margin-top: 1rem;">
@@ -330,5 +401,44 @@ function saveTransfer() {
     background: #fff; border-radius: 0.75rem; width: 100%; max-width: 32rem;
     max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
 }
+
+/* Form layout — Tailwind preflight strips browser defaults from <input>/<select>,
+   so explicit styles are needed to make them visible inside our modals. */
+.form-row { display: flex; }
+.form-row > .form-field { flex: 1; }
+.form-row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+.form-field { display: flex; flex-direction: column; gap: 0.35rem; }
+.form-field label {
+    font-size: 0.78rem; font-weight: 600; color: #374151;
+}
+.form-field input,
+.form-field select,
+.form-field textarea {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    background: #fff;
+    color: #111827;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.form-field textarea { min-height: 80px; resize: vertical; }
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+.form-field select:disabled,
+.form-field input:disabled {
+    background: #f9fafb; color: #9ca3af; cursor: not-allowed;
+}
+.hint { font-size: 0.72rem; color: #6b7280; margin-top: 0.15rem; }
 </style>
 
