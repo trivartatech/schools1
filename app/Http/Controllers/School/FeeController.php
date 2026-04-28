@@ -283,10 +283,11 @@ class FeeController extends Controller
                 $history   = $student->currentAcademicHistory;
                 $classId   = $history?->class_id;
 
-                // Determine if student is new or old
-                // If they have > 1 history record, they are old, otherwise new.
+                // Determine if student is new or old. Honour an explicit
+                // override on the current academic history row first, falling
+                // back to the "more than one history row" heuristic.
                 $historyCount = StudentAcademicHistory::where('student_id', $student->id)->count();
-                $studentType = $historyCount > 1 ? 'old' : 'new';
+                $studentType  = StudentAcademicHistory::resolveStudentType($history?->student_type, $historyCount);
                 $gender = strtolower($student->gender);
 
                 $structures = FeeStructure::where('school_id', $schoolId)

@@ -209,7 +209,10 @@ class LedgerController extends Controller
             $history = $student->currentAcademicHistory;
             if (!$history) { $skippedNoBalance++; continue; }
 
-            $studentType = ($historyCounts[$student->id] ?? 1) > 1 ? 'old' : 'new';
+            $studentType = \App\Models\StudentAcademicHistory::resolveStudentType(
+                $history->student_type,
+                $historyCounts[$student->id] ?? 1,
+            );
             $gender      = strtolower($student->gender);
 
             $totalDue = $feeStructures->filter(function ($s) use ($history, $studentType, $gender) {

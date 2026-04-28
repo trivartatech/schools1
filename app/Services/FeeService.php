@@ -53,7 +53,7 @@ class FeeService
         $classId     = $history->class_id;
         $gender      = strtolower($student->gender ?? 'all');
         $historyCount= StudentAcademicHistory::where('student_id', $student->id)->count();
-        $studentType = $historyCount > 1 ? 'old' : 'new';
+        $studentType = StudentAcademicHistory::resolveStudentType($history->student_type, $historyCount);
 
         // 2. Fee Structures (always fetched — not typically pre-loadable from Student)
         $structures = FeeStructure::where('school_id', $schoolId)
@@ -353,7 +353,10 @@ class FeeService
         foreach ($studentHistories as $sh) {
             $classId     = $sh->class_id;
             $gender      = strtolower($sh->student->gender ?? 'all');
-            $studentType = ($historyCounts[$sh->student_id] ?? 1) > 1 ? 'old' : 'new';
+            $studentType = StudentAcademicHistory::resolveStudentType(
+                $sh->student_type,
+                $historyCounts[$sh->student_id] ?? 1,
+            );
 
             $studentTotal = $structures->filter(function ($s) use ($classId, $gender, $studentType) {
                 if ($s->class_id != $classId) return false;

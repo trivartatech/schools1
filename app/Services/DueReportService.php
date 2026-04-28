@@ -83,8 +83,11 @@ class DueReportService
             $history = $student->currentAcademicHistory;
             if (!$history) continue;
 
-            $studentType = ($historyCounts[$student->id] ?? 1) > 1 ? 'old' : 'new';
-            $gender      = strtolower((string) $student->gender);
+            $studentType = StudentAcademicHistory::resolveStudentType(
+                $history->student_type,
+                $historyCounts[$student->id] ?? 1,
+            );
+            $gender = strtolower((string) $student->gender);
 
             $applicable = $feeStructures->filter(function ($s) use ($history, $studentType, $gender) {
                 if ($s->class_id != $history->class_id) return false;

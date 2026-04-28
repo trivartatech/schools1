@@ -157,10 +157,15 @@ class StudentController extends Controller
 
             $students->getCollection()->transform(function ($student) use ($structures, $payments, $historyCounts) {
                 $classId = $student->currentAcademicHistory?->class_id;
-                
-                // Student properties for optional fees
+
+                // Student properties for optional fees — honour an explicit
+                // student_type override on the current history row, otherwise
+                // fall back to count-based heuristic.
                 $hCount = $historyCounts[$student->id] ?? 0;
-                $studentType = $hCount > 1 ? 'old' : 'new';
+                $studentType = \App\Models\StudentAcademicHistory::resolveStudentType(
+                    $student->currentAcademicHistory?->student_type,
+                    $hCount,
+                );
                 $gender = strtolower($student->gender ?? 'all');
     
                 $studentStructures = $structures->where('class_id', $classId)
