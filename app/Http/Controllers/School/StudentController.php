@@ -1156,4 +1156,29 @@ class StudentController extends Controller
             ? "{$student->name} flagged as defaulter."
             : "{$student->name} unflagged.");
     }
+
+    /**
+     * Bulk-flag (or unflag) a list of students as defaulters. Used by the
+     * Due Report's "Mark all listed as Defaulter" button so an accountant
+     * can flag everyone with outstanding regular / transport / hostel /
+     * stationary dues in one click instead of opening each profile.
+     */
+    public function bulkFlagDefaulter(Request $request)
+    {
+        $schoolId = app('current_school_id');
+
+        $validated = $request->validate([
+            'student_ids'   => 'required|array|min:1',
+            'student_ids.*' => 'integer',
+            'is_defaulter'  => 'required|boolean',
+        ]);
+
+        $count = Student::where('school_id', $schoolId)
+            ->whereIn('id', $validated['student_ids'])
+            ->update(['is_defaulter' => $validated['is_defaulter']]);
+
+        return back()->with('success', $validated['is_defaulter']
+            ? "{$count} student(s) flagged as defaulter."
+            : "{$count} student(s) unflagged.");
+    }
 }

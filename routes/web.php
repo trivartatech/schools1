@@ -314,6 +314,7 @@ Route::middleware('auth')->group(function () {
             Route::patch('students/{student}/admission-no', [\App\Http\Controllers\School\StudentController::class, 'updateAdmissionNo'])->name('students.admission-no.update');
             Route::patch('students/{student}/record', [\App\Http\Controllers\School\StudentController::class, 'updateRecord'])->name('students.record.update');
             Route::patch('students/{student}/defaulter', [\App\Http\Controllers\School\StudentController::class, 'toggleDefaulter'])->name('students.defaulter.toggle');
+            Route::post('students/bulk-flag-defaulter', [\App\Http\Controllers\School\StudentController::class, 'bulkFlagDefaulter'])->name('students.defaulter.bulk');
 
             $R = \App\Http\Controllers\School\StudentApplicationController::class;
             Route::resource('registrations', $R)->except(['destroy']);

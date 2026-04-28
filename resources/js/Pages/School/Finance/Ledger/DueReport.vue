@@ -213,6 +213,50 @@ async function sendAll() {
     await sendReminder(targets.map(d => d.student_id), `${targets.length} parent(s)`);
     sendingBulk.value = false;
 }
+
+// ── Defaulter flag controls ──────────────────────────────────────────────────
+const flaggingFor  = ref(null);   // student_id while a single flag toggle is in flight
+const flaggingBulk = ref(false);
+
+function toggleRowDefaulter(row) {
+    const next = !row.is_defaulter;
+    flaggingFor.value = row.student_id;
+    router.patch(`/school/students/${row.student_id}/defaulter`,
+        { is_defaulter: next },
+        {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => { row.is_defaulter = next; },   // optimistic update on the in-memory row
+            onFinish:  () => { flaggingFor.value = null; },
+        }
+    );
+}
+
+function bulkFlagListed(flag) {
+    // Targets students currently visible (after search + fee-type filter) with balance > 0
+    // OR for "unflag", any visible student with is_defaulter === true.
+    const targets = sortedRows.value.filter(r =>
+        flag ? Number(r.total_balance || 0) > 0 && !r.is_defaulter
+             : r.is_defaulter
+    );
+    if (!targets.length) {
+        alert(flag
+            ? 'No matching students to flag — everyone with dues is already flagged.'
+            : 'No flagged students in the current view to unflag.');
+        return;
+    }
+    const verb = flag ? 'flag as defaulter' : 'unflag';
+    if (!confirm(`${verb.charAt(0).toUpperCase() + verb.slice(1)} ${targets.length} student(s) currently shown? This sets the defaulter pill on their profile.`)) return;
+    flaggingBulk.value = true;
+    router.post(route('school.students.defaulter.bulk'),
+        { student_ids: targets.map(t => t.student_id), is_defaulter: flag },
+        {
+            preserveScroll: true,
+            preserveState: false,   // refresh the list so flags re-render server-side
+            onFinish: () => { flaggingBulk.value = false; },
+        }
+    );
+}
 </script>
 
 <template>
@@ -221,9 +265,25 @@ async function sendAll() {
         <div class="page-header">
             <div>
                 <h1 class="page-header-title">Due Report &amp; Defaulter List</h1>
-                <p class="page-header-sub">All students for the current academic year, with regular, transport and hostel fee balances.</p>
+                <p class="page-header-sub">All students for the current academic year, with regular, transport, hostel, and stationary fee balances.</p>
             </div>
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 flex-wrap">
+                <Button
+                    variant="secondary"
+                    :disabled="flaggingBulk || sortedRows.length === 0"
+                    title="Mark every visible student with outstanding dues as a defaulter"
+                    @click="bulkFlagListed(true)"
+                >
+                    {{ flaggingBulk ? '…' : '🚩 Flag Listed' }}
+                </Button>
+                <Button
+                    variant="secondary"
+                    :disabled="flaggingBulk || sortedRows.filter(r => r.is_defaulter).length === 0"
+                    title="Remove the defaulter flag from every visible flagged student"
+                    @click="bulkFlagListed(false)"
+                >
+                    {{ flaggingBulk ? '…' : '✓ Unflag Listed' }}
+                </Button>
                 <Button
                     variant="primary"
                     :disabled="sendingBulk || defaulters.length === 0"
@@ -405,7 +465,7 @@ async function sendAll() {
                                 {{ formatCurrency(row.total_balance) }}
                             </td>
                             <td class="text-center print:hidden">
-                                <div class="flex items-center justify-center gap-2">
+                                <div class="flex items-center justify-center gap-2 flex-wrap">
                                     <Button
                                         v-if="Number(row.total_balance) > 0"
                                         size="xs"
@@ -421,6 +481,15 @@ async function sendAll() {
                                         @click="sendOne(row)"
                                     >
                                         {{ sendingFor === row.student_id ? '…' : '📣 Remind' }}
+                                    </Button>
+                                    <Button
+                                        size="xs"
+                                        variant="secondary"
+                                        :disabled="flaggingFor === row.student_id"
+                                        :title="row.is_defaulter ? 'Click to unflag this student' : 'Mark this student as a fee defaulter'"
+                                        @click="toggleRowDefaulter(row)"
+                                    >
+                                        {{ flaggingFor === row.student_id ? '…' : (row.is_defaulter ? '✓ Unflag' : '🚩 Flag') }}
                                     </Button>
                                 </div>
                             </td>
