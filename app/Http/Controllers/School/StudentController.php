@@ -328,6 +328,13 @@ class StudentController extends Controller
             'transportAllocation.stop',
             'transportAllocation.vehicle',
             'hostelAllocation.bed.room.hostel',
+            'stationaryAllocation.academicYear:id,name',
+            'stationaryAllocation.lineItems.item',
+            'stationaryAllocation.payments' => fn($q) => $q->orderByDesc('payment_date')->orderByDesc('id'),
+            'stationaryAllocation.issuances' => fn($q) => $q->orderByDesc('issued_at'),
+            'stationaryAllocation.issuances.items.item',
+            'stationaryAllocation.returns' => fn($q) => $q->orderByDesc('returned_at'),
+            'stationaryAllocation.returns.items.item',
         ]);
 
         $schoolId = app('current_school_id');
@@ -506,6 +513,12 @@ class StudentController extends Controller
                 'hostel_id'      => $b->room?->hostel_id,
             ])->values();
 
+        // Stationary items list — for the inline "Assign Kit" form on the empty-state.
+        $stationaryItems = \App\Models\StationaryItem::where('school_id', $schoolId)
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get(['id', 'name', 'code', 'unit_price', 'current_stock']);
+
         return Inertia::render('School/Students/Show', [
             'student'             => $student,
             'attendanceSummary'   => $attendanceSummary,
@@ -519,6 +532,7 @@ class StudentController extends Controller
             'transportRoutes'     => $transportRoutes,
             'standardMonths'      => $standardMonths,
             'availableHostelBeds' => $availableHostelBeds,
+            'stationaryItems'     => $stationaryItems,
         ]);
     }
 

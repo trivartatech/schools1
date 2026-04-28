@@ -31,6 +31,7 @@ const props = defineProps({
     transportRoutes:    { type: Array,  default: () => [] },
     standardMonths:     { type: Number, default: 10 },
     availableHostelBeds:{ type: Array,  default: () => [] },
+    stationaryItems:    { type: Array,  default: () => [] },
 });
 
 // ── Date Formatting ───────────────────────────────────────────────────────────
@@ -50,6 +51,7 @@ const tabs = [
     { key: 'exam',        label: 'Exam Report', icon: '📝' },
     { key: 'documents',   label: 'Document',    icon: '📄' },
     { key: 'transport',   label: 'Transport',   icon: '🚌' },
+    { key: 'stationary',  label: 'Stationary',  icon: '📚' },
     { key: 'hostel',      label: 'Hostel',      icon: '🏠' },
 ];
 
@@ -220,6 +222,33 @@ function submitAssignTransport() {
     assignForm.post('/school/transport/allocations', {
         preserveScroll: true,
         onSuccess: () => { showAssignTransport.value = false; },
+    });
+}
+
+// ── Inline Assign Stationary Kit (shown when student has no allocation) ──────
+const showAssignStationary = ref(false);
+const assignStationaryForm = useForm({
+    student_ids: [props.student.id],
+    lines:       [{ item_id: '', qty: 1 }],
+    remarks:     '',
+    status:      'active',
+});
+
+function addStationaryLine()    { assignStationaryForm.lines.push({ item_id: '', qty: 1 }); }
+function removeStationaryLine(i){ assignStationaryForm.lines.splice(i, 1); }
+
+const stationaryAssignTotal = computed(() => {
+    return assignStationaryForm.lines.reduce((sum, line) => {
+        const item = props.stationaryItems.find(i => i.id == line.item_id);
+        if (!item) return sum;
+        return sum + (parseFloat(item.unit_price) * (parseInt(line.qty) || 0));
+    }, 0);
+});
+
+function submitAssignStationary() {
+    assignStationaryForm.post('/school/stationary/allocations', {
+        preserveScroll: true,
+        onSuccess: () => { showAssignStationary.value = false; },
     });
 }
 
@@ -1204,6 +1233,212 @@ function submitAssignHostel() {
                                             :loading="assignForm.processing"
                                             :disabled="assignForm.processing || assignTermTooShort || assignMonthsOpted === 0 || !assignForm.route_id || !assignForm.stop_id">
                                         {{ assignForm.processing ? 'Assigning…' : 'Assign Transport' }}
+                                    </Button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ─── TAB: STATIONARY ────────────────────────────────────── -->
+                <div v-if="activeTab === 'stationary'">
+                    <div class="card">
+                        <div class="card-header" style="gap:0.5rem;flex-wrap:wrap;">
+                            <span class="card-title">Stationary Kit Details</span>
+                            <div style="display:flex;gap:0.5rem;margin-left:auto;flex-wrap:wrap;">
+                                <Button v-if="student.stationary_allocation" size="sm" as="a"
+                                        :href="`/school/stationary/allocations/${student.stationary_allocation.id}`">
+                                    📦 Manage Kit
+                                </Button>
+                                <Button v-if="student.stationary_allocation" size="sm" as="a"
+                                        :href="`/school/stationary/fees/${student.stationary_allocation.id}`">
+                                    💰 Collect Fee
+                                </Button>
+                                <Button variant="secondary" size="sm" as="a" href="/school/stationary/allocations">
+                                    All Allocations
+                                </Button>
+                            </div>
+                        </div>
+
+                        <!-- WHEN ALLOCATION EXISTS -->
+                        <div v-if="student.stationary_allocation" class="card-body">
+                            <!-- Banner -->
+                            <div class="stationary-banner">
+                                <div class="stationary-banner-icon">📚</div>
+                                <div style="flex:1;min-width:0;">
+                                    <div class="stationary-route-name">Stationary Kit</div>
+                                    <div class="stationary-route-meta">
+                                        Academic Year: {{ student.stationary_allocation.academic_year?.name ?? '—' }}
+                                        <span v-if="student.stationary_allocation.last_issued_date">
+                                            · Last issued: {{ student.stationary_allocation.last_issued_date }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                    <span :class="['badge', {
+                                        'badge-green':  student.stationary_allocation.payment_status === 'paid',
+                                        'badge-amber':  student.stationary_allocation.payment_status === 'partial',
+                                        'badge-red':    student.stationary_allocation.payment_status === 'unpaid',
+                                        'badge-gray':   student.stationary_allocation.payment_status === 'waived',
+                                    }]">Pay: {{ student.stationary_allocation.payment_status }}</span>
+                                    <span :class="['badge', {
+                                        'badge-green':  student.stationary_allocation.collection_status === 'complete',
+                                        'badge-amber':  student.stationary_allocation.collection_status === 'partial',
+                                        'badge-red':    student.stationary_allocation.collection_status === 'none',
+                                    }]">Coll: {{ student.stationary_allocation.collection_status }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Money + Collection summary grid -->
+                            <div class="stationary-grid">
+                                <div class="stationary-field">
+                                    <div class="stationary-field-label">Total Amount</div>
+                                    <div class="stationary-field-value">₹{{ Number(student.stationary_allocation.total_amount).toLocaleString('en-IN') }}</div>
+                                </div>
+                                <div class="stationary-field">
+                                    <div class="stationary-field-label">Paid</div>
+                                    <div class="stationary-field-value" style="color:#059669;">₹{{ Number(student.stationary_allocation.amount_paid).toLocaleString('en-IN') }}</div>
+                                </div>
+                                <div class="stationary-field">
+                                    <div class="stationary-field-label">Balance</div>
+                                    <div class="stationary-field-value" :style="parseFloat(student.stationary_allocation.balance) > 0 ? 'color:#dc2626;' : 'color:#059669;'">
+                                        ₹{{ Number(student.stationary_allocation.balance).toLocaleString('en-IN') }}
+                                    </div>
+                                </div>
+                                <div class="stationary-field">
+                                    <div class="stationary-field-label">Discount + Fine</div>
+                                    <div class="stationary-field-value">
+                                        ₹{{ Number(student.stationary_allocation.discount).toLocaleString('en-IN') }} / ₹{{ Number(student.stationary_allocation.fine).toLocaleString('en-IN') }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Kit composition -->
+                            <div v-if="student.stationary_allocation.line_items?.length" style="margin-top:14px;">
+                                <h4 style="font-size:0.86rem;font-weight:700;color:#1e293b;margin-bottom:8px;">Kit Items</h4>
+                                <div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:8px;">
+                                    <table style="width:100%;font-size:0.84rem;border-collapse:collapse;">
+                                        <thead>
+                                            <tr style="background:#f8fafc;">
+                                                <th style="text-align:left;padding:8px 12px;font-weight:600;color:#475569;">Item</th>
+                                                <th style="text-align:right;padding:8px 12px;font-weight:600;color:#475569;">Unit Price</th>
+                                                <th style="text-align:right;padding:8px 12px;font-weight:600;color:#475569;">Entitled</th>
+                                                <th style="text-align:right;padding:8px 12px;font-weight:600;color:#475569;">Collected</th>
+                                                <th style="text-align:right;padding:8px 12px;font-weight:600;color:#475569;">Remaining</th>
+                                                <th style="text-align:right;padding:8px 12px;font-weight:600;color:#475569;">Line Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr v-for="line in student.stationary_allocation.line_items" :key="line.id" style="border-top:1px solid #f1f5f9;">
+                                                <td style="padding:8px 12px;">
+                                                    {{ line.item?.name }}
+                                                    <small v-if="line.item?.code" style="color:#94a3b8;font-family:monospace;">{{ line.item.code }}</small>
+                                                </td>
+                                                <td style="text-align:right;padding:8px 12px;">₹{{ Number(line.unit_price).toLocaleString('en-IN') }}</td>
+                                                <td style="text-align:right;padding:8px 12px;">{{ line.qty_entitled }}</td>
+                                                <td style="text-align:right;padding:8px 12px;">{{ line.qty_collected }}</td>
+                                                <td style="text-align:right;padding:8px 12px;font-weight:600;" :style="(line.qty_entitled - line.qty_collected) > 0 ? 'color:#b45309;' : 'color:#94a3b8;'">
+                                                    {{ line.qty_entitled - line.qty_collected }}
+                                                </td>
+                                                <td style="text-align:right;padding:8px 12px;">₹{{ Number(line.line_total).toLocaleString('en-IN') }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Recent receipts + issuances + returns (each compact) -->
+                            <div style="display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:12px;margin-top:14px;">
+                                <div>
+                                    <h4 style="font-size:0.82rem;font-weight:700;color:#1e293b;margin-bottom:6px;">💰 Recent Payments</h4>
+                                    <div v-if="!student.stationary_allocation.payments?.length" style="font-size:0.76rem;color:#94a3b8;padding:8px;background:#f8fafc;border-radius:6px;">No receipts yet.</div>
+                                    <div v-for="p in (student.stationary_allocation.payments || []).slice(0, 4)" :key="p.id" style="padding:6px 10px;border-bottom:1px solid #f1f5f9;font-size:0.76rem;">
+                                        <div style="display:flex;justify-content:space-between;">
+                                            <span style="font-family:monospace;">{{ p.receipt_no }}</span>
+                                            <span style="color:#059669;font-weight:600;">₹{{ Number(p.amount_paid).toLocaleString('en-IN') }}</span>
+                                        </div>
+                                        <div style="color:#94a3b8;">{{ p.payment_date }} · {{ p.payment_mode }}</div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 style="font-size:0.82rem;font-weight:700;color:#1e293b;margin-bottom:6px;">📦 Recent Issuances</h4>
+                                    <div v-if="!student.stationary_allocation.issuances?.length" style="font-size:0.76rem;color:#94a3b8;padding:8px;background:#f8fafc;border-radius:6px;">No items issued yet.</div>
+                                    <div v-for="iss in (student.stationary_allocation.issuances || []).slice(0, 4)" :key="iss.id" style="padding:6px 10px;border-bottom:1px solid #f1f5f9;font-size:0.76rem;">
+                                        <div style="color:#475569;">{{ new Date(iss.issued_at).toLocaleDateString() }}</div>
+                                        <div style="color:#94a3b8;">
+                                            <span v-for="(line, i) in iss.items" :key="line.id">{{ line.item?.name }} ×{{ line.qty_issued }}<span v-if="i < iss.items.length - 1">, </span></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 style="font-size:0.82rem;font-weight:700;color:#1e293b;margin-bottom:6px;">↩ Recent Returns</h4>
+                                    <div v-if="!student.stationary_allocation.returns?.length" style="font-size:0.76rem;color:#94a3b8;padding:8px;background:#f8fafc;border-radius:6px;">No returns recorded.</div>
+                                    <div v-for="ret in (student.stationary_allocation.returns || []).slice(0, 4)" :key="ret.id" style="padding:6px 10px;border-bottom:1px solid #f1f5f9;font-size:0.76rem;">
+                                        <div style="display:flex;justify-content:space-between;">
+                                            <span style="color:#475569;">{{ new Date(ret.returned_at).toLocaleDateString() }}</span>
+                                            <span v-if="parseFloat(ret.refund_amount) > 0" style="color:#dc2626;font-weight:600;">-₹{{ Number(ret.refund_amount).toLocaleString('en-IN') }}</span>
+                                        </div>
+                                        <div style="color:#94a3b8;">
+                                            <span v-for="(line, i) in ret.items" :key="line.id">{{ line.item?.name }} ×{{ line.qty_returned }}<span v-if="i < ret.items.length - 1">, </span></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- WHEN NO ALLOCATION -->
+                        <div v-else class="card-body">
+                            <div v-if="!showAssignStationary" class="empty-state">
+                                <div class="empty-state-icon">📚</div>
+                                <p class="empty-state-text">
+                                    No stationary kit assigned for this student.
+                                </p>
+                                <Button v-if="stationaryItems.length" size="sm" @click="showAssignStationary = true" class="mt-2.5">
+                                    + Assign Kit
+                                </Button>
+                                <p v-else style="font-size:0.78rem;color:#94a3b8;margin-top:8px;">
+                                    No active stationary items defined yet.
+                                    <a href="/school/stationary/items" style="color:#6366f1;">Add items first →</a>
+                                </p>
+                            </div>
+
+                            <!-- Inline assign form -->
+                            <form v-else @submit.prevent="submitAssignStationary" style="display:flex;flex-direction:column;gap:14px;">
+                                <h4 style="font-size:0.92rem;font-weight:700;color:#1e293b;">Assign Kit to {{ student.first_name }}</h4>
+
+                                <div style="display:flex;flex-direction:column;gap:6px;">
+                                    <label style="font-size:0.78rem;font-weight:600;color:#475569;">Kit Items *</label>
+                                    <div v-for="(line, i) in assignStationaryForm.lines" :key="i" style="display:grid;grid-template-columns:1fr 100px 100px 32px;gap:8px;align-items:center;">
+                                        <select v-model="line.item_id" required class="form-input">
+                                            <option value="">— Select Item —</option>
+                                            <option v-for="it in stationaryItems" :key="it.id" :value="it.id">
+                                                {{ it.name }} (₹{{ it.unit_price }}, stock {{ it.current_stock }})
+                                            </option>
+                                        </select>
+                                        <input v-model.number="line.qty" type="number" min="1" class="form-input" placeholder="Qty" />
+                                        <div style="font-size:0.8rem;color:#475569;text-align:right;padding:0 6px;">
+                                            ₹{{ Number((stationaryItems.find(i => i.id == line.item_id)?.unit_price || 0) * (line.qty || 0)).toLocaleString('en-IN') }}
+                                        </div>
+                                        <button v-if="assignStationaryForm.lines.length > 1" type="button" @click="removeStationaryLine(i)" style="background:#fee2e2;color:#dc2626;border:0;border-radius:6px;padding:6px;cursor:pointer;">×</button>
+                                    </div>
+                                    <Button variant="secondary" size="sm" type="button" @click="addStationaryLine" style="align-self:flex-start;">+ Add Line</Button>
+                                </div>
+
+                                <div style="background:#f8fafc;padding:10px 14px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;">
+                                    <span style="font-size:0.86rem;color:#475569;">Kit Total</span>
+                                    <span style="font-size:1.05rem;font-weight:700;color:#1e293b;">₹{{ Number(stationaryAssignTotal).toLocaleString('en-IN') }}</span>
+                                </div>
+
+                                <div style="display:flex;flex-direction:column;gap:4px;">
+                                    <label style="font-size:0.78rem;font-weight:600;color:#475569;">Remarks</label>
+                                    <textarea v-model="assignStationaryForm.remarks" rows="2" class="form-input"></textarea>
+                                </div>
+
+                                <div style="display:flex;gap:8px;">
+                                    <Button variant="secondary" size="sm" type="button" @click="showAssignStationary = false">Cancel</Button>
+                                    <Button size="sm" type="submit" :loading="assignStationaryForm.processing"
+                                           :disabled="!assignStationaryForm.lines.some(l => l.item_id && l.qty > 0)">
+                                        Assign Kit
                                     </Button>
                                 </div>
                             </form>
@@ -2752,6 +2987,64 @@ function submitAssignHostel() {
     color: #1e293b;
 }
 
+/* ── Stationary Tab ────────────────────────────────────────────────────────── */
+.stationary-banner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: linear-gradient(135deg, #fef3c7 0%, #fef9e6 100%);
+    border: 1px solid #fde68a;
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+}
+.stationary-banner-icon {
+    width: 48px;
+    height: 48px;
+    background: #fef3c7;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #b45309;
+    flex-shrink: 0;
+    font-size: 1.4rem;
+}
+.stationary-route-name {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+.stationary-route-meta {
+    font-size: 0.775rem;
+    color: #64748b;
+    margin-top: 2px;
+}
+.stationary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+.stationary-field {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 14px;
+}
+.stationary-field-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #94a3b8;
+    margin-bottom: 4px;
+}
+.stationary-field-value {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #1e293b;
+}
+
 /* Route stops timeline */
 .route-stops-timeline {
     display: flex;
@@ -2803,7 +3096,8 @@ function submitAssignHostel() {
 }
 
 @media (max-width: 768px) {
-    .transport-grid { grid-template-columns: repeat(2, 1fr); }
+    .transport-grid  { grid-template-columns: repeat(2, 1fr); }
+    .stationary-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 .defaulter-toggle {
