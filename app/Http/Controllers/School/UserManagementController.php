@@ -10,8 +10,10 @@ use App\Models\Section;
 use App\Models\Student;
 use App\Models\StudentParent;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
@@ -175,178 +177,236 @@ class UserManagementController extends Controller
      * POST /school/users/create-missing — create User accounts for any
      * StudentParent / Student records that don't have one yet. Mirrors the
      * portal:create-users artisan command but scoped per school + per type.
-     * Returns the credentials of newly created users so the admin can export.
+     *
+     * Designed to handle thousands of rows safely:
+     *   - Pre-hashes the default password ONCE (one bcrypt call instead of N).
+     *     Acceptable because the plaintext is a known default; users are
+     *     expected to change on first login.
+     *   - Chunks the parent / staff / student queries to keep memory flat.
+     *   - Per-row try/catch so a single bad row (e.g. unique-constraint clash)
+     *     doesn't roll back the whole batch.
+     *   - Cache mutex prevents two concurrent runs deadlocking the users table.
+     *   - Extends max_execution_time / memory_limit defensively.
      */
     public function createMissing(Request $request)
     {
-        $schoolId = app('current_school_id');
-        $type     = $request->input('type', 'parent'); // 'parent' | 'student' | 'all'
-        $created  = [];
+        @set_time_limit(0);
+        @ini_set('memory_limit', '512M');
 
-        DB::transaction(function () use ($schoolId, $type, &$created) {
+        $schoolId = app('current_school_id');
+        $type     = $request->input('type', 'parent'); // 'parent' | 'student' | 'staff' | 'all'
+
+        $lockKey = "create-missing-logins:school-{$schoolId}";
+        $lock    = Cache::lock($lockKey, 900); // 15-min lease
+
+        if (! $lock->get()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A bulk login-creation run is already in progress for this school. Please wait for it to finish.',
+            ], 409);
+        }
+
+        $created     = [];
+        $failed      = 0;
+        // Single bcrypt call reused for every new user — the plaintext is a
+        // known default. With cost 12 this saves ~250ms per row × 3000+ rows.
+        $passwordPlain = 'password';
+        $passwordHash  = Hash::make($passwordPlain);
+
+        try {
             // ── Parents ──
             if (in_array($type, ['parent', 'all'], true)) {
-                $parents = StudentParent::where('school_id', $schoolId)
+                StudentParent::where('school_id', $schoolId)
                     ->whereNull('user_id')
                     ->whereNotNull('primary_phone')
-                    ->get();
+                    ->orderBy('id')
+                    ->chunkById(200, function ($parents) use ($schoolId, $passwordHash, $passwordPlain, &$created, &$failed) {
+                        foreach ($parents as $parent) {
+                            try {
+                                $existing = User::where('school_id', $schoolId)
+                                    ->where(function ($q) use ($parent) {
+                                        $q->where('username', $parent->primary_phone)
+                                          ->orWhere('phone',    $parent->primary_phone);
+                                    })
+                                    ->first();
 
-                foreach ($parents as $parent) {
-                    // Avoid duplicate username/phone collision
-                    $existing = User::where('school_id', $schoolId)
-                        ->where(function ($q) use ($parent) {
-                            $q->where('username', $parent->primary_phone)
-                              ->orWhere('phone', $parent->primary_phone);
-                        })
-                        ->first();
+                                if ($existing) {
+                                    $parent->update(['user_id' => $existing->id]);
+                                    if (! $existing->hasRole('parent')) $existing->assignRole('parent');
+                                    continue;
+                                }
 
-                    if ($existing) {
-                        $parent->update(['user_id' => $existing->id]);
-                        if (!$existing->hasRole('parent')) $existing->assignRole('parent');
-                        continue;
-                    }
+                                $user = User::create([
+                                    'school_id' => $schoolId,
+                                    'name'      => $parent->father_name ?: ($parent->guardian_name ?: 'Parent'),
+                                    'username'  => $parent->primary_phone,
+                                    'phone'     => $parent->primary_phone,
+                                    'password'  => $passwordHash,
+                                    'user_type' => 'parent',
+                                    'is_active' => true,
+                                ]);
+                                $user->assignRole('parent');
+                                $parent->update(['user_id' => $user->id]);
 
-                    $password = 'password';
-                    $user = User::create([
-                        'school_id' => $schoolId,
-                        'name'      => $parent->father_name ?: ($parent->guardian_name ?: 'Parent'),
-                        'username'  => $parent->primary_phone,
-                        'phone'     => $parent->primary_phone,
-                        'password'  => Hash::make($password),
-                        'user_type' => 'parent',
-                        'is_active' => true,
-                    ]);
-                    $user->assignRole('parent');
-                    $parent->update(['user_id' => $user->id]);
+                                $firstChild = $parent->students()
+                                    ->with('currentAcademicHistory.courseClass', 'currentAcademicHistory.section')
+                                    ->first();
+                                $h = $firstChild?->currentAcademicHistory;
 
-                    // First child's class/section as a label
-                    $firstChild = $parent->students()->with('currentAcademicHistory.courseClass', 'currentAcademicHistory.section')->first();
-                    $h = $firstChild?->currentAcademicHistory;
-
-                    $created[] = [
-                        'name'         => $user->name,
-                        'role'         => 'Parent',
-                        'username'     => $user->username,
-                        'password'     => $password,
-                        'class_name'   => $h?->courseClass?->name,
-                        'section_name' => $h?->section?->name,
-                    ];
-                }
+                                $created[] = [
+                                    'name'         => $user->name,
+                                    'role'         => 'Parent',
+                                    'username'     => $user->username,
+                                    'password'     => $passwordPlain,
+                                    'class_name'   => $h?->courseClass?->name,
+                                    'section_name' => $h?->section?->name,
+                                ];
+                            } catch (\Throwable $e) {
+                                $failed++;
+                                Log::warning('createMissing parent failure', [
+                                    'parent_id' => $parent->id,
+                                    'phone'     => $parent->primary_phone,
+                                    'error'     => $e->getMessage(),
+                                ]);
+                            }
+                        }
+                    });
             }
 
             // ── Staff (teachers / drivers / accountants / etc.) ──
             // Defensive — Staff is normally created with a User, but if any
             // record was imported with user_id = null, this catches it.
             if (in_array($type, ['staff', 'all'], true)) {
-                $staffMembers = \App\Models\Staff::where('school_id', $schoolId)
+                \App\Models\Staff::where('school_id', $schoolId)
                     ->whereNull('user_id')
                     ->with('user')
-                    ->get();
+                    ->orderBy('id')
+                    ->chunkById(200, function ($staffMembers) use ($schoolId, $passwordHash, $passwordPlain, &$created, &$failed) {
+                        foreach ($staffMembers as $staff) {
+                            try {
+                                $username = $staff->user?->phone ?? $staff->employee_id ?? null;
+                                if (! $username) continue;
 
-                foreach ($staffMembers as $staff) {
-                    // Try to derive a reasonable username — phone first, then employee_id
-                    $username = $staff->user?->phone
-                        ?? $staff->employee_id
-                        ?? null;
+                                $existing = User::where('school_id', $schoolId)
+                                    ->where(function ($q) use ($username) {
+                                        $q->where('username', $username)
+                                          ->orWhere('phone',    $username);
+                                    })
+                                    ->first();
 
-                    if (!$username) continue;
+                                if ($existing) {
+                                    $staff->update(['user_id' => $existing->id]);
+                                    continue;
+                                }
 
-                    $existing = User::where('school_id', $schoolId)
-                        ->where(function ($q) use ($username) {
-                            $q->where('username', $username)
-                              ->orWhere('phone',    $username);
-                        })
-                        ->first();
+                                $name = $staff->user?->name ?? trim(($staff->employee_id ?? '') . ' (staff)');
+                                $user = User::create([
+                                    'school_id' => $schoolId,
+                                    'name'      => $name,
+                                    'username'  => $username,
+                                    'phone'     => $username,
+                                    'password'  => $passwordHash,
+                                    'user_type' => 'teacher',
+                                    'is_active' => true,
+                                ]);
+                                $user->assignRole('teacher');
+                                $staff->update(['user_id' => $user->id]);
 
-                    if ($existing) {
-                        $staff->update(['user_id' => $existing->id]);
-                        continue;
-                    }
-
-                    $password = 'password';
-                    $name = $staff->user?->name ?? trim(($staff->employee_id ?? '') . ' (staff)');
-                    $user = User::create([
-                        'school_id' => $schoolId,
-                        'name'      => $name,
-                        'username'  => $username,
-                        'phone'     => $username,
-                        'password'  => Hash::make($password),
-                        'user_type' => 'teacher', // safe default; admin can adjust later
-                        'is_active' => true,
-                    ]);
-                    $user->assignRole('teacher');
-                    $staff->update(['user_id' => $user->id]);
-
-                    $created[] = [
-                        'name'         => $user->name,
-                        'role'         => 'Staff',
-                        'username'     => $user->username,
-                        'password'     => $password,
-                        'class_name'   => null,
-                        'section_name' => null,
-                    ];
-                }
+                                $created[] = [
+                                    'name'         => $user->name,
+                                    'role'         => 'Staff',
+                                    'username'     => $user->username,
+                                    'password'     => $passwordPlain,
+                                    'class_name'   => null,
+                                    'section_name' => null,
+                                ];
+                            } catch (\Throwable $e) {
+                                $failed++;
+                                Log::warning('createMissing staff failure', [
+                                    'staff_id' => $staff->id,
+                                    'error'    => $e->getMessage(),
+                                ]);
+                            }
+                        }
+                    });
             }
 
             // ── Students ──
             if (in_array($type, ['student', 'all'], true)) {
-                $students = Student::where('school_id', $schoolId)
+                Student::where('school_id', $schoolId)
                     ->whereNull('user_id')
                     ->whereNotNull('admission_no')
-                    ->get();
+                    ->orderBy('id')
+                    ->chunkById(200, function ($students) use ($schoolId, $passwordHash, $passwordPlain, &$created, &$failed) {
+                        foreach ($students as $student) {
+                            try {
+                                $existing = User::where('school_id', $schoolId)
+                                    ->where('username', $student->admission_no)
+                                    ->first();
 
-                foreach ($students as $student) {
-                    $existing = User::where('school_id', $schoolId)
-                        ->where('username', $student->admission_no)
-                        ->first();
+                                if ($existing) {
+                                    $student->update(['user_id' => $existing->id]);
+                                    if (! $existing->hasRole('student')) $existing->assignRole('student');
+                                    continue;
+                                }
 
-                    if ($existing) {
-                        $student->update(['user_id' => $existing->id]);
-                        if (!$existing->hasRole('student')) $existing->assignRole('student');
-                        continue;
-                    }
+                                $user = User::create([
+                                    'school_id' => $schoolId,
+                                    'name'      => trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? '')),
+                                    'username'  => $student->admission_no,
+                                    'password'  => $passwordHash,
+                                    'user_type' => 'student',
+                                    'is_active' => true,
+                                ]);
+                                $user->assignRole('student');
+                                $student->update(['user_id' => $user->id]);
 
-                    $password = 'password';
-                    $user = User::create([
-                        'school_id' => $schoolId,
-                        'name'      => trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? '')),
-                        'username'  => $student->admission_no,
-                        'password'  => Hash::make($password),
-                        'user_type' => 'student',
-                        'is_active' => true,
-                    ]);
-                    $user->assignRole('student');
-                    $student->update(['user_id' => $user->id]);
+                                $student->load('currentAcademicHistory.courseClass', 'currentAcademicHistory.section');
+                                $h = $student->currentAcademicHistory;
 
-                    $student->load('currentAcademicHistory.courseClass', 'currentAcademicHistory.section');
-                    $h = $student->currentAcademicHistory;
-
-                    $created[] = [
-                        'name'         => $user->name,
-                        'role'         => 'Student',
-                        'username'     => $user->username,
-                        'password'     => $password,
-                        'class_name'   => $h?->courseClass?->name,
-                        'section_name' => $h?->section?->name,
-                    ];
-                }
+                                $created[] = [
+                                    'name'         => $user->name,
+                                    'role'         => 'Student',
+                                    'username'     => $user->username,
+                                    'password'     => $passwordPlain,
+                                    'class_name'   => $h?->courseClass?->name,
+                                    'section_name' => $h?->section?->name,
+                                ];
+                            } catch (\Throwable $e) {
+                                $failed++;
+                                Log::warning('createMissing student failure', [
+                                    'student_id'   => $student->id,
+                                    'admission_no' => $student->admission_no,
+                                    'error'        => $e->getMessage(),
+                                ]);
+                            }
+                        }
+                    });
             }
-        });
+        } finally {
+            optional($lock)->release();
+        }
 
-        \Illuminate\Support\Facades\Log::info('Bulk portal user creation', [
+        Log::info('Bulk portal user creation', [
             'by'         => auth()->id(),
             'school_id'  => $schoolId,
             'type'       => $type,
             'count'      => count($created),
+            'failed'     => $failed,
             'timestamp'  => now()->toIso8601String(),
         ]);
 
+        $count = count($created);
+        $message = $count === 0
+            ? ($failed > 0 ? "0 created, {$failed} failed (see Laravel log)." : 'No missing accounts to create.')
+            : "{$count} account(s) created. Default password: password"
+              . ($failed > 0 ? " ({$failed} failed — see Laravel log)" : '');
+
         return response()->json([
-            'success'    => true,
-            'count'      => count($created),
-            'message'    => count($created) === 0
-                ? 'No missing accounts to create.'
-                : count($created) . ' account(s) created. Default password: password',
+            'success'     => true,
+            'count'       => $count,
+            'failed'      => $failed,
+            'message'     => $message,
             'credentials' => $created,
         ]);
     }
