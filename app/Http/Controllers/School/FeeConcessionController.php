@@ -70,9 +70,15 @@ class FeeConcessionController extends Controller
 
         $validated = $request->validate([
             'student_id'            => 'required|exists:students,id',
+            'fee_type'              => ['required', Rule::in(FeeConcession::FEE_TYPES)],
             'name'                  => [
                 'required', 'string', 'max:100',
-                Rule::unique('fee_concessions')->where(fn($q) => $q->where('school_id', $schoolId)->where('academic_year_id', $academicYearId)->where('student_id', $request->student_id))
+                Rule::unique('fee_concessions')->where(fn($q) => $q
+                    ->where('school_id', $schoolId)
+                    ->where('academic_year_id', $academicYearId)
+                    ->where('student_id', $request->student_id)
+                    ->where('fee_type', $request->fee_type)
+                ),
             ],
             'description'           => 'nullable|string|max:500',
             'type'                  => 'required|in:percentage,fixed',
@@ -106,9 +112,15 @@ class FeeConcessionController extends Controller
         }
 
         $validated = $request->validate([
+            'fee_type'              => ['required', Rule::in(FeeConcession::FEE_TYPES)],
             'name'                  => [
                 'required', 'string', 'max:100',
-                Rule::unique('fee_concessions')->where(fn($q) => $q->where('school_id', $schoolId)->where('academic_year_id', $academicYearId)->where('student_id', $feeConcession->student_id))->ignore($feeConcession->id)
+                Rule::unique('fee_concessions')->where(fn($q) => $q
+                    ->where('school_id', $schoolId)
+                    ->where('academic_year_id', $academicYearId)
+                    ->where('student_id', $feeConcession->student_id)
+                    ->where('fee_type', $request->fee_type)
+                )->ignore($feeConcession->id),
             ],
             'description'           => 'nullable|string|max:500',
             'type'                  => 'required|in:percentage,fixed',
@@ -144,22 +156,38 @@ class FeeConcessionController extends Controller
         return back()->with('success', 'Concession deleted.');
     }
 
-    // ── API: Get active concessions for a student (used in Collect.vue) ──────
+    /**
+     * API: Get active concessions for a student.
+     *
+     * Used by every collection screen — Tuition's Collect.vue, plus the
+     * Transport / Hostel / Stationary collect pages. Filtered by
+     * ?fee_type= so each collection screen sees only the concessions
+     * scoped to its own stream.
+     */
     public function forStudent(Request $request, Student $student)
     {
         $schoolId       = $this->schoolId();
         $academicYearId = $this->academicYearId();
 
+        $feeType = strtolower((string) $request->query('fee_type', 'tuition'));
+        if (! in_array($feeType, FeeConcession::FEE_TYPES, true)) {
+            $feeType = 'tuition';
+        }
+
         $concessions = FeeConcession::where('school_id', $schoolId)
             ->where('academic_year_id', $academicYearId)
             ->where('student_id', $student->id)
+            ->where('fee_type', $feeType)
             ->where('is_active', true)
-            ->withCount('payments')
-            ->get(['id', 'name', 'description', 'type', 'value', 'is_one_time'])
+            ->withCount(['payments', 'transportPayments', 'hostelPayments', 'stationaryPayments'])
+            ->get(['id', 'fee_type', 'name', 'description', 'type', 'value', 'is_one_time'])
             ->filter(function ($c) {
-                // Hide if already applied — concessions are single-use
-                if ($c->payments_count > 0) return false;
-                return true;
+                // Hide if already applied on any stream — concessions are single-use
+                $used = ($c->payments_count             ?? 0)
+                      + ($c->transport_payments_count   ?? 0)
+                      + ($c->hostel_payments_count      ?? 0)
+                      + ($c->stationary_payments_count  ?? 0);
+                return $used === 0;
             })
             ->values();
 

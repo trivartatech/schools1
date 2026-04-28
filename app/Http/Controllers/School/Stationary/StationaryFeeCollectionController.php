@@ -95,6 +95,15 @@ class StationaryFeeCollectionController extends Controller
             'payments.collectedBy:id,name',
         ]);
 
+        $academicYearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
+        $concessions = \App\Models\FeeConcession::where('school_id', $allocation->school_id)
+            ->where('student_id', $allocation->student_id)
+            ->where('fee_type', 'stationary')
+            ->where('is_active', true)
+            ->when($academicYearId, fn ($q) => $q->where('academic_year_id', $academicYearId))
+            ->whereDoesntHave('stationaryPayments')
+            ->get(['id', 'name', 'description', 'type', 'value', 'is_one_time']);
+
         return Inertia::render('School/Stationary/Fees/Collect', [
             'allocation'   => $allocation,
             'paymentModes' => \App\Models\PaymentMethod::where('school_id', $allocation->school_id)
@@ -103,6 +112,7 @@ class StationaryFeeCollectionController extends Controller
                 ->get(['code', 'label'])
                 ->map(fn ($m) => ['value' => $m->code, 'label' => $m->label])
                 ->values(),
+            'concessions'  => $concessions,
         ]);
     }
 
@@ -116,6 +126,14 @@ class StationaryFeeCollectionController extends Controller
         $validated = $request->validate([
             'amount_paid'     => 'required|numeric|min:0.01',
             'discount'        => 'nullable|numeric|min:0',
+            'concession_id'   => [
+                'nullable',
+                \Illuminate\Validation\Rule::exists('fee_concessions', 'id')
+                    ->where('school_id', $allocation->school_id)
+                    ->where('student_id', $allocation->student_id)
+                    ->where('fee_type', 'stationary')
+                    ->where('is_active', true),
+            ],
             'fine'            => 'nullable|numeric|min:0',
             'payment_date'    => 'required|date',
             'payment_mode'    => [
@@ -128,8 +146,18 @@ class StationaryFeeCollectionController extends Controller
             'remarks'         => 'nullable|string|max:500',
         ]);
 
-        $discount = (float) ($validated['discount'] ?? 0);
-        $fine     = (float) ($validated['fine']     ?? 0);
+        $fine         = (float) ($validated['fine'] ?? 0);
+        $concessionId = $validated['concession_id'] ?? null;
+
+        if ($concessionId) {
+            if (\App\Models\StationaryFeePayment::where('concession_id', $concessionId)->exists()) {
+                return back()->withErrors(['concession_id' => 'This concession has already been applied.']);
+            }
+            $concession = \App\Models\FeeConcession::find($concessionId);
+            $discount   = $concession ? (float) $concession->calculateDiscount((float) $allocation->balance) : (float) ($validated['discount'] ?? 0);
+        } else {
+            $discount = (float) ($validated['discount'] ?? 0);
+        }
 
         if ((float) $validated['amount_paid'] + $discount > (float) $allocation->balance + $fine + 0.01) {
             return back()->withErrors([
@@ -144,7 +172,7 @@ class StationaryFeeCollectionController extends Controller
             : AcademicYear::where('school_id', $allocation->school_id)->where('is_current', true)->value('id');
 
         $payment = null;
-        DB::transaction(function () use (&$payment, $allocation, $validated, $discount, $fine, $academicYearId) {
+        DB::transaction(function () use (&$payment, $allocation, $validated, $discount, $fine, $academicYearId, $concessionId) {
             $payment = StationaryFeePayment::create([
                 'school_id'        => $allocation->school_id,
                 'allocation_id'    => $allocation->id,
@@ -152,6 +180,7 @@ class StationaryFeeCollectionController extends Controller
                 'academic_year_id' => $academicYearId,
                 'amount_paid'      => $validated['amount_paid'],
                 'discount'         => $discount,
+                'concession_id'    => $concessionId,
                 'fine'             => $fine,
                 'payment_date'     => $validated['payment_date'],
                 'payment_mode'     => $validated['payment_mode'],

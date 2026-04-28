@@ -24,10 +24,18 @@ watch(search, (v) => {
 const showModal = ref(false);
 const editing   = ref(null);
 
+const FEE_TYPE_OPTIONS = [
+    { value: 'tuition',    label: 'Tuition' },
+    { value: 'transport',  label: 'Transport' },
+    { value: 'hostel',     label: 'Hostel' },
+    { value: 'stationary', label: 'Stationary' },
+];
+
 const blankForm = {
     student_search:         '',
     student_id:             '',
     student_label:          '',
+    fee_type:               'tuition',
     name:                   '',
     description:            '',
     type:                   'percentage',
@@ -48,6 +56,7 @@ const openEdit = (c) => {
     editing.value = c;
     form.student_id            = c.student?.id ?? '';
     form.student_label         = c.student ? `${c.student.first_name} ${c.student.last_name ?? ''} — ${c.student.admission_no}` : '';
+    form.fee_type              = c.fee_type ?? 'tuition';
     form.name                  = c.name;
     form.description           = c.description ?? '';
     form.type                  = c.type;
@@ -164,6 +173,7 @@ const typeBadge = (c) => c.type === 'percentage'
                     <thead>
                         <tr>
                             <th>Student</th>
+                            <th>Fee Type</th>
                             <th>Concession</th>
                             <th>Discount</th>
                             <th>Status</th>
@@ -181,6 +191,9 @@ const typeBadge = (c) => c.type === 'percentage'
                             <td>
                                 <p class="font-medium text-gray-900">{{ c.student?.first_name }} {{ c.student?.last_name }}</p>
                                 <p class="text-xs text-gray-400">{{ c.student?.admission_no }}</p>
+                            </td>
+                            <td>
+                                <span class="badge badge-gray capitalize">{{ c.fee_type ?? 'tuition' }}</span>
                             </td>
                             <td>
                                 <div class="flex items-center gap-2">
@@ -275,6 +288,16 @@ const typeBadge = (c) => c.type === 'percentage'
                             </div>
                             <div v-else class="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
                                 Editing concession for: <strong>{{ editing.student?.first_name }} {{ editing.student?.last_name }}</strong>
+                            </div>
+
+                            <!-- Fee Type — which stream this concession applies to -->
+                            <div class="form-field">
+                                <label>Applies To <span class="text-red-500">*</span></label>
+                                <select v-model="form.fee_type">
+                                    <option v-for="opt in FEE_TYPE_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }} Fee</option>
+                                </select>
+                                <p class="text-xs text-gray-400 mt-1">A concession is scoped to ONE fee stream — e.g. Sibling Discount on Tuition won't apply to Hostel.</p>
+                                <p v-if="form.errors.fee_type" class="form-error">{{ form.errors.fee_type }}</p>
                             </div>
 
                             <!-- Name (with datalist) -->

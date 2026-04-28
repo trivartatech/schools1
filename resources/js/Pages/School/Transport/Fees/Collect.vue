@@ -10,6 +10,7 @@ const { can } = usePermissions();
 const props = defineProps({
     allocation:   Object,
     paymentModes: Array,
+    concessions:  { type: Array, default: () => [] },
 });
 
 function fmt(n) {
@@ -32,12 +33,27 @@ const today = new Date().toISOString().slice(0, 10);
 const form = useForm({
     amount_paid:     props.allocation.balance > 0 ? Number(props.allocation.balance) : '',
     discount:        0,
+    concession_id:   '',
     fine:            0,
     payment_date:    today,
     payment_mode:    'cash',
     transaction_ref: '',
     remarks:         '',
 });
+
+function applyConcession() {
+    if (!form.concession_id) {
+        form.discount = 0;
+        return;
+    }
+    const c = props.concessions.find(x => x.id === Number(form.concession_id) || x.id === form.concession_id);
+    if (!c) return;
+    const balance = Number(props.allocation.balance || 0);
+    const discount = c.type === 'percentage'
+        ? Math.round(balance * Number(c.value) / 100)
+        : Math.min(Number(c.value), balance);
+    form.discount = discount;
+}
 
 const netEffect = computed(() => {
     const paid     = Number(form.amount_paid || 0);
@@ -152,10 +168,24 @@ const STATUS_COLOURS = {
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono">
                     <p v-if="form.errors.amount_paid" class="text-xs text-red-500 mt-1">{{ form.errors.amount_paid }}</p>
                 </div>
+                <div v-if="concessions.length">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Concession (optional)</label>
+                    <select v-model="form.concession_id" @change="applyConcession"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+                        <option value="">— No concession —</option>
+                        <option v-for="c in concessions" :key="c.id" :value="c.id">
+                            {{ c.name }} ({{ c.type === 'percentage' ? c.value + '%' : '₹' + c.value }})
+                        </option>
+                    </select>
+                    <p v-if="form.errors.concession_id" class="text-xs text-red-500 mt-1">{{ form.errors.concession_id }}</p>
+                </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Discount / Concession</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Discount</label>
                     <input v-model="form.discount" type="number" step="0.01" min="0"
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono">
+                           :disabled="!!form.concession_id"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"
+                           :class="form.concession_id ? 'bg-gray-50' : ''">
+                    <p v-if="form.concession_id" class="text-xs text-indigo-500 mt-1">Auto-filled from concession.</p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Fine / Late Fee</label>

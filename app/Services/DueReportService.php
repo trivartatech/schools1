@@ -19,12 +19,16 @@ class DueReportService
      * which the user toggles from the student profile page (the "Defaulter /
      * Not Defaulter" pill). It is intentionally NOT derived from total_balance.
      *
-     * @param  string        $status     'all' | 'defaulter' | 'not_defaulter'
-     * @param  array<string> $feeTypes   subset of ['regular','transport','hostel','stationary'].
-     *                                   When non-empty, only return rows whose
-     *                                   balance is > 0 in at least one of the
-     *                                   selected fee types. Empty = no fee-type
-     *                                   filter (show everyone).
+     * @param  string        $status      'all' | 'defaulter' | 'not_defaulter'
+     * @param  array<string> $feeTypes    subset of ['regular','transport','hostel','stationary'].
+     *                                    When non-empty, only return rows whose
+     *                                    balance is > 0 in at least one of the
+     *                                    selected fee types. Empty = no fee-type
+     *                                    filter (show everyone).
+     * @param  array<int>|null $studentIds  Optional. When provided, restricts the
+     *                                      result to these students only. Used by
+     *                                      sendDueReminder so a reminder shows the
+     *                                      same total_balance the Due Report shows.
      * @return array<int, array<string, mixed>>
      */
     public function rowsFor(
@@ -33,7 +37,8 @@ class DueReportService
         ?int $classId = null,
         ?int $sectionId = null,
         string $status = 'all',
-        array $feeTypes = []
+        array $feeTypes = [],
+        ?array $studentIds = null
     ): array {
         $students = Student::where('school_id', $schoolId)
             ->whereHas('currentAcademicHistory', fn($q) => $q->where('academic_year_id', $academicYearId))
@@ -48,6 +53,7 @@ class DueReportService
             ->select('id', 'first_name', 'last_name', 'admission_no', 'gender', 'parent_id', 'is_defaulter')
             ->when($status === 'defaulter',     fn($q) => $q->where('is_defaulter', true))
             ->when($status === 'not_defaulter', fn($q) => $q->where('is_defaulter', false))
+            ->when($studentIds !== null, fn($q) => $q->whereIn('id', $studentIds))
             ->when($classId, fn($q) => $q->whereHas('currentAcademicHistory', function ($q2) use ($classId, $sectionId, $academicYearId) {
                 $q2->where('class_id', $classId)->where('academic_year_id', $academicYearId);
                 if ($sectionId) $q2->where('section_id', $sectionId);

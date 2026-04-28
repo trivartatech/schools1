@@ -22,7 +22,7 @@ class HostelFeePayment extends Model
 
     protected $fillable = [
         'receipt_no', 'school_id', 'allocation_id', 'student_id', 'academic_year_id',
-        'amount_paid', 'discount', 'fine',
+        'amount_paid', 'discount', 'concession_id', 'fine',
         'payment_date', 'payment_mode', 'transaction_ref', 'remarks',
         'collected_by', 'gl_transaction_id',
     ];
