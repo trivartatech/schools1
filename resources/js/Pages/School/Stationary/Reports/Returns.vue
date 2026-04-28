@@ -1,9 +1,9 @@
 <script setup>
-import { ref, watch } from 'vue';
-import { router, Head } from '@inertiajs/vue3';
+import { ref } from 'vue';
+import { Link, router, Head } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
-import Table from '@/Components/ui/Table.vue';
 import Button from '@/Components/ui/Button.vue';
+import Table from '@/Components/ui/Table.vue';
 
 const props = defineProps({
     returns: Array,
@@ -30,6 +30,13 @@ function studentName(r) {
         || [r?.student?.first_name, r?.student?.last_name].filter(Boolean).join(' ')
         || '—';
 }
+
+const refundBadge = (m) => ({
+    cash:   'badge-green',
+    cheque: 'badge-blue',
+    adjust: 'badge-amber',
+    none:   'badge-gray',
+})[m] || 'badge-gray';
 </script>
 
 <template>
@@ -38,81 +45,140 @@ function studentName(r) {
         <div class="page-header">
             <div>
                 <h1 class="page-header-title">↩ Returns Report</h1>
-                <p class="page-header-sub">All stationary returns within the selected date range</p>
+                <p class="page-header-sub">All stationary returns within the selected date range. To accept a new return, open the student's allocation page.</p>
+            </div>
+            <Link href="/school/stationary/allocations">
+                <Button variant="secondary">📋 All Allocations</Button>
+            </Link>
+        </div>
+
+        <!-- Summary -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <p class="stat-label">Returns</p>
+                <p class="stat-value">{{ summary.count }}</p>
+            </div>
+            <div class="stat-card">
+                <p class="stat-label">Total Refund</p>
+                <p class="stat-value" style="color:#dc2626;">{{ fmt(summary.refund_total) }}</p>
+            </div>
+            <div class="stat-card">
+                <p class="stat-label">Items Returned</p>
+                <p class="stat-value">{{ summary.qty_total }}</p>
+            </div>
+            <div class="stat-card">
+                <p class="stat-label">Restocked</p>
+                <p class="stat-value" style="color:#059669;">{{ summary.restock_qty }}</p>
+            </div>
+            <div class="stat-card" :class="{ 'stat-card--alert': summary.writeoff_qty > 0 }">
+                <p class="stat-label">Written Off</p>
+                <p class="stat-value" style="color:#b45309;">{{ summary.writeoff_qty }}</p>
             </div>
         </div>
 
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
-            <div class="bg-white rounded-xl border border-gray-200 p-4">
-                <p class="text-xs uppercase text-gray-500 font-semibold">Returns</p>
-                <p class="text-xl font-bold mt-1">{{ summary.count }}</p>
-            </div>
-            <div class="bg-white rounded-xl border border-gray-200 p-4">
-                <p class="text-xs uppercase text-gray-500 font-semibold">Total Refund</p>
-                <p class="text-xl font-bold text-rose-600 mt-1">{{ fmt(summary.refund_total) }}</p>
-            </div>
-            <div class="bg-white rounded-xl border border-gray-200 p-4">
-                <p class="text-xs uppercase text-gray-500 font-semibold">Items Returned</p>
-                <p class="text-xl font-bold mt-1">{{ summary.qty_total }}</p>
-            </div>
-            <div class="bg-white rounded-xl border border-gray-200 p-4">
-                <p class="text-xs uppercase text-gray-500 font-semibold">Restocked</p>
-                <p class="text-xl font-bold text-green-600 mt-1">{{ summary.restock_qty }}</p>
-            </div>
-            <div class="bg-white rounded-xl border border-gray-200 p-4">
-                <p class="text-xs uppercase text-gray-500 font-semibold">Written Off</p>
-                <p class="text-xl font-bold text-amber-600 mt-1">{{ summary.writeoff_qty }}</p>
+        <!-- Filters -->
+        <div class="card" style="margin-bottom: 1rem;">
+            <div class="card-body" style="padding: 0.75rem 1rem; display: flex; gap: 0.625rem; align-items: end; flex-wrap: wrap;">
+                <div>
+                    <label style="display:block;font-size:0.74rem;font-weight:600;color:#475569;margin-bottom:0.25rem;">From</label>
+                    <input v-model="from" type="date"
+                           style="border: 1px solid var(--border, #e5e7eb); border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.875rem;" />
+                </div>
+                <div>
+                    <label style="display:block;font-size:0.74rem;font-weight:600;color:#475569;margin-bottom:0.25rem;">To</label>
+                    <input v-model="to" type="date"
+                           style="border: 1px solid var(--border, #e5e7eb); border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.875rem;" />
+                </div>
+                <Button variant="secondary" size="sm" @click="applyFilters">Apply</Button>
             </div>
         </div>
 
-        <div class="bg-white rounded-xl border border-gray-200 p-3 mb-4 flex gap-3 items-end">
-            <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1">From</label>
-                <input v-model="from" type="date" class="border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+        <!-- Table -->
+        <div class="card">
+            <div style="overflow-x:auto;">
+                <Table v-if="returns.length">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Student</th>
+                            <th>Items</th>
+                            <th style="text-align:right;">Refund</th>
+                            <th>Mode</th>
+                            <th>Accepted by</th>
+                            <th style="text-align:right;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="r in returns" :key="r.id">
+                            <td style="font-size:0.78rem;color:#475569;">{{ fmtDate(r.returned_at) }}</td>
+                            <td>
+                                <div style="font-weight:500;">{{ studentName(r) }}</div>
+                                <div style="font-size:0.74rem;color:#94a3b8;font-family:monospace;">{{ r.student?.admission_no }}</div>
+                            </td>
+                            <td style="font-size:0.82rem;">
+                                <ul style="margin:0;padding-left:1rem;list-style:disc;color:#475569;">
+                                    <li v-for="item in r.items" :key="item.id">
+                                        {{ item.item?.name }} × {{ item.qty_returned }}
+                                        <span style="color:#94a3b8;font-size:0.74rem;">[{{ item.condition }}{{ item.restock ? ', restocked' : ', written off' }}]</span>
+                                    </li>
+                                </ul>
+                            </td>
+                            <td style="text-align:right;font-weight:600;" :style="parseFloat(r.refund_amount) > 0 ? 'color:#dc2626;' : 'color:#94a3b8;'">{{ fmt(r.refund_amount) }}</td>
+                            <td><span :class="['badge', refundBadge(r.refund_mode)]">{{ r.refund_mode }}</span></td>
+                            <td style="font-size:0.82rem;">{{ r.accepted_by?.name || '—' }}</td>
+                            <td style="text-align:right;">
+                                <Link :href="`/school/stationary/allocations/${r.allocation_id}`">
+                                    <Button size="xs" variant="secondary">View</Button>
+                                </Link>
+                            </td>
+                        </tr>
+                    </tbody>
+                </Table>
+                <div v-else style="text-align:center;padding:4rem 1rem;color:#9ca3af;">
+                    <div style="font-size:2rem;margin-bottom:0.5rem;">↩</div>
+                    <p style="font-size:0.92rem;color:#475569;font-weight:500;">No returns in this date range.</p>
+                    <p style="font-size:0.78rem;color:#94a3b8;margin-top:0.25rem;">
+                        To record a new return, open the student's allocation and click <strong>"↩ Accept Return"</strong>.
+                    </p>
+                </div>
             </div>
-            <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1">To</label>
-                <input v-model="to" type="date" class="border border-gray-200 rounded-lg px-3 py-2 text-sm" />
-            </div>
-            <Button variant="secondary" @click="applyFilters">Apply</Button>
-        </div>
-
-        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <Table>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Student</th>
-                        <th>Items</th>
-                        <th class="text-right">Refund</th>
-                        <th>Mode</th>
-                        <th>Accepted by</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="r in returns" :key="r.id">
-                        <td class="text-xs">{{ fmtDate(r.returned_at) }}</td>
-                        <td>
-                            <div class="font-semibold">{{ studentName(r) }}</div>
-                            <div class="text-xs text-gray-400 font-mono">{{ r.student?.admission_no }}</div>
-                        </td>
-                        <td class="text-xs">
-                            <ul class="list-disc pl-4">
-                                <li v-for="item in r.items" :key="item.id">
-                                    {{ item.item?.name }} × {{ item.qty_returned }}
-                                    <span class="text-gray-400">[{{ item.condition }}{{ item.restock ? ', restocked' : ', written off' }}]</span>
-                                </li>
-                            </ul>
-                        </td>
-                        <td class="text-right text-rose-600 font-bold">{{ fmt(r.refund_amount) }}</td>
-                        <td>{{ r.refund_mode }}</td>
-                        <td>{{ r.accepted_by?.name || '—' }}</td>
-                    </tr>
-                    <tr v-if="!returns.length">
-                        <td colspan="6" class="text-center py-8 text-gray-400">No returns in this date range.</td>
-                    </tr>
-                </tbody>
-            </Table>
         </div>
     </SchoolLayout>
 </template>
+
+<style scoped>
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.875rem;
+    margin-bottom: 1.25rem;
+}
+@media (max-width: 1024px) { .stats-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 640px)  { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.stat-card {
+    background: var(--surface, #fff);
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 0.625rem;
+    padding: 0.875rem 1rem;
+}
+.stat-card--alert {
+    border-color: rgba(245, 158, 11, 0.4);
+    background: rgba(245, 158, 11, 0.04);
+}
+.stat-label { font-size: 0.7rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; margin: 0 0 0.375rem 0; }
+.stat-value { font-size: 1.5rem; font-weight: 800; color: #111827; margin: 0; line-height: 1.1; }
+
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.625rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+.badge-green { background: #d1fae5; color: #059669; }
+.badge-amber { background: #fef3c7; color: #b45309; }
+.badge-blue  { background: #dbeafe; color: #1d4ed8; }
+.badge-gray  { background: #f1f5f9; color: #64748b; }
+</style>
