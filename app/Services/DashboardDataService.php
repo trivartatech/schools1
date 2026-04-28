@@ -45,30 +45,30 @@ class DashboardDataService
 
         return [
             'kpi'                  => $this->kpis($schoolId, $academicYearId, $today, $yesterday, $thisMonth, $thisMonthEnd, $lastMonth),
-            'sparklines'           => $this->sparklines($schoolId, $today),
-            'fee_trend'            => $this->stackedFeeTrend($schoolId),
-            'admission_trend'      => $this->admissionTrend($schoolId),
-            'attendance_donut'     => $this->attendanceDonut($schoolId, $today),
-            'class_attendance'     => $this->classAttendance($schoolId, $today),
-            'fee_mix_today'        => $this->feeMixToday($schoolId, $today),
+            'sparklines'           => $this->sparklines($schoolId, $today, $academicYearId),
+            'fee_trend'            => $this->stackedFeeTrend($schoolId, $academicYearId),
+            'admission_trend'      => $this->admissionTrend($schoolId, $academicYearId),
+            'attendance_donut'     => $this->attendanceDonut($schoolId, $today, $academicYearId),
+            'class_attendance'     => $this->classAttendance($schoolId, $today, $academicYearId),
+            'fee_mix_today'        => $this->feeMixToday($schoolId, $today, $academicYearId),
             'fee_summary'          => $this->feeSummary($schoolId, $academicYearId, $today, $thisMonth, $thisMonthEnd),
             'course_strength'      => $this->courseWiseStrength($schoolId, $academicYearId),
-            'receipt_vs_payment'   => $this->receiptVsPayment($schoolId),
+            'receipt_vs_payment'   => $this->receiptVsPayment($schoolId, $academicYearId),
             'course_summary'       => $this->courseWiseSummary($schoolId, $academicYearId),
-            'month_income'         => $this->monthIncome($schoolId, $thisMonth, $thisMonthEnd),
-            'month_expense'        => $this->monthExpense($schoolId, $thisMonth, $thisMonthEnd),
-            'recent_payments'      => $this->recentPayments($schoolId),
-            'recent_admissions'    => $this->recentAdmissions($schoolId),
-            'today_visitors'       => $this->todayVisitors($schoolId, $today),
+            'month_income'         => $this->monthIncome($schoolId, $thisMonth, $thisMonthEnd, $academicYearId),
+            'month_expense'        => $this->monthExpense($schoolId, $thisMonth, $thisMonthEnd, $academicYearId),
+            'recent_payments'      => $this->recentPayments($schoolId, $academicYearId),
+            'recent_admissions'    => $this->recentAdmissions($schoolId, $academicYearId),
+            'today_visitors'       => $this->todayVisitors($schoolId, $today, $academicYearId),
             'pending_fee_students' => $this->pendingFeeStudents($schoolId, $academicYearId),
             'low_attendance'       => $this->lowAttendance($schoolId, $academicYearId),
-            'birthdays_today'      => $this->birthdaysToday($schoolId),
+            'birthdays_today'      => $this->birthdaysToday($schoolId, $academicYearId),
             'absent_staff'         => $this->absentStaff($schoolId, $today),
-            'upcoming_exams'       => $this->upcomingExams($schoolId, $today),
+            'upcoming_exams'       => $this->upcomingExams($schoolId, $today, $academicYearId),
             'upcoming_holidays'    => $this->upcomingHolidays($schoolId, $today),
-            'calendar_exams'       => $this->calendarExams($schoolId, $today),
+            'calendar_exams'       => $this->calendarExams($schoolId, $today, $academicYearId),
             'announcements'        => $this->announcements($schoolId),
-            'next_exam'            => $this->nextExam($schoolId, $today),
+            'next_exam'            => $this->nextExam($schoolId, $today, $academicYearId),
             'pending_edit_count'   => EditRequest::where('school_id', $schoolId)->where('status', 'pending')->count(),
             'pending_leave_count'  => Leave::where('school_id', $schoolId)->where('status', 'pending')->count(),
             'admin_name'           => $user->name,
@@ -102,23 +102,24 @@ class DashboardDataService
                 fn($h) => $h->where('academic_year_id', $academicYearId)))
             ->count();
 
-        // Fees today/yesterday — sum of all four streams
-        $todayFee     = $this->feeSumOnDay($schoolId, $today);
-        $yesterdayFee = $this->feeSumOnDay($schoolId, $yesterday);
-        $monthFee     = $this->feeSumInRange($schoolId, $thisMonth, $thisMonthEnd);
+        // Fees today/yesterday — sum of all four streams, scoped to academic year
+        $todayFee     = $this->feeSumOnDay($schoolId, $today, $academicYearId);
+        $yesterdayFee = $this->feeSumOnDay($schoolId, $yesterday, $academicYearId);
+        $monthFee     = $this->feeSumInRange($schoolId, $thisMonth, $thisMonthEnd, $academicYearId);
 
         // Last month's collection at the same point in the month (for fair MoM compare)
         $lastMonthSameSpanEnd = $lastMonth->copy()->setDay(min($today->day, $lastMonth->daysInMonth));
-        $lastMonthSameSpanFee = $this->feeSumInRange($schoolId, $lastMonth, $lastMonthSameSpanEnd);
+        $lastMonthSameSpanFee = $this->feeSumInRange($schoolId, $lastMonth, $lastMonthSameSpanEnd, $academicYearId);
 
         // Pending fees (structure-aware)
         $schoolPending      = $this->feeService->getSchoolPendingFees($schoolId, $academicYearId);
         $pendingFees        = $schoolPending['pending_fees'];
         $pendingFeeStudents = count($schoolPending['pending_fee_students']);
 
-        // Today's student attendance
+        // Today's student attendance — scoped to academic year
         $todayAttn = Attendance::where('school_id', $schoolId)
             ->where('date', $today->toDateString())
+            ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
             ->selectRaw('status, count(*) as count')
             ->groupBy('status')->pluck('count', 'status')->toArray();
         $presentToday = ($todayAttn['present'] ?? 0) + ($todayAttn['late'] ?? 0) + ($todayAttn['half_day'] ?? 0);
@@ -128,7 +129,7 @@ class DashboardDataService
         $attendancePct = $totalMarked > 0 ? round($presentToday / $totalMarked * 100, 1) : 0;
 
         // Rolling 7-day attendance avg (excluding today, for "vs week" delta)
-        $weekAvgPct = $this->weekAvgAttendancePct($schoolId, $today);
+        $weekAvgPct = $this->weekAvgAttendancePct($schoolId, $today, $academicYearId);
 
         // Staff
         $totalStaff = Staff::where('school_id', $schoolId)->where('status', 'active')->count();
@@ -186,19 +187,23 @@ class DashboardDataService
         ];
     }
 
-    // 7-day rolling sparklines for the four hero KPIs
-    private function sparklines(int $schoolId, Carbon $today): array
+    // 7-day rolling sparklines for the four hero KPIs (scoped to academic year)
+    private function sparklines(int $schoolId, Carbon $today, ?int $academicYearId = null): array
     {
         $days = collect(range(6, 0))->map(fn($i) => $today->copy()->subDays($i));
 
-        $fee = $days->map(fn($d) => $this->feeSumOnDay($schoolId, $d))->all();
+        $fee = $days->map(fn($d) => $this->feeSumOnDay($schoolId, $d, $academicYearId))->all();
 
         $admissions = $days->map(fn($d) => Student::where('school_id', $schoolId)
-            ->whereDate('admission_date', $d->toDateString())->count())->all();
+            ->whereDate('admission_date', $d->toDateString())
+            ->when($academicYearId, fn($q) => $q->whereHas('academicHistories',
+                fn($h) => $h->where('academic_year_id', $academicYearId)))
+            ->count())->all();
 
-        $attendance = $days->map(function ($d) use ($schoolId) {
+        $attendance = $days->map(function ($d) use ($schoolId, $academicYearId) {
             $row = Attendance::where('school_id', $schoolId)
                 ->where('date', $d->toDateString())
+                ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
                 ->selectRaw('status, count(*) as count')
                 ->groupBy('status')->pluck('count', 'status')->toArray();
             $present = ($row['present'] ?? 0) + ($row['late'] ?? 0) + ($row['half_day'] ?? 0);
@@ -217,23 +222,31 @@ class DashboardDataService
     // ───────────────────────────────────────────────────────────────
     // Charts
     // ───────────────────────────────────────────────────────────────
-    private function stackedFeeTrend(int $schoolId): array
+    private function stackedFeeTrend(int $schoolId, ?int $academicYearId = null): array
     {
         $out = [];
         for ($i = 5; $i >= 0; $i--) {
             $m = now()->subMonths($i);
             // Mirror Day Book (LedgerController@dayBook): any payment row with
             // money actually received counts — including partial collections,
-            // which would be rejected by status='paid'.
+            // which would be rejected by status='paid'. Scoped to academic year.
             $tuition = (float) FeePayment::where('school_id', $schoolId)
                 ->whereYear('payment_date', $m->year)->whereMonth('payment_date', $m->month)
-                ->where('amount_paid', '>', 0)->sum('amount_paid');
+                ->where('amount_paid', '>', 0)
+                ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
+                ->sum('amount_paid');
             $transport = (float) TransportFeePayment::where('school_id', $schoolId)
-                ->whereYear('payment_date', $m->year)->whereMonth('payment_date', $m->month)->sum('amount_paid');
+                ->whereYear('payment_date', $m->year)->whereMonth('payment_date', $m->month)
+                ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
+                ->sum('amount_paid');
             $hostel = (float) HostelFeePayment::where('school_id', $schoolId)
-                ->whereYear('payment_date', $m->year)->whereMonth('payment_date', $m->month)->sum('amount_paid');
+                ->whereYear('payment_date', $m->year)->whereMonth('payment_date', $m->month)
+                ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
+                ->sum('amount_paid');
             $stationary = (float) StationaryFeePayment::where('school_id', $schoolId)
-                ->whereYear('payment_date', $m->year)->whereMonth('payment_date', $m->month)->sum('amount_paid');
+                ->whereYear('payment_date', $m->year)->whereMonth('payment_date', $m->month)
+                ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
+                ->sum('amount_paid');
             $out[] = [
                 'month'      => $m->format('M Y'),
                 'short'      => $m->format('M'),
@@ -247,7 +260,7 @@ class DashboardDataService
         return $out;
     }
 
-    private function admissionTrend(int $schoolId): array
+    private function admissionTrend(int $schoolId, ?int $academicYearId = null): array
     {
         $out = [];
         for ($i = 5; $i >= 0; $i--) {
@@ -257,16 +270,20 @@ class DashboardDataService
                 'short' => $m->format('M'),
                 'count' => Student::where('school_id', $schoolId)
                     ->whereYear('admission_date', $m->year)
-                    ->whereMonth('admission_date', $m->month)->count(),
+                    ->whereMonth('admission_date', $m->month)
+                    ->when($academicYearId, fn($q) => $q->whereHas('academicHistories',
+                        fn($h) => $h->where('academic_year_id', $academicYearId)))
+                    ->count(),
             ];
         }
         return $out;
     }
 
-    private function attendanceDonut(int $schoolId, Carbon $today): array
+    private function attendanceDonut(int $schoolId, Carbon $today, ?int $academicYearId = null): array
     {
         $row = Attendance::where('school_id', $schoolId)
             ->where('date', $today->toDateString())
+            ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
             ->selectRaw('status, count(*) as count')
             ->groupBy('status')->pluck('count', 'status')->toArray();
         return [
@@ -278,10 +295,11 @@ class DashboardDataService
         ];
     }
 
-    private function classAttendance(int $schoolId, Carbon $today): array
+    private function classAttendance(int $schoolId, Carbon $today, ?int $academicYearId = null): array
     {
         return Attendance::where('attendances.school_id', $schoolId)
             ->where('attendances.date', $today->toDateString())
+            ->when($academicYearId, fn($q) => $q->where('attendances.academic_year_id', $academicYearId))
             ->join('course_classes as cc', 'attendances.class_id', '=', 'cc.id')
             ->selectRaw('cc.id, cc.name as class_name,
                 COUNT(*) as total,
@@ -297,17 +315,18 @@ class DashboardDataService
             ])->all();
     }
 
-    private function feeMixToday(int $schoolId, Carbon $today): array
+    private function feeMixToday(int $schoolId, Carbon $today, ?int $academicYearId = null): array
     {
-        $tuition = (float) FeePayment::where('school_id', $schoolId)
+        $apply = fn($q) => $q->when($academicYearId, fn($x) => $x->where('academic_year_id', $academicYearId));
+        $tuition = (float) $apply(FeePayment::where('school_id', $schoolId)
             ->whereDate('payment_date', $today->toDateString())
-            ->where('amount_paid', '>', 0)->sum('amount_paid');
-        $transport = (float) TransportFeePayment::where('school_id', $schoolId)
-            ->whereDate('payment_date', $today->toDateString())->sum('amount_paid');
-        $hostel = (float) HostelFeePayment::where('school_id', $schoolId)
-            ->whereDate('payment_date', $today->toDateString())->sum('amount_paid');
-        $stationary = (float) StationaryFeePayment::where('school_id', $schoolId)
-            ->whereDate('payment_date', $today->toDateString())->sum('amount_paid');
+            ->where('amount_paid', '>', 0))->sum('amount_paid');
+        $transport = (float) $apply(TransportFeePayment::where('school_id', $schoolId)
+            ->whereDate('payment_date', $today->toDateString()))->sum('amount_paid');
+        $hostel = (float) $apply(HostelFeePayment::where('school_id', $schoolId)
+            ->whereDate('payment_date', $today->toDateString()))->sum('amount_paid');
+        $stationary = (float) $apply(StationaryFeePayment::where('school_id', $schoolId)
+            ->whereDate('payment_date', $today->toDateString()))->sum('amount_paid');
         return [
             'tuition' => $tuition, 'transport' => $transport,
             'hostel' => $hostel, 'stationary' => $stationary,
@@ -317,9 +336,10 @@ class DashboardDataService
     // ───────────────────────────────────────────────────────────────
     // Lists & alerts
     // ───────────────────────────────────────────────────────────────
-    private function recentPayments(int $schoolId): array
+    private function recentPayments(int $schoolId, ?int $academicYearId = null): array
     {
         return FeePayment::where('school_id', $schoolId)
+            ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
             ->with(['student', 'feeHead'])
             ->orderByDesc('created_at')->limit(6)->get()
             ->map(fn($p) => [
@@ -333,9 +353,11 @@ class DashboardDataService
             ])->all();
     }
 
-    private function recentAdmissions(int $schoolId): array
+    private function recentAdmissions(int $schoolId, ?int $academicYearId = null): array
     {
         return Student::where('school_id', $schoolId)
+            ->when($academicYearId, fn($q) => $q->whereHas('academicHistories',
+                fn($h) => $h->where('academic_year_id', $academicYearId)))
             ->with(['currentAcademicHistory.courseClass', 'currentAcademicHistory.section'])
             ->orderByDesc('created_at')->limit(6)->get()
             ->map(fn($s) => [
@@ -349,10 +371,11 @@ class DashboardDataService
             ])->all();
     }
 
-    private function todayVisitors(int $schoolId, Carbon $today): array
+    private function todayVisitors(int $schoolId, Carbon $today, ?int $academicYearId = null): array
     {
         return VisitorLog::where('school_id', $schoolId)
             ->whereDate('in_time', $today->toDateString())
+            ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
             ->orderByDesc('in_time')->limit(6)->get()
             ->map(fn($v) => [
                 'id'      => $v->id,
@@ -390,12 +413,14 @@ class DashboardDataService
             ])->all();
     }
 
-    private function birthdaysToday(int $schoolId): array
+    private function birthdaysToday(int $schoolId, ?int $academicYearId = null): array
     {
         return Student::where('school_id', $schoolId)
             ->where('status', 'active')
             ->whereMonth('dob', now()->month)
             ->whereDay('dob', now()->day)
+            ->when($academicYearId, fn($q) => $q->whereHas('academicHistories',
+                fn($h) => $h->where('academic_year_id', $academicYearId)))
             ->with(['currentAcademicHistory.courseClass', 'currentAcademicHistory.section'])
             ->limit(12)->get()
             ->map(fn($s) => [
@@ -433,9 +458,11 @@ class DashboardDataService
             ])->all();
     }
 
-    private function upcomingExams(int $schoolId, Carbon $today): array
+    private function upcomingExams(int $schoolId, Carbon $today, ?int $academicYearId = null): array
     {
-        return ExamScheduleSubject::whereHas('examSchedule', fn($q) => $q->where('school_id', $schoolId))
+        return ExamScheduleSubject::whereHas('examSchedule', fn($q) => $q
+                ->where('school_id', $schoolId)
+                ->when($academicYearId, fn($x) => $x->where('academic_year_id', $academicYearId)))
             ->whereNotNull('exam_date')
             ->where('exam_date', '>=', $today->toDateString())
             ->with(['examSchedule.examType', 'subject'])
@@ -462,9 +489,11 @@ class DashboardDataService
             ])->all();
     }
 
-    private function calendarExams(int $schoolId, Carbon $today): array
+    private function calendarExams(int $schoolId, Carbon $today, ?int $academicYearId = null): array
     {
-        return ExamScheduleSubject::whereHas('examSchedule', fn($q) => $q->where('school_id', $schoolId))
+        return ExamScheduleSubject::whereHas('examSchedule', fn($q) => $q
+                ->where('school_id', $schoolId)
+                ->when($academicYearId, fn($x) => $x->where('academic_year_id', $academicYearId)))
             ->whereNotNull('exam_date')
             ->where('exam_date', '>=', $today->toDateString())
             ->where('exam_date', '<=', $today->copy()->addDays(60)->toDateString())
@@ -491,9 +520,11 @@ class DashboardDataService
             ])->all();
     }
 
-    private function nextExam(int $schoolId, Carbon $today): ?array
+    private function nextExam(int $schoolId, Carbon $today, ?int $academicYearId = null): ?array
     {
-        $row = ExamScheduleSubject::whereHas('examSchedule', fn($q) => $q->where('school_id', $schoolId))
+        $row = ExamScheduleSubject::whereHas('examSchedule', fn($q) => $q
+                ->where('school_id', $schoolId)
+                ->when($academicYearId, fn($x) => $x->where('academic_year_id', $academicYearId)))
             ->whereNotNull('exam_date')
             ->where('exam_date', '>=', $today->toDateString())
             ->with(['examSchedule.examType'])
@@ -533,11 +564,11 @@ class DashboardDataService
         $netBillable = max(0, $totalDue - $totalDiscount + $totalFine);
         $balance     = max(0, $netBillable - $totalPaid);
 
-        // Period collections — full fee mix (tuition + transport + hostel + stationary).
-        $todayCollection = $this->feeSumOnDay($schoolId, $today);
+        // Period collections — full fee mix (tuition + transport + hostel + stationary), AY-scoped.
+        $todayCollection = $this->feeSumOnDay($schoolId, $today, $academicYearId);
         $weekStart       = $today->copy()->startOfWeek();
-        $weekCollection  = $this->feeSumInRange($schoolId, $weekStart, $today);
-        $monthCollection = $this->feeSumInRange($schoolId, $thisMonth, $thisMonthEnd);
+        $weekCollection  = $this->feeSumInRange($schoolId, $weekStart, $today, $academicYearId);
+        $monthCollection = $this->feeSumInRange($schoolId, $thisMonth, $thisMonthEnd, $academicYearId);
 
         return [
             'total'      => $netBillable,
@@ -572,9 +603,9 @@ class DashboardDataService
 
     // ───────────────────────────────────────────────────────────────
     // Receipt vs Payment (12 months: receipts = fee inflows; payments = expenses)
-    // 5 grouped queries total instead of 60 per-month iterations.
+    // 5 grouped queries total instead of 60 per-month iterations. AY-scoped.
     // ───────────────────────────────────────────────────────────────
-    private function receiptVsPayment(int $schoolId): array
+    private function receiptVsPayment(int $schoolId, ?int $academicYearId = null): array
     {
         $start = now()->subMonths(11)->startOfMonth()->toDateString();
 
@@ -583,6 +614,7 @@ class DashboardDataService
             $rows = $model::where('school_id', $schoolId)
                 ->where('amount_paid', '>', 0)
                 ->where('payment_date', '>=', $start)
+                ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
                 ->selectRaw('YEAR(payment_date) as y, MONTH(payment_date) as m, SUM(amount_paid) as total')
                 ->groupBy('y', 'm')->get();
             foreach ($rows as $r) {
@@ -593,6 +625,7 @@ class DashboardDataService
 
         $expRows = Expense::where('school_id', $schoolId)
             ->where('expense_date', '>=', $start)
+            ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
             ->selectRaw('YEAR(expense_date) as y, MONTH(expense_date) as m, SUM(amount) as total')
             ->groupBy('y', 'm')->get();
         $expByKey = $expRows->mapWithKeys(fn($r) => [$r->y . '-' . $r->m => (float) $r->total]);
@@ -648,13 +681,14 @@ class DashboardDataService
     // ───────────────────────────────────────────────────────────────
     // Income breakdown — current month, by GL ledger (Income type only)
     // ───────────────────────────────────────────────────────────────
-    private function monthIncome(int $schoolId, Carbon $thisMonth, Carbon $thisMonthEnd): array
+    private function monthIncome(int $schoolId, Carbon $thisMonth, Carbon $thisMonthEnd, ?int $academicYearId = null): array
     {
         return TransactionLine::where('type', 'credit')
             ->whereHas('transaction', fn($q) => $q
                 ->where('school_id', $schoolId)
                 ->where('status', 'posted')
                 ->whereBetween('date', [$thisMonth->toDateString(), $thisMonthEnd->toDateString()])
+                ->when($academicYearId, fn($x) => $x->where('academic_year_id', $academicYearId))
             )
             ->whereHas('ledger.ledgerType', fn($q) => $q->where('name', 'Income'))
             ->with('ledger')
@@ -671,10 +705,11 @@ class DashboardDataService
     // ───────────────────────────────────────────────────────────────
     // Expense breakdown — current month, by Expense category
     // ───────────────────────────────────────────────────────────────
-    private function monthExpense(int $schoolId, Carbon $thisMonth, Carbon $thisMonthEnd): array
+    private function monthExpense(int $schoolId, Carbon $thisMonth, Carbon $thisMonthEnd, ?int $academicYearId = null): array
     {
         return Expense::where('school_id', $schoolId)
             ->whereBetween('expense_date', [$thisMonth->toDateString(), $thisMonthEnd->toDateString()])
+            ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
             ->with('category')
             ->get()
             ->groupBy(fn($e) => $e->category?->name ?? 'Uncategorised')
@@ -693,23 +728,35 @@ class DashboardDataService
     // are real money received, regardless of whether the parent bill is
     // 'paid' or still 'partial'. Filtering by status='paid' silently drops
     // installment payments toward a not-yet-fully-cleared bill.
-    private function feeSumOnDay(int $schoolId, Carbon $day): float
+    // The optional $academicYearId scopes to the selected year; when null
+    // (e.g. no year set in tenant context), the filter is a no-op.
+    private function feeSumOnDay(int $schoolId, Carbon $day, ?int $academicYearId = null): float
     {
         $d = $day->toDateString();
-        return (float) FeePayment::where('school_id', $schoolId)->whereDate('payment_date', $d)->where('amount_paid', '>', 0)->sum('amount_paid')
-            + (float) TransportFeePayment::where('school_id', $schoolId)->whereDate('payment_date', $d)->where('amount_paid', '>', 0)->sum('amount_paid')
-            + (float) HostelFeePayment::where('school_id', $schoolId)->whereDate('payment_date', $d)->where('amount_paid', '>', 0)->sum('amount_paid')
-            + (float) StationaryFeePayment::where('school_id', $schoolId)->whereDate('payment_date', $d)->where('amount_paid', '>', 0)->sum('amount_paid');
+        $sum = 0;
+        foreach ([FeePayment::class, TransportFeePayment::class, HostelFeePayment::class, StationaryFeePayment::class] as $model) {
+            $sum += (float) $model::where('school_id', $schoolId)
+                ->whereDate('payment_date', $d)
+                ->where('amount_paid', '>', 0)
+                ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
+                ->sum('amount_paid');
+        }
+        return $sum;
     }
 
-    private function feeSumInRange(int $schoolId, Carbon $start, Carbon $end): float
+    private function feeSumInRange(int $schoolId, Carbon $start, Carbon $end, ?int $academicYearId = null): float
     {
         $s = $start->toDateString();
         $e = $end->toDateString();
-        return (float) FeePayment::where('school_id', $schoolId)->whereBetween('payment_date', [$s, $e])->where('amount_paid', '>', 0)->sum('amount_paid')
-            + (float) TransportFeePayment::where('school_id', $schoolId)->whereBetween('payment_date', [$s, $e])->where('amount_paid', '>', 0)->sum('amount_paid')
-            + (float) HostelFeePayment::where('school_id', $schoolId)->whereBetween('payment_date', [$s, $e])->where('amount_paid', '>', 0)->sum('amount_paid')
-            + (float) StationaryFeePayment::where('school_id', $schoolId)->whereBetween('payment_date', [$s, $e])->where('amount_paid', '>', 0)->sum('amount_paid');
+        $sum = 0;
+        foreach ([FeePayment::class, TransportFeePayment::class, HostelFeePayment::class, StationaryFeePayment::class] as $model) {
+            $sum += (float) $model::where('school_id', $schoolId)
+                ->whereBetween('payment_date', [$s, $e])
+                ->where('amount_paid', '>', 0)
+                ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
+                ->sum('amount_paid');
+        }
+        return $sum;
     }
 
     private function deltaPct(float $current, float $previous): ?float
@@ -718,12 +765,13 @@ class DashboardDataService
         return round((($current - $previous) / $previous) * 100, 1);
     }
 
-    private function weekAvgAttendancePct(int $schoolId, Carbon $today): float
+    private function weekAvgAttendancePct(int $schoolId, Carbon $today, ?int $academicYearId = null): float
     {
         $start = $today->copy()->subDays(7)->toDateString();
         $end   = $today->copy()->subDay()->toDateString();
         $row = Attendance::where('school_id', $schoolId)
             ->whereBetween('date', [$start, $end])
+            ->when($academicYearId, fn($q) => $q->where('academic_year_id', $academicYearId))
             ->selectRaw('
                 SUM(CASE WHEN status IN ("present","late","half_day") THEN 1 ELSE 0 END) as p,
                 COUNT(*) as t
