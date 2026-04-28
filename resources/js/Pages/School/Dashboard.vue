@@ -8,6 +8,7 @@ import MiniCalendar  from '@/Components/dashboard/MiniCalendar.vue'
 import RecentList    from '@/Components/dashboard/RecentList.vue'
 import SectionHeader from '@/Components/dashboard/SectionHeader.vue'
 import ActionChip    from '@/Components/dashboard/ActionChip.vue'
+import TabPills      from '@/Components/dashboard/TabPills.vue'
 
 const props = defineProps({
     school: Object,
@@ -237,15 +238,12 @@ const upcomingEvents = computed(() => {
 
             <!-- Fee Summary card with progress bars -->
             <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                <div class="flex items-start justify-between mb-4">
-                    <div>
-                        <h2 class="text-base font-semibold text-gray-900 tracking-tight">Fee Summary</h2>
-                        <p class="text-xs text-gray-500">Academic year · all fee streams</p>
-                    </div>
-                    <Link href="/school/finance/due-report" class="inline-flex items-center px-2.5 py-1 rounded-full bg-indigo-600 text-white text-[11px] font-medium hover:bg-indigo-700">
-                        Report
-                    </Link>
-                </div>
+                <SectionHeader
+                    title="Fee Summary"
+                    subtitle="Academic year · all fee streams"
+                    actionLabel="Report"
+                    actionHref="/school/finance/due-report"
+                />
 
                 <!-- Paid bar -->
                 <div class="mb-4">
@@ -324,40 +322,21 @@ const upcomingEvents = computed(() => {
 
         <!-- ─ Receipt vs Payment / Course-wise fee summary (toggle) ─── -->
         <section class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-            <div class="flex items-start justify-between mb-4 flex-wrap gap-3">
-                <div>
-                    <h2 class="text-base font-semibold text-gray-900 tracking-tight">
-                        {{ financeView === 'rvp' ? 'Receipt vs Payment' : 'Course-wise fee summary' }}
-                    </h2>
-                    <p class="text-xs text-gray-500 mt-0.5">
-                        {{ financeView === 'rvp'
-                            ? 'Money in vs money out, last 12 months'
-                            : 'Total · Paid · Balance · Concession per class' }}
-                    </p>
-                </div>
-                <div class="flex items-center gap-2 flex-wrap">
-                    <div class="inline-flex bg-gray-100 rounded-lg p-1 text-xs font-medium">
-                        <button
-                            v-for="t in [
-                                { id: 'rvp',  label: 'Receipt vs Payment' },
-                                { id: 'csum', label: 'Course-wise summary' },
-                            ]"
-                            :key="t.id"
-                            @click="financeView = t.id"
-                            :class="[
-                                'px-3 py-1 rounded-md transition whitespace-nowrap',
-                                financeView === t.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-                            ]"
-                        >{{ t.label }}</button>
-                    </div>
-                    <Link
-                        :href="financeView === 'rvp' ? '/school/finance/day-book' : '/school/finance/due-report'"
-                        class="text-xs font-medium text-indigo-600 hover:text-indigo-800"
-                    >
-                        {{ financeView === 'rvp' ? 'Day book' : 'Due report' }} →
-                    </Link>
-                </div>
-            </div>
+            <SectionHeader
+                :title="financeView === 'rvp' ? 'Receipt vs Payment' : 'Course-wise fee summary'"
+                :subtitle="financeView === 'rvp'
+                    ? 'Money in vs money out, last 12 months'
+                    : 'Total · Paid · Balance · Concession per class'"
+                :actionLabel="financeView === 'rvp' ? 'Day book' : 'Due report'"
+                :actionHref="financeView === 'rvp' ? '/school/finance/day-book' : '/school/finance/due-report'"
+            >
+                <template #actions>
+                    <TabPills v-model="financeView" :options="[
+                        { id: 'rvp',  label: 'Receipt vs Payment' },
+                        { id: 'csum', label: 'Course-wise summary' },
+                    ]" />
+                </template>
+            </SectionHeader>
 
             <template v-if="financeView === 'rvp'">
                 <TrendChart
@@ -391,38 +370,19 @@ const upcomingEvents = computed(() => {
 
             <!-- Cash flow: Income / Expense -->
             <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                <div class="flex items-start justify-between mb-3 flex-wrap gap-2">
-                    <div>
-                        <h2 class="text-base font-semibold text-gray-900 tracking-tight">
-                            {{ cashflowView === 'income' ? 'Income' : 'Expense' }} — {{ monthLabel }}
-                        </h2>
-                        <p class="text-xs text-gray-500 mt-0.5">
-                            {{ cashflowView === 'income' ? 'Non-fee income from ledger' : 'Spending by category' }}
-                        </p>
-                    </div>
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <div class="inline-flex bg-gray-100 rounded-lg p-1 text-xs font-medium">
-                            <button
-                                v-for="t in [
-                                    { id: 'income',  label: 'Income' },
-                                    { id: 'expense', label: 'Expense' },
-                                ]"
-                                :key="t.id"
-                                @click="cashflowView = t.id"
-                                :class="[
-                                    'px-3 py-1 rounded-md transition',
-                                    cashflowView === t.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-                                ]"
-                            >{{ t.label }}</button>
-                        </div>
-                        <Link
-                            :href="cashflowView === 'income' ? '/school/finance/transactions' : '/school/expenses'"
-                            class="text-xs font-medium text-indigo-600 hover:text-indigo-800"
-                        >
-                            {{ cashflowView === 'income' ? 'Ledger' : 'All' }} →
-                        </Link>
-                    </div>
-                </div>
+                <SectionHeader
+                    :title="`${cashflowView === 'income' ? 'Income' : 'Expense'} — ${monthLabel}`"
+                    :subtitle="cashflowView === 'income' ? 'Non-fee income from ledger' : 'Spending by category'"
+                    :actionLabel="cashflowView === 'income' ? 'Ledger' : 'All'"
+                    :actionHref="cashflowView === 'income' ? '/school/finance/transactions' : '/school/expenses'"
+                >
+                    <template #actions>
+                        <TabPills v-model="cashflowView" :options="[
+                            { id: 'income',  label: 'Income' },
+                            { id: 'expense', label: 'Expense' },
+                        ]" />
+                    </template>
+                </SectionHeader>
 
                 <template v-if="cashflowView === 'income'">
                     <DonutChart
@@ -463,42 +423,29 @@ const upcomingEvents = computed(() => {
 
             <!-- Attendance: Students / Staff -->
             <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                <div class="flex items-start justify-between mb-3 flex-wrap gap-2">
-                    <div>
-                        <h2 class="text-base font-semibold text-gray-900 tracking-tight flex items-center gap-1.5">
-                            {{ attendanceView === 'students' ? 'Student Attendance' : 'Staff Attendance' }}
-                            <span class="text-gray-400 text-sm">{{ attendanceView === 'students' ? '👥' : '🧑‍🏫' }}</span>
-                        </h2>
-                        <p class="text-xs text-gray-500 mt-0.5">
-                            <template v-if="attendanceView === 'students'">
-                                {{ attendanceMarked }} of {{ k.total_students || 0 }} marked today
-                            </template>
-                            <template v-else>
-                                {{ staffAttendanceMarked }} of {{ k.total_staff || 0 }} marked today
-                            </template>
-                        </p>
-                    </div>
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <div class="inline-flex bg-gray-100 rounded-lg p-1 text-xs font-medium">
-                            <button
-                                v-for="t in [
-                                    { id: 'students', label: 'Students' },
-                                    { id: 'staff',    label: 'Staff' },
-                                ]"
-                                :key="t.id"
-                                @click="attendanceView = t.id"
-                                :class="[
-                                    'px-3 py-1 rounded-md transition',
-                                    attendanceView === t.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-                                ]"
-                            >{{ t.label }}</button>
-                        </div>
-                        <Link
-                            :href="attendanceView === 'students' ? '/school/attendance/report' : '/school/staff-attendance'"
-                            class="text-xs font-medium text-indigo-600 hover:text-indigo-800"
-                        >Report →</Link>
-                    </div>
-                </div>
+                <SectionHeader
+                    actionLabel="Report"
+                    :actionHref="attendanceView === 'students' ? '/school/attendance/report' : '/school/staff-attendance/report'"
+                >
+                    <template #title>
+                        {{ attendanceView === 'students' ? 'Student Attendance' : 'Staff Attendance' }}
+                        <span class="text-gray-400 text-sm">{{ attendanceView === 'students' ? '👥' : '🧑‍🏫' }}</span>
+                    </template>
+                    <template #subtitle>
+                        <template v-if="attendanceView === 'students'">
+                            {{ attendanceMarked }} of {{ k.total_students || 0 }} marked today
+                        </template>
+                        <template v-else>
+                            {{ staffAttendanceMarked }} of {{ k.total_staff || 0 }} marked today
+                        </template>
+                    </template>
+                    <template #actions>
+                        <TabPills v-model="attendanceView" :options="[
+                            { id: 'students', label: 'Students' },
+                            { id: 'staff',    label: 'Staff' },
+                        ]" />
+                    </template>
+                </SectionHeader>
 
                 <ul class="divide-y divide-gray-100">
                     <li v-for="row in (attendanceView === 'students' ? attendanceRows : staffAttendanceRows)"
@@ -567,24 +514,15 @@ const upcomingEvents = computed(() => {
         <!-- ─ Activity & calendar ─────────────────────────────────── -->
         <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div class="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
-                    <h2 class="text-base font-semibold text-gray-900 tracking-tight">Recent activity</h2>
-                    <div class="inline-flex bg-gray-100 rounded-lg p-1 text-xs font-medium">
-                        <button
-                            v-for="t in [
-                                { id: 'payments',   label: 'Payments' },
-                                { id: 'admissions', label: 'Admissions' },
-                                { id: 'visitors',   label: 'Visitors' },
-                            ]"
-                            :key="t.id"
-                            @click="activityTab = t.id"
-                            :class="[
-                                'px-3 py-1 rounded-md transition',
-                                activityTab === t.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-                            ]"
-                        >{{ t.label }}</button>
-                    </div>
-                </div>
+                <SectionHeader title="Recent activity">
+                    <template #actions>
+                        <TabPills v-model="activityTab" :options="[
+                            { id: 'payments',   label: 'Payments' },
+                            { id: 'admissions', label: 'Admissions' },
+                            { id: 'visitors',   label: 'Visitors' },
+                        ]" />
+                    </template>
+                </SectionHeader>
 
                 <RecentList v-if="activityTab === 'payments'" :rows="recentPayments" emptyText="No payments today">
                     <template #primary="{ row }">{{ row.student }}</template>
