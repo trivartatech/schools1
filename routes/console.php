@@ -53,3 +53,11 @@ Schedule::command('attendance:fill-holidays')
     ->dailyAt('00:30')
     ->withoutOverlapping();
 
+// Daily Master Report — fires every minute, but the command itself only
+// dispatches for schools whose `auto_send_time` matches the current minute.
+// Each school can pick its own send time at /school/settings/daily-report.
+Schedule::command('report:daily-master')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->runInBackground();
+

@@ -199,6 +199,14 @@ export const SIDEBAR_MENU = [
         icon: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7m-8 3l8 4"/>`,
     },
     {
+        id: 'daily_master_report',
+        title: 'Daily Master Report',
+        group: 'Operations',
+        route: '/school/reports/daily-master',
+        permission: 'view_dashboard',
+        icon: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 17v-2a4 4 0 014-4h4M3 7h18M3 12h12M3 17h6"/>`,
+    },
+    {
         id: 'front_office',
         title: 'Front Office',
         group: 'Operations',
@@ -336,6 +344,8 @@ export const SIDEBAR_MENU = [
             { title: 'General Config',   route: '/school/settings/general-config',   permission: 'view_settings' },
             { title: 'Asset Config',     route: '/school/settings/asset-config',     permission: 'view_settings' },
             { title: 'System Config',    route: '/school/settings/system-config',    permission: 'view_settings' },
+            { title: 'Admin Numbers',    route: '/school/settings/admin-contacts',   permission: 'view_settings' },
+            { title: 'Daily Report',     route: '/school/settings/daily-report',     permission: 'view_settings' },
             { title: 'Mobile App QR',    route: '/school/settings/mobile-qr',        permission: 'view_settings' },
             { title: 'Academic Years',   route: '/school/academic-years',            permission: 'view_settings' },
             { title: 'Setup Wizard',     route: '/school/settings/rollover',         permission: 'view_settings' },

@@ -7,6 +7,12 @@ use Inertia\Inertia;
 
 // Public Routes
 Route::get('/', [\App\Http\Controllers\PublicController::class, 'home']);
+
+// Signed PDF download for daily master reports — accessed via SMS link
+Route::get('/reports/daily-master/{schoolId}/{date}.pdf',
+    [\App\Http\Controllers\School\Reports\DailyMasterReportController::class, 'pdfSigned'])
+    ->name('school.reports.daily-master.pdf-signed');
+
 Route::get('/verify-receipt/{receipt_no}', [\App\Http\Controllers\PublicController::class, 'verifyReceipt'])->name('verify-receipt');
 Route::get('/verify-transport-receipt/{receipt_no}', [\App\Http\Controllers\PublicController::class, 'verifyTransportReceipt'])->name('verify-transport-receipt');
 Route::get('/verify-hostel-receipt/{receipt_no}', [\App\Http\Controllers\PublicController::class, 'verifyHostelReceipt'])->name('verify-hostel-receipt');
@@ -148,6 +154,17 @@ Route::middleware('auth')->group(function () {
         Route::post  ('settings/admin-contacts',           [$ACC, 'store'])  ->name('settings.admin-contacts.store');
         Route::put   ('settings/admin-contacts/{contact}', [$ACC, 'update']) ->name('settings.admin-contacts.update');
         Route::delete('settings/admin-contacts/{contact}', [$ACC, 'destroy'])->name('settings.admin-contacts.destroy');
+
+        // Daily Master Report — page, manual send, PDF download, settings
+        $DMR = \App\Http\Controllers\School\Reports\DailyMasterReportController::class;
+        Route::get ('reports/daily-master',       [$DMR, 'index']) ->name('reports.daily-master');
+        Route::post('reports/daily-master/send',  [$DMR, 'send'])  ->name('reports.daily-master.send');
+        Route::get ('reports/daily-master/pdf',   [$DMR, 'pdf'])   ->name('reports.daily-master.pdf');
+
+        // Daily Report Settings (per-school sections, thresholds, schedule)
+        $DRS = \App\Http\Controllers\School\Settings\DailyReportSettingsController::class;
+        Route::get ('settings/daily-report',  [$DRS, 'index'])  ->name('settings.daily-report');
+        Route::post('settings/daily-report',  [$DRS, 'update']) ->name('settings.daily-report.update');
 
         // Mobile App QR Code — generate scannable QR for EduConnect app onboarding
         Route::get('settings/mobile-qr', [\App\Http\Controllers\School\MobileQrController::class, 'index'])->name('settings.mobile-qr');
