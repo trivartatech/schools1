@@ -101,6 +101,60 @@ function toggleActive(l) {
 
 const fmt = (n) => new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(n);
 const fmtCur = (n) => '₹' + fmt(n);
+
+// ── Manage Ledger Types modal ────────────────────────────────
+const showTypesModal = ref(false);
+const editingTypeId = ref(null);
+const typeForm = useForm({
+    name: '',
+    nature: 'debit',
+    description: '',
+});
+
+function openTypesModal() {
+    showTypesModal.value = true;
+    cancelTypeEdit();
+}
+
+function cancelTypeEdit() {
+    editingTypeId.value = null;
+    typeForm.reset();
+    typeForm.nature = 'debit';
+    typeForm.clearErrors();
+}
+
+function editType(t) {
+    editingTypeId.value = t.id;
+    typeForm.name = t.name;
+    typeForm.nature = t.nature;
+    typeForm.description = t.description ?? '';
+}
+
+function saveType() {
+    const onDone = () => {
+        cancelTypeEdit();
+        router.reload({ only: ['types'], preserveScroll: true });
+    };
+    if (editingTypeId.value) {
+        typeForm.put(route('school.finance.ledger-types.update', editingTypeId.value), {
+            preserveScroll: true,
+            onSuccess: onDone,
+        });
+    } else {
+        typeForm.post(route('school.finance.ledger-types.store'), {
+            preserveScroll: true,
+            onSuccess: onDone,
+        });
+    }
+}
+
+function deleteType(t) {
+    if (!confirm(`Delete "${t.name}"? This cannot be undone.`)) return;
+    router.delete(route('school.finance.ledger-types.destroy', t.id), {
+        preserveScroll: true,
+        onSuccess: () => router.reload({ only: ['types'], preserveScroll: true }),
+    });
+}
 </script>
 
 <template>
@@ -113,6 +167,7 @@ const fmtCur = (n) => '₹' + fmt(n);
             </div>
             <div style="display:flex;gap:8px;">
                 <ExportDropdown base-url="/school/export/ledgers" />
+                <Button variant="secondary" @click="openTypesModal">Manage Types</Button>
                 <Button @click="openCreate">+ New Ledger</Button>
             </div>
         </div>
@@ -271,6 +326,75 @@ const fmtCur = (n) => '₹' + fmt(n);
                 </div>
             </div>
         </Teleport>
+
+        <!-- Manage Ledger Types Modal -->
+        <Teleport to="body">
+            <div v-if="showTypesModal" class="modal-overlay" @click.self="showTypesModal = false">
+                <div class="modal-box" style="max-width:560px;">
+                    <div class="modal-header">
+                        <h3>Manage Ledger Types</h3>
+                        <button class="modal-close" @click="showTypesModal = false">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Add / Edit form -->
+                        <form @submit.prevent="saveType" class="lt-form">
+                            <div class="form-group">
+                                <label class="form-label">{{ editingTypeId ? 'Edit Type Name' : 'New Type Name' }} <span class="req">*</span></label>
+                                <input v-model="typeForm.name" type="text" class="form-input" placeholder="e.g. Asset" required />
+                                <p v-if="typeForm.errors.name" class="form-error">{{ typeForm.errors.name }}</p>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group flex-2">
+                                    <label class="form-label">Nature <span class="req">*</span></label>
+                                    <select v-model="typeForm.nature" class="form-input">
+                                        <option value="debit">Debit Normal (Asset / Expense)</option>
+                                        <option value="credit">Credit Normal (Liability / Capital / Income)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Description</label>
+                                <input v-model="typeForm.description" type="text" class="form-input" placeholder="Optional" />
+                            </div>
+                            <div style="display:flex;gap:8px;">
+                                <Button type="submit" size="sm" :loading="typeForm.processing">
+                                    {{ editingTypeId ? 'Update Type' : 'Add Type' }}
+                                </Button>
+                                <Button v-if="editingTypeId" type="button" variant="secondary" size="sm" @click="cancelTypeEdit">
+                                    Cancel Edit
+                                </Button>
+                            </div>
+                        </form>
+
+                        <!-- Existing types list -->
+                        <div class="lt-list-header">Existing Types ({{ types.length }})</div>
+                        <div v-if="types.length === 0" class="lt-empty">No types yet.</div>
+                        <div v-else class="lt-list">
+                            <div v-for="t in types" :key="t.id" class="lt-row" :class="{ 'lt-row--editing': editingTypeId === t.id }">
+                                <div class="lt-row-text">
+                                    <div class="lt-row-name">
+                                        {{ t.name }}
+                                        <span class="lt-row-nature" :class="t.nature === 'debit' ? 'nature-dr' : 'nature-cr'">
+                                            {{ t.nature === 'debit' ? 'Dr' : 'Cr' }}
+                                        </span>
+                                        <span v-if="t.is_system" class="lt-row-sys">System</span>
+                                    </div>
+                                    <div v-if="t.description" class="lt-row-desc">{{ t.description }}</div>
+                                    <div class="lt-row-count">{{ t.ledgers_count ?? 0 }} ledger{{ (t.ledgers_count ?? 0) !== 1 ? 's' : '' }}</div>
+                                </div>
+                                <div class="lt-row-actions">
+                                    <button class="lt-row-btn" @click="editType(t)">Edit</button>
+                                    <button v-if="!t.is_system" class="lt-row-btn lt-row-del" @click="deleteType(t)">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <Button variant="secondary" @click="showTypesModal = false">Close</Button>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
     </SchoolLayout>
 </template>
 
@@ -404,4 +528,33 @@ const fmtCur = (n) => '₹' + fmt(n);
 }
 .form-input:focus { border-color: #6366f1; }
 .form-error { font-size: 0.75rem; color: #dc2626; }
+
+/* Manage Ledger Types modal */
+.lt-form { padding-bottom: 14px; border-bottom: 1px solid #e2e8f0; margin-bottom: 14px; display: flex; flex-direction: column; gap: 12px; }
+.lt-list-header { font-size: 0.78rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
+.lt-empty { font-size: 0.85rem; color: #94a3b8; padding: 14px; text-align: center; background: #f8fafc; border-radius: 8px; }
+.lt-list { display: flex; flex-direction: column; gap: 6px; }
+.lt-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px;
+    background: #fff; transition: all 0.15s; gap: 10px;
+}
+.lt-row--editing { border-color: #6366f1; background: #eef2ff; }
+.lt-row-text { flex: 1; min-width: 0; }
+.lt-row-name { font-weight: 600; color: #1e293b; font-size: 0.88rem; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.lt-row-nature { font-size: 0.66rem; font-weight: 700; padding: 2px 7px; border-radius: 12px; }
+.nature-dr { background: #ede9fe; color: #6366f1; }
+.nature-cr { background: #d1fae5; color: #059669; }
+.lt-row-sys { font-size: 0.66rem; font-weight: 700; padding: 2px 7px; border-radius: 12px; background: #fef3c7; color: #d97706; }
+.lt-row-desc { font-size: 0.74rem; color: #94a3b8; margin-top: 2px; }
+.lt-row-count { font-size: 0.7rem; color: #94a3b8; margin-top: 3px; }
+.lt-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.lt-row-btn {
+    border: 1px solid #e2e8f0; background: #f8fafc;
+    border-radius: 6px; padding: 4px 10px;
+    font-size: 0.74rem; font-weight: 600; color: #475569;
+    cursor: pointer; transition: all 0.15s;
+}
+.lt-row-btn:hover { background: #eef2ff; border-color: #c4b5fd; color: #6366f1; }
+.lt-row-del:hover { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
 </style>

@@ -4,6 +4,7 @@ import { ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import StatementsTabNav from '@/Components/finance/StatementsTabNav.vue';
 
 const props = defineProps({
     assets           : Array,
@@ -40,6 +41,7 @@ const fmtCur = (n) => '₹' + fmt(n);
 
 <template>
     <SchoolLayout>
+        <StatementsTabNav current="balance-sheet" />
         <div class="page-header">
             <div>
                 <h1 class="page-header-title">Balance Sheet</h1>

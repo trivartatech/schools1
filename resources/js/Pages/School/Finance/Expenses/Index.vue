@@ -31,6 +31,57 @@ const editingId = ref(null);
 
 const activeTab = ref('list'); // 'list' or 'form'
 
+// ── Manage Categories modal ──────────────────────────────────
+const showCategoriesModal = ref(false);
+const editingCategoryId = ref(null);
+const categoryForm = useForm({
+    name: '',
+    description: '',
+});
+
+const openCategoriesModal = () => {
+    showCategoriesModal.value = true;
+    cancelCategoryEdit();
+};
+
+const cancelCategoryEdit = () => {
+    editingCategoryId.value = null;
+    categoryForm.reset();
+    categoryForm.clearErrors();
+};
+
+const editCategory = (cat) => {
+    editingCategoryId.value = cat.id;
+    categoryForm.name = cat.name;
+    categoryForm.description = cat.description || '';
+};
+
+const saveCategory = () => {
+    const onDone = () => {
+        cancelCategoryEdit();
+        router.reload({ only: ['categories'], preserveScroll: true });
+    };
+    if (editingCategoryId.value) {
+        categoryForm.put(route('school.expense-categories.update', editingCategoryId.value), {
+            preserveScroll: true,
+            onSuccess: onDone,
+        });
+    } else {
+        categoryForm.post(route('school.expense-categories.store'), {
+            preserveScroll: true,
+            onSuccess: onDone,
+        });
+    }
+};
+
+const deleteCategory = (cat) => {
+    if (!confirm(`Delete category "${cat.name}"? Expenses tagged to it may need re-categorization.`)) return;
+    router.delete(route('school.expense-categories.destroy', cat.id), {
+        preserveScroll: true,
+        onSuccess: () => router.reload({ only: ['categories'], preserveScroll: true }),
+    });
+};
+
 const filterForm = ref({
     category_id: props.filters.category_id || '',
     from_date: props.filters.from_date || '',
@@ -145,6 +196,9 @@ const formatCurrency = (amount) => {
                     :title="`${unpostedCount} expense(s) not yet posted to GL`"
                 >
                     Post All to GL ({{ unpostedCount }})
+                </Button>
+                <Button variant="secondary" @click="openCategoriesModal">
+                    Manage Categories
                 </Button>
                 <Button
                     @click="activeTab = 'list'"
@@ -319,6 +373,63 @@ const formatCurrency = (amount) => {
             </div>
         </div>
 
+        <!-- Manage Categories Modal -->
+        <Teleport to="body">
+            <div v-if="showCategoriesModal" class="cat-modal-overlay" @click.self="showCategoriesModal = false">
+                <div class="cat-modal-box">
+                    <div class="cat-modal-header">
+                        <h3>Manage Expense Categories</h3>
+                        <button class="cat-modal-close" @click="showCategoriesModal = false">×</button>
+                    </div>
+                    <div class="cat-modal-body">
+                        <!-- Add / Edit form -->
+                        <form @submit.prevent="saveCategory" class="cat-form">
+                            <div class="cat-form-row">
+                                <div class="cat-form-field cat-form-field--grow">
+                                    <label>{{ editingCategoryId ? 'Edit Category Name' : 'New Category Name' }} <span class="cat-req">*</span></label>
+                                    <input v-model="categoryForm.name" type="text" required placeholder="e.g. Utilities" />
+                                    <p v-if="categoryForm.errors.name" class="cat-err">{{ categoryForm.errors.name }}</p>
+                                </div>
+                            </div>
+                            <div class="cat-form-row">
+                                <div class="cat-form-field cat-form-field--grow">
+                                    <label>Description</label>
+                                    <input v-model="categoryForm.description" type="text" placeholder="Optional" />
+                                </div>
+                            </div>
+                            <div class="cat-form-actions">
+                                <Button type="submit" size="sm" :loading="categoryForm.processing">
+                                    {{ editingCategoryId ? 'Update' : 'Add Category' }}
+                                </Button>
+                                <Button v-if="editingCategoryId" type="button" variant="secondary" size="sm" @click="cancelCategoryEdit">
+                                    Cancel Edit
+                                </Button>
+                            </div>
+                        </form>
+
+                        <!-- Existing categories list -->
+                        <div class="cat-list-header">Existing Categories ({{ categories.length }})</div>
+                        <div v-if="categories.length === 0" class="cat-empty">No categories yet. Add your first one above.</div>
+                        <div v-else class="cat-list">
+                            <div v-for="cat in categories" :key="cat.id" class="cat-row" :class="{ 'cat-row--editing': editingCategoryId === cat.id }">
+                                <div class="cat-row-text">
+                                    <div class="cat-row-name">{{ cat.name }}</div>
+                                    <div v-if="cat.description" class="cat-row-desc">{{ cat.description }}</div>
+                                </div>
+                                <div class="cat-row-actions">
+                                    <button class="cat-act-btn" @click="editCategory(cat)" title="Edit">Edit</button>
+                                    <button class="cat-act-btn cat-act-del" @click="deleteCategory(cat)" title="Delete">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="cat-modal-footer">
+                        <Button variant="secondary" @click="showCategoriesModal = false">Close</Button>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
+
     </SchoolLayout>
 </template>
 
@@ -343,4 +454,79 @@ const formatCurrency = (amount) => {
     border-radius: 4px; line-height: 1; transition: color 0.15s;
 }
 .gl-repost:hover { color: #059669; }
+
+/* Manage Categories modal */
+.cat-modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9000;
+    padding: 20px;
+}
+.cat-modal-box {
+    background: #fff;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 520px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    overflow: hidden;
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+}
+.cat-modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 22px;
+    border-bottom: 1px solid #f1f5f9;
+}
+.cat-modal-header h3 { font-weight: 700; font-size: 1rem; color: #1e293b; }
+.cat-modal-close {
+    background: none; border: none; cursor: pointer;
+    font-size: 1.4rem; color: #94a3b8; line-height: 1;
+}
+.cat-modal-close:hover { color: #1e293b; }
+.cat-modal-body { padding: 18px 22px; overflow-y: auto; flex: 1; }
+.cat-modal-footer {
+    display: flex; justify-content: flex-end; gap: 10px;
+    padding: 12px 22px;
+    border-top: 1px solid #f1f5f9;
+    background: #f8fafc;
+}
+
+.cat-form { display: flex; flex-direction: column; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid #e2e8f0; margin-bottom: 14px; }
+.cat-form-row { display: flex; gap: 10px; }
+.cat-form-field { display: flex; flex-direction: column; gap: 4px; }
+.cat-form-field--grow { flex: 1; }
+.cat-form-field label { font-size: 0.78rem; font-weight: 600; color: #374151; }
+.cat-req { color: #ef4444; }
+.cat-form-field input {
+    border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 7px 11px;
+    font-size: 0.85rem; outline: none; font-family: inherit; color: #1e293b;
+    transition: border-color 0.15s; width: 100%;
+}
+.cat-form-field input:focus { border-color: #6366f1; }
+.cat-err { font-size: 0.74rem; color: #dc2626; }
+.cat-form-actions { display: flex; gap: 8px; }
+
+.cat-list-header { font-size: 0.78rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
+.cat-empty { font-size: 0.85rem; color: #94a3b8; padding: 14px; text-align: center; background: #f8fafc; border-radius: 8px; }
+.cat-list { display: flex; flex-direction: column; gap: 6px; }
+.cat-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 12px; border: 1px solid #e2e8f0; border-radius: 8px;
+    background: #fff; transition: all 0.15s;
+}
+.cat-row--editing { border-color: #6366f1; background: #eef2ff; }
+.cat-row-text { flex: 1; min-width: 0; }
+.cat-row-name { font-weight: 600; color: #1e293b; font-size: 0.88rem; }
+.cat-row-desc { font-size: 0.74rem; color: #94a3b8; margin-top: 2px; }
+.cat-row-actions { display: flex; gap: 6px; }
+.cat-act-btn {
+    border: 1px solid #e2e8f0; background: #f8fafc;
+    border-radius: 6px; padding: 4px 10px;
+    font-size: 0.74rem; font-weight: 600; color: #475569;
+    cursor: pointer; transition: all 0.15s;
+}
+.cat-act-btn:hover { background: #eef2ff; border-color: #c4b5fd; color: #6366f1; }
+.cat-act-del:hover { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
 </style>
