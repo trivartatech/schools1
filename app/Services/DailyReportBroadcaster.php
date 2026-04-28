@@ -54,6 +54,13 @@ class DailyReportBroadcaster
         $signedPdfUrl = $this->buildSignedPdfUrl($schoolId, $date);
         $smsText      = $this->buildSmsMessage($report, $school, $signedPdfUrl);
 
+        // Pre-fetch the SMS template (system seed) once
+        $smsTemplate = \App\Models\CommunicationTemplate::where('school_id', $school->id)
+            ->where('type', 'sms')
+            ->where('slug', 'daily_report')
+            ->where('is_active', true)
+            ->first();
+
         $notifier = new NotificationService($school);
 
         $stats = ['whatsapp' => 0, 'sms' => 0, 'failed' => 0, 'contacts' => $contacts->count(), 'pdf_path' => $pdfPath];
@@ -82,10 +89,31 @@ class DailyReportBroadcaster
                 }
             }
 
-            // 2. Fallback to SMS if WhatsApp didn't go OR contact only has phone
+            // 2. Fallback to SMS if WhatsApp didn't go OR contact only has phone.
+            //    If the seeded daily_report SMS template has a configured
+            //    template_id, route through MSG91 with variable substitution
+            //    (delivery requires a DLT-approved template id). Otherwise
+            //    fall back to the free-form SMS body — useful for local
+            //    testing or alternate providers.
             if (!$sent && !empty($contact->phone)) {
                 try {
-                    $notifier->sendSms($contact->phone, $smsText, null, null, []);
+                    if ($smsTemplate && $smsTemplate->template_id) {
+                        $data = [
+                            'date'    => $date->format('d-M-Y'),
+                            'caption' => mb_substr($smsText, 0, 200),
+                            'link'    => $signedPdfUrl,
+                            'app_name'=> $school->name,
+                        ];
+                        $notifier->sendSms(
+                            $contact->phone,
+                            $smsTemplate->content,
+                            $smsTemplate->template_id,
+                            null,
+                            $data
+                        );
+                    } else {
+                        $notifier->sendSms($contact->phone, $smsText, null, null, []);
+                    }
                     $this->logDelivery($schoolId, $contact->id, $date, $mode, 'sms', $contact->phone, $pdfPath);
                     $stats['sms']++;
                     $sent = true;

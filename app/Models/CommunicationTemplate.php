@@ -134,6 +134,15 @@ class CommunicationTemplate extends Model
                 'sms' => 'Hi ##NAME##, this is a test message from ##APP_NAME## sent on ##DATE##.',
             ],
         ],
+        'daily_report' => [
+            'name'      => 'Daily Master Report',
+            'variables' => ['app_name', 'date', 'caption', 'link'],
+            'channels'  => ['sms', 'whatsapp'],
+            'defaults'  => [
+                'sms'      => '##APP_NAME## Daily Report ##DATE##: ##CAPTION##. Full report: ##LINK##',
+                'whatsapp' => '##APP_NAME## — Daily Master Report (##DATE##)' . "\n\n" . '##CAPTION##' . "\n\n" . 'Open full PDF: ##LINK##',
+            ],
+        ],
     ];
 
     public function school()
