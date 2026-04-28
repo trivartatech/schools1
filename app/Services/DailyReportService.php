@@ -426,21 +426,33 @@ class DailyReportService
         $classes  = CourseClass::with('inchargeStaff.user')
             ->whereIn('id', $classIds)->get()->keyBy('id');
 
-        return $unmarkedSections->map(function ($r) use ($sections, $classes) {
+        $rows = $unmarkedSections->map(function ($r) use ($sections, $classes) {
             $section = $sections[$r->section_id] ?? null;
             $class   = $classes[$r->class_id] ?? null;
             $teacherName = $section?->inchargeStaff?->user?->name
                 ?? $class?->inchargeStaff?->user?->name
                 ?? null;
             return [
-                'class_id'   => $r->class_id,
-                'class'      => $class?->name ?? '—',
-                'section_id' => $r->section_id,
-                'section'    => $section?->name ?? '—',
-                'enrolled'   => (int) $r->enrolled,
-                'teacher'    => $teacherName,
+                'class_id'      => $r->class_id,
+                'class'         => $class?->name ?? '—',
+                'class_order'   => (int) ($class?->numeric_value ?? PHP_INT_MAX),
+                'section_id'    => $r->section_id,
+                'section'       => $section?->name ?? '—',
+                'section_order' => (int) ($section?->sort_order ?? PHP_INT_MAX),
+                'enrolled'      => (int) $r->enrolled,
+                'teacher'       => $teacherName,
             ];
         })->values()->all();
+
+        // Same ordering as the main attendance table
+        usort($rows, function ($a, $b) {
+            if ($a['class_order'] !== $b['class_order']) {
+                return $a['class_order'] <=> $b['class_order'];
+            }
+            return $a['section_order'] <=> $b['section_order'];
+        });
+
+        return $rows;
     }
 
     // ───────────────────────────────────────────────────────────────
