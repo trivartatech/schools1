@@ -7,6 +7,7 @@ use App\Models\HostelRoom;
 use App\Models\HostelBed;
 use App\Models\HostelStudent;
 use App\Models\Student;
+use App\Services\HostelFeeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -57,6 +58,7 @@ class AllocationController extends Controller
             'guardian_relation' => 'nullable|string|max:255',
             'medical_info' => 'nullable|string',
             'mess_type' => 'required|in:Veg,Non-Veg,Custom,None',
+            'months_opted' => 'nullable|numeric|min:0',
         ]);
 
         $bed = HostelBed::where('id', $validated['hostel_bed_id'])
@@ -77,12 +79,16 @@ class AllocationController extends Controller
             return back()->with('error', 'This student is already allocated to a hostel bed.');
         }
 
+        $monthsOpted = $validated['months_opted'] ?? null;
+        unset($validated['months_opted']);
+
         $validated['school_id'] = $schoolId;
         $validated['status'] = 'Active';
 
-        DB::transaction(function () use ($validated, $bed) {
-            HostelStudent::create($validated);
+        DB::transaction(function () use ($validated, $bed, $monthsOpted) {
+            $allocation = HostelStudent::create($validated);
             $bed->update(['status' => 'Occupied']);
+            app(HostelFeeService::class)->seedAllocationFee($allocation, $monthsOpted);
         });
 
         return back()->with('success', 'Student assigned to bed successfully');
@@ -122,6 +128,8 @@ class AllocationController extends Controller
             if ($allocation->bed) {
                 $allocation->bed->update(['status' => 'Available']);
             }
+
+            $allocation->refresh()->recalculateTotals();
         });
 
         return back()->with('success', 'Student vacated from bed successfully');
@@ -162,6 +170,13 @@ class AllocationController extends Controller
             // Assign new bed
             $allocation->update(['hostel_bed_id' => $newBed->id]);
             $newBed->update(['status' => 'Occupied']);
+
+            // Re-seed hostel_fee using the new room's monthly cost; keep
+            // months_opted as-is. recalculateTotals() reconciles balance
+            // against existing receipts.
+            app(HostelFeeService::class)
+                ->seedAllocationFee($allocation->refresh(), (float) $allocation->months_opted);
+            $allocation->refresh()->recalculateTotals();
         });
 
         return back()->with('success', 'Student transferred to new bed successfully.');

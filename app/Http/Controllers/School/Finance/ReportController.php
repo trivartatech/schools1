@@ -5,6 +5,7 @@ namespace App\Http\Controllers\School\Finance;
 use App\Http\Controllers\Controller;
 use App\Models\Expense;
 use App\Models\FeePayment;
+use App\Models\HostelFeePayment;
 use App\Models\Payroll;
 use App\Models\FeeHead;
 use App\Models\TransportFeePayment;
@@ -54,7 +55,21 @@ class ReportController extends Controller
         }
         $totalTransportFees = (float) (clone $transportQuery)->sum('amount_paid');
 
-        $totalFees = (float) $totalTuitionFees + $totalTransportFees;
+        // 1c. Total Hostel Fee Collected (same date / class / section filters)
+        $hostelQuery = HostelFeePayment::where('school_id', $schoolId)
+            ->whereBetween('payment_date', [$startDate, $endDate]);
+        if ($request->filled('class_id')) {
+            $hostelQuery->whereHas('student.currentAcademicHistory', function($q) use ($request, $academicYearId) {
+                $q->where('class_id', $request->class_id);
+                if ($request->filled('section_id')) {
+                    $q->where('section_id', $request->section_id);
+                }
+                $q->where('academic_year_id', $academicYearId);
+            });
+        }
+        $totalHostelFees = (float) (clone $hostelQuery)->sum('amount_paid');
+
+        $totalFees = (float) $totalTuitionFees + $totalTransportFees + $totalHostelFees;
 
         // 2. Total Expenses
         $totalExpenses = Expense::where('school_id', $schoolId)
@@ -89,12 +104,20 @@ class ReportController extends Controller
             ->groupByRaw($dateFormatter)
             ->pluck('total', 'month');
 
-        // Combine the two income streams by month (same key format → same month bucket)
+        $monthlyHostelIncome = (clone $hostelQuery)
+            ->selectRaw("$dateFormatter as month, SUM(amount_paid) as total")
+            ->groupByRaw($dateFormatter)
+            ->pluck('total', 'month');
+
+        // Combine the income streams by month (same key format → same month bucket)
         $monthlyIncomeQuery = collect($monthlyTuitionIncome->keys())
             ->merge($monthlyTransportIncome->keys())
+            ->merge($monthlyHostelIncome->keys())
             ->unique()
             ->mapWithKeys(fn($m) => [
-                $m => (float) ($monthlyTuitionIncome[$m] ?? 0) + (float) ($monthlyTransportIncome[$m] ?? 0),
+                $m => (float) ($monthlyTuitionIncome[$m] ?? 0)
+                    + (float) ($monthlyTransportIncome[$m] ?? 0)
+                    + (float) ($monthlyHostelIncome[$m] ?? 0),
             ]);
 
         $monthlyExpensesQuery = Expense::where('school_id', $schoolId)
@@ -169,6 +192,15 @@ class ReportController extends Controller
             $feesByHead = $feesByHead->sortByDesc('total')->values();
         }
 
+        // Same treatment for hostel collection.
+        if ($totalHostelFees > 0) {
+            $feesByHead->push((object) [
+                'name'  => 'Hostel Fee',
+                'total' => $totalHostelFees,
+            ]);
+            $feesByHead = $feesByHead->sortByDesc('total')->values();
+        }
+
         // Breakdown: Top Expenses Category
         $topExpenseCategories = DB::table('expenses')
             ->leftJoin('expense_categories', 'expenses.expense_category_id', '=', 'expense_categories.id')
@@ -193,6 +225,7 @@ class ReportController extends Controller
                 'total_fees_collected'           => (float) $totalFees,
                 'total_tuition_fees_collected'   => (float) $totalTuitionFees,
                 'total_transport_fees_collected' => (float) $totalTransportFees,
+                'total_hostel_fees_collected'    => (float) $totalHostelFees,
                 'total_expenses'                 => (float) $totalExpenses,
                 'total_payroll'                  => (float) $totalPayroll,
                 'net_revenue'                    => (float) $netRevenue,

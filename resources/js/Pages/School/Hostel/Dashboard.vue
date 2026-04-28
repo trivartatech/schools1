@@ -1,11 +1,8 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
-import { ref, reactive, computed } from 'vue';
-import { Link, router } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
+import { Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
-import { usePermissions } from '@/Composables/usePermissions';
-
-const { canDo } = usePermissions();
 
 const props = defineProps({
     stats: { type: Object, required: true },
@@ -13,12 +10,6 @@ const props = defineProps({
 });
 
 const expandedHostel = ref(null);
-const showFeeModal = ref(false);
-const feeLoading = ref(false);
-const feeForm = reactive({
-    month: new Date().getMonth() + 1,
-    year: new Date().getFullYear(),
-});
 
 const cards = computed(() => [
     { title: 'Total Beds', value: props.stats.total_beds, color: '#6366f1' },
@@ -34,6 +25,7 @@ const quickLinks = [
     { label: 'Manage Hostels', href: '/school/hostel/hostels' },
     { label: 'Rooms & Beds', href: '/school/hostel/rooms' },
     { label: 'Student Allocations', href: '/school/hostel/allocations' },
+    { label: 'Fee Collection', href: '/school/hostel/fees' },
     { label: 'Gate Passes', href: '/school/hostel/gate-passes' },
     { label: 'Visitor Logs', href: '/school/hostel/visitors' },
     { label: 'Mess Menu', href: '/school/hostel/mess' },
@@ -48,16 +40,6 @@ const barColor = (pct) => pct > 90 ? '#ef4444' : pct > 70 ? '#f59e0b' : '#22c55e
 const toggleHostel = (id) => {
     expandedHostel.value = expandedHostel.value === id ? null : id;
 };
-
-const generateFees = () => {
-    feeLoading.value = true;
-    router.post(route('school.hostel.generate-fees'), feeForm, {
-        preserveScroll: true,
-        onFinish: () => { feeLoading.value = false; showFeeModal.value = false; },
-    });
-};
-
-const monthNames = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
 </script>
 
 <template>
@@ -67,7 +49,9 @@ const monthNames = ['','January','February','March','April','May','June','July',
             <h1 class="page-header-title">Hostel Dashboard</h1>
             <p class="page-header-sub">Overview of hostel occupancy and operations</p>
         </div>
-        <Button v-if="canDo('create', 'hostel')" @click="showFeeModal = true">Generate Monthly Fees</Button>
+        <Link href="/school/hostel/fees">
+            <Button>Fee Collection</Button>
+        </Link>
     </div>
 
     <!-- Stats Grid -->
@@ -136,33 +120,6 @@ const monthNames = ['','January','February','March','April','May','June','July',
         </div>
     </div>
 
-    <!-- Generate Fees Modal -->
-    <teleport to="body">
-        <div v-if="showFeeModal" class="modal-overlay" @click.self="showFeeModal = false">
-            <div class="modal-box" style="max-width:400px;">
-                <h3 class="modal-title">Generate Monthly Hostel Fees</h3>
-                <p style="font-size:.82rem;color:#64748b;margin-bottom:14px;">This will create fee entries for all active hostel students who don't already have fees for the selected month.</p>
-                <div class="form-row form-row-2">
-                    <div class="form-field">
-                        <label>Month</label>
-                        <select v-model="feeForm.month">
-                            <option v-for="m in 12" :key="m" :value="m">{{ monthNames[m] }}</option>
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label>Year</label>
-                        <input type="number" v-model="feeForm.year" min="2020" max="2050" />
-                    </div>
-                </div>
-                <div class="modal-actions">
-                    <Button variant="secondary" @click="showFeeModal = false">Cancel</Button>
-                    <Button @click="generateFees" :loading="feeLoading">
-                        Generate
-                    </Button>
-                </div>
-            </div>
-        </div>
-    </teleport>
 </SchoolLayout>
 </template>
 

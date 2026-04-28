@@ -9,7 +9,6 @@ use App\Models\HostelBed;
 use App\Models\HostelStudent;
 use App\Models\HostelLeaveRequest;
 use App\Models\HostelComplaint;
-use App\Services\HostelFeeService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -93,23 +92,5 @@ class DashboardController extends Controller
             'stats'     => $stats,
             'occupancy' => $occupancy,
         ]);
-    }
-
-    /**
-     * Generate recurring monthly hostel fees for all active students.
-     */
-    public function generateFees(Request $request)
-    {
-        $validated = $request->validate([
-            'month' => 'required|integer|between:1,12',
-            'year'  => 'required|integer|min:2020|max:2050',
-        ]);
-
-        $schoolId  = app('current_school_id');
-        $generated = app(HostelFeeService::class)->generateMonthlyFees(
-            $schoolId, $validated['month'], $validated['year']
-        );
-
-        return back()->with('success', "Monthly hostel fees generated for {$generated} student(s).");
     }
 }

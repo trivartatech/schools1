@@ -9,6 +9,7 @@ use Inertia\Inertia;
 Route::get('/', [\App\Http\Controllers\PublicController::class, 'home']);
 Route::get('/verify-receipt/{receipt_no}', [\App\Http\Controllers\PublicController::class, 'verifyReceipt'])->name('verify-receipt');
 Route::get('/verify-transport-receipt/{receipt_no}', [\App\Http\Controllers\PublicController::class, 'verifyTransportReceipt'])->name('verify-transport-receipt');
+Route::get('/verify-hostel-receipt/{receipt_no}', [\App\Http\Controllers\PublicController::class, 'verifyHostelReceipt'])->name('verify-hostel-receipt');
 Route::get('/school/hostel/gate-passes/verify/{token}', [\App\Http\Controllers\PublicController::class, 'verifyGatePass'])->name('gate-pass.verify-public');
 Route::get('/school/hostel/visitors/verify/{token}', [\App\Http\Controllers\PublicController::class, 'verifyVisitorPass'])->name('visitor-pass.verify-public');
 Route::get('/verify/certificate/{token}', [\App\Http\Controllers\PublicController::class, 'verifyCertificate'])->name('certificate.verify-public');
@@ -833,8 +834,18 @@ Route::middleware('auth')->group(function () {
                 Route::put('complaints/{complaint}',  [$CC, 'update']) ->name('complaints.update');
                 Route::delete('complaints/{complaint}', [$CC, 'destroy'])->name('complaints.destroy');
 
-                // Generate Monthly Fee
-                Route::post('generate-fees', [\App\Http\Controllers\School\Hostel\DashboardController::class, 'generateFees'])->name('generate-fees');
+                // Hostel Fee Collection (standalone — no link to Finance FeePayment)
+                Route::middleware(['permission:view_hostel'])->group(function () {
+                    $HFC = \App\Http\Controllers\School\Hostel\HostelFeeCollectionController::class;
+                    Route::get('fees',                              [$HFC, 'index'])->name('fees.index');
+                    Route::get('fees/receipts/{payment}/receipt',   [$HFC, 'receipt'])->name('fees.receipt');
+                    Route::get('fees/{allocation}',                 [$HFC, 'show'])->name('fees.show');
+
+                    Route::middleware(['permission:collect_hostel_fee'])->group(function () use ($HFC) {
+                        Route::post('fees/{allocation}/collect',         [$HFC, 'store'])->name('fees.store');
+                        Route::delete('fees/receipts/{payment}',         [$HFC, 'destroy'])->name('fees.receipt.destroy');
+                    });
+                });
             });
         });
 

@@ -128,6 +128,9 @@ class RolePermissionSeeder extends Seeder
         'view_transport'            => 'Transport',
         'collect_transport_fee'     => 'Transport',   // record transport-fee receipts
 
+        // ── Hostel ───────────────────────────────────────────────────────────
+        'collect_hostel_fee'        => 'Hostel',      // record hostel-fee receipts
+
         // ── Portal (parent/student self-service) ─────────────────────────────
         'view_own_student'          => 'Parent/Student Portal',
         'view_own_attendance'       => 'Parent/Student Portal',
@@ -365,6 +368,10 @@ class RolePermissionSeeder extends Seeder
             'view_transport_allocations',
             'collect_transport_fee',
 
+            // Hostel fee collection (standalone from Finance > Fee)
+            'view_hostel',
+            'collect_hostel_fee',
+
             // Expense — full CRUD
             'view_expense', 'create_expense', 'edit_expense', 'delete_expense',
 
@@ -447,6 +454,7 @@ class RolePermissionSeeder extends Seeder
         // ── hostel_warden ────────────────────────────────────────────────────
         Role::findByName('hostel_warden')->syncPermissions([
             'view_hostel', 'create_hostel', 'edit_hostel', 'delete_hostel',
+            'collect_hostel_fee',
             'view_students',
         ]);
 

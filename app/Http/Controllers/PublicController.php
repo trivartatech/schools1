@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CertificateIssuance;
 use App\Models\FeePayment;
+use App\Models\HostelFeePayment;
 use App\Models\HostelLeaveRequest;
 use App\Models\HostelVisitor;
 use App\Models\TransportFeePayment;
@@ -40,6 +41,19 @@ class PublicController extends Controller
         }
 
         return view('verify-transport-receipt', compact('payment'));
+    }
+
+    public function verifyHostelReceipt(string $receipt_no)
+    {
+        $payment = HostelFeePayment::where('receipt_no', $receipt_no)
+            ->with(['student', 'school', 'allocation.bed.room.hostel'])
+            ->first();
+
+        if (!$payment) {
+            return response('Invalid or unrecognized receipt number.', 404);
+        }
+
+        return view('verify-hostel-receipt', compact('payment'));
     }
 
     public function verifyGatePass(string $token)

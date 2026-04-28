@@ -216,8 +216,10 @@ const barChartData = computed(() => {
                     <div class="kpi-content">
                         <p class="kpi-label">Total Fee Collected</p>
                         <h3 class="kpi-value text-blue-700">{{ formatCurrency(metrics.total_fees_collected) }}</h3>
-                        <p v-if="metrics.total_transport_fees_collected !== undefined" class="kpi-sub">
-                            Tuition {{ formatCurrency(metrics.total_tuition_fees_collected) }} · Transport {{ formatCurrency(metrics.total_transport_fees_collected) }}
+                        <p v-if="metrics.total_transport_fees_collected !== undefined || metrics.total_hostel_fees_collected !== undefined" class="kpi-sub">
+                            Tuition {{ formatCurrency(metrics.total_tuition_fees_collected) }}
+                            <span v-if="metrics.total_transport_fees_collected !== undefined">· Transport {{ formatCurrency(metrics.total_transport_fees_collected) }}</span>
+                            <span v-if="metrics.total_hostel_fees_collected !== undefined">· Hostel {{ formatCurrency(metrics.total_hostel_fees_collected) }}</span>
                         </p>
                     </div>
                 </div>

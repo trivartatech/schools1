@@ -11,14 +11,12 @@ use App\Models\Expense;
 use App\Models\FeeGroup;
 use App\Models\FeePayment;
 use App\Models\Hostel;
-use App\Models\HostelStudent;
 use App\Models\Leave;
 use App\Models\Payroll;
 use App\Models\TransportFeePayment;
 use App\Models\User;
 use App\Observers\ExpenseGLObserver;
 use App\Observers\FeePaymentGLObserver;
-use App\Observers\HostelStudentObserver;
 use App\Observers\PayrollGLObserver;
 use App\Observers\TransportFeePaymentGLObserver;
 use App\Listeners\RoleChangeAuditListener;
@@ -96,9 +94,6 @@ class AppServiceProvider extends ServiceProvider
         TransportFeePayment::observe(TransportFeePaymentGLObserver::class);
         Expense::observe(ExpenseGLObserver::class);
         Payroll::observe(PayrollGLObserver::class);
-
-        // Hostel fee sync — uses the Finance FeePayment bridge.
-        HostelStudent::observe(HostelStudentObserver::class);
 
         // Log Viewer — token-based auth independent of ERP login.
         // Access: /log-viewer?token=<LOG_VIEWER_SECRET>

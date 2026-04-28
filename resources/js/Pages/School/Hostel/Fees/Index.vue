@@ -1,0 +1,224 @@
+<script setup>
+import { onMounted, ref, watch } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
+import axios from 'axios';
+import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import Button from '@/Components/ui/Button.vue';
+import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
+
+const props = defineProps({
+    allocations: Object,
+    hostels:     Array,
+    classes:     Array,
+    filters:     Object,
+    summary:     Object,
+});
+
+const filters = ref({
+    search:     props.filters?.search     ?? '',
+    status:     props.filters?.status     ?? '',
+    hostel_id:  props.filters?.hostel_id  ?? '',
+    class_id:   props.filters?.class_id   ?? '',
+    section_id: props.filters?.section_id ?? '',
+});
+
+const sections = ref([]);
+
+function loadSections(classId) {
+    if (!classId) {
+        sections.value = [];
+        filters.value.section_id = '';
+        return Promise.resolve();
+    }
+    return axios.get(`/school/classes/${classId}/sections`)
+        .then(res => {
+            sections.value = res.data || [];
+            if (!sections.value.find(s => s.id == filters.value.section_id)) {
+                filters.value.section_id = '';
+            }
+        });
+}
+
+onMounted(() => {
+    if (filters.value.class_id) loadSections(filters.value.class_id);
+});
+
+watch(() => filters.value.class_id, (v) => { loadSections(v); });
+
+let debounceTimer = null;
+watch(filters, (v) => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+        router.get('/school/hostel/fees', v, { preserveState: true, preserveScroll: true, replace: true });
+    }, 350);
+}, { deep: true });
+
+function fmt(n) {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(Number(n || 0));
+}
+
+function studentName(a) {
+    return a?.student?.user?.name
+        || [a?.student?.first_name, a?.student?.last_name].filter(Boolean).join(' ')
+        || '—';
+}
+
+function studentClassSection(a) {
+    const h = a?.student?.current_academic_history;
+    if (!h) return '—';
+    const cls = h.course_class?.name ?? '';
+    const sec = h.section?.name ?? '';
+    return [cls, sec].filter(Boolean).join(' - ') || '—';
+}
+
+function termLabel(a) {
+    const total = Number(a?.months_opted ?? 0);
+    if (!total) return '';
+    const m = Math.floor(total);
+    const d = Math.round((total - m) * 30);
+    if (m && d) return `${m} mo ${d} d`;
+    if (m)      return `${m} mo`;
+    if (d)      return `${d} d`;
+    return '';
+}
+
+const STATUS_COLOURS = {
+    paid:    'bg-green-100 text-green-700',
+    partial: 'bg-amber-100 text-amber-700',
+    unpaid:  'bg-rose-100 text-rose-700',
+    waived:  'bg-gray-200 text-gray-600',
+};
+</script>
+
+<template>
+    <Head title="Hostel Fee Collection" />
+    <SchoolLayout title="Hostel Fee Collection">
+
+        <!-- Header -->
+        <div class="page-header">
+            <div>
+                <h1 class="page-header-title">🏠 Hostel Fee Collection</h1>
+                <p class="page-header-sub">Every hostel allocation has its own outstanding balance. Receipts are numbered separately from regular fees.</p>
+            </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
+            <div class="bg-white rounded-xl border border-gray-200 p-4">
+                <p class="text-[11px] uppercase tracking-wider text-gray-500">Total Outstanding</p>
+                <p class="text-xl font-bold text-rose-600 mt-1">{{ fmt(summary.total_due) }}</p>
+            </div>
+            <div class="bg-white rounded-xl border border-gray-200 p-4">
+                <p class="text-[11px] uppercase tracking-wider text-gray-500">Total Collected</p>
+                <p class="text-xl font-bold text-green-600 mt-1">{{ fmt(summary.total_paid) }}</p>
+            </div>
+            <div class="bg-white rounded-xl border border-gray-200 p-4">
+                <p class="text-[11px] uppercase tracking-wider text-gray-500">Unpaid</p>
+                <p class="text-xl font-bold text-rose-600 mt-1">{{ summary.unpaid_count }}</p>
+            </div>
+            <div class="bg-white rounded-xl border border-gray-200 p-4">
+                <p class="text-[11px] uppercase tracking-wider text-gray-500">Partial</p>
+                <p class="text-xl font-bold text-amber-600 mt-1">{{ summary.partial_count }}</p>
+            </div>
+            <div class="bg-white rounded-xl border border-gray-200 p-4">
+                <p class="text-[11px] uppercase tracking-wider text-gray-500">Fully Paid</p>
+                <p class="text-xl font-bold text-green-600 mt-1">{{ summary.paid_count }}</p>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="bg-white rounded-xl border border-gray-200 p-3 mb-4 flex flex-wrap gap-3 items-center">
+            <input v-model="filters.search" type="text" placeholder="Search by name or admission no."
+                   class="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1 min-w-[200px]">
+            <select v-model="filters.status"
+                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+                <option value="">All statuses</option>
+                <option value="unpaid">Unpaid</option>
+                <option value="partial">Partial</option>
+                <option value="paid">Paid</option>
+                <option value="waived">Waived</option>
+            </select>
+            <select v-model="filters.hostel_id"
+                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+                <option value="">All hostels</option>
+                <option v-for="h in hostels" :key="h.id" :value="h.id">{{ h.name }}</option>
+            </select>
+            <select v-model="filters.class_id"
+                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+                <option value="">All classes</option>
+                <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+            </select>
+            <select v-if="filters.class_id && sections.length > 0"
+                    v-model="filters.section_id"
+                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+                <option value="">All sections</option>
+                <option v-for="s in sections" :key="s.id" :value="s.id">{{ s.name }}</option>
+            </select>
+        </div>
+
+        <!-- Table -->
+        <Table :empty="allocations.data.length === 0" empty-text="No hostel allocations match the current filter.">
+            <thead>
+                <tr>
+                    <th>Student</th>
+                    <th>Hostel / Room / Bed</th>
+                    <th class="text-right">Fee</th>
+                    <th class="text-right">Paid</th>
+                    <th class="text-right">Balance</th>
+                    <th>Status</th>
+                    <th class="text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="a in allocations.data" :key="a.id">
+                    <td>
+                        <div class="font-medium text-gray-900">{{ studentName(a) }}</div>
+                        <div class="text-xs text-gray-500">{{ studentClassSection(a) }}</div>
+                    </td>
+                    <td>
+                        <div class="text-sm">{{ a.bed?.room?.hostel?.name ?? '—' }}</div>
+                        <div class="text-xs text-gray-500">
+                            <span v-if="a.bed?.room?.room_number">Rm {{ a.bed.room.room_number }}</span>
+                            <span v-if="a.bed?.name"> · {{ a.bed.name }}</span>
+                        </div>
+                    </td>
+                    <td class="text-right font-mono">
+                        {{ fmt(a.hostel_fee) }}
+                        <div v-if="termLabel(a)" class="text-[10px] font-sans text-gray-400 mt-0.5">{{ termLabel(a) }}</div>
+                    </td>
+                    <td class="text-right font-mono text-green-600">{{ fmt(a.amount_paid) }}</td>
+                    <td class="text-right font-mono" :class="Number(a.balance) > 0 ? 'text-rose-600 font-semibold' : 'text-gray-400'">
+                        {{ fmt(a.balance) }}
+                    </td>
+                    <td>
+                        <span class="px-2 py-0.5 rounded text-xs font-semibold" :class="STATUS_COLOURS[a.payment_status] || 'bg-gray-100 text-gray-600'">
+                            {{ a.payment_status }}
+                        </span>
+                    </td>
+                    <td class="text-right">
+                        <Link :href="`/school/hostel/fees/${a.id}`">
+                            <Button variant="primary" size="sm">Collect / View</Button>
+                        </Link>
+                    </td>
+                </tr>
+            </tbody>
+        </Table>
+
+        <!-- Pagination -->
+        <div v-if="allocations.links && allocations.links.length > 3" class="mt-4 flex flex-wrap gap-1 justify-end">
+            <template v-for="(l, i) in allocations.links" :key="i">
+                <Link v-if="l.url" :href="l.url"
+                      :class="[
+                          'px-3 py-1.5 rounded text-sm border',
+                          l.active ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-gray-300 hover:bg-gray-50'
+                      ]"
+                      v-html="l.label" preserve-scroll />
+                <span v-else class="px-3 py-1.5 rounded text-sm text-gray-400" v-html="l.label"></span>
+            </template>
+        </div>
+
+    </SchoolLayout>
+</template>
