@@ -15,8 +15,15 @@ use Inertia\Inertia;
 class DisciplinaryController extends Controller
 {
     private const DEFAULT_CATEGORIES = [
-        'Misconduct', 'Bullying', 'Damage to Property', 'Dress Code Violation',
-        'Absenteeism', 'Cheating', 'Disrespect', 'Violence', 'Other',
+        'Misconduct'           => 'MISC',
+        'Bullying'             => 'BULLY',
+        'Damage to Property'   => 'DAMG',
+        'Dress Code Violation' => 'DRESS',
+        'Absenteeism'          => 'ABSN',
+        'Cheating'             => 'CHEAT',
+        'Disrespect'           => 'DISR',
+        'Violence'             => 'VIOL',
+        'Other'                => 'OTH',
     ];
 
     private function getOrSeedCategories(int $schoolId): \Illuminate\Database\Eloquent\Collection
@@ -26,8 +33,14 @@ class DisciplinaryController extends Controller
             ->get();
 
         if ($cats->isEmpty()) {
-            foreach (self::DEFAULT_CATEGORIES as $i => $name) {
-                DisciplinaryCategory::create(['school_id' => $schoolId, 'name' => $name, 'sort_order' => $i]);
+            $i = 0;
+            foreach (self::DEFAULT_CATEGORIES as $name => $code) {
+                DisciplinaryCategory::create([
+                    'school_id'  => $schoolId,
+                    'name'       => $name,
+                    'short_code' => $code,
+                    'sort_order' => $i++,
+                ]);
             }
             $cats = DisciplinaryCategory::where('school_id', $schoolId)->orderBy('sort_order')->get();
         }
@@ -146,10 +159,22 @@ class DisciplinaryController extends Controller
     public function storeCategory(Request $request)
     {
         $schoolId = app('current_school_id');
-        $data = $request->validate(['name' => 'required|string|max:100']);
+        $data = $request->validate([
+            'name'       => 'required|string|max:100',
+            'short_code' => [
+                'required', 'string', 'max:20',
+                Rule::unique('disciplinary_categories', 'short_code')
+                    ->where('school_id', $schoolId),
+            ],
+        ]);
 
         $max = DisciplinaryCategory::where('school_id', $schoolId)->max('sort_order') ?? -1;
-        DisciplinaryCategory::create(['school_id' => $schoolId, 'name' => trim($data['name']), 'sort_order' => $max + 1]);
+        DisciplinaryCategory::create([
+            'school_id'  => $schoolId,
+            'name'       => trim($data['name']),
+            'short_code' => strtoupper(trim($data['short_code'])),
+            'sort_order' => $max + 1,
+        ]);
 
         return back()->with('success', 'Category added.');
     }
@@ -157,8 +182,19 @@ class DisciplinaryController extends Controller
     public function updateCategory(Request $request, DisciplinaryCategory $disciplinaryCategory)
     {
         abort_if($disciplinaryCategory->school_id !== app('current_school_id'), 403);
-        $data = $request->validate(['name' => 'required|string|max:100']);
-        $disciplinaryCategory->update(['name' => trim($data['name'])]);
+        $data = $request->validate([
+            'name'       => 'required|string|max:100',
+            'short_code' => [
+                'required', 'string', 'max:20',
+                Rule::unique('disciplinary_categories', 'short_code')
+                    ->where('school_id', $disciplinaryCategory->school_id)
+                    ->ignore($disciplinaryCategory->id),
+            ],
+        ]);
+        $disciplinaryCategory->update([
+            'name'       => trim($data['name']),
+            'short_code' => strtoupper(trim($data['short_code'])),
+        ]);
         return back()->with('success', 'Category updated.');
     }
 

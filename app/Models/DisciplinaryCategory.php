@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class DisciplinaryCategory extends Model
 {
-    protected $fillable = ['school_id', 'name', 'sort_order', 'is_active'];
+    protected $fillable = ['school_id', 'name', 'short_code', 'sort_order', 'is_active'];
 
     protected $casts = ['is_active' => 'boolean'];
 

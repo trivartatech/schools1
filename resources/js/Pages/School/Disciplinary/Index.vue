@@ -38,10 +38,15 @@ const showCatModal  = ref(false);
 const editingCatId  = ref(null);
 const editingCatName = ref('');
 
-const catAddForm = useForm({ name: '' });
-const catEditForm = useForm({ name: '' });
+const catAddForm = useForm({ name: '', short_code: '' });
+const catEditForm = useForm({ name: '', short_code: '' });
 
-const startEditCat = (cat) => { editingCatId.value = cat.id; editingCatName.value = cat.name; catEditForm.name = cat.name; };
+const startEditCat = (cat) => {
+    editingCatId.value = cat.id;
+    editingCatName.value = cat.name;
+    catEditForm.name = cat.name;
+    catEditForm.short_code = cat.short_code || '';
+};
 const cancelEditCat = () => { editingCatId.value = null; catEditForm.reset(); };
 
 const saveCatEdit = (cat) => {
@@ -152,6 +157,17 @@ const severityColor = { minor: '#d97706', moderate: '#f97316', major: '#dc2626' 
 const statusBadge   = { open: 'badge-amber', under_review: 'badge-blue', resolved: 'badge-green', escalated: 'badge-red' };
 import { useFormat } from '@/Composables/useFormat';
 const { formatDate: fmtDate } = useFormat();
+
+const categoryByName = computed(() => {
+    const m = {};
+    (props.categories || []).forEach(c => { m[c.name] = c; });
+    return m;
+});
+const fmtCategory = (name) => {
+    if (!name) return '—';
+    const c = categoryByName.value[name];
+    return c?.short_code ? `${name} (${c.short_code})` : name;
+};
 </script>
 
 <template>
@@ -260,7 +276,7 @@ const { formatDate: fmtDate } = useFormat();
                                     <div style="font-size:.72rem;color:#94a3b8;">{{ r.student?.admission_no }}</div>
                                 </td>
                                 <td style="white-space:nowrap;color:#475569;">{{ fmtDate(r.incident_date) }}</td>
-                                <td style="color:#475569;">{{ r.category }}</td>
+                                <td style="color:#475569;">{{ fmtCategory(r.category) }}</td>
                                 <td>
                                     <span class="sev-badge" :style="{ background: severityColor[r.severity] + '18', color: severityColor[r.severity] }">{{ r.severity }}</span>
                                 </td>
@@ -372,7 +388,7 @@ const { formatDate: fmtDate } = useFormat();
                                         <label>Category *</label>
                                         <select v-model="quickForm.category" required>
                                             <option value="">Select category</option>
-                                            <option v-for="c in categories" :key="c.id" :value="c.name">{{ c.name }}</option>
+                                            <option v-for="c in categories" :key="c.id" :value="c.name">{{ c.name }}{{ c.short_code ? ` (${c.short_code})` : '' }}</option>
                                         </select>
                                         <span v-if="quickForm.errors.category" class="field-error">{{ quickForm.errors.category }}</span>
                                     </div>
@@ -440,10 +456,19 @@ const { formatDate: fmtDate } = useFormat();
                                 <template v-if="editingCatId === cat.id">
                                     <input
                                         v-model="catEditForm.name"
-                                        class="cat-edit-input"
+                                        class="cat-edit-input cat-edit-name"
+                                        placeholder="Category name"
                                         @keyup.enter="saveCatEdit(cat)"
                                         @keyup.escape="cancelEditCat"
                                         autofocus
+                                    />
+                                    <input
+                                        v-model="catEditForm.short_code"
+                                        class="cat-edit-input cat-edit-code"
+                                        placeholder="CODE"
+                                        maxlength="20"
+                                        @keyup.enter="saveCatEdit(cat)"
+                                        @keyup.escape="cancelEditCat"
                                     />
                                     <button class="cat-save-btn" @click="saveCatEdit(cat)" :disabled="catEditForm.processing">Save</button>
                                     <button class="cat-icon-btn" @click="cancelEditCat" title="Cancel">
@@ -453,6 +478,7 @@ const { formatDate: fmtDate } = useFormat();
                                 <template v-else>
                                     <span class="cat-dot"></span>
                                     <span class="cat-name">{{ cat.name }}</span>
+                                    <span v-if="cat.short_code" class="cat-code">{{ cat.short_code }}</span>
                                     <div class="cat-actions">
                                         <button class="cat-icon-btn" @click="startEditCat(cat)" title="Rename">
                                             <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
@@ -470,13 +496,21 @@ const { formatDate: fmtDate } = useFormat();
                         <div class="cat-add-row">
                             <input
                                 v-model="catAddForm.name"
-                                class="cat-add-input"
+                                class="cat-add-input cat-add-name"
                                 placeholder="New category name…"
+                                @keyup.enter="addCat"
+                            />
+                            <input
+                                v-model="catAddForm.short_code"
+                                class="cat-add-input cat-add-code"
+                                placeholder="CODE"
+                                maxlength="20"
                                 @keyup.enter="addCat"
                             />
                             <Button size="sm" @click="addCat" :loading="catAddForm.processing">Add</Button>
                         </div>
                         <span v-if="catAddForm.errors.name" class="field-error">{{ catAddForm.errors.name }}</span>
+                        <span v-if="catAddForm.errors.short_code" class="field-error">{{ catAddForm.errors.short_code }}</span>
                     </div>
                     <div class="modal-footer" style="justify-content:flex-end;">
                         <Button variant="secondary" @click="showCatModal = false">Done</Button>
@@ -503,7 +537,7 @@ const { formatDate: fmtDate } = useFormat();
                                 <label>Category *</label>
                                 <select v-model="form.category" required>
                                     <option value="">Select</option>
-                                    <option v-for="c in categories" :key="c.id" :value="c.name">{{ c.name }}</option>
+                                    <option v-for="c in categories" :key="c.id" :value="c.name">{{ c.name }}{{ c.short_code ? ` (${c.short_code})` : '' }}</option>
                                 </select>
                             </div>
                             <div class="form-field">
@@ -679,7 +713,7 @@ const { formatDate: fmtDate } = useFormat();
 .btn-outline:hover { background:#f1f5f9;color:#1e293b; }
 
 /* ── Category modal ── */
-.cat-modal { width:min(420px,95vw);max-height:80vh;display:flex;flex-direction:column; }
+.cat-modal { width:min(480px,95vw);max-height:80vh;display:flex;flex-direction:column; }
 .cat-modal .modal-body { flex:1;overflow-y:auto;padding:16px 20px; }
 .cat-list { border:1px solid #f1f5f9;border-radius:8px;overflow-y:auto;max-height:280px;margin-bottom:14px; }
 .cat-row {
@@ -689,17 +723,29 @@ const { formatDate: fmtDate } = useFormat();
 .cat-row:last-child { border-bottom:none; }
 .cat-dot { width:7px;height:7px;border-radius:50%;background:#e2e8f0;flex-shrink:0; }
 .cat-name { flex:1;font-size:.88rem;color:#1e293b; }
+.cat-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: .72rem; font-weight: 700;
+    background: #eff6ff; color: #1d4ed8;
+    border: 1px solid #bfdbfe; border-radius: 6px;
+    padding: 2px 8px; letter-spacing: .04em;
+    flex-shrink: 0;
+}
 .cat-actions { display:flex;gap:4px;opacity:0;transition:opacity .15s; }
 .cat-row:hover .cat-actions { opacity:1; }
 .cat-icon-btn { padding:4px;background:none;border:none;cursor:pointer;color:#94a3b8;border-radius:4px;display:flex;align-items:center; }
 .cat-icon-btn:hover { background:#f1f5f9;color:#475569; }
 .cat-delete-btn:hover { background:#fef2f2;color:#dc2626; }
-.cat-edit-input { flex:1;padding:5px 10px;border:1px solid #3b82f6;border-radius:6px;font-size:.88rem;outline:none; }
+.cat-edit-input { padding:5px 10px;border:1px solid #3b82f6;border-radius:6px;font-size:.88rem;outline:none; }
+.cat-edit-name { flex:2; }
+.cat-edit-code { flex:1;max-width:110px;text-transform:uppercase;letter-spacing:.04em; }
 .cat-save-btn { padding:5px 12px;background:#3b82f6;color:#fff;border:none;border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer; }
 .cat-save-btn:hover { background:#2563eb; }
 .cat-add-row { display:flex;gap:8px;align-items:center; }
-.cat-add-input { flex:1;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:.88rem;outline:none; }
+.cat-add-input { padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:.88rem;outline:none; }
 .cat-add-input:focus { border-color:#3b82f6; }
+.cat-add-name { flex:2; }
+.cat-add-code { flex:1;max-width:110px;text-transform:uppercase;letter-spacing:.04em; }
 
 /* ── Modals ── */
 .modal-backdrop { position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.5);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;z-index:1000; }
