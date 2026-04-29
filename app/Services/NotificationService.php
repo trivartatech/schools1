@@ -360,9 +360,13 @@ class NotificationService
                                 'type'       => 'body',
                                 'parameters' => array_map(function ($val) {
                                     $text = $this->stringifyValue($val);
-                                    // Meta rejects body parameters that are empty strings:
-                                    //   "Param body[N]: empty strings are not allowed".
-                                    // Substitute a space so the template can still render.
+                                    // Meta WhatsApp template body parameters cannot contain
+                                    // newlines, tabs, or be empty:
+                                    //   "next line(\n) is not supported for body value"
+                                    //   "Param body[N]: empty strings are not allowed"
+                                    // Collapse all whitespace runs to a single space and
+                                    // fall back to a literal space if the value is empty.
+                                    $text = trim(preg_replace('/\s+/u', ' ', $text) ?? '');
                                     return ['type' => 'text', 'text' => $text === '' ? ' ' : $text];
                                 }, array_values($parameters))
                             ]
