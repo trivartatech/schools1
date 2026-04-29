@@ -106,7 +106,7 @@ const sendTest = () => {
                                 <label>Test Template Variables</label>
                                 <input type="text" v-model="form.test_params" placeholder="Comma-separated values, e.g. Test User, 29-Apr-2026, School Name">
                                 <p style="font-size:.72rem;color:var(--text-muted);margin-top:4px;">
-                                    Must match the placeholder count of your approved Meta template body. Use one value per <code>{{`{{ N }}`}}</code> placeholder, in order. Default sends a single value <code>Test User</code>.
+                                    Must match the placeholder count of your approved Meta template body. Use one value per <code v-pre>{{ N }}</code> placeholder, in order. Default sends a single value <code>Test User</code>.
                                 </p>
                             </div>
                         </div>
