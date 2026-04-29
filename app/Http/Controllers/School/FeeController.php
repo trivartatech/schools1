@@ -920,12 +920,15 @@ class FeeController extends Controller
         // Generate QR code base64
         $qrCode = base64_encode(\SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')->size(150)->generate($verificationUrl));
 
+        $printSettings = \App\Models\ReceiptPrintSetting::forSchool($schoolId);
+
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.fee-receipt', [
-            'payment' => $feePayment,
-            'school'  => $school,
-            'qrCode'  => $qrCode,
-            'url'     => $verificationUrl,
-        ]);
+            'payment'    => $feePayment,
+            'school'     => $school,
+            'qrCode'     => $qrCode,
+            'url'        => $verificationUrl,
+            'copyLabels' => $printSettings->copyLabels(),
+        ])->setPaper(strtolower($printSettings->paper_size), 'portrait');
 
         return $pdf->stream("Receipt-{$feePayment->receipt_no}.pdf");
     }

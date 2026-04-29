@@ -181,6 +181,11 @@ Route::middleware('auth')->group(function () {
         Route::get ('settings/daily-report',  [$DRS, 'index'])  ->name('settings.daily-report');
         Route::post('settings/daily-report',  [$DRS, 'update']) ->name('settings.daily-report.update');
 
+        // Receipt Print Settings (paper size + copies for all fee receipts)
+        $RPS = \App\Http\Controllers\School\Settings\ReceiptPrintSettingsController::class;
+        Route::get ('settings/receipt-print', [$RPS, 'index'])  ->name('settings.receipt-print');
+        Route::post('settings/receipt-print', [$RPS, 'update']) ->name('settings.receipt-print.update');
+
         // Mobile App QR Code — generate scannable QR for EduConnect app onboarding
         Route::get('settings/mobile-qr', [\App\Http\Controllers\School\MobileQrController::class, 'index'])->name('settings.mobile-qr');
 

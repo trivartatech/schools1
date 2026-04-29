@@ -22,9 +22,14 @@
         .qr-box { display: table-cell; width: 50%; vertical-align: bottom; }
         .qr-code { width: 100px; height: 100px; }
         .qr-text { font-size: 10px; color: #777; margin-top: 5px; }
+        .copy-label { position: absolute; top: 8px; right: 12px; font-size: 10px; font-weight: bold; color: #555; border: 1px solid #999; padding: 2px 8px; border-radius: 3px; letter-spacing: 0.5px; text-transform: uppercase; }
+        .copy-page { position: relative; }
     </style>
 </head>
 <body>
+@foreach (($copyLabels ?? ['Original']) as $copyIndex => $copyLabel)
+<div class="copy-page" @if(!$loop->first) style="page-break-before: always;" @endif>
+    <div class="copy-label">{{ $copyLabel }}</div>
     <div class="header">
         <h1 class="school-name">{{ $school->name }}</h1>
         @if($school->address)
@@ -149,5 +154,7 @@
             </div>
         </div>
     </div>
+</div>
+@endforeach
 </body>
 </html>

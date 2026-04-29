@@ -242,12 +242,15 @@ class HostelFeeCollectionController extends Controller
             \SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')->size(150)->generate($verificationUrl)
         );
 
+        $printSettings = \App\Models\ReceiptPrintSetting::forSchool($payment->school_id);
+
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.hostel-fee-receipt', [
-            'payment' => $payment,
-            'school'  => $school,
-            'qrCode'  => $qrCode,
-            'url'     => $verificationUrl,
-        ]);
+            'payment'    => $payment,
+            'school'     => $school,
+            'qrCode'     => $qrCode,
+            'url'        => $verificationUrl,
+            'copyLabels' => $printSettings->copyLabels(),
+        ])->setPaper(strtolower($printSettings->paper_size), 'portrait');
 
         return $pdf->stream("Hostel-Receipt-{$payment->receipt_no}.pdf");
     }
