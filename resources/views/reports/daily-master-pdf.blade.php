@@ -31,7 +31,16 @@
         .pct-bar-wrap { width: 80px; background: #e2e8f0; height: 8px; display: inline-block; border-radius: 2px; overflow: hidden; vertical-align: middle; }
         .pct-bar { height: 100%; background: #1d4ed8; }
         .footer { margin-top: 16px; padding-top: 6px; border-top: 1px solid #e2e8f0; font-size: 9px; color: #94a3b8; text-align: center; }
-        .section { page-break-inside: avoid; }
+        /*
+         * Don't force whole sections to one page — that left a giant empty
+         * gap at the bottom of page 1 whenever a section's table was too tall
+         * to fit. Instead, only keep the section heading + first row glued so
+         * a heading never appears alone at the bottom of a page.
+         */
+        h2 { page-break-after: avoid; }
+        h3 { page-break-after: avoid; }
+        table thead { display: table-header-group; }
+        tr { page-break-inside: avoid; }
     </style>
 </head>
 <body>
