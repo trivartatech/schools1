@@ -13,10 +13,11 @@ Route::get('/reports/daily-master/{schoolId}/{date}.pdf',
     [\App\Http\Controllers\School\Reports\DailyMasterReportController::class, 'pdfSigned'])
     ->name('school.reports.daily-master.pdf-signed');
 
-Route::get('/verify-receipt/{receipt_no}', [\App\Http\Controllers\PublicController::class, 'verifyReceipt'])->name('verify-receipt');
-Route::get('/verify-transport-receipt/{receipt_no}', [\App\Http\Controllers\PublicController::class, 'verifyTransportReceipt'])->name('verify-transport-receipt');
-Route::get('/verify-hostel-receipt/{receipt_no}', [\App\Http\Controllers\PublicController::class, 'verifyHostelReceipt'])->name('verify-hostel-receipt');
-Route::get('/verify-stationary-receipt/{receipt_no}', [\App\Http\Controllers\PublicController::class, 'verifyStationaryReceipt'])->name('verify-stationary-receipt');
+// receipt_no can contain "/" (e.g. FEE/2026/00045), so allow slashes in the route parameter
+Route::get('/verify-receipt/{receipt_no}', [\App\Http\Controllers\PublicController::class, 'verifyReceipt'])->where('receipt_no', '.+')->name('verify-receipt');
+Route::get('/verify-transport-receipt/{receipt_no}', [\App\Http\Controllers\PublicController::class, 'verifyTransportReceipt'])->where('receipt_no', '.+')->name('verify-transport-receipt');
+Route::get('/verify-hostel-receipt/{receipt_no}', [\App\Http\Controllers\PublicController::class, 'verifyHostelReceipt'])->where('receipt_no', '.+')->name('verify-hostel-receipt');
+Route::get('/verify-stationary-receipt/{receipt_no}', [\App\Http\Controllers\PublicController::class, 'verifyStationaryReceipt'])->where('receipt_no', '.+')->name('verify-stationary-receipt');
 Route::get('/school/hostel/gate-passes/verify/{token}', [\App\Http\Controllers\PublicController::class, 'verifyGatePass'])->name('gate-pass.verify-public');
 Route::get('/school/hostel/visitors/verify/{token}', [\App\Http\Controllers\PublicController::class, 'verifyVisitorPass'])->name('visitor-pass.verify-public');
 Route::get('/verify/certificate/{token}', [\App\Http\Controllers\PublicController::class, 'verifyCertificate'])->name('certificate.verify-public');
