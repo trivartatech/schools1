@@ -69,6 +69,7 @@ class CommunicationConfigController extends Controller
                 'identifier' => '',
                 'test_number' => '',
                 'test_template_id' => '',
+                'test_params' => 'Test User',
                 'language_code' => 'en',
                 'number_prefix' => '91'
             ]
@@ -84,6 +85,7 @@ class CommunicationConfigController extends Controller
             'identifier'       => 'nullable|string',
             'test_number'      => 'nullable|string|min:10',
             'test_template_id' => 'nullable|string',
+            'test_params'      => 'nullable|string|max:1000',
             'language_code'    => 'nullable|string|max:10',
             'number_prefix'    => 'nullable|string|max:5',
         ]);
@@ -117,7 +119,8 @@ class CommunicationConfigController extends Controller
             $config['test_number'],
             $config['test_template_id'],
             $config['language_code'] ?? 'en',
-            auth()->id()
+            auth()->id(),
+            $config['test_params'] ?? null
         );
 
         return back()->with('success', 'Test WhatsApp triggered. Check communication logs.');

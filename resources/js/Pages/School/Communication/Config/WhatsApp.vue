@@ -18,6 +18,7 @@ const form = useForm({
     identifier: props.config.identifier || '',
     test_number: props.config.test_number || '',
     test_template_id: props.config.test_template_id || '',
+    test_params: props.config.test_params || 'Test User',
     language_code: props.config.language_code || 'en',
     number_prefix: props.config.number_prefix || '91'
 });
@@ -98,6 +99,15 @@ const sendTest = () => {
                             <div class="form-field">
                                 <label>Test Recipient Number</label>
                                 <input type="text" v-model="form.test_number" placeholder="Enter recipient with country code">
+                            </div>
+                        </div>
+                        <div class="form-row" style="margin-top:14px;">
+                            <div class="form-field">
+                                <label>Test Template Variables</label>
+                                <input type="text" v-model="form.test_params" placeholder="Comma-separated values, e.g. Test User, 29-Apr-2026, School Name">
+                                <p style="font-size:.72rem;color:var(--text-muted);margin-top:4px;">
+                                    Must match the placeholder count of your approved Meta template body. Use one value per <code>{{`{{ N }}`}}</code> placeholder, in order. Default sends a single value <code>Test User</code>.
+                                </p>
                             </div>
                         </div>
                     </div>

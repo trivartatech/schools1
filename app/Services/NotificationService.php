@@ -788,17 +788,26 @@ class NotificationService
     }
 
     /**
-     * Send Test WhatsApp
+     * Send Test WhatsApp.
+     *
+     * Meta-approved templates have a fixed placeholder count, so the test
+     * payload must match it exactly or MSG91 returns:
+     *   "body: number of localizable_params (3) does not match the
+     *    expected number of params (1)".
+     * If the school admin supplied an explicit test_params list (set via
+     * the WhatsApp config screen), use that verbatim. Otherwise fall back
+     * to a single "Test User" param so the test works for the most common
+     * 1-placeholder template shape.
      */
-    public function notifyTestWhatsapp($phone, $templateId, $languageCode = 'en', $userId = null)
+    public function notifyTestWhatsapp($phone, $templateId, $languageCode = 'en', $userId = null, ?string $paramsCsv = null)
     {
-        $data = [
-            'name'     => 'Test User',
-            'date'     => now()->format('d-M-Y'),
-            'app_name' => $this->school->name
-        ];
+        if (is_string($paramsCsv) && trim($paramsCsv) !== '') {
+            $params = array_map('trim', explode(',', $paramsCsv));
+        } else {
+            $params = ['Test User'];
+        }
 
-        $this->sendWhatsApp($phone, $templateId, $data, $userId, $languageCode);
+        $this->sendWhatsApp($phone, $templateId, $params, $userId, $languageCode);
     }
 
     /**
