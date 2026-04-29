@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
+use App\Support\Format;
 
 class NotificationService
 {
@@ -430,7 +431,7 @@ class NotificationService
         $data = [
             'name'        => $student->name,
             'attendance'  => $status,
-            'date'        => now()->format('d-M-Y'),
+            'date'        => Format::date(now()),
             'father_name' => $parent->father_name ?? 'Parent',
             'course_name' => $student->currentAcademicHistory?->courseClass?->name ?? 'Class',
             'batch_name'  => $student->currentAcademicHistory?->section?->name ?? 'Section',
@@ -487,8 +488,8 @@ class NotificationService
             'trip_type'   => $tripType,
             'trip_label'  => $tripLabel,
             'stop_name'   => $stopName ?? 'their stop',
-            'date'        => now()->format('d-M-Y'),
-            'time'        => now()->format('h:i A'),
+            'date'        => Format::date(now()),
+            'time'        => Format::time(now()),
             'father_name' => $parent->father_name ?? 'Parent',
             'app_name'    => $this->school->name,
         ];
@@ -641,7 +642,7 @@ class NotificationService
             $data = [
                 'name'        => $student->name,
                 'subject'     => $diary->subject ?? 'General',
-                'date'        => optional($diary->entry_date ?? $diary->created_at)->format('d-M-Y'),
+                'date'        => Format::date($diary->entry_date ?? $diary->created_at),
                 'course_name' => $student->currentAcademicHistory?->courseClass?->name ?? '',
                 'batch_name'  => $student->currentAcademicHistory?->section?->name ?? '',
                 'app_name'    => $this->school->name,
@@ -676,7 +677,7 @@ class NotificationService
             ->with(['studentParent.user', 'user', 'currentAcademicHistory.courseClass', 'currentAcademicHistory.section'])
             ->get();
 
-        $dueDate = optional($assignment->due_date ?? null)->format('d-M-Y') ?? '—';
+        $dueDate = $assignment->due_date ? Format::date($assignment->due_date) : '—';
 
         foreach ($students as $student) {
             $data = [
@@ -779,7 +780,7 @@ class NotificationService
 
         $data = [
             'name'     => 'Test User',
-            'date'     => now()->format('d-M-Y'),
+            'date'     => Format::date(now()),
             'app_name' => $this->school->name
         ];
 

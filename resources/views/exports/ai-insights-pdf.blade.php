@@ -31,8 +31,8 @@
     <h1>AI Intelligence Hub Report</h1>
     <div class="meta">
         {{ $school->name ?? '' }} ·
-        {{ $from->toDateString() }} → {{ $to->toDateString() }} ·
-        Generated {{ $generatedAt->format('Y-m-d H:i') }}
+        @fdate($from) → @fdate($to) ·
+        Generated @fdatetime($generatedAt)
     </div>
 
     <h2>Snapshot</h2>

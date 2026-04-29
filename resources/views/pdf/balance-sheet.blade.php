@@ -31,7 +31,7 @@
     <p class="sub">Statement of financial position — Assets = Liabilities + Capital</p>
     <div class="meta">
         As of: <strong>{{ $asOf }}</strong> &nbsp;&bull;&nbsp;
-        Generated: {{ now()->format('d M Y, h:i A') }}
+        Generated: @fdatetime(now())
     </div>
 
     @php

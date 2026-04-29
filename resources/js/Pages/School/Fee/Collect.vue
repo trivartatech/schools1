@@ -320,19 +320,19 @@ const statusBadge = (status) => {
                             <div class="grid grid-cols-4 gap-2 mt-4">
                                 <div class="text-center bg-blue-50 rounded-lg p-2">
                                     <p class="text-xs text-blue-500 mb-0.5">Total Due</p>
-                                    <p class="font-bold text-blue-800 text-sm">{{ $page.props.school.currency }}{{ totalDue.toLocaleString('en-IN') }}</p>
+                                    <p class="font-bold text-blue-800 text-sm">{{ school.fmtMoney(totalDue) }}</p>
                                 </div>
                                 <div class="text-center bg-green-50 rounded-lg p-2">
                                     <p class="text-xs text-green-500 mb-0.5">Paid</p>
-                                    <p class="font-bold text-green-800 text-sm">{{ $page.props.school.currency }}{{ totalPaid.toLocaleString('en-IN') }}</p>
+                                    <p class="font-bold text-green-800 text-sm">{{ school.fmtMoney(totalPaid) }}</p>
                                 </div>
                                 <div class="text-center bg-purple-50 rounded-lg p-2">
                                     <p class="text-xs text-purple-500 mb-0.5">Discounts</p>
-                                    <p class="font-bold text-purple-800 text-sm">{{ $page.props.school.currency }}{{ totalDiscount.toLocaleString('en-IN') }}</p>
+                                    <p class="font-bold text-purple-800 text-sm">{{ school.fmtMoney(totalDiscount) }}</p>
                                 </div>
                                 <div class="text-center rounded-lg p-2" :class="totalBal > 0 ? 'bg-red-50' : 'bg-gray-50'">
                                     <p class="text-xs mb-0.5" :class="totalBal > 0 ? 'text-red-500' : 'text-gray-400'">Balance</p>
-                                    <p class="font-bold text-sm" :class="totalBal > 0 ? 'text-red-800' : 'text-gray-500'">{{ $page.props.school.currency }}{{ totalBal.toLocaleString('en-IN') }}</p>
+                                    <p class="font-bold text-sm" :class="totalBal > 0 ? 'text-red-800' : 'text-gray-500'">{{ school.fmtMoney(totalBal) }}</p>
                                 </div>
                             </div>
                         </div>
@@ -355,7 +355,7 @@ const statusBadge = (status) => {
                                 </div>
                                 <div class="text-right flex flex-col items-end">
                                     <p class="font-bold px-2 py-0.5 rounded text-xs border mb-1" style="color: var(--accent); background: #eef2ff; border-color: #c7d2fe;">
-                                        {{ c.type === 'percentage' ? c.value + '%' : $page.props.school.currency + parseFloat(c.value).toLocaleString() }}
+                                        {{ c.type === 'percentage' ? c.value + '%' : school.fmtMoney(c.value) }}
                                     </p>
                                     <button @click="removeConcession(c)" class="text-[10px] font-semibold underline" style="color: var(--danger)">Remove</button>
                                 </div>
@@ -399,7 +399,7 @@ const statusBadge = (status) => {
                                       :class="s.status === 'paid'
                                           ? 'text-green-600'
                                           : (s.source === 'payment' || s.source === 'carry_forward' ? 'text-red-600' : '')">
-                                    {{ $page.props.school.currency }}{{ Number((s.source === 'payment' || s.source === 'carry_forward') ? (s.balance ?? s.amount) : getInclusiveAmount(s)).toLocaleString('en-IN') }}
+                                    {{ school.fmtMoney((s.source === 'payment' || s.source === 'carry_forward') ? (s.balance ?? s.amount) : getInclusiveAmount(s)) }}
                                 </span>
                                 <p v-if="s.source === 'carry_forward' && s.status !== 'paid'" class="text-[10px]" style="color:#b45309;">Old balance due</p>
                                 <p v-else-if="s.source === 'payment' && s.status !== 'paid'" class="text-[10px] text-red-400">Balance due</p>
@@ -435,12 +435,12 @@ const statusBadge = (status) => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-xs mb-1" style="color: var(--text-muted)">Amount Due ({{ $page.props.school.currency }})</label>
+                                    <label class="block text-xs mb-1" style="color: var(--text-muted)">Amount Due ({{ school.currency }})</label>
                                     <input v-model="feeForm.amount_due" type="number" step="0.01" placeholder="0.00"
                                            class="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                 </div>
                                 <div>
-                                    <label class="block text-xs mb-1" style="color: var(--text-muted)">Amount Paid ({{ $page.props.school.currency }}) *</label>
+                                    <label class="block text-xs mb-1" style="color: var(--text-muted)">Amount Paid ({{ school.currency }}) *</label>
                                     <input v-model="feeForm.amount_paid" type="number" step="0.01" placeholder="0.00"
                                            class="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                 </div>
@@ -452,7 +452,7 @@ const statusBadge = (status) => {
                                         <option value="">— No Concession —</option>
                                         <option v-for="c in concessions.filter(c => c.is_active && c.payments_count === 0 && (!c.applicable_fee_heads?.length || c.applicable_fee_heads.includes(feeForm.fee_head_id)))" :key="c.id" :value="c.id">
                                             {{ c.name }}
-                                            ({{ c.type === 'percentage' ? c.value + '%' : $page.props.school.currency + parseFloat(c.value).toLocaleString() }})
+                                            ({{ c.type === 'percentage' ? c.value + '%' : school.fmtMoney(c.value) }})
                                             {{ c.description ? '— ' + c.description : '' }}
                                         </option>
                                     </select>
@@ -461,14 +461,14 @@ const statusBadge = (status) => {
                                          class="mt-1.5 flex items-center gap-2 text-xs font-medium bg-amber-50 text-amber-800 border-amber-200"
                                          style="border-width: 1px; border-radius: 0.5rem; padding: 0.375rem 0.75rem;">
                                         <span class="text-amber-600">⚠️</span>
-                                        Discount of <strong>{{ $page.props.school.currency }}{{ concessionPreview.toLocaleString('en-IN') }}</strong> will be applied.
+                                        Discount of <strong>{{ school.fmtMoney(concessionPreview) }}</strong> will be applied.
                                         <span class="ml-1 font-bold">(Expires after use)</span>
                                         <span class="ml-auto" style="color: var(--text-muted)">({{ selectedConcession.name }})</span>
                                     </div>
                                 </div>
                                 <div>
                                     <label class="block text-xs mb-1" style="color: var(--text-muted)">
-                                        Discount ({{ $page.props.school.currency }})
+                                        Discount ({{ school.currency }})
                                         <span v-if="feeForm.concession_id" class="ml-1" style="color: var(--accent)">— set by concession</span>
                                     </label>
                                     <input v-model="feeForm.discount" type="number" step="0.01" placeholder="0"
@@ -479,7 +479,7 @@ const statusBadge = (status) => {
                                            class="w-full rounded-md text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                 </div>
                                 <div>
-                                    <label class="block text-xs mb-1" style="color: var(--text-muted)">Fine ({{ $page.props.school.currency }})</label>
+                                    <label class="block text-xs mb-1" style="color: var(--text-muted)">Fine ({{ school.currency }})</label>
                                     <input v-model="feeForm.fine" type="number" step="0.01" placeholder="0"
                                            class="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                 </div>
@@ -560,9 +560,9 @@ const statusBadge = (status) => {
                                     </p>
                                 </div>
                                 <div class="text-right flex flex-col items-end">
-                                    <p class="text-sm font-bold" style="color: var(--text-primary)">{{ $page.props.school.currency }}{{ Number(p.amount_paid).toLocaleString('en-IN') }}</p>
+                                    <p class="text-sm font-bold" style="color: var(--text-primary)">{{ school.fmtMoney(p.amount_paid) }}</p>
                                     <span class="text-xs px-2 py-0.5 rounded-full font-medium" :class="statusBadge(p.status)">{{ p.status }}</span>
-                                    <p v-if="p.balance > 0" class="text-xs mt-0.5" style="color: var(--danger)">Bal: {{ $page.props.school.currency }}{{ Number(p.balance).toLocaleString('en-IN') }}</p>
+                                    <p v-if="p.balance > 0" class="text-xs mt-0.5" style="color: var(--danger)">Bal: {{ school.fmtMoney(p.balance) }}</p>
                                     <!-- GL Status -->
                                     <div class="mt-1">
                                         <span v-if="p.gl_transaction" class="fee-gl-posted" :title="p.gl_transaction.transaction_no">

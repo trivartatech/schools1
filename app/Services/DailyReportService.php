@@ -20,6 +20,7 @@ use App\Models\TransportFeePayment;
 use App\Models\VisitorLog;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use App\Support\Format;
 
 /**
  * Aggregates the day's activity into a single payload that drives the
@@ -95,7 +96,7 @@ class DailyReportService
                 'academic_year_id' => $academicYearId,
                 'mode'             => 'weekly',
                 'date'             => $weekEnd->toDateString(),
-                'date_label'       => 'Week ' . $weekStart->format('d M') . ' – ' . $weekEnd->format('d M Y'),
+                'date_label'       => 'Week ' . Format::date($weekStart) . ' – ' . Format::date($weekEnd),
                 'week_start'       => $weekStart->toDateString(),
                 'week_end'         => $weekEnd->toDateString(),
                 'generated_at'     => now()->toIso8601String(),

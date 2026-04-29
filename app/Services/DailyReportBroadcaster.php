@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use App\Support\Format;
 
 /**
  * Builds the daily report PDF + WhatsApp/SMS messages and dispatches to every
@@ -97,7 +98,7 @@ class DailyReportBroadcaster
                 } else {
                     try {
                         $data = [
-                            'date'    => $date->format('d-M-Y'),
+                            'date'    => Format::date($date),
                             'caption' => mb_substr($smsText, 0, 200),
                             'link'    => $signedPdfUrl,
                             'app_name'=> $school->name,
@@ -187,7 +188,7 @@ class DailyReportBroadcaster
         $params = [
             'caption'     => mb_substr($caption, 0, 1000),
             'link'        => $pdfLink,
-            'date'        => now()->format('d-M-Y'),
+            'date'        => Format::date(now()),
             'school_name' => $school->name,
             'app_name'    => $school->name,
         ];

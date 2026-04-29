@@ -5,6 +5,9 @@ import { ref, reactive } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useDelete } from '@/Composables/useDelete';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     classes:    Array,
@@ -133,11 +136,11 @@ const grouped = computed(() => {
                             </select>
                         </div>
                         <div class="form-field">
-                            <label>Amount ({{ $page.props.school.currency }}) *</label>
+                            <label>Amount ({{ school.currency }}) *</label>
                             <input v-model="form.amount" type="number" step="0.01" min="0" placeholder="e.g. 5000">
                         </div>
                         <div class="form-field">
-                            <label>Late Fee / Day ({{ $page.props.school.currency }})</label>
+                            <label>Late Fee / Day ({{ school.currency }})</label>
                             <input v-model="form.late_fee_per_day" type="number" step="0.01" min="0" placeholder="0">
                         </div>
                         <div class="form-field">
@@ -215,8 +218,8 @@ const grouped = computed(() => {
                                 <td class="text-center">
                                     <span class="badge badge-blue">{{ s.term }}</span>
                                 </td>
-                                <td class="text-right text-sm font-semibold text-gray-900">{{ $page.props.school.currency }}{{ Number(s.amount).toLocaleString('en-IN') }}</td>
-                                <td class="text-right text-sm text-gray-500">{{ s.late_fee_per_day > 0 ? $page.props.school.currency+s.late_fee_per_day : '—' }}</td>
+                                <td class="text-right text-sm font-semibold text-gray-900">{{ school.fmtMoney(s.amount) }}</td>
+                                <td class="text-right text-sm text-gray-500">{{ s.late_fee_per_day > 0 ? school.fmtMoney(s.late_fee_per_day) : '—' }}</td>
                                 <td class="text-center text-xs text-gray-500">{{ s.due_date || '—' }}</td>
                                 <td class="text-right">
                                     <div class="flex items-center justify-end gap-1">

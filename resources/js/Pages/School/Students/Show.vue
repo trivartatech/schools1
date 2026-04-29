@@ -934,21 +934,21 @@ const deleteDisc = async (id) => {
                                 <div class="stat-card">
                                     <div class="stat-card-icon" style="background:var(--indigo-light,#e0e7ff);color:#6366f1;">₹</div>
                                     <div>
-                                        <div class="stat-card-value">₹{{ Number(student.fee_total).toLocaleString('en-IN') }}</div>
+                                        <div class="stat-card-value">{{ school.fmtMoney(student.fee_total) }}</div>
                                         <div class="stat-card-label">Total Fees</div>
                                     </div>
                                 </div>
                                 <div class="stat-card">
                                     <div class="stat-card-icon" style="background:#d1fae5;color:#059669;">✓</div>
                                     <div>
-                                        <div class="stat-card-value" style="color:var(--success)">₹{{ Number(student.fee_paid).toLocaleString('en-IN') }}</div>
+                                        <div class="stat-card-value" style="color:var(--success)">{{ school.fmtMoney(student.fee_paid) }}</div>
                                         <div class="stat-card-label">Total Paid</div>
                                     </div>
                                 </div>
                                 <div class="stat-card">
                                     <div class="stat-card-icon" style="background:#ede9fe;color:#7c3aed;">%</div>
                                     <div>
-                                        <div class="stat-card-value" style="color:#7c3aed;">₹{{ Number(student.fee_discount ?? 0).toLocaleString('en-IN') }}</div>
+                                        <div class="stat-card-value" style="color:#7c3aed;">{{ school.fmtMoney(student.fee_discount ?? 0) }}</div>
                                         <div class="stat-card-label">Discount</div>
                                     </div>
                                 </div>
@@ -960,7 +960,7 @@ const deleteDisc = async (id) => {
                                     <div>
                                         <div class="stat-card-value"
                                              :style="student.fee_balance > 0 ? 'color:var(--danger)' : 'color:var(--success)'">
-                                            {{ student.fee_balance > 0 ? '₹' + Number(student.fee_balance).toLocaleString('en-IN') : 'Paid' }}
+                                            {{ student.fee_balance > 0 ? school.fmtMoney(student.fee_balance) : 'Paid' }}
                                         </div>
                                         <div class="stat-card-label">Balance Due</div>
                                     </div>
@@ -1011,10 +1011,10 @@ const deleteDisc = async (id) => {
                                                 <span class="mode-badge">{{ p.payment_mode ? p.payment_mode.replace(/_/g,' ').toUpperCase() : '—' }}</span>
                                             </td>
                                             <td style="text-align:right;font-weight:700;color:#16a34a;">
-                                                ₹{{ Number(p.amount_paid).toLocaleString('en-IN') }}
+                                                {{ school.fmtMoney(p.amount_paid) }}
                                             </td>
                                             <td style="text-align:right;" :style="p.balance > 0 ? 'color:#dc2626;font-weight:600;' : 'color:#16a34a;'">
-                                                {{ p.balance > 0 ? '₹' + Number(p.balance).toLocaleString('en-IN') : 'Nil' }}
+                                                {{ p.balance > 0 ? school.fmtMoney(p.balance) : 'Nil' }}
                                             </td>
                                             <td style="text-align:center;">
                                                 <a :href="`/school/fee/collect/${p.id}/receipt`" target="_blank" class="receipt-link">
@@ -1589,22 +1589,22 @@ const deleteDisc = async (id) => {
                             <div class="stationary-grid">
                                 <div class="stationary-field">
                                     <div class="stationary-field-label">Total Amount</div>
-                                    <div class="stationary-field-value">₹{{ Number(student.stationary_allocation.total_amount).toLocaleString('en-IN') }}</div>
+                                    <div class="stationary-field-value">{{ school.fmtMoney(student.stationary_allocation.total_amount) }}</div>
                                 </div>
                                 <div class="stationary-field">
                                     <div class="stationary-field-label">Paid</div>
-                                    <div class="stationary-field-value" style="color:#059669;">₹{{ Number(student.stationary_allocation.amount_paid).toLocaleString('en-IN') }}</div>
+                                    <div class="stationary-field-value" style="color:#059669;">{{ school.fmtMoney(student.stationary_allocation.amount_paid) }}</div>
                                 </div>
                                 <div class="stationary-field">
                                     <div class="stationary-field-label">Balance</div>
                                     <div class="stationary-field-value" :style="parseFloat(student.stationary_allocation.balance) > 0 ? 'color:#dc2626;' : 'color:#059669;'">
-                                        ₹{{ Number(student.stationary_allocation.balance).toLocaleString('en-IN') }}
+                                        {{ school.fmtMoney(student.stationary_allocation.balance) }}
                                     </div>
                                 </div>
                                 <div class="stationary-field">
                                     <div class="stationary-field-label">Discount + Fine</div>
                                     <div class="stationary-field-value">
-                                        ₹{{ Number(student.stationary_allocation.discount).toLocaleString('en-IN') }} / ₹{{ Number(student.stationary_allocation.fine).toLocaleString('en-IN') }}
+                                        {{ school.fmtMoney(student.stationary_allocation.discount) }} / {{ school.fmtMoney(student.stationary_allocation.fine) }}
                                     </div>
                                 </div>
                             </div>
@@ -1630,13 +1630,13 @@ const deleteDisc = async (id) => {
                                                     {{ line.item?.name }}
                                                     <small v-if="line.item?.code" style="color:#94a3b8;font-family:monospace;">{{ line.item.code }}</small>
                                                 </td>
-                                                <td style="text-align:right;padding:8px 12px;">₹{{ Number(line.unit_price).toLocaleString('en-IN') }}</td>
+                                                <td style="text-align:right;padding:8px 12px;">{{ school.fmtMoney(line.unit_price) }}</td>
                                                 <td style="text-align:right;padding:8px 12px;">{{ line.qty_entitled }}</td>
                                                 <td style="text-align:right;padding:8px 12px;">{{ line.qty_collected }}</td>
                                                 <td style="text-align:right;padding:8px 12px;font-weight:600;" :style="(line.qty_entitled - line.qty_collected) > 0 ? 'color:#b45309;' : 'color:#94a3b8;'">
                                                     {{ line.qty_entitled - line.qty_collected }}
                                                 </td>
-                                                <td style="text-align:right;padding:8px 12px;">₹{{ Number(line.line_total).toLocaleString('en-IN') }}</td>
+                                                <td style="text-align:right;padding:8px 12px;">{{ school.fmtMoney(line.line_total) }}</td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -1651,7 +1651,7 @@ const deleteDisc = async (id) => {
                                     <div v-for="p in (student.stationary_allocation.payments || []).slice(0, 4)" :key="p.id" style="padding:6px 10px;border-bottom:1px solid #f1f5f9;font-size:0.76rem;">
                                         <div style="display:flex;justify-content:space-between;">
                                             <span style="font-family:monospace;">{{ p.receipt_no }}</span>
-                                            <span style="color:#059669;font-weight:600;">₹{{ Number(p.amount_paid).toLocaleString('en-IN') }}</span>
+                                            <span style="color:#059669;font-weight:600;">{{ school.fmtMoney(p.amount_paid) }}</span>
                                         </div>
                                         <div style="color:#94a3b8;">{{ p.payment_date }} · {{ p.payment_mode }}</div>
                                     </div>
@@ -1660,7 +1660,7 @@ const deleteDisc = async (id) => {
                                     <h4 style="font-size:0.82rem;font-weight:700;color:#1e293b;margin-bottom:6px;">📦 Recent Issuances</h4>
                                     <div v-if="!student.stationary_allocation.issuances?.length" style="font-size:0.76rem;color:#94a3b8;padding:8px;background:#f8fafc;border-radius:6px;">No items issued yet.</div>
                                     <div v-for="iss in (student.stationary_allocation.issuances || []).slice(0, 4)" :key="iss.id" style="padding:6px 10px;border-bottom:1px solid #f1f5f9;font-size:0.76rem;">
-                                        <div style="color:#475569;">{{ new Date(iss.issued_at).toLocaleDateString() }}</div>
+                                        <div style="color:#475569;">{{ school.fmtDate(iss.issued_at) }}</div>
                                         <div style="color:#94a3b8;">
                                             <span v-for="(line, i) in iss.items" :key="line.id">{{ line.item?.name }} ×{{ line.qty_issued }}<span v-if="i < iss.items.length - 1">, </span></span>
                                         </div>
@@ -1671,8 +1671,8 @@ const deleteDisc = async (id) => {
                                     <div v-if="!student.stationary_allocation.returns?.length" style="font-size:0.76rem;color:#94a3b8;padding:8px;background:#f8fafc;border-radius:6px;">No returns recorded.</div>
                                     <div v-for="ret in (student.stationary_allocation.returns || []).slice(0, 4)" :key="ret.id" style="padding:6px 10px;border-bottom:1px solid #f1f5f9;font-size:0.76rem;">
                                         <div style="display:flex;justify-content:space-between;">
-                                            <span style="color:#475569;">{{ new Date(ret.returned_at).toLocaleDateString() }}</span>
-                                            <span v-if="parseFloat(ret.refund_amount) > 0" style="color:#dc2626;font-weight:600;">-₹{{ Number(ret.refund_amount).toLocaleString('en-IN') }}</span>
+                                            <span style="color:#475569;">{{ school.fmtDate(ret.returned_at) }}</span>
+                                            <span v-if="parseFloat(ret.refund_amount) > 0" style="color:#dc2626;font-weight:600;">-{{ school.fmtMoney(ret.refund_amount) }}</span>
                                         </div>
                                         <div style="color:#94a3b8;">
                                             <span v-for="(line, i) in ret.items" :key="line.id">{{ line.item?.name }} ×{{ line.qty_returned }}<span v-if="i < ret.items.length - 1">, </span></span>
@@ -1713,7 +1713,7 @@ const deleteDisc = async (id) => {
                                         </select>
                                         <input v-model.number="line.qty" type="number" min="1" class="form-input" placeholder="Qty" />
                                         <div style="font-size:0.8rem;color:#475569;text-align:right;padding:0 6px;">
-                                            ₹{{ Number((stationaryItems.find(i => i.id == line.item_id)?.unit_price || 0) * (line.qty || 0)).toLocaleString('en-IN') }}
+                                            {{ school.fmtMoney((stationaryItems.find(i => i.id == line.item_id)?.unit_price || 0) * (line.qty || 0)) }}
                                         </div>
                                         <button v-if="assignStationaryForm.lines.length > 1" type="button" @click="removeStationaryLine(i)" style="background:#fee2e2;color:#dc2626;border:0;border-radius:6px;padding:6px;cursor:pointer;">×</button>
                                     </div>
@@ -1722,7 +1722,7 @@ const deleteDisc = async (id) => {
 
                                 <div style="background:#f8fafc;padding:10px 14px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;">
                                     <span style="font-size:0.86rem;color:#475569;">Kit Total</span>
-                                    <span style="font-size:1.05rem;font-weight:700;color:#1e293b;">₹{{ Number(stationaryAssignTotal).toLocaleString('en-IN') }}</span>
+                                    <span style="font-size:1.05rem;font-weight:700;color:#1e293b;">{{ school.fmtMoney(stationaryAssignTotal) }}</span>
                                 </div>
 
                                 <div style="display:flex;flex-direction:column;gap:4px;">

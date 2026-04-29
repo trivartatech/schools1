@@ -45,7 +45,7 @@
         <td class="label">Receipt No:</td>
         <td><strong>{{ $payment->receipt_no }}</strong></td>
         <td class="label">Payment Date:</td>
-        <td>{{ \Carbon\Carbon::parse($payment->payment_date)->format('d-M-Y') }}</td>
+        <td>@fdate($payment->payment_date)</td>
     </tr>
     <tr>
         <td class="label">Student Name:</td>

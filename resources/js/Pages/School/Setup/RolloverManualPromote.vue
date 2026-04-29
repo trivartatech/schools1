@@ -6,8 +6,10 @@ import Button from '@/Components/ui/Button.vue'
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import axios from 'axios'
 import { useConfirm } from '@/Composables/useConfirm'
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const confirm = useConfirm()
+const school = useSchoolStore()
 
 const props = defineProps({
     run: { type: Object, required: true },
@@ -187,7 +189,7 @@ const promote = async () => {
             carry_fees:        true,
         })
         batches.value.unshift({
-            at: new Date().toLocaleTimeString(),
+            at: school.fmtTime(new Date()),
             target: `${tgtClass} — ${tgtSec}`,
             promoted: data.promotion.promoted,
             skipped:  data.promotion.skipped,

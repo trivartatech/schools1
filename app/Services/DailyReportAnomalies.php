@@ -10,6 +10,7 @@ use App\Models\StudentAcademicHistory;
 use App\Models\VisitorLog;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use App\Support\Format;
 
 /**
  * Detects anomalies for the daily report — things that need an admin's
@@ -196,7 +197,7 @@ class DailyReportAnomalies
             'items'    => $sample->map(fn($v) => [
                 'name'    => $v->name,
                 'purpose' => $v->purpose,
-                'in_time' => $v->in_time?->format('h:i A'),
+                'in_time' => $v->in_time ? Format::time($v->in_time) : null,
             ])->all(),
         ]];
     }

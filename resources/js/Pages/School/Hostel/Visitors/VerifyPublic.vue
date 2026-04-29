@@ -1,4 +1,6 @@
 <script setup>
+import { useSchoolStore } from '@/stores/useSchoolStore';
+const school = useSchoolStore();
 defineProps({ visitor: Object, error: String });
 </script>
 
@@ -87,7 +89,7 @@ defineProps({ visitor: Object, error: String });
                     <!-- Verified timestamp -->
                     <div class="text-xs text-gray-400 text-center pt-2 border-t border-gray-100">
                         Token: {{ visitor.pass_token?.slice(0, 10) }}... &nbsp;·&nbsp;
-                        Verified at {{ new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) }}
+                        Verified at {{ school.fmtTime(new Date()) }}
                     </div>
                 </div>
             </div>

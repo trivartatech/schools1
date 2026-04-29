@@ -131,6 +131,20 @@ export const useSchoolStore = defineStore('school', () => {
     }
 
     /**
+     * Format a money value with the school's currency symbol.
+     * Default: thousand-separated, no decimals (₹2,500). Pass { fixed: true }
+     * for 2-decimal output (₹2,500.00) — used in receipts/payslips.
+     */
+    function fmtMoney(value, opts = {}) {
+        const sym = opts.symbol ?? currency.value;
+        const num = Number(value || 0);
+        const out = opts.fixed
+            ? num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            : num.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+        return `${sym}${out}`;
+    }
+
+    /**
      * Today's date as YYYY-MM-DD using local clock — avoids the UTC midnight
      * shift that occurs with `new Date().toISOString().slice(0, 10)`.
      */
@@ -163,6 +177,7 @@ export const useSchoolStore = defineStore('school', () => {
         fmtDate,
         fmtTime,
         fmtDateTime,
+        fmtMoney,
         today,
         currentMonth,
     };

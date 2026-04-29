@@ -57,6 +57,14 @@ class AppServiceProvider extends ServiceProvider
             \Illuminate\Support\Facades\URL::forceScheme('https');
         }
 
+        // Blade directives that respect each tenant's System Config (date_format,
+        // time_format, currency). Use these in PDFs / receipts / reports instead
+        // of hardcoded ->format('d-M-Y') so admin format changes apply everywhere.
+        \Illuminate\Support\Facades\Blade::directive('fdate',     fn ($expr) => "<?php echo e(\\App\\Support\\Format::date($expr)); ?>");
+        \Illuminate\Support\Facades\Blade::directive('ftime',     fn ($expr) => "<?php echo e(\\App\\Support\\Format::time($expr)); ?>");
+        \Illuminate\Support\Facades\Blade::directive('fdatetime', fn ($expr) => "<?php echo e(\\App\\Support\\Format::datetime($expr)); ?>");
+        \Illuminate\Support\Facades\Blade::directive('fmoney',    fn ($expr) => "<?php echo e(\\App\\Support\\Format::money($expr)); ?>");
+
         // Permission Registrar cache is handled by Spatie automatically.
         // We only clear it when switching team IDs in middleware if needed.
 

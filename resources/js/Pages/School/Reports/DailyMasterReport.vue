@@ -5,8 +5,10 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
 import { useConfirm } from '@/Composables/useConfirm';
 import FilterBar from '@/Components/ui/FilterBar.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const confirm = useConfirm();
+const school = useSchoolStore();
 
 const props = defineProps({
     report:         { type: Object, required: true },
@@ -33,11 +35,12 @@ watch(selectedMode, reload);
 // ── Formatters ───────────────────────────────────────────────────────
 const fmtMoney = (n) => {
     const num = Number(n || 0);
-    if (Math.abs(num) >= 100000) return '₹' + (num / 100000).toFixed(1) + ' L';
-    if (Math.abs(num) >= 1000)   return '₹' + (num / 1000).toFixed(1) + 'k';
-    return '₹' + num.toFixed(0);
+    const sym = school.currency;
+    if (Math.abs(num) >= 100000) return sym + (num / 100000).toFixed(1) + ' L';
+    if (Math.abs(num) >= 1000)   return sym + (num / 1000).toFixed(1) + 'k';
+    return sym + num.toFixed(0);
 };
-const fmtMoneyFull = (n) => '₹ ' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+const fmtMoneyFull = (n) => school.fmtMoney(n);
 const fmtPct   = (n, suffix = '%') => Number(n || 0).toFixed(1) + suffix;
 const fmtCount = (n) => Number(n || 0).toLocaleString('en-IN');
 
@@ -91,7 +94,7 @@ const pctBarColor = (pct) => {
 const lastSentAtLabel = computed(() => {
     if (!props.last_sent_at) return null;
     try {
-        return new Date(props.last_sent_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+        return school.fmtDateTime(props.last_sent_at);
     } catch {
         return props.last_sent_at;
     }
@@ -545,7 +548,7 @@ const channelBadge = (channel) => ({
                             <td>{{ d.admin_contact?.name || '—' }}</td>
                             <td>{{ d.to_number || '—' }}</td>
                             <td><span class="channel-pill" :class="channelBadge(d.channel_used)">{{ d.channel_used }}</span></td>
-                            <td>{{ d.sent_at ? new Date(d.sent_at).toLocaleString('en-IN', { timeStyle: 'short', dateStyle: 'short' }) : '—' }}</td>
+                            <td>{{ d.sent_at ? school.fmtDateTime(d.sent_at) : '—' }}</td>
                             <td class="muted">{{ d.error || '' }}</td>
                         </tr>
                     </tbody>

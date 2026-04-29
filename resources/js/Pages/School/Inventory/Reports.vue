@@ -7,6 +7,9 @@ import { useTableSort } from '@/Composables/useTableSort';
 import { ref, computed } from 'vue';
 import PrintButton from '@/Components/ui/PrintButton.vue';
 import ExportDropdown from '@/Components/ExportDropdown.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     deprAssets:       Array,
@@ -32,7 +35,7 @@ const sortedMaint = computed(() => maintSort.sortRows(props.maintByCategory || [
 
 import { useFormat } from '@/Composables/useFormat';
 const { formatDate: fmt } = useFormat();
-const fmtCost = (n) => n != null ? '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '—';
+const fmtCost = (n) => n != null ? school.fmtMoney(n) : '—';
 const pct     = (a, b) => b ? Math.round((a / b) * 100) : 0;
 
 const statusColor = { available: '#10b981', assigned: '#3b82f6', under_maintenance: '#f59e0b', disposed: '#94a3b8' };

@@ -2,6 +2,9 @@
 import { computed } from 'vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     allocations: Array,
@@ -130,7 +133,7 @@ function timeAgo(dateStr) {
                         <div class="pv-detail-row">
                             <span class="pv-detail-label">Monthly Fee</span>
                             <span class="pv-detail-value pv-fee">
-                                {{ alloc.stop?.fee != null ? '\u20B9' + Number(alloc.stop.fee).toLocaleString('en-IN') : '--' }}
+                                {{ alloc.stop?.fee != null ? school.fmtMoney(alloc.stop.fee) : '--' }}
                             </span>
                         </div>
                     </div>

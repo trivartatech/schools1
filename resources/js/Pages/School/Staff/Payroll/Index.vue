@@ -9,6 +9,9 @@ import { ref, computed } from 'vue';
 import { useForm, router, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     staffList: Array,
@@ -70,7 +73,7 @@ const payrollList = computed(() => Object.values(props.payrollMap || {}));
 const paidCount  = computed(() => payrollList.value.filter(p => p.status === 'paid').length);
 const totalPayout = computed(() => payrollList.value.reduce((s, p) => s + parseFloat(p.net_salary || 0), 0));
 
-const fmt = (n) => '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+const fmt = (n) => school.fmtMoney(n, { fixed: true });
 
 const statCards = computed(() => [
     { label: 'Active Staff',       value: props.summary.total_staff, color: 'accent' },

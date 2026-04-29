@@ -6,13 +6,16 @@ import SortableTh from '@/Components/ui/SortableTh.vue';
 import { useTableSort } from '@/Composables/useTableSort';
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     stats: Object,
     recentIssues: Array,
 });
 
-const fmt = (n) => Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+const fmt = (n) => school.fmtMoney(n, { fixed: true });
 
 const { sortKey, sortDir, toggleSort, sortRows } = useTableSort('issue_date', 'desc');
 const sortedIssues = computed(() => sortRows(props.recentIssues || [], {
@@ -65,7 +68,7 @@ const sortedIssues = computed(() => sortRows(props.recentIssues || [], {
             </div>
             <div class="card stat-card">
                 <div class="card-body text-center">
-                    <div class="stat-value" style="color:#7c3aed;font-size:1.1rem;">₹{{ fmt(stats.totalFines) }}</div>
+                    <div class="stat-value" style="color:#7c3aed;font-size:1.1rem;">{{ fmt(stats.totalFines) }}</div>
                     <div class="stat-label">Pending Fines</div>
                 </div>
             </div>
@@ -99,8 +102,8 @@ const sortedIssues = computed(() => sortRows(props.recentIssues || [], {
                             </span>
                             <span v-else>{{ issue.staff?.user?.name }}</span>
                         </td>
-                        <td>{{ issue.issue_date?.slice(0,10) }}</td>
-                        <td>{{ issue.due_date?.slice(0,10) }}</td>
+                        <td>{{ school.fmtDate(issue.issue_date) }}</td>
+                        <td>{{ school.fmtDate(issue.due_date) }}</td>
                         <td>
                             <span class="badge" :class="{
                                 'badge-green': issue.status === 'returned',

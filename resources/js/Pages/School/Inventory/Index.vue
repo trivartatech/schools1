@@ -11,7 +11,9 @@ import ExportDropdown from '@/Components/ExportDropdown.vue';
 import { useForm, router } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import { useConfirm } from '@/Composables/useConfirm';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
+const school = useSchoolStore();
 const confirm = useConfirm();
 
 const props = defineProps({
@@ -238,7 +240,7 @@ const maintStatusColor = { open: '#ef4444', in_progress: '#f59e0b', resolved: '#
 const maintStatusLabel = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved', scrapped: 'Scrapped' };
 import { useFormat } from '@/Composables/useFormat';
 const { formatDate: fmt } = useFormat();
-const fmtCost = (n) => n ? '₹' + Number(n).toLocaleString('en-IN') : '—';
+const fmtCost = (n) => n ? school.fmtMoney(n) : '—';
 const maintTotal = (logs) => logs?.reduce((s, l) => s + parseFloat(l.cost || 0), 0) ?? 0;
 
 // Stat cards data — replaces the old `.stats-row` 4-up custom layout.

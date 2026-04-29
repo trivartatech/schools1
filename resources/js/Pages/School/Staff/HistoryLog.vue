@@ -6,6 +6,9 @@ import SortableTh from '@/Components/ui/SortableTh.vue';
 import { useTableSort } from '@/Composables/useTableSort';
 import { Link, router } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     events: Object,
@@ -41,7 +44,7 @@ const eventTypeColor = {
 
 import { useFormat } from '@/Composables/useFormat';
 const { formatDate: fmt } = useFormat();
-const fmtSal = (n) => n ? '₹' + Number(n).toLocaleString('en-IN') : null;
+const fmtSal = (n) => n ? school.fmtMoney(n) : null;
 
 const { sortKey, sortDir, toggleSort, sortRows } = useTableSort('effective_date', 'desc');
 const sortedEvents = computed(() => sortRows(props.events.data || [], {

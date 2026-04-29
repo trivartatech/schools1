@@ -9,7 +9,9 @@ import Table from '@/Components/ui/Table.vue';
 import SortableTh from '@/Components/ui/SortableTh.vue';
 import { useTableSort } from '@/Composables/useTableSort';
 import { useConfirm } from '@/Composables/useConfirm';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
+const school = useSchoolStore();
 const confirm = useConfirm();
 
 const props = defineProps({
@@ -17,7 +19,7 @@ const props = defineProps({
     suppliers: Array,
 });
 
-const fmt    = (n) => Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt    = (n) => school.fmtMoney(n, { fixed: true });
 const fmtQty = (n) => Number(n).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 const isLow  = (item) => Number(item.min_quantity) > 0 && Number(item.quantity) <= Number(item.min_quantity);
 
@@ -156,7 +158,7 @@ const showTxnModal = computed({
                 <div class="stat-icon"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
                 <div>
                     <div class="stat-label">Total Stock Value</div>
-                    <div class="stat-value" style="color:#10b981;">₹{{ fmt(totalValue) }}</div>
+                    <div class="stat-value" style="color:#10b981;">{{ fmt(totalValue) }}</div>
                     <div class="stat-sub">at current prices</div>
                 </div>
             </div>
@@ -200,10 +202,10 @@ const showTxnModal = computed({
                             {{ item.min_quantity > 0 ? fmtQty(item.min_quantity) : '—' }}
                         </td>
                         <td style="text-align:right;">
-                            {{ item.unit_price > 0 ? '₹' + fmt(item.unit_price) : '—' }}
+                            {{ item.unit_price > 0 ? fmt(item.unit_price) : '—' }}
                         </td>
                         <td style="text-align:right;font-weight:600;color:#1e293b;">
-                            {{ item.unit_price > 0 ? '₹' + fmt(Number(item.quantity) * Number(item.unit_price)) : '—' }}
+                            {{ item.unit_price > 0 ? fmt(Number(item.quantity) * Number(item.unit_price)) : '—' }}
                         </td>
                         <td>
                             <div style="display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap;">
@@ -224,7 +226,7 @@ const showTxnModal = computed({
                 <tfoot v-if="sortedItems.length">
                     <tr>
                         <td colspan="6" style="text-align:right;font-weight:700;">Total Stock Value</td>
-                        <td style="text-align:right;font-weight:800;color:#1e293b;">₹{{ fmt(totalValue) }}</td>
+                        <td style="text-align:right;font-weight:800;color:#1e293b;">{{ fmt(totalValue) }}</td>
                         <td></td>
                     </tr>
                 </tfoot>

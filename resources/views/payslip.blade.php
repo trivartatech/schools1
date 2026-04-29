@@ -125,7 +125,7 @@
             <div class="meta">
                 @if($payroll->status === 'paid')
                     <div>PAID</div>
-                    <div>{{ $payroll->payment_date ? \Carbon\Carbon::parse($payroll->payment_date)->format('d M Y') : '' }}</div>
+                    <div>{{ $payroll->payment_date ? \App\Support\Format::date($payroll->payment_date) : '' }}</div>
                     <div style="text-transform: capitalize;">via {{ str_replace('_', ' ', $payroll->payment_mode ?? '') }}</div>
                 @else
                     <div>STATUS: GENERATED</div>
@@ -135,7 +135,7 @@
 
         <!-- Footer -->
         <div class="footer">
-            <div class="note">* This is a computer-generated payslip and does not require a signature. | Generated on {{ now()->format('d M Y') }}</div>
+            <div class="note">* This is a computer-generated payslip and does not require a signature. | Generated on @fdate(now())</div>
             <div class="sig-row">
                 <div class="sig-box"><div class="sig-line"></div>Employee Signature</div>
                 <div class="sig-box"><div class="sig-line"></div>Accounts Department</div>

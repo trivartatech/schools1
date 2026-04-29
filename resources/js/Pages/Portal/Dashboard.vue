@@ -2,6 +2,9 @@
 import { ref, computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import Button from '@/Components/ui/Button.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 // ── This component is a CONTENT-ONLY sub-dashboard.
 // ── It is rendered inside Dashboard.vue which already provides SchoolLayout.
@@ -146,9 +149,8 @@ const feeStatus = (balance) => {
                         </span>
                     </div>
                     <div class="flex items-baseline gap-1 mb-3">
-                        <span class="text-sm text-gray-400 font-medium">₹</span>
                         <span class="text-3xl font-bold" :class="activeStudent.fee_balance > 0 ? 'text-red-600' : 'text-emerald-600'">
-                            {{ Number(Math.abs(activeStudent.fee_balance)).toLocaleString('en-IN') }}
+                            {{ school.fmtMoney(Math.abs(activeStudent.fee_balance)) }}
                         </span>
                     </div>
                     <p class="text-xs" :class="activeStudent.fee_balance > 0 ? 'text-indigo-500 group-hover:text-indigo-700 font-medium' : 'text-gray-400'">

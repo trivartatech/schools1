@@ -10,6 +10,9 @@ import EmptyState from '@/Components/ui/EmptyState.vue';
 import Table from '@/Components/ui/Table.vue';
 import SortableTh from '@/Components/ui/SortableTh.vue';
 import { useTableSort } from '@/Composables/useTableSort';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     asset:    Object,
@@ -41,7 +44,7 @@ const maintStatusLabel = { open: 'Open', in_progress: 'In Progress', resolved: '
 
 import { useFormat } from '@/Composables/useFormat';
 const { formatDate: fmt } = useFormat();
-const fmtCost = (n) => n != null && n !== '' ? '₹' + Number(n).toLocaleString('en-IN') : '—';
+const fmtCost = (n) => n != null && n !== '' ? school.fmtMoney(n) : '—';
 const pct     = (a, b) => (b && b > 0) ? Math.round((a / b) * 100) : 0;
 
 const warrantyStatus = computed(() => {

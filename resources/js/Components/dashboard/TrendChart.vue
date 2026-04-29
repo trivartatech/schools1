@@ -6,15 +6,18 @@ import {
     CategoryScale, LinearScale, PointElement, LineElement,
     BarElement, Tooltip, Legend, Filler,
 } from 'chart.js'
+import { useSchoolStore } from '@/stores/useSchoolStore'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Legend, Filler)
+
+const school = useSchoolStore()
 
 const props = defineProps({
     type:     { type: String, default: 'line' },        // 'line' | 'bar' | 'stacked-bar' | 'stacked-area'
     labels:   { type: Array, required: true },
     datasets: { type: Array, required: true },          // [{label, data, color}]
     height:   { type: Number, default: 220 },
-    currency: { type: String, default: '' },            // e.g. '₹' for tooltip prefix
+    currency: { type: String, default: '' },            // legacy prop — present indicates money tooltip; symbol now sourced from store
     yPercent: { type: Boolean, default: false },        // y-axis as %
     legend:   { type: Boolean, default: false },
 })
@@ -67,7 +70,8 @@ const options = computed(() => ({
                     const v = ctx.parsed.y ?? ctx.parsed
                     if (v === null) return null
                     if (props.yPercent) return `${ctx.dataset.label}: ${v}%`
-                    return `${ctx.dataset.label}: ${props.currency}${Number(v).toLocaleString('en-IN')}`
+                    if (props.currency) return `${ctx.dataset.label}: ${school.fmtMoney(v)}`
+                    return `${ctx.dataset.label}: ${Number(v).toLocaleString('en-IN')}`
                 },
             },
             backgroundColor: '#0f172a',

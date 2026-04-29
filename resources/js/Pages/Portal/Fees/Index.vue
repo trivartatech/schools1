@@ -4,6 +4,9 @@ import { Head, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import axios from 'axios';
 import Button from '@/Components/ui/Button.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     students: { type: Array, default: () => [] },
@@ -105,7 +108,7 @@ const statusLabel = (status) => {
     return 'Unpaid';
 };
 
-const fmt = (n) => Number(n).toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
+const fmt = (n) => school.fmtMoney(n, { fixed: true });
 </script>
 
 <template>
@@ -262,10 +265,10 @@ const fmt = (n) => Number(n).toLocaleString('en-IN', { style: 'currency', curren
                                         </td>
                                         <td class="px-4 py-3 font-medium text-gray-900">{{ h.head_name }}</td>
                                         <td class="px-4 py-3 text-gray-500 text-xs">{{ h.term }}</td>
-                                        <td class="px-4 py-3 text-right text-gray-700 font-mono text-xs">{{ Number(h.amount_due).toLocaleString('en-IN') }}</td>
-                                        <td class="px-4 py-3 text-right text-emerald-600 font-mono text-xs">{{ Number(h.amount_paid).toLocaleString('en-IN') }}</td>
+                                        <td class="px-4 py-3 text-right text-gray-700 font-mono text-xs">{{ school.fmtMoney(h.amount_due) }}</td>
+                                        <td class="px-4 py-3 text-right text-emerald-600 font-mono text-xs">{{ school.fmtMoney(h.amount_paid) }}</td>
                                         <td class="px-4 py-3 text-right font-mono font-semibold text-xs" :class="h.balance > 0 ? 'text-red-600' : 'text-emerald-600'">
-                                            {{ Number(h.balance).toLocaleString('en-IN') }}
+                                            {{ school.fmtMoney(h.balance) }}
                                         </td>
                                         <td class="px-4 py-3 text-center">
                                             <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium" :class="statusCls(h.status)">
@@ -289,7 +292,7 @@ const fmt = (n) => Number(n).toLocaleString('en-IN', { style: 'currency', curren
                         class="bg-white rounded-2xl border shadow-sm p-5 flex items-center justify-between flex-wrap gap-4">
                         <div>
                             <p class="text-xs text-gray-400 uppercase tracking-wide">Selected Amount</p>
-                            <p class="text-2xl font-bold text-gray-900 mt-0.5">{{ totalSelected.toLocaleString('en-IN', { style: 'currency', currency: 'INR' }) }}</p>
+                            <p class="text-2xl font-bold text-gray-900 mt-0.5">{{ school.fmtMoney(totalSelected, { fixed: true }) }}</p>
                         </div>
                         <Button @click="initiatePayment" :disabled="!hasSelection || paying">
                             <svg v-if="paying" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">

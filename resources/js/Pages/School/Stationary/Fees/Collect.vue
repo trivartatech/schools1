@@ -7,9 +7,11 @@ import PrintButton from '@/Components/ui/PrintButton.vue';
 import Table from '@/Components/ui/Table.vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import { useConfirm } from '@/Composables/useConfirm';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const { can } = usePermissions();
 const confirm = useConfirm();
+const school = useSchoolStore();
 
 const props = defineProps({
     allocation:   Object,
@@ -17,13 +19,8 @@ const props = defineProps({
     concessions:  { type: Array, default: () => [] },
 });
 
-function fmt(n) {
-    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(Number(n || 0));
-}
-function fmtDate(d) {
-    if (!d) return '—';
-    return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-}
+const fmt = (n) => school.fmtMoney(n, { fixed: true });
+const fmtDate = (d) => school.fmtDate(d);
 
 const studentName = computed(() =>
     props.allocation?.student?.user?.name
@@ -163,7 +160,7 @@ const STATUS_COLOURS = {
                 <form @submit.prevent="submit" class="space-y-3">
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-xs font-semibold text-gray-700 mb-1">Amount Paid (₹) *</label>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Amount Paid ({{ school.currency }}) *</label>
                             <input v-model.number="form.amount_paid" type="number" step="0.01" min="0.01" required
                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
                             <p v-if="form.errors.amount_paid" class="text-xs text-red-500 mt-1">{{ form.errors.amount_paid }}</p>
@@ -179,13 +176,13 @@ const STATUS_COLOURS = {
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
                                 <option value="">— No concession —</option>
                                 <option v-for="c in concessions" :key="c.id" :value="c.id">
-                                    {{ c.name }} ({{ c.type === 'percentage' ? c.value + '%' : '₹' + c.value }})
+                                    {{ c.name }} ({{ c.type === 'percentage' ? c.value + '%' : school.fmtMoney(c.value) }})
                                 </option>
                             </select>
                             <p v-if="form.errors.concession_id" class="text-xs text-red-500 mt-1">{{ form.errors.concession_id }}</p>
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-gray-700 mb-1">Discount (₹)</label>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Discount ({{ school.currency }})</label>
                             <input v-model.number="form.discount" type="number" step="0.01" min="0"
                                    :disabled="!!form.concession_id"
                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
@@ -193,7 +190,7 @@ const STATUS_COLOURS = {
                             <p v-if="form.concession_id" class="text-xs text-indigo-500 mt-1">Auto-filled from concession.</p>
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-gray-700 mb-1">Fine / Late Fee (₹)</label>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Fine / Late Fee ({{ school.currency }})</label>
                             <input v-model.number="form.fine" type="number" step="0.01" min="0"
                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
                         </div>

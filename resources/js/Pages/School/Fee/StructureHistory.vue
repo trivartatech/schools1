@@ -7,6 +7,9 @@ import { useTableSort } from '@/Composables/useTableSort';
 import { Link } from '@inertiajs/vue3';
 import { router } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     history:  { type: Array,  default: () => [] },
@@ -97,7 +100,7 @@ const sortedArchived = computed(() => sortRows(archivedEntries.value, {
                 <div style="padding:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;">
                     <div>
                         <div style="font-size:.75rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Amount</div>
-                        <div style="font-size:1.5rem;font-weight:700;color:#1e293b;">₹{{ Number(currentEntry.amount).toLocaleString('en-IN') }}</div>
+                        <div style="font-size:1.5rem;font-weight:700;color:#1e293b;">{{ school.fmtMoney(currentEntry.amount) }}</div>
                     </div>
                     <div>
                         <div style="font-size:.75rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Effective From</div>
@@ -109,7 +112,7 @@ const sortedArchived = computed(() => sortRows(archivedEntries.value, {
                     </div>
                     <div>
                         <div style="font-size:.75rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Late Fee / Day</div>
-                        <div style="font-weight:600;">₹{{ currentEntry.late_fee_per_day ?? 0 }}</div>
+                        <div style="font-weight:600;">{{ school.fmtMoney(currentEntry.late_fee_per_day ?? 0) }}</div>
                     </div>
                     <div v-if="currentEntry.change_reason">
                         <div style="font-size:.75rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Change Reason</div>
@@ -139,8 +142,8 @@ const sortedArchived = computed(() => sortRows(archivedEntries.value, {
                     <tbody>
                         <tr v-for="(entry, idx) in sortedArchived" :key="entry.id" style="background:#fafafa;">
                             <td style="color:#94a3b8;font-size:.8rem;">v{{ sortedArchived.length - idx }}</td>
-                            <td style="font-weight:600;text-align:right;">₹{{ Number(entry.amount).toLocaleString('en-IN') }}</td>
-                            <td style="text-align:right;">₹{{ entry.late_fee_per_day ?? 0 }}</td>
+                            <td style="font-weight:600;text-align:right;">{{ school.fmtMoney(entry.amount) }}</td>
+                            <td style="text-align:right;">{{ school.fmtMoney(entry.late_fee_per_day ?? 0) }}</td>
                             <td>{{ fmt(entry.due_date) }}</td>
                             <td>{{ fmt(entry.effective_from) }}</td>
                             <td><span class="badge badge-gray">{{ fmt(entry.effective_to) }}</span></td>

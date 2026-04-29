@@ -6,6 +6,9 @@ import PageHeader from '@/Components/ui/PageHeader.vue';
 import EmptyState from '@/Components/ui/EmptyState.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     staff:        Object,
@@ -51,7 +54,7 @@ const eventTypeColor = {
 
 import { useFormat } from '@/Composables/useFormat';
 const { formatDate: fmt } = useFormat();
-const fmtSal = (n) => n ? '₹' + Number(n).toLocaleString('en-IN') : '—';
+const fmtSal = (n) => n ? school.fmtMoney(n) : '—';
 
 const needsDesignation = (et) => ['promotion', 'demotion', 'designation_change', 'confirmation'].includes(et);
 const needsDepartment  = (et) => ['transfer', 'department_change'].includes(et);

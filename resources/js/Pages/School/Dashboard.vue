@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Link, usePage } from '@inertiajs/vue3'
+import { Link } from '@inertiajs/vue3'
+import { useSchoolStore } from '@/stores/useSchoolStore'
 
 // ── Sandbox primitives (Components/ui/*) ──────────────────────────
 import PageHeader from '@/Components/ui/PageHeader.vue'
@@ -20,13 +21,14 @@ const props = defineProps({
     school_dashboard: { type: Object, default: () => ({}) },
 })
 
+const school = useSchoolStore()
 const d   = computed(() => props.school_dashboard || {})
 const k   = computed(() => d.value.kpi || {})
-const currency = computed(() => usePage().props.school?.currency || '₹')
+const currency = computed(() => school.currency)
 
 // ── formatting ─────────────────────────────────────────────
 const fmtNum = (n) => Number.isFinite(+n) ? (+n).toLocaleString('en-IN') : '—'
-const fmtCur = (n) => Number.isFinite(+n) ? currency.value + (+n).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '—'
+const fmtCur = (n) => Number.isFinite(+n) ? school.fmtMoney(n) : '—'
 const fmtCompact = (n) => {
     n = Math.round(+n || 0)
     if (n >= 1e7) return currency.value + (n / 1e7).toFixed(1) + 'Cr'
@@ -38,7 +40,7 @@ const greeting = computed(() => {
     const h = new Date().getHours()
     return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
 })
-const todayLabel = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+const todayLabel = computed(() => school.fmtDate(school.today()))
 const monthLabel = new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
 
 // ── view toggles ───────────────────────────────────────────
@@ -203,7 +205,7 @@ const upcomingEvents = computed(() => {
         .slice(0, 6)
         .map(e => ({
             ...e,
-            dateLabel: new Date(e.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+            dateLabel: school.fmtDate(e.date),
             daysAway: Math.max(0, Math.round((new Date(e.date) - new Date()) / 86400000)),
         }))
 })

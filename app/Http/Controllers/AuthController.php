@@ -214,6 +214,20 @@ class AuthController extends Controller
         $user->tokens()->where('name', $tokenName)->delete();
         $token = $user->createToken($tokenName, ['*'], now()->addDays(30));
 
+        // Bundle school localization in the login response so the mobile app
+        // can format dates / times / currency consistently from the first
+        // screen, without an extra round-trip to /mobile/profile.
+        $school = $user->school_id ? \App\Models\School::find($user->school_id) : null;
+        $safeSchool = $school ? [
+            'id'          => $school->id,
+            'name'        => $school->name,
+            'logo'        => $school->logo,
+            'currency'    => $school->currency ?? '₹',
+            'timezone'    => $school->timezone ?? 'Asia/Kolkata',
+            'date_format' => $school->settings['date_format'] ?? 'DD/MM/YYYY',
+            'time_format' => $school->settings['time_format'] ?? 'h:mm A',
+        ] : null;
+
         return response()->json([
             'token'   => $token->plainTextToken,
             'expires' => $token->accessToken->expires_at?->toIso8601String(),
@@ -226,6 +240,7 @@ class AuthController extends Controller
                 'avatar'    => $user->avatar,
                 'school_id' => $user->school_id,
             ],
+            'school'  => $safeSchool,
         ]);
     }
 

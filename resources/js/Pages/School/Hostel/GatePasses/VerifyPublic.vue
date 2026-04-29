@@ -1,4 +1,6 @@
 <script setup>
+import { useSchoolStore } from '@/stores/useSchoolStore';
+const school = useSchoolStore();
 defineProps({ pass: Object, error: String });
 
 const statusColors = {
@@ -111,7 +113,7 @@ const statusColors = {
                     <!-- Security hint -->
                     <div class="text-xs text-gray-400 text-center pt-2 border-t border-gray-100">
                         Pass Token: {{ pass.pass_token?.slice(0,12) }}... &nbsp;·&nbsp;
-                        Verified at {{ new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) }}
+                        Verified at {{ school.fmtTime(new Date()) }}
                     </div>
                 </div>
             </div>

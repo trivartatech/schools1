@@ -26,6 +26,7 @@ use App\Models\TransportFeePayment;
 use App\Models\TransportRoute;
 use App\Models\User;
 use App\Models\VisitorLog;
+use App\Support\Format;
 
 /**
  * Aggregates all data the school admin dashboard renders.
@@ -367,7 +368,7 @@ class DashboardDataService
                 'amount'   => (float) $p->amount_paid,
                 'mode'     => $p->payment_mode,
                 'fee_head' => $p->feeHead?->name ?? '—',
-                'paid_at'  => $p->payment_date?->format('d M, h:i A') ?? '—',
+                'paid_at'  => $p->payment_date ? Format::datetime($p->payment_date) : '—',
             ])->all();
     }
 
@@ -384,7 +385,7 @@ class DashboardDataService
                 'admission_no' => $s->admission_no,
                 'class'        => $s->currentAcademicHistory?->courseClass?->name ?? '—',
                 'section'      => $s->currentAcademicHistory?->section?->name ?? '—',
-                'admitted_at'  => $s->admission_date ? Carbon::parse($s->admission_date)->format('d M Y') : '—',
+                'admitted_at'  => $s->admission_date ? Format::date($s->admission_date) : '—',
                 'photo_url'    => $s->photo_url,
             ])->all();
     }
@@ -399,8 +400,8 @@ class DashboardDataService
                 'id'      => $v->id,
                 'name'    => $v->name,
                 'purpose' => $v->purpose,
-                'in_time' => $v->in_time?->format('h:i A') ?? '—',
-                'out'     => $v->out_time?->format('h:i A'),
+                'in_time' => $v->in_time ? Format::time($v->in_time) : '—',
+                'out'     => $v->out_time ? Format::time($v->out_time) : null,
             ])->all();
     }
 
@@ -488,7 +489,7 @@ class DashboardDataService
             ->map(fn($es) => [
                 'exam'    => $es->examSchedule?->examType?->name ?? '—',
                 'subject' => $es->subject?->name ?? '—',
-                'date'    => Carbon::parse($es->exam_date)->format('d M Y'),
+                'date'    => Format::date($es->exam_date),
             ])->all();
     }
 
@@ -551,7 +552,7 @@ class DashboardDataService
         $daysLeft = $today->copy()->startOfDay()->diffInDays(Carbon::parse($row->exam_date)->startOfDay());
         return [
             'title'     => $row->examSchedule?->examType?->name ?? 'Exam',
-            'date'      => Carbon::parse($row->exam_date)->format('d M Y'),
+            'date'      => Format::date($row->exam_date),
             'days_left' => (int) $daysLeft,
         ];
     }

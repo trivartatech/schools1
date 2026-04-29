@@ -26,7 +26,7 @@
     <p class="sub">Statement of all ledger account debit and credit balances</p>
     <div class="meta">
         <span>As of: <strong>{{ $asOf }}</strong></span>
-        <span>Generated: {{ now()->format('d M Y, h:i A') }}</span>
+        <span>Generated: @fdatetime(now())</span>
     </div>
 
     @php

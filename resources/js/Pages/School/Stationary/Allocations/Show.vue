@@ -7,6 +7,7 @@ import { router, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import { useConfirm } from '@/Composables/useConfirm';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 import Table from '@/Components/ui/Table.vue';
 
 const props = defineProps({
@@ -15,6 +16,7 @@ const props = defineProps({
 
 const { can } = usePermissions();
 const confirm = useConfirm();
+const school = useSchoolStore();
 
 function fmt(n) {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(n ?? 0);
@@ -69,7 +71,7 @@ function submitIssue() {
 async function voidIssuance(issuance) {
     const ok = await confirm({
         title: 'Void issuance?',
-        message: `Void this issuance from ${new Date(issuance.issued_at).toLocaleDateString()}? Stock and qty_collected will be restored.`,
+        message: `Void this issuance from ${school.fmtDate(issuance.issued_at)}? Stock and qty_collected will be restored.`,
         confirmLabel: 'Void',
         danger: true,
     });
@@ -136,7 +138,7 @@ function submitReturn() {
 async function voidReturn(ret) {
     const ok = await confirm({
         title: 'Void return?',
-        message: `Void this return from ${new Date(ret.returned_at).toLocaleDateString()}? Refund will be reversed.`,
+        message: `Void this return from ${school.fmtDate(ret.returned_at)}? Refund will be reversed.`,
         confirmLabel: 'Void',
         danger: true,
     });

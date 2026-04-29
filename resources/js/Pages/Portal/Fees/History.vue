@@ -18,7 +18,7 @@ const props = defineProps({
 
 const activeTab = ref('receipts');
 
-const fmtMoney = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(n || 0));
+const fmtMoney = (n) => school.fmtMoney(n, { fixed: true });
 
 const statusBadge = (status) => ({
     paid:      'bg-emerald-100 text-emerald-700',
@@ -162,7 +162,7 @@ const modeBadge = (mode) => ({
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-right font-mono font-semibold text-gray-900 text-xs">
-                                    {{ Number(p.amount_paid).toLocaleString('en-IN', { style: 'currency', currency: 'INR' }) }}
+                                    {{ school.fmtMoney(p.amount_paid, { fixed: true }) }}
                                 </td>
                                 <td class="px-4 py-3 text-center">
                                     <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize" :class="statusBadge(p.status)">
@@ -385,7 +385,7 @@ const modeBadge = (mode) => ({
                                     {{ o.student?.first_name }} {{ o.student?.last_name }}
                                 </td>
                                 <td class="px-4 py-3 text-right font-mono font-semibold text-gray-900 text-xs">
-                                    {{ (o.amount_paise / 100).toLocaleString('en-IN', { style: 'currency', currency: 'INR' }) }}
+                                    {{ school.fmtMoney(o.amount_paise / 100, { fixed: true }) }}
                                 </td>
                                 <td class="px-4 py-3 text-center">
                                     <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize" :class="statusBadge(o.status)">

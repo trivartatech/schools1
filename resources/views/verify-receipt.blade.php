@@ -45,7 +45,7 @@
             </div>
             <div class="flex justify-between pb-1">
                 <span class="text-gray-500 font-medium">Payment Date</span>
-                <span class="text-gray-900">{{ \Carbon\Carbon::parse($payment->payment_date)->format('d-M-Y') }}</span>
+                <span class="text-gray-900">@fdate($payment->payment_date)</span>
             </div>
         </div>
 

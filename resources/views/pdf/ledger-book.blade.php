@@ -27,7 +27,7 @@
     <p class="sub">{{ $ledger['ledger_type']['name'] ?? '' }} &nbsp;|&nbsp; Code: {{ $ledger['code'] ?? '—' }}</p>
     <div class="meta">
         Period: <strong>{{ $from }}</strong> to <strong>{{ $to }}</strong> &nbsp;&bull;&nbsp;
-        Generated: {{ now()->format('d M Y, h:i A') }}
+        Generated: @fdatetime(now())
     </div>
 
     @php
