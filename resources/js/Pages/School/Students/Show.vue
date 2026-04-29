@@ -1293,7 +1293,7 @@ const deleteDisc = async (id) => {
                                 </div>
                                 <div class="transport-field">
                                     <div class="transport-field-label">Vehicle</div>
-                                    <div class="transport-field-value">{{ student.transport_allocation.vehicle?.vehicle_no ?? 'Not assigned' }}</div>
+                                    <div class="transport-field-value">{{ student.transport_allocation.vehicle?.vehicle_number ?? 'Not assigned' }}</div>
                                 </div>
                                 <div class="transport-field">
                                     <div class="transport-field-label">Transport Fee</div>

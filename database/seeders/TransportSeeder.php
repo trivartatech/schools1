@@ -108,10 +108,29 @@ class TransportSeeder extends Seeder
         }
 
         // ── 3. Vehicles ────────────────────────────────────────────────────────
-        // Get driver-designation staff (we'll use any available staff as drivers)
-        $staffIds = DB::table('staff')->where('school_id', $schoolId)->pluck('id')->toArray();
+        // Look up staff by designation: drivers must have "Driver" designation,
+        // conductors must have "Conductor". Falls back to null if HRStaffSeeder
+        // hasn't been run yet — vehicles still get created, just with empty
+        // driver/conductor (visible as "—" in the UI).
+        $driverStaffIds = DB::table('staff as s')
+            ->join('designations as d', 'd.id', '=', 's.designation_id')
+            ->where('s.school_id', $schoolId)
+            ->where('d.name', 'Driver')
+            ->pluck('s.id')
+            ->values()
+            ->all();
 
-        // KA 16 = Chitradurga RTO registration prefix
+        $conductorStaffIds = DB::table('staff as s')
+            ->join('designations as d', 'd.id', '=', 's.designation_id')
+            ->where('s.school_id', $schoolId)
+            ->where('d.name', 'Conductor')
+            ->pluck('s.id')
+            ->values()
+            ->all();
+
+        // KA 16 = Chitradurga RTO registration prefix.
+        // conductor_name kept as a free-text label (legacy column); the FK is
+        // conductor_id, set below from the Conductor-designated staff pool.
         $vehiclesData = [
             ['vehicle_number' => 'KA 16 A 0001', 'vehicle_name' => 'Tata Starbus Ultra 52',  'capacity' => 52, 'route_code' => 'RT-A', 'conductor_name' => 'Manjunath G',   'gps' => 'GPS-A1', 'insurance_expiry' => '2026-12-31', 'fitness_expiry' => '2026-08-15', 'pollution_expiry' => '2026-05-10'],
             ['vehicle_number' => 'KA 16 A 0002', 'vehicle_name' => 'Eicher Skyline Pro 35',  'capacity' => 35, 'route_code' => 'RT-B', 'conductor_name' => 'Venkatesh M',   'gps' => 'GPS-B1', 'insurance_expiry' => '2026-11-30', 'fitness_expiry' => '2026-07-20', 'pollution_expiry' => '2026-04-25'],
@@ -122,12 +141,14 @@ class TransportSeeder extends Seeder
 
         $vehicleIds = []; // route_code => vehicle_id
         foreach ($vehiclesData as $idx => $v) {
-            $driverId = !empty($staffIds) ? $staffIds[$idx % count($staffIds)] : null;
+            $driverId    = !empty($driverStaffIds)    ? $driverStaffIds[$idx % count($driverStaffIds)]       : null;
+            $conductorId = !empty($conductorStaffIds) ? $conductorStaffIds[$idx % count($conductorStaffIds)] : null;
             $vehicleIds[$v['route_code']] = DB::table('transport_vehicles')->insertGetId([
                 'school_id'        => $schoolId,
                 'vehicle_number'   => $v['vehicle_number'],
                 'vehicle_name'     => $v['vehicle_name'],
                 'driver_id'        => $driverId,
+                'conductor_id'     => $conductorId,
                 'conductor_name'   => $v['conductor_name'],
                 'capacity'         => $v['capacity'],
                 'route_id'         => $routeIds[$v['route_code']],

@@ -66,6 +66,8 @@ class HRStaffSeeder extends Seeder
         $librarian  = DB::table('designations')->insertGetId(['school_id' => $schoolId, 'parent_id' => null,'name' => 'Librarian',         'is_active' => true, 'created_at' => $now, 'updated_at' => $now]);
         $peon       = DB::table('designations')->insertGetId(['school_id' => $schoolId, 'parent_id' => null,'name' => 'Office Assistant',   'is_active' => true, 'created_at' => $now, 'updated_at' => $now]);
         $ptTeacher  = DB::table('designations')->insertGetId(['school_id' => $schoolId, 'parent_id' => null,'name' => 'PT Teacher',        'is_active' => true, 'created_at' => $now, 'updated_at' => $now]);
+        $driver     = DB::table('designations')->insertGetId(['school_id' => $schoolId, 'parent_id' => null,'name' => 'Driver',            'is_active' => true, 'created_at' => $now, 'updated_at' => $now]);
+        $conductor  = DB::table('designations')->insertGetId(['school_id' => $schoolId, 'parent_id' => null,'name' => 'Conductor',         'is_active' => true, 'created_at' => $now, 'updated_at' => $now]);
 
         // ── 3. Staff Members ─────────────────────────────────────────────────
         $staffData = [
@@ -96,6 +98,18 @@ class HRStaffSeeder extends Seeder
             ['name' => 'Mr. Kishore Das',      'email' => 'it@dps.com',          'phone' => '9811007004', 'emp' => 'DPS-018', 'dept' => 'IT & Systems',        'desig' => $peon,       'basic' => 35000, 'exp' => 5,  'qual' => 'B.Tech (CS)',          'join' => '2019-08-01', 'bank' => 'ICICI', 'ifsc' => 'ICIC0004444', 'pan' => 'RSTKD0123U', 'user_type' => 'teacher',    'role' => 'teacher'],
             ['name' => 'Mrs. Geeta Batra',     'email' => 'office@dps.com',      'phone' => '9811007005', 'emp' => 'DPS-019', 'dept' => 'Administration',      'desig' => $peon,       'basic' => 25000, 'exp' => 3,  'qual' => '12th Pass',            'join' => '2021-04-01', 'bank' => 'SBI',   'ifsc' => 'SBIN0006666', 'pan' => 'STUGB4567V', 'user_type' => 'teacher',    'role' => 'teacher'],
             ['name' => 'Mr. Ramu Prasad',      'email' => 'support@dps.com',     'phone' => '9811007006', 'emp' => 'DPS-020', 'dept' => 'Support Staff',       'desig' => $peon,       'basic' => 18000, 'exp' => 2,  'qual' => '10th Pass',            'join' => '2022-06-01', 'bank' => 'PNB',   'ifsc' => 'PUNB0086500', 'pan' => 'TUVRP8901W', 'user_type' => 'teacher',    'role' => 'teacher'],
+            // Drivers (one per route bus) — Karnataka commercial driving licenses
+            ['name' => 'Mr. Hanumantha Naik',  'email' => 'driver1@dps.com',     'phone' => '9811008001', 'emp' => 'DPS-021', 'dept' => 'Support Staff',       'desig' => $driver,     'basic' => 22000, 'exp' => 12, 'qual' => 'Heavy MV License (KA)',    'join' => '2014-06-01', 'bank' => 'Canara','ifsc' => 'CNRB0001234', 'pan' => 'UVWHN1234X', 'user_type' => 'driver',     'role' => 'driver'],
+            ['name' => 'Mr. Veeresh Patil',    'email' => 'driver2@dps.com',     'phone' => '9811008002', 'emp' => 'DPS-022', 'dept' => 'Support Staff',       'desig' => $driver,     'basic' => 21000, 'exp' => 10, 'qual' => 'Heavy MV License (KA)',    'join' => '2016-04-01', 'bank' => 'Karnataka Bank','ifsc' => 'KARB0000123', 'pan' => 'VWXVP5678Y', 'user_type' => 'driver',     'role' => 'driver'],
+            ['name' => 'Mr. Mahesh Hadapad',   'email' => 'driver3@dps.com',     'phone' => '9811008003', 'emp' => 'DPS-023', 'dept' => 'Support Staff',       'desig' => $driver,     'basic' => 21000, 'exp' => 9,  'qual' => 'Heavy MV License (KA)',    'join' => '2017-07-01', 'bank' => 'SBI',   'ifsc' => 'SBIN0007777', 'pan' => 'WXYMH9012Z', 'user_type' => 'driver',     'role' => 'driver'],
+            ['name' => 'Mr. Lokesh Kumar',     'email' => 'driver4@dps.com',     'phone' => '9811008004', 'emp' => 'DPS-024', 'dept' => 'Support Staff',       'desig' => $driver,     'basic' => 20000, 'exp' => 7,  'qual' => 'Heavy MV License (KA)',    'join' => '2019-04-01', 'bank' => 'PNB',   'ifsc' => 'PUNB0097600', 'pan' => 'XYZLK3456A', 'user_type' => 'driver',     'role' => 'driver'],
+            ['name' => 'Mr. Suresh Bandi',     'email' => 'driver5@dps.com',     'phone' => '9811008005', 'emp' => 'DPS-025', 'dept' => 'Support Staff',       'desig' => $driver,     'basic' => 20000, 'exp' => 6,  'qual' => 'Heavy MV License (KA)',    'join' => '2020-06-01', 'bank' => 'HDFC',  'ifsc' => 'HDFC0006789', 'pan' => 'YZASB7890B', 'user_type' => 'driver',     'role' => 'driver'],
+            // Conductors (one per route bus)
+            ['name' => 'Mr. Manjunath G',      'email' => 'conductor1@dps.com',  'phone' => '9811009001', 'emp' => 'DPS-026', 'dept' => 'Support Staff',       'desig' => $conductor,  'basic' => 16000, 'exp' => 8,  'qual' => 'PUC, First Aid',           'join' => '2016-07-01', 'bank' => 'Canara','ifsc' => 'CNRB0002345', 'pan' => 'ZABMG1234C', 'user_type' => 'teacher',    'role' => 'teacher'],
+            ['name' => 'Mr. Venkatesh M',      'email' => 'conductor2@dps.com',  'phone' => '9811009002', 'emp' => 'DPS-027', 'dept' => 'Support Staff',       'desig' => $conductor,  'basic' => 16000, 'exp' => 6,  'qual' => 'SSLC, First Aid',          'join' => '2018-04-01', 'bank' => 'Karnataka Bank','ifsc' => 'KARB0000234', 'pan' => 'BCDVM5678D', 'user_type' => 'teacher',    'role' => 'teacher'],
+            ['name' => 'Mr. Nagaraj K',        'email' => 'conductor3@dps.com',  'phone' => '9811009003', 'emp' => 'DPS-028', 'dept' => 'Support Staff',       'desig' => $conductor,  'basic' => 15000, 'exp' => 5,  'qual' => 'SSLC, First Aid',          'join' => '2019-06-01', 'bank' => 'SBI',   'ifsc' => 'SBIN0008888', 'pan' => 'CDENK9012E', 'user_type' => 'teacher',    'role' => 'teacher'],
+            ['name' => 'Mr. Basavaraj N',      'email' => 'conductor4@dps.com',  'phone' => '9811009004', 'emp' => 'DPS-029', 'dept' => 'Support Staff',       'desig' => $conductor,  'basic' => 15000, 'exp' => 4,  'qual' => 'SSLC, First Aid',          'join' => '2020-07-01', 'bank' => 'PNB',   'ifsc' => 'PUNB0108700', 'pan' => 'DEFBN3456F', 'user_type' => 'teacher',    'role' => 'teacher'],
+            ['name' => 'Mr. Shivakumar R',     'email' => 'conductor5@dps.com',  'phone' => '9811009005', 'emp' => 'DPS-030', 'dept' => 'Support Staff',       'desig' => $conductor,  'basic' => 15000, 'exp' => 3,  'qual' => 'PUC, First Aid',           'join' => '2021-04-01', 'bank' => 'HDFC',  'ifsc' => 'HDFC0007890', 'pan' => 'EFGSR7890G', 'user_type' => 'teacher',    'role' => 'teacher'],
         ];
 
         $orgId = DB::table('schools')->find($schoolId)->organization_id ?? 1;
@@ -353,7 +367,7 @@ class HRStaffSeeder extends Seeder
 
         $this->command->info('✅ HR Staff Module seeded successfully!');
         $this->command->info('   - ' . count($hrDepts) . ' HR Departments');
-        $this->command->info('   - 11 Designations with hierarchy');
+        $this->command->info('   - 13 Designations (incl. Driver, Conductor)');
         $this->command->info('   - ' . count($staffData) . ' Staff Members with User accounts');
         $this->command->info('   - 30 Leave Records (approved/pending/rejected)');
         $this->command->info('   - ' . (count($staffIds) * count($months)) . ' Payroll entries (3 months)');
