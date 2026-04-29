@@ -48,7 +48,8 @@ class InventoryController extends Controller
         $stats = Asset::where('school_id', $schoolId)
             ->select('status', DB::raw('COUNT(*) as count'), DB::raw('SUM(purchase_cost) as total_cost'))
             ->groupBy('status')
-            ->pluck(null, 'status');
+            ->get()
+            ->keyBy('status');
 
         $openMaintenance = AssetMaintenance::where('school_id', $schoolId)
             ->whereIn('status', ['open', 'in_progress'])
