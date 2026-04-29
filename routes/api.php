@@ -237,6 +237,14 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     // Finance — Due Report (admin/accountant)
     Route::get('/finance/due-report',      [$MA, 'dueReport'])->name('api.mobile.finance.due-report');
 
+    // Front Office — Call Logs + Follow-Ups
+    $CL = \App\Http\Controllers\Api\Mobile\CallLogController::class;
+    Route::get   ('/front-office/call-logs',                    [$CL, 'index'])         ->name('api.mobile.call-logs.index');
+    Route::post  ('/front-office/call-logs',                    [$CL, 'store'])         ->name('api.mobile.call-logs.store');
+    Route::patch ('/front-office/call-logs/{id}/follow-up',     [$CL, 'updateFollowUp'])->whereNumber('id')->name('api.mobile.call-logs.follow-up');
+    Route::delete('/front-office/call-logs/{id}',               [$CL, 'destroy'])       ->whereNumber('id')->name('api.mobile.call-logs.destroy');
+    Route::get   ('/front-office/call-logs/follow-ups',         [$CL, 'followUps'])     ->name('api.mobile.call-logs.follow-ups');
+
     // PTM — Parent-Teacher Meetings
     $PTM = \App\Http\Controllers\Api\Mobile\PtmController::class;
     // Admin
