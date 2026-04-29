@@ -237,10 +237,12 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     // Finance — Due Report (admin/accountant)
     Route::get('/finance/due-report',      [$MA, 'dueReport'])->name('api.mobile.finance.due-report');
 
-    // Communication Hub admin (logs + analytics, read-only)
+    // Communication Hub admin (logs + analytics + emergency broadcast)
     $COMM = \App\Http\Controllers\Api\Mobile\CommunicationAdminController::class;
-    Route::get('/communication/logs',      [$COMM, 'logs'])     ->name('api.mobile.communication.logs');
-    Route::get('/communication/analytics', [$COMM, 'analytics'])->name('api.mobile.communication.analytics');
+    Route::get ('/communication/logs',                [$COMM, 'logs'])             ->name('api.mobile.communication.logs');
+    Route::get ('/communication/analytics',           [$COMM, 'analytics'])        ->name('api.mobile.communication.analytics');
+    Route::get ('/communication/emergency/options',   [$COMM, 'emergencyOptions']) ->name('api.mobile.communication.emergency.options');
+    Route::post('/communication/emergency',           [$COMM, 'emergencyBroadcast'])->middleware('throttle:5,1')->name('api.mobile.communication.emergency.send');
 
     // Disciplinary Records (admin only)
     $DR = \App\Http\Controllers\Api\Mobile\DisciplinaryController::class;

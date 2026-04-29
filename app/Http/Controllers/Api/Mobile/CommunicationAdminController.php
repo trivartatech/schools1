@@ -4,6 +4,10 @@ namespace App\Http\Controllers\Api\Mobile;
 
 use App\Http\Controllers\Controller;
 use App\Models\CommunicationLog;
+use App\Models\CommunicationTemplate;
+use App\Models\StudentParent;
+use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -137,6 +141,191 @@ class CommunicationAdminController extends Controller
                 'from'   => $from->toDateString(),
                 'to'     => $to->toDateString(),
             ],
+        ]);
+    }
+
+    // ── Emergency Broadcast ─────────────────────────────────────────────────
+
+    /** Replace ##KEY## placeholders in a template body. */
+    private function fillPlaceholders(string $content, array $data): string
+    {
+        return preg_replace_callback('/##([A-Za-z0-9_]+)##/', function ($m) use ($data) {
+            $key = strtolower($m[1]);
+            return (string) ($data[$key] ?? $data[$m[1]] ?? $m[0]);
+        }, $content);
+    }
+
+    /** Extract ##KEY## placeholders in template-declared order, mapped from $data. */
+    private function orderedTemplateParams(?string $templateContent, array $data): array
+    {
+        if (empty($templateContent)) return array_values($data);
+        preg_match_all('/##([A-Za-z0-9_]+)##/', $templateContent, $matches);
+        if (empty($matches[1])) return array_values($data);
+        $out = [];
+        foreach ($matches[1] as $key) {
+            $lower = strtolower($key);
+            $out[] = (string) ($data[$lower] ?? $data[$key] ?? '');
+        }
+        return $out;
+    }
+
+    /**
+     * Resolve which channels are enabled for the school + the recipient
+     * audience size. The mobile UI renders channel toggles based on this.
+     */
+    private function emergencyBroadcastContext(int $schoolId): array
+    {
+        $school   = app('current_school');
+        $settings = $school->settings ?? [];
+
+        $channels = [
+            'sms'      => !empty($settings['sms']['api_key']      ?? null),
+            'whatsapp' => !empty($settings['whatsapp']['api_key'] ?? null),
+            'voice'    => !empty($settings['voice']['api_key']    ?? null),
+        ];
+
+        $smsTemplate = CommunicationTemplate::where('school_id', $schoolId)
+            ->where('type', 'sms')->where('slug', 'emergency_broadcast')
+            ->where('is_active', true)->first();
+        $waTemplate  = CommunicationTemplate::where('school_id', $schoolId)
+            ->where('type', 'whatsapp')->where('slug', 'emergency_broadcast')
+            ->where('is_active', true)->first();
+
+        $templates = [
+            'sms'      => $smsTemplate ? [
+                'available'        => !empty($smsTemplate->template_id),
+                'preview'          => $smsTemplate->content,
+            ] : ['available' => false, 'preview' => null],
+            'whatsapp' => $waTemplate ? [
+                'available'        => !empty($waTemplate->template_id),
+                'preview'          => $waTemplate->content,
+            ] : ['available' => false, 'preview' => null],
+            'voice'    => ['available' => true, 'preview' => null], // voice uses raw message
+        ];
+
+        // Recipient count = unique phones across all parents + all staff users.
+        $parentPhones = StudentParent::whereHas('students', fn($q) => $q->where('school_id', $schoolId))
+            ->with('user:id,phone')
+            ->get()->pluck('user.phone')->filter();
+
+        $staffPhones = User::whereHas('schools', fn($q) => $q->where('schools.id', $schoolId))
+            ->whereNotNull('phone')->pluck('phone');
+
+        $recipientCount = $parentPhones->merge($staffPhones)->unique()->values()->count();
+
+        return [
+            'channels'        => $channels,
+            'templates'       => $templates,
+            'recipient_count' => $recipientCount,
+            'parent_count'    => $parentPhones->unique()->count(),
+            'staff_count'     => $staffPhones->unique()->count(),
+        ];
+    }
+
+    /**
+     * GET /mobile/communication/emergency/options
+     *
+     * Returns the channel availability matrix, template availability per
+     * channel, and the unique-phone recipient count so the mobile form can
+     * render channel toggles + a "this will reach N people" preview before
+     * the admin commits to sending.
+     */
+    public function emergencyOptions(Request $request): JsonResponse
+    {
+        $this->assertCommunicationAdmin($request);
+        $schoolId = app('current_school_id');
+        return response()->json(['data' => $this->emergencyBroadcastContext($schoolId)]);
+    }
+
+    /**
+     * POST /mobile/communication/emergency
+     *
+     * Emergency broadcast — fans out a single message across the selected
+     * channels (sms / whatsapp / voice) to every parent and staff member of
+     * the school. Identical validation + dispatch to web
+     * CommunicationDashboardController::emergencyBroadcast(); responses
+     * are JSON instead of redirect-with-flash.
+     *
+     * Required: message (<=500 chars), channels[] (subset of sms/whatsapp/voice).
+     */
+    public function emergencyBroadcast(Request $request): JsonResponse
+    {
+        $this->assertCommunicationAdmin($request);
+        $schoolId = app('current_school_id');
+        $school   = app('current_school');
+
+        $validated = $request->validate([
+            'message'    => 'required|string|max:500',
+            'channels'   => 'required|array|min:1',
+            'channels.*' => 'in:sms,whatsapp,voice',
+        ]);
+
+        $smsTemplate = in_array('sms', $validated['channels'], true)
+            ? CommunicationTemplate::where('school_id', $schoolId)
+                ->where('type', 'sms')->where('slug', 'emergency_broadcast')
+                ->where('is_active', true)->first()
+            : null;
+        $waTemplate = in_array('whatsapp', $validated['channels'], true)
+            ? CommunicationTemplate::where('school_id', $schoolId)
+                ->where('type', 'whatsapp')->where('slug', 'emergency_broadcast')
+                ->where('is_active', true)->first()
+            : null;
+
+        $missing = [];
+        if (in_array('sms', $validated['channels'], true)      && (!$smsTemplate || empty($smsTemplate->template_id))) $missing[] = 'SMS';
+        if (in_array('whatsapp', $validated['channels'], true) && (!$waTemplate  || empty($waTemplate->template_id)))  $missing[] = 'WhatsApp';
+        if (!empty($missing)) {
+            return response()->json([
+                'error' => 'Missing approved "emergency_broadcast" template for: ' .
+                    implode(', ', $missing) . '. Add it from web (Communication → Templates) first.',
+                'missing_channels' => $missing,
+            ], 422);
+        }
+
+        // Collect unique phones from all parents + all staff for this school
+        $parents = StudentParent::whereHas('students', fn($q) => $q->where('school_id', $schoolId))
+            ->with('user:id,phone')->get()->pluck('user.phone')->filter();
+        $staff   = User::whereHas('schools', fn($q) => $q->where('schools.id', $schoolId))
+            ->whereNotNull('phone')->pluck('phone');
+        $phones  = $parents->merge($staff)->unique()->values();
+
+        if ($phones->isEmpty()) {
+            return response()->json([
+                'error' => 'No recipients with phone numbers were found. Add parent/staff phone numbers first.',
+            ], 422);
+        }
+
+        $ns      = app(NotificationService::class);
+        $stats   = ['sms' => 0, 'whatsapp' => 0, 'voice' => 0];
+        $failed  = ['sms' => 0, 'whatsapp' => 0, 'voice' => 0];
+        $tplData = ['message' => $validated['message'], 'app_name' => $school->name];
+        $userId  = $request->user()->id;
+
+        foreach ($phones as $phone) {
+            foreach ($validated['channels'] as $channel) {
+                $ok = false;
+                try {
+                    if ($channel === 'sms') {
+                        $body = $this->fillPlaceholders($smsTemplate->content, $tplData);
+                        $ok = $ns->sendSms($phone, $body, $smsTemplate->template_id, $userId, $tplData);
+                    } elseif ($channel === 'whatsapp') {
+                        $params = $this->orderedTemplateParams($waTemplate->content, $tplData);
+                        $ok = $ns->sendWhatsApp($phone, $waTemplate->template_id, $params, $userId, $waTemplate->language_code ?? 'en');
+                    } elseif ($channel === 'voice') {
+                        $ok = $ns->sendVoiceCall($phone, null, $validated['message'], $userId);
+                    }
+                } catch (\Throwable $e) {
+                    $ok = false;
+                }
+                $ok ? $stats[$channel]++ : $failed[$channel]++;
+            }
+        }
+
+        return response()->json([
+            'message'         => "Emergency broadcast dispatched to {$phones->count()} recipients.",
+            'recipient_count' => $phones->count(),
+            'sent'            => array_filter($stats),
+            'failed'          => array_filter($failed),
         ]);
     }
 
