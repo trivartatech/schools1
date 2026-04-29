@@ -141,16 +141,22 @@ watch([search, selectedClass, selectedSection, selectedHouse, defaulterFilter, s
                 <option value="">All Houses</option>
                 <option v-for="h in houses" :key="h.id" :value="h.id">{{ h.name }}</option>
             </select>
-            <select v-model="defaulterFilter" style="width:150px;" title="Filter by defaulter flag">
-                <option value="">All Students</option>
-                <option value="1">Defaulters Only</option>
-                <option value="0">Non-Defaulters</option>
-            </select>
-            <select v-model="selectedStudentType" style="width:160px;" title="Filter by new or old student">
-                <option value="">All Students</option>
-                <option value="new">New Students</option>
-                <option value="old">Old Students</option>
-            </select>
+            <div class="form-field">
+                <label>Defaulter</label>
+                <select v-model="defaulterFilter" style="width:150px;">
+                    <option value="">All</option>
+                    <option value="1">Defaulters Only</option>
+                    <option value="0">Non-Defaulters</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label>Student Type</label>
+                <select v-model="selectedStudentType" style="width:160px;">
+                    <option value="">All</option>
+                    <option value="new">New Students</option>
+                    <option value="old">Old Students</option>
+                </select>
+            </div>
         </FilterBar>
 
         <!-- ── List View ── -->
