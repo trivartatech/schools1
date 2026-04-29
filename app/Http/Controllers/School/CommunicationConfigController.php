@@ -111,7 +111,12 @@ class CommunicationConfigController extends Controller
         }
 
         $service = new \App\Services\NotificationService($school);
-        $service->notifyTestWhatsapp($config['test_number'], $config['test_template_id'], auth()->id());
+        $service->notifyTestWhatsapp(
+            $config['test_number'],
+            $config['test_template_id'],
+            $config['language_code'] ?? 'en',
+            auth()->id()
+        );
 
         return back()->with('success', 'Test WhatsApp triggered. Check communication logs.');
     }
@@ -154,6 +159,8 @@ class CommunicationConfigController extends Controller
                 'api_token' => '',
                 'subdomain' => 'api.exotel.com',
                 'caller_id' => '',
+                'app_id' => '',
+                'number_prefix' => '91',
                 'test_number' => '',
                 'intro_audio_path' => null
             ]
@@ -163,14 +170,15 @@ class CommunicationConfigController extends Controller
     public function updateVoiceConfig(Request $request)
     {
         $validated = $request->validate([
-            'provider'    => 'required|string',
-            'api_sid'     => 'required|string',
-            'api_key'     => 'required|string',
-            'api_token'   => 'required|string',
-            'subdomain'   => 'nullable|string',
-            'caller_id'   => 'required|string',
-            'test_number' => 'nullable|string|min:10',
-            'app_id'      => 'required|string',
+            'provider'      => 'required|string',
+            'api_sid'       => 'required|string',
+            'api_key'       => 'required|string',
+            'api_token'     => 'required|string',
+            'subdomain'     => 'nullable|string',
+            'caller_id'     => 'required|string',
+            'test_number'   => 'nullable|string|min:10',
+            'app_id'        => 'required|string',
+            'number_prefix' => 'nullable|string|max:5',
         ]);
 
         $school   = app('current_school');

@@ -90,35 +90,33 @@ class DailyReportBroadcaster
             }
 
             // 2. Fallback to SMS if WhatsApp didn't go OR contact only has phone.
-            //    If the seeded daily_report SMS template has a configured
-            //    template_id, route through MSG91 with variable substitution
-            //    (delivery requires a DLT-approved template id). Otherwise
-            //    fall back to the free-form SMS body — useful for local
-            //    testing or alternate providers.
+            //    DLT-approved template + template_id are required by MSG91 v5/flow.
             if (!$sent && !empty($contact->phone)) {
-                try {
-                    if ($smsTemplate && $smsTemplate->template_id) {
+                if (!$smsTemplate || empty($smsTemplate->template_id)) {
+                    Log::warning("[DailyReport] No DLT-approved SMS template for school {$school->id} — cannot send to {$contact->phone}");
+                } else {
+                    try {
                         $data = [
                             'date'    => $date->format('d-M-Y'),
                             'caption' => mb_substr($smsText, 0, 200),
                             'link'    => $signedPdfUrl,
                             'app_name'=> $school->name,
                         ];
-                        $notifier->sendSms(
+                        $smsOk = $notifier->sendSms(
                             $contact->phone,
                             $smsTemplate->content,
                             $smsTemplate->template_id,
                             null,
                             $data
                         );
-                    } else {
-                        $notifier->sendSms($contact->phone, $smsText, null, null, []);
+                        if ($smsOk) {
+                            $this->logDelivery($schoolId, $contact->id, $date, $mode, 'sms', $contact->phone, $pdfPath);
+                            $stats['sms']++;
+                            $sent = true;
+                        }
+                    } catch (\Throwable $e) {
+                        Log::warning("[DailyReport] SMS send failed for {$contact->phone}: " . $e->getMessage());
                     }
-                    $this->logDelivery($schoolId, $contact->id, $date, $mode, 'sms', $contact->phone, $pdfPath);
-                    $stats['sms']++;
-                    $sent = true;
-                } catch (\Throwable $e) {
-                    Log::warning("[DailyReport] SMS send failed for {$contact->phone}: " . $e->getMessage());
                 }
             }
 
@@ -193,14 +191,13 @@ class DailyReportBroadcaster
         $orderedParams = $this->extractOrderedParams($template->content, $params);
 
         try {
-            $notifier->sendWhatsApp(
+            return $notifier->sendWhatsApp(
                 $recipient,
                 $template->template_id,
                 $orderedParams,
                 null,
                 $template->language_code ?? 'en'
             );
-            return true;
         } catch (\Throwable $e) {
             Log::warning("[DailyReport] WhatsApp template send failed: " . $e->getMessage());
             return false;

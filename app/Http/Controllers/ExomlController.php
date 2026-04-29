@@ -80,7 +80,8 @@ class ExomlController extends Controller
                     'audios' => $data['a'] ?? [],
                     'tts'    => $data['s'] ?? '(empty)',
                 ]);
-                Cache::forget($phoneKey);
+                // Don't forget — Exotel may hit multiple applets in the same call,
+                // and the 10-minute TTL handles cleanup.
                 return $this->buildResponse($data['a'] ?? [], $data['s'] ?? '');
             }
 
@@ -209,7 +210,6 @@ class ExomlController extends Controller
             $data = Cache::get($phoneKey);
             if ($data) {
                 Log::info("🟢 CACHE HIT [{$phoneKey}]", ['tts' => $data['s'] ?? '(empty)']);
-                Cache::forget($phoneKey);
                 return $this->buildResponse($data['a'] ?? [], $data['s'] ?? '');
             }
 
@@ -220,7 +220,6 @@ class ExomlController extends Controller
                 $data = Cache::get($fallbackKey);
                 if ($data) {
                     Log::info("🟢 CACHE HIT (phone fallback) [{$fallbackKey}]");
-                    Cache::forget($fallbackKey);
                     return $this->buildResponse($data['a'] ?? [], $data['s'] ?? '');
                 }
             }

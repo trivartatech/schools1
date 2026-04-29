@@ -7,9 +7,9 @@ use App\Models\User;
 
 interface NotificationServiceContract
 {
-    public function sendSms($recipient, $message, $templateId = null, $userId = null, $templateData = []): mixed;
+    public function sendSms($recipient, $message, $templateId = null, $userId = null, $templateData = []): bool;
 
-    public function sendWhatsApp($recipient, $templateId, $parameters = [], $userId = null, $languageCode = 'en'): mixed;
+    public function sendWhatsApp($recipient, $templateId, $parameters = [], $userId = null, $languageCode = 'en'): bool;
 
     public function notifyAttendance($student, $status): void;
 
@@ -21,5 +21,5 @@ interface NotificationServiceContract
 
     public function notifyExamPublished($examSchedule): void;
 
-    public function sendVoiceCall($recipient, $audioUrl = null, $content = null, $userId = null): mixed;
+    public function sendVoiceCall($recipient, $audioUrl = null, $content = null, $userId = null): bool;
 }

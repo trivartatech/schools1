@@ -21,7 +21,8 @@ class Announcement extends Model
         'scheduled_at',
         'is_broadcasted',
         'broadcast_error',
-        'failed_at'
+        'failed_at',
+        'broadcast_stats',
     ];
 
     protected $casts = [
@@ -30,6 +31,7 @@ class Announcement extends Model
         'is_broadcasted'  => 'boolean',
         'broadcast_error' => 'array',
         'failed_at'       => 'datetime',
+        'broadcast_stats' => 'array',
     ];
 
     public function school()

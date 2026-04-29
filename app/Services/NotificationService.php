@@ -188,21 +188,39 @@ class NotificationService
     }
 
     /**
-     * Send SMS via MSG91
+     * Send SMS via MSG91. Returns true on a 2xx provider response, false otherwise.
      */
-    public function sendSms($recipient, $message, $templateId = null, $userId = null, $templateData = [])
+    public function sendSms($recipient, $message, $templateId = null, $userId = null, $templateData = []): bool
     {
         $config = $this->school->settings['sms'] ?? [];
-        if (empty($config['api_key'])) return;
+        if (empty($config['api_key'])) return false;
 
         $authKey  = $config['api_key'];
         $senderId = $config['sender_id'] ?? 'SCHOOL';
 
         $cleanRecipient = $this->formatPhoneNumber($recipient, $config);
 
+        // MSG91 v5/flow rejects requests without a DLT template_id. Fail fast and log
+        // so callers don't spend an HTTP round-trip on a guaranteed 400.
+        if (empty($templateId)) {
+            Log::error("SMS skipped: template_id missing for recipient [{$cleanRecipient}]");
+            CommunicationLog::create([
+                'school_id'         => $this->school->id,
+                'user_id'           => $userId,
+                'type'              => 'sms',
+                'provider'          => 'msg91',
+                'to'                => $cleanRecipient,
+                'message'           => $message,
+                'status'            => 'failed',
+                'provider_response' => ['error' => 'template_id missing'],
+            ]);
+            return false;
+        }
+
         try {
+            // MSG91 expects 'mobiles' as digits only (e.g. 919876543210), no '+'.
             $recipientData = [
-                'mobiles' => preg_replace('/^0+/', '', $cleanRecipient)
+                'mobiles' => ltrim(preg_replace('/[^0-9]/', '', $cleanRecipient), '0'),
             ];
 
             if (!isset($templateData['app_name'])) {
@@ -212,7 +230,7 @@ class NotificationService
             if (!empty($templateData)) {
                 $varIndex = 1;
                 foreach ($templateData as $key => $val) {
-                    $val      = (string)($val ?? '');
+                    $val      = $this->stringifyValue($val);
                     $upperKey = strtoupper($key);
                     $lowerKey = strtolower($key);
 
@@ -243,6 +261,8 @@ class NotificationService
                 'accept'       => 'application/json'
             ])->post("https://control.msg91.com/api/v5/flow/?authkey={$authKey}", $payload);
 
+            $ok = $response->successful();
+
             CommunicationLog::create([
                 'school_id'         => $this->school->id,
                 'user_id'           => $userId,
@@ -250,10 +270,16 @@ class NotificationService
                 'provider'          => 'msg91',
                 'to'                => $cleanRecipient,
                 'message'           => $message,
-                'status'            => $response->successful() ? 'sent' : 'failed',
+                'status'            => $ok ? 'sent' : 'failed',
                 'provider_response' => $response->json() ?? ['raw_response' => $response->body()]
             ]);
-        } catch (\Exception $e) {
+
+            if (!$ok) {
+                Log::error("MSG91 SMS API Error [{$response->status()}]: " . $response->body());
+            }
+
+            return $ok;
+        } catch (\Throwable $e) {
             Log::error("SMS Exception: " . $e->getMessage());
             CommunicationLog::create([
                 'school_id'         => $this->school->id,
@@ -265,16 +291,22 @@ class NotificationService
                 'status'            => 'failed',
                 'provider_response' => ['error' => $e->getMessage()]
             ]);
+            return false;
         }
     }
 
     /**
-     * Send WhatsApp via MSG91
+     * Send WhatsApp via MSG91. Returns true on a 2xx provider response, false otherwise.
      */
-    public function sendWhatsApp($recipient, $templateId, $parameters = [], $userId = null, $languageCode = 'en')
+    public function sendWhatsApp($recipient, $templateId, $parameters = [], $userId = null, $languageCode = 'en'): bool
     {
         $config = $this->school->settings['whatsapp'] ?? [];
-        if (empty($config['api_key'])) return;
+        if (empty($config['api_key'])) return false;
+
+        if (empty($templateId)) {
+            Log::error("WhatsApp skipped: template_id missing for recipient [{$recipient}]");
+            return false;
+        }
 
         $authKey          = $config['api_key'];
         $integratedNumber = $config['identifier'] ?? '';
@@ -298,8 +330,8 @@ class NotificationService
                         'components' => [
                             [
                                 'type'       => 'body',
-                                'parameters' => array_map(function($val) {
-                                    return ['type' => 'text', 'text' => (string)$val];
+                                'parameters' => array_map(function ($val) {
+                                    return ['type' => 'text', 'text' => $this->stringifyValue($val)];
                                 }, array_values($parameters))
                             ]
                         ]
@@ -313,6 +345,8 @@ class NotificationService
                 'authkey'      => $authKey
             ])->post("https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/", $payload);
 
+            $ok = $response->successful();
+
             CommunicationLog::create([
                 'school_id'         => $this->school->id,
                 'user_id'           => $userId,
@@ -320,14 +354,16 @@ class NotificationService
                 'provider'          => 'msg91',
                 'to'                => $cleanRecipient,
                 'message'           => json_encode(['template_id' => $templateId, 'params' => $parameters]),
-                'status'            => $response->successful() ? 'sent' : 'failed',
+                'status'            => $ok ? 'sent' : 'failed',
                 'provider_response' => $response->json() ?? ['raw_response' => $response->body()]
             ]);
 
-            if (!$response->successful()) {
-                Log::error("MSG91 WhatsApp API Error: " . $response->body());
+            if (!$ok) {
+                Log::error("MSG91 WhatsApp API Error [{$response->status()}]: " . $response->body());
             }
-        } catch (\Exception $e) {
+
+            return $ok;
+        } catch (\Throwable $e) {
             Log::error("WhatsApp Exception: " . $e->getMessage());
             CommunicationLog::create([
                 'school_id'         => $this->school->id,
@@ -339,6 +375,7 @@ class NotificationService
                 'status'            => 'failed',
                 'provider_response' => ['error' => $e->getMessage()]
             ]);
+            return false;
         }
     }
 
@@ -678,17 +715,18 @@ class NotificationService
 
         $smsTemplate = $this->getTemplate('sms', 'otp');
 
+        if (!$smsTemplate || empty($smsTemplate->template_id)) {
+            Log::error("OTP SMS not sent: 'otp' template missing or has no DLT template_id for school [{$this->school->id}]");
+            return;
+        }
+
         $data = [
             'otp'      => $otp,
             'app_name' => $this->school->name
         ];
 
-        if ($smsTemplate) {
-            $message = $this->replacePlaceholders($smsTemplate->content, $data);
-            $this->sendSms($user->phone, $message, $smsTemplate->template_id, $user->id, $data);
-        } else {
-            $this->sendSms($user->phone, "Your OTP for {$this->school->name} is: {$otp}", null, $user->id, $data);
-        }
+        $message = $this->replacePlaceholders($smsTemplate->content, $data);
+        $this->sendSms($user->phone, $message, $smsTemplate->template_id, $user->id, $data);
     }
 
     /**
@@ -698,18 +736,19 @@ class NotificationService
     {
         $smsTemplate = $this->getTemplate('sms', 'test_sms');
 
+        if (!$smsTemplate || empty($smsTemplate->template_id)) {
+            Log::error("Test SMS not sent: 'test_sms' template missing or has no DLT template_id for school [{$this->school->id}]");
+            return;
+        }
+
         $data = [
             'name'     => 'Test User',
             'date'     => now()->format('d-M-Y'),
             'app_name' => $this->school->name
         ];
 
-        if ($smsTemplate) {
-            $message = $this->replacePlaceholders($smsTemplate->content, $data);
-            $this->sendSms($phone, $message, $smsTemplate->template_id, $userId, $data);
-        } else {
-            $this->sendSms($phone, "This is a test SMS from {$this->school->name}", null, $userId, $data);
-        }
+        $message = $this->replacePlaceholders($smsTemplate->content, $data);
+        $this->sendSms($phone, $message, $smsTemplate->template_id, $userId, $data);
     }
 
     /**
@@ -867,6 +906,31 @@ class NotificationService
     }
 
     /**
+     * Locate the ffmpeg binary on this host. Returns null if not found.
+     * Searches Linux defaults, Windows defaults, and PATH (via `which` / `where`).
+     */
+    protected function locateFfmpeg(): ?string
+    {
+        $isWindows = stripos(PHP_OS, 'WIN') === 0;
+
+        $candidates = $isWindows
+            ? ['C:/ffmpeg/bin/ffmpeg.exe', 'C:/Program Files/ffmpeg/bin/ffmpeg.exe', 'C:/ProgramData/chocolatey/bin/ffmpeg.exe']
+            : ['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/opt/homebrew/bin/ffmpeg'];
+
+        foreach ($candidates as $candidate) {
+            if (file_exists($candidate)) return $candidate;
+        }
+
+        $cmd = $isWindows ? 'where ffmpeg 2>NUL' : 'which ffmpeg 2>/dev/null';
+        @exec($cmd, $out);
+        if (!empty($out[0]) && file_exists(trim($out[0]))) {
+            return trim($out[0]);
+        }
+
+        return null;
+    }
+
+    /**
      * Convert an audio file to WAV (8kHz, mono, PCM) using system FFmpeg.
      *
      * Exotel telephony requires 8kHz sample rate, mono, 16-bit PCM WAV.
@@ -874,17 +938,9 @@ class NotificationService
      */
     protected function convertToWav(string $inputPath): ?string
     {
-        // Locate ffmpeg binary
-        $ffmpeg = null;
-        foreach (['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg'] as $candidate) {
-            if (file_exists($candidate)) { $ffmpeg = $candidate; break; }
-        }
+        $ffmpeg = $this->locateFfmpeg();
         if (!$ffmpeg) {
-            exec('which ffmpeg 2>/dev/null', $out);
-            if (!empty($out[0])) $ffmpeg = trim($out[0]);
-        }
-        if (!$ffmpeg) {
-            Log::info('🔇 [FFmpeg] Binary not found on this server. Install with: apt-get install ffmpeg');
+            Log::info('🔇 [FFmpeg] Binary not found on this server. Install with: apt-get install ffmpeg (Linux) or choco install ffmpeg (Windows)');
             return null;
         }
 
@@ -935,20 +991,26 @@ class NotificationService
      *   This is fully self-contained — no cache lookup needed at call time.
      *   Cache is still stored as backup for handleStatus fallback.
      */
-    public function sendVoiceCall($recipient, $audioUrl = null, $content = null, $userId = null)
+    public function sendVoiceCall($recipient, $audioUrl = null, $content = null, $userId = null): bool
     {
         $voiceConfig = $this->school->settings['voice'] ?? [];
         $provider    = $voiceConfig['provider'] ?? 'exotel';
         $apiKey      = $voiceConfig['api_key'] ?? '';
-        $apiSid      = $voiceConfig['api_sid'] ?? $apiKey;
+        $apiSid      = $voiceConfig['api_sid'] ?? '';
         $apiToken    = $voiceConfig['api_token'] ?? '';
         $callerId    = $voiceConfig['caller_id'] ?? '';
+        $appId       = $voiceConfig['app_id'] ?? '';
 
         Log::info("🔧 [Voice Config] provider={$provider} api_sid={$apiSid} caller_id={$callerId}");
 
         if ($provider !== 'exotel') {
             Log::warning("Unsupported voice provider: {$provider}");
-            return;
+            return false;
+        }
+
+        if (empty($apiKey) || empty($apiSid) || empty($apiToken) || empty($callerId) || empty($appId)) {
+            Log::error("Voice call skipped: incomplete Exotel config for school [{$this->school->id}] (need api_key, api_sid, api_token, caller_id, app_id)");
+            return false;
         }
 
         // ── OPTION C: Audio if available, TTS fallback ──
@@ -980,10 +1042,19 @@ class NotificationService
             $secondaryAudio = null;
         }
 
-        // Force +91 + last 10 digits for Exotel India (e.g. +918660234312)
-        $digits         = preg_replace('/[^0-9]/', '', $recipient);
-        if (strlen($digits) > 10) $digits = substr($digits, -10);
-        $cleanRecipient = '+91' . $digits;
+        // Format E.164 using the configured number_prefix (default 91 for India).
+        // Exotel requires the leading '+' on the From field.
+        $prefix = $voiceConfig['number_prefix'] ?? '91';
+        $digits = ltrim(preg_replace('/[^0-9]/', '', $recipient), '0');
+        if (strlen($digits) > 10 && str_starts_with($digits, $prefix)) {
+            // Already has country code — keep last (10 + len(prefix)) digits to handle
+            // legacy data with extra leading digits.
+            $digits = substr($digits, -(10 + strlen($prefix)));
+        } else {
+            $digits = $prefix . substr($digits, -10);
+        }
+        $cleanRecipient = '+' . $digits;
+        $cacheDigits    = substr($digits, -10);
 
         Log::info("🔍 [Voice] Recipient: [{$recipient}] → [{$cleanRecipient}] | CallerID: [{$callerId}]");
 
@@ -1007,7 +1078,9 @@ class NotificationService
 
         // ── CACHE the TTS + audio under the phone key ──────────────────────────
         // The /api/voice/exoml endpoint resolves this data by phone number to build ExoML.
-        $phoneKey  = 'tts_' . $digits;
+        // Use last-10-digit key so callbacks from Exotel (which strip the country
+        // code from From/To) still match.
+        $phoneKey  = 'tts_' . $cacheDigits;
         $cacheData = [
             'i' => $introUrl,
             'a' => array_values(array_filter([$announcementAudio])),
@@ -1022,7 +1095,6 @@ class NotificationService
         // Always use the Exotel App flow URL — the Greeting chain handles TTS.
         // External ExoML URLs are unreliable (call hangs up on pickup).
         // Custom audio recordings are NOT played yet — TTS template/title is used instead.
-        $appId      = $voiceConfig['app_id'] ?? '1203048';
         $appFlowUrl = "http://my.exotel.com/{$apiSid}/exoml/start_voice/{$appId}";
 
         // CustomField: base64(JSON) — Exotel substitutes {customfield} in Greeting applet URLs
@@ -1077,7 +1149,8 @@ class NotificationService
                 'callerId'    => $callerId,
             ]);
 
-            if (!$response->successful()) {
+            $ok = $response->successful();
+            if (!$ok) {
                 Log::error("Exotel API Error [{$response->status()}]: " . $response->body());
             } else {
                 // Also cache under CallSid as backup for handleStatus fallback
@@ -1100,11 +1173,12 @@ class NotificationService
                     'tts'                => $content,
                     'caller_id'          => $callerId,
                 ]),
-                'status'            => $response->successful() ? 'sent' : 'failed',
+                'status'            => $ok ? 'sent' : 'failed',
                 'provider_response' => $response->json() ?? ['raw_response' => $response->body()]
             ]);
 
-        } catch (\Exception $e) {
+            return $ok;
+        } catch (\Throwable $e) {
             Log::error("Voice Exception: " . $e->getMessage());
             CommunicationLog::create([
                 'school_id'         => $this->school->id,
@@ -1116,6 +1190,7 @@ class NotificationService
                 'status'            => 'failed',
                 'provider_response' => ['error' => $e->getMessage()]
             ]);
+            return false;
         }
     }
 }

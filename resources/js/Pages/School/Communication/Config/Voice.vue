@@ -21,6 +21,7 @@ const form = useForm({
     api_token:            props.config.api_token || '',
     subdomain:            props.config.subdomain || '',
     caller_id:            props.config.caller_id || '',
+    number_prefix:        props.config.number_prefix || '91',
     test_number:          props.config.test_number || '',
     intro_audio:          null,
     intro_audio_path:     props.config.intro_audio_path || null,
@@ -160,7 +161,12 @@ const sendTest = () => {
                                 <div v-if="form.errors.app_id" class="form-error">{{ form.errors.app_id }}</div>
                             </div>
                         </div>
-                        <div class="form-row" style="margin-top:14px;">
+                        <div class="form-row-2" style="margin-top:14px;">
+                            <div class="form-field">
+                                <label>Country Code Prefix</label>
+                                <input type="text" v-model="form.number_prefix" placeholder="e.g. 91 for India">
+                                <p style="font-size:.72rem;color:var(--text-muted);margin-top:4px;">Used to E.164-format outbound numbers</p>
+                            </div>
                             <div class="form-field">
                                 <label>Test Recipient Number</label>
                                 <input type="text" v-model="form.test_number" placeholder="Enter phone number to receive test call">

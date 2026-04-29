@@ -98,8 +98,11 @@ class BroadcastService
 
     /**
      * Actual broadcast processing logic, called from the background job.
+     * Returns per-channel send counts so the job can persist them on the announcement.
+     *
+     * @return array{recipients:int, sent:int, failed:int}
      */
-    public function processIndividualMessages(Announcement $announcement)
+    public function processIndividualMessages(Announcement $announcement): array
     {
         $announcement->load('school', 'template');
 
@@ -114,11 +117,15 @@ class BroadcastService
         $audioPath = $announcement->mp3_path ?: $announcement->audio_path;
         $audioUrl  = $audioPath ? asset('storage/' . $audioPath) : null;
 
+        $sent   = 0;
+        $failed = 0;
+
         foreach ($recipients as $recipient) {
             $phone  = $recipient['phone'];
             $name   = $recipient['name'];
             $userId = $recipient['user_id'];
 
+            $ok = false;
             try {
                 if ($announcement->delivery_method === 'voice') {
                     $content = $announcement->template ? $announcement->template->content : null;
@@ -136,27 +143,34 @@ class BroadcastService
                     }
 
                     Log::info("Sending voice to [{$phone}] ({$name})");
-                    $this->notificationService->sendVoiceCall($phone, $audioUrl, $content, $userId);
+                    $ok = $this->notificationService->sendVoiceCall($phone, $audioUrl, $content, $userId);
 
                 } elseif ($announcement->delivery_method === 'sms' && $announcement->template) {
-                    $this->notificationService->sendSms($phone, $announcement->template->content, $announcement->template->template_id, $userId, [
+                    $ok = $this->notificationService->sendSms($phone, $announcement->template->content, $announcement->template->template_id, $userId, [
                         'name'     => $name,
                         'title'    => $announcement->title,
                         'app_name' => $announcement->school->name,
                     ]);
 
                 } elseif ($announcement->delivery_method === 'whatsapp' && $announcement->template) {
-                    $this->notificationService->sendWhatsApp($phone, $announcement->template->template_id, [
+                    $ok = $this->notificationService->sendWhatsApp($phone, $announcement->template->template_id, [
                         'name'     => $name,
                         'title'    => $announcement->title,
                         'app_name' => $announcement->school->name,
                     ], $userId, $announcement->template->language_code ?? 'en');
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Log::error("Broadcast failed for phone [{$phone}]: " . $e->getMessage());
+                $ok = false;
             }
+
+            $ok ? $sent++ : $failed++;
         }
 
-        return count($recipients);
+        return [
+            'recipients' => count($recipients),
+            'sent'       => $sent,
+            'failed'     => $failed,
+        ];
     }
 }

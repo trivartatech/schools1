@@ -140,15 +140,35 @@ class CommunicationDashboardController extends Controller
     public function emergencyBroadcast(Request $request)
     {
         $schoolId = app('current_school_id');
+        $school   = app('current_school');
 
         $validated = $request->validate([
-            'message'  => 'required|string|max:500',
-            'channels' => 'required|array|min:1',
+            'message'    => 'required|string|max:500',
+            'channels'   => 'required|array|min:1',
             'channels.*' => 'in:sms,whatsapp,voice',
         ]);
 
+        // SMS and WhatsApp need DLT/Meta-approved templates. Resolve them up
+        // front so we can fail fast if a requested channel is not configured.
+        $smsTemplate = in_array('sms', $validated['channels'], true)
+            ? \App\Models\CommunicationTemplate::where('school_id', $schoolId)
+                ->where('type', 'sms')->where('slug', 'emergency_broadcast')->where('is_active', true)->first()
+            : null;
+        $waTemplate = in_array('whatsapp', $validated['channels'], true)
+            ? \App\Models\CommunicationTemplate::where('school_id', $schoolId)
+                ->where('type', 'whatsapp')->where('slug', 'emergency_broadcast')->where('is_active', true)->first()
+            : null;
+
+        $missing = [];
+        if (in_array('sms', $validated['channels'], true)      && (!$smsTemplate || empty($smsTemplate->template_id))) $missing[] = 'SMS';
+        if (in_array('whatsapp', $validated['channels'], true) && (!$waTemplate  || empty($waTemplate->template_id)))  $missing[] = 'WhatsApp';
+        if (!empty($missing)) {
+            return redirect()->back()->with('error',
+                'Cannot send: missing approved "emergency_broadcast" template for: ' . implode(', ', $missing) .
+                '. Add it under Communication → Templates first.');
+        }
+
         // Collect all parent + staff phone numbers
-        $school = app('current_school');
         $parents = StudentParent::whereHas('students', fn($q) => $q->where('school_id', $schoolId))
             ->with('user:id,phone')
             ->get()
@@ -161,30 +181,59 @@ class CommunicationDashboardController extends Controller
 
         $phones = $parents->merge($staff)->unique()->values();
 
-        $ns = app(NotificationService::class);
-        $sent = 0;
-        $failed = 0;
+        $ns      = app(NotificationService::class);
+        $stats   = ['sms' => 0, 'whatsapp' => 0, 'voice' => 0];
+        $failed  = ['sms' => 0, 'whatsapp' => 0, 'voice' => 0];
+        $tplData = ['message' => $validated['message'], 'app_name' => $school->name];
 
         foreach ($phones as $phone) {
             foreach ($validated['channels'] as $channel) {
+                $ok = false;
                 try {
                     if ($channel === 'sms') {
-                        $ns->sendSms($phone, $validated['message'], null, auth()->id());
+                        $body = $this->fillPlaceholders($smsTemplate->content, $tplData);
+                        $ok   = $ns->sendSms($phone, $body, $smsTemplate->template_id, auth()->id(), $tplData);
                     } elseif ($channel === 'whatsapp') {
-                        // WhatsApp Business API requires template-based messages.
-                        // Send as SMS fallback for emergency broadcasts (free-text).
-                        $ns->sendSms($phone, '[Emergency] ' . $validated['message'], null, auth()->id());
+                        $params = $this->orderedTemplateParams($waTemplate->content, $tplData);
+                        $ok     = $ns->sendWhatsApp($phone, $waTemplate->template_id, $params, auth()->id(), $waTemplate->language_code ?? 'en');
                     } elseif ($channel === 'voice') {
-                        $ns->sendVoiceCall($phone, null, $validated['message'], auth()->id());
+                        $ok = $ns->sendVoiceCall($phone, null, $validated['message'], auth()->id());
                     }
-                    $sent++;
                 } catch (\Throwable $e) {
-                    $failed++;
+                    $ok = false;
                 }
+                $ok ? $stats[$channel]++ : $failed[$channel]++;
             }
         }
 
-        return redirect()->back()->with('success', "Emergency broadcast sent to {$phones->count()} recipients. Sent: {$sent}, Failed: {$failed}.");
+        $sentMsg   = collect($stats)->filter()->map(fn($n, $ch) => "{$n} {$ch}")->implode(', ');
+        $failedMsg = collect($failed)->filter()->map(fn($n, $ch) => "{$n} {$ch}")->implode(', ');
+
+        return redirect()->back()->with('success',
+            "Emergency broadcast to {$phones->count()} recipients. Sent: " .
+            ($sentMsg ?: 'none') . ($failedMsg ? ". Failed: {$failedMsg}." : '.'));
+    }
+
+    private function fillPlaceholders(string $content, array $data): string
+    {
+        return preg_replace_callback('/##([A-Za-z0-9_]+)##/', function ($m) use ($data) {
+            $key = strtolower($m[1]);
+            return (string) ($data[$key] ?? $data[$m[1]] ?? $m[0]);
+        }, $content);
+    }
+
+    private function orderedTemplateParams(?string $templateContent, array $data): array
+    {
+        if (empty($templateContent)) return array_values($data);
+        preg_match_all('/##([A-Za-z0-9_]+)##/', $templateContent, $matches);
+        if (empty($matches[1])) return array_values($data);
+
+        $out = [];
+        foreach ($matches[1] as $key) {
+            $lower = strtolower($key);
+            $out[] = (string) ($data[$lower] ?? $data[$key] ?? '');
+        }
+        return $out;
     }
 
     // ── 4. Delivery Analytics ────────────────────────────────────────────

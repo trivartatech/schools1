@@ -37,15 +37,27 @@ class ProcessBroadcast implements ShouldQueue
 
         try {
             Log::info("ProcessBroadcast Job started for Announcement ID {$this->announcement->id}");
-            $broadcastService->processIndividualMessages($this->announcement);
-            
-            // Success: clear any previous error info
-            $this->announcement->update([
-                'broadcast_error' => null,
-                'failed_at'       => null
-            ]);
+            $stats = $broadcastService->processIndividualMessages($this->announcement);
 
-            Log::info("ProcessBroadcast Job finished for Announcement ID {$this->announcement->id}");
+            $update = [
+                'broadcast_stats' => $stats,
+                'broadcast_error' => null,
+                'failed_at'       => null,
+            ];
+
+            // If at least one recipient existed but every send failed, surface that
+            // as a broadcast-level failure so the UI can flag it instead of showing
+            // "completed successfully".
+            if (($stats['recipients'] ?? 0) > 0 && ($stats['sent'] ?? 0) === 0) {
+                $update['broadcast_error'] = [
+                    'message' => "All {$stats['failed']} sends failed — check provider credentials and templates.",
+                ];
+                $update['failed_at'] = now();
+            }
+
+            $this->announcement->update($update);
+
+            Log::info("ProcessBroadcast Job finished for Announcement ID {$this->announcement->id}", $stats);
         } catch (\Throwable $e) {
             Log::error("ProcessBroadcast Job runtime error for ID {$this->announcement->id}: " . $e->getMessage());
             throw $e; // Rethrow to trigger failed() logic

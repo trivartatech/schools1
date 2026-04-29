@@ -119,6 +119,30 @@ class AnnouncementController extends Controller
     }
 
     /**
+     * Locate the ffmpeg binary on this host. Returns null if not found.
+     */
+    protected function locateFfmpeg(): ?string
+    {
+        $isWindows = stripos(PHP_OS, 'WIN') === 0;
+
+        $candidates = $isWindows
+            ? ['C:/ffmpeg/bin/ffmpeg.exe', 'C:/Program Files/ffmpeg/bin/ffmpeg.exe', 'C:/ProgramData/chocolatey/bin/ffmpeg.exe']
+            : ['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/opt/homebrew/bin/ffmpeg'];
+
+        foreach ($candidates as $candidate) {
+            if (file_exists($candidate)) return $candidate;
+        }
+
+        $cmd = $isWindows ? 'where ffmpeg 2>NUL' : 'which ffmpeg 2>/dev/null';
+        @exec($cmd, $out);
+        if (!empty($out[0]) && file_exists(trim($out[0]))) {
+            return trim($out[0]);
+        }
+
+        return null;
+    }
+
+    /**
      * Convert a storage-relative audio path to WAV (8kHz, mono, PCM).
      * Exotel telephony requires 8kHz sample rate, mono, 16-bit PCM WAV.
      * Returns the new wav storage-relative path, or null on failure.
@@ -127,17 +151,9 @@ class AnnouncementController extends Controller
     {
         $absolutePath = storage_path('app/public/' . $storagePath);
 
-        // Locate ffmpeg
-        $ffmpeg = null;
-        foreach (['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg'] as $candidate) {
-            if (file_exists($candidate)) { $ffmpeg = $candidate; break; }
-        }
+        $ffmpeg = $this->locateFfmpeg();
         if (!$ffmpeg) {
-            exec('which ffmpeg 2>/dev/null', $out);
-            if (!empty($out[0])) $ffmpeg = trim($out[0]);
-        }
-        if (!$ffmpeg) {
-            Log::warning('🔇 [FFmpeg] Not found — skipping WAV conversion. Install: apt-get install ffmpeg');
+            Log::warning('🔇 [FFmpeg] Not found — skipping WAV conversion. Install: apt-get install ffmpeg (Linux) or choco install ffmpeg (Windows)');
             return null;
         }
 
