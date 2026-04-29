@@ -20,12 +20,12 @@ use Illuminate\Support\Str;
 class MigrateLegacyStudentsCommand extends Command
 {
     protected $signature = 'students:migrate-legacy
-        {--school-slug=sree-gurukula-international-school : Target school slug}
+        {--school-slug= : Target school slug (defaults to SCHOOL_SLUG from .env)}
         {--data-dir= : Directory containing students_clean.csv / enrollments_clean.csv (default: storage/app/migrations)}
         {--dry-run : Roll back the transaction at the end — print planned counts only}
         {--force : Skip the confirmation prompt}';
 
-    protected $description = 'Import legacy ERP student data (2022-23 → 2025-26) into the fresh Sree Gurukula database';
+    protected $description = 'Import legacy ERP student data (2022-23 → 2025-26) into the configured school';
 
     private array $ayMap       = [];
     private array $classMap    = [];
@@ -66,9 +66,14 @@ class MigrateLegacyStudentsCommand extends Command
         $studentsCsv     = $dataDir . '/students_clean.csv';
         $enrollmentsCsv  = $dataDir . '/enrollments_clean.csv';
 
-        $school = School::where('slug', $this->option('school-slug'))->first();
+        $slug = $this->option('school-slug') ?: config('school.slug') ?: env('SCHOOL_SLUG');
+        if (!$slug) {
+            $this->error('No school slug provided. Pass --school-slug=… or set SCHOOL_SLUG in .env.');
+            return self::FAILURE;
+        }
+        $school = School::where('slug', $slug)->first();
         if (!$school) {
-            $this->error("School with slug '{$this->option('school-slug')}' not found. Run SreeGurukulaSchoolSeeder first.");
+            $this->error("School with slug '{$slug}' not found. Run GenericSchoolSeeder first (set SCHOOL_SLUG in .env).");
             return self::FAILURE;
         }
         if (!is_file($studentsCsv) || !is_file($enrollmentsCsv)) {

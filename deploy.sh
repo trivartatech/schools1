@@ -1,4 +1,10 @@
 #!/bin/bash
+# =============================================================================
+# Update deploy script — for subsequent updates after the initial bootstrap.
+# Pulls latest code, backs up the DB, runs migrations, rebuilds caches, and
+# restarts the queue worker. For the FIRST install on a fresh server, run
+# ./bootstrap.sh instead.
+# =============================================================================
 set -e
 
 echo "🚀 Starting Deployment v1.0.0..."
@@ -6,13 +12,31 @@ echo "🚀 Starting Deployment v1.0.0..."
 # Enter maintenance mode
 php artisan down || true
 
-# Update codebase (comment out if not using git)
-# git pull origin main
+# Auto-fetch latest code from origin (= trivartatech/schools1)
+git pull origin main
+
+# Pre-migration MySQL backup (so we can roll back if a migration breaks something)
+if [ -f .env ]; then
+    set -a
+    # shellcheck disable=SC1091
+    source .env
+    set +a
+    BACKUP_DIR=storage/backups
+    mkdir -p "$BACKUP_DIR"
+    BACKUP_FILE="$BACKUP_DIR/$(date +%Y%m%d-%H%M%S)-${DB_DATABASE}.sql.gz"
+    if mysqldump -h "$DB_HOST" -P "${DB_PORT:-3306}" -u "$DB_USERNAME" -p"$DB_PASSWORD" \
+        --single-transaction --quick --lock-tables=false "$DB_DATABASE" 2>/dev/null | gzip > "$BACKUP_FILE"; then
+        echo "💾 Backup written: $BACKUP_FILE"
+    else
+        echo "⚠️  mysqldump failed — proceeding without backup. Check DB credentials in .env."
+        rm -f "$BACKUP_FILE"
+    fi
+fi
 
 # Install PHP dependencies
 composer install --no-dev --optimize-autoloader
 
-# Run Database Migrations
+# Run database migrations
 php artisan migrate --force
 
 # Install Node dependencies and build assets
@@ -20,19 +44,19 @@ php artisan migrate --force
 # npm install
 # npm run build
 
-# Clear and Cache everything
+# Clear and cache everything
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 php artisan event:cache
 
-# Restart Queue Workers (if using supervisor/systemd)
+# Restart queue workers (if using supervisor/systemd)
 php artisan queue:restart
 
 # REMINDER: Ensure the cron job is set up on the server:
 # * * * * * cd /home/cloudpanel-user/htdocs/your-domain.com && php artisan schedule:run >> /dev/null 2>&1
 #
-# NEW: Ensure a queue worker is running to process background broadcasts/notifications:
+# REMINDER: Ensure a queue worker is running to process background broadcasts/notifications:
 # php artisan queue:work --queue=default,notifications --tries=1
 # (Recommended: Use Supervisor to manage the queue worker process)
 
@@ -40,4 +64,3 @@ php artisan queue:restart
 php artisan up
 
 echo "✅ Deployment Successful!"
-
