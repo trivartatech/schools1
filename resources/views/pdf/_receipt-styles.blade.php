@@ -1,6 +1,8 @@
 <style>
-    @page { margin: 8mm 10mm; }
+    @page { margin: 5mm 8mm; }
     body { font-family: 'DejaVu Sans', sans-serif; font-size: 13px; color: #333; margin: 0; padding: 0; }
+    /* Never break a copy across pages */
+    .copy-page { page-break-inside: avoid; }
 
     /* Header — logo on the left, school text right next to it (no centering wide-empty) */
     .header { border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 12px; }
@@ -39,9 +41,9 @@
        Multi-copy modes — each copy occupies a fixed slice of A4
        so the cut line lands exactly at the half/third/quarter mark
        ───────────────────────────────────────────────────────── */
-    /* 2 copies — each copy is half an A4 (≈140mm usable per copy) */
+    /* 2 copies — each copy is half an A4 (≈135mm) */
     body.copies-2 { font-size: 10px; }
-    body.copies-2 .copy-page { height: 138mm; box-sizing: border-box; padding-bottom: 4mm; overflow: hidden; }
+    body.copies-2 .copy-page { height: 135mm; box-sizing: border-box; padding-bottom: 3mm; overflow: hidden; }
     body.copies-2 .school-description { font-size: 8px; }
     body.copies-2 .school-name { font-size: 15px; }
     body.copies-2 .school-address { font-size: 8.5px; margin-top: 1px; }
@@ -59,9 +61,9 @@
     body.copies-2 .signature-line { width: 130px; padding-top: 2px; font-size: 9px; }
     body.copies-2 .copy-label { font-size: 8px; padding: 1px 5px; }
 
-    /* 3 copies — each copy is one-third of A4 (≈92mm) */
+    /* 3 copies — each copy is one-third of A4 (≈88mm) */
     body.copies-3 { font-size: 8.5px; }
-    body.copies-3 .copy-page { height: 91mm; box-sizing: border-box; padding-bottom: 3mm; overflow: hidden; }
+    body.copies-3 .copy-page { height: 88mm; box-sizing: border-box; padding-bottom: 2mm; overflow: hidden; }
     body.copies-3 .school-description { font-size: 7px; }
     body.copies-3 .school-name { font-size: 12px; }
     body.copies-3 .school-address { font-size: 7.5px; margin-top: 1px; }
@@ -79,9 +81,9 @@
     body.copies-3 .signature-line { width: 100px; padding-top: 1px; font-size: 7.5px; }
     body.copies-3 .copy-label { font-size: 7px; padding: 0 4px; }
 
-    /* 4 copies — each copy is one-quarter of A4 (≈68mm) */
+    /* 4 copies — each copy is one-quarter of A4 (≈65mm) */
     body.copies-4 { font-size: 7.5px; }
-    body.copies-4 .copy-page { height: 67mm; box-sizing: border-box; padding-bottom: 2mm; overflow: hidden; }
+    body.copies-4 .copy-page { height: 65mm; box-sizing: border-box; padding-bottom: 1.5mm; overflow: hidden; }
     body.copies-4 .school-description { font-size: 6px; }
     body.copies-4 .school-name { font-size: 11px; }
     body.copies-4 .school-address { font-size: 6.5px; margin-top: 0; }
