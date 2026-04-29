@@ -69,6 +69,7 @@ class CommunicationConfigController extends Controller
                 'identifier' => '',
                 'test_number' => '',
                 'test_template_id' => '',
+                'language_code' => 'en',
                 'number_prefix' => '91'
             ]
         ]);
@@ -83,6 +84,7 @@ class CommunicationConfigController extends Controller
             'identifier'       => 'nullable|string',
             'test_number'      => 'nullable|string|min:10',
             'test_template_id' => 'nullable|string',
+            'language_code'    => 'nullable|string|max:10',
             'number_prefix'    => 'nullable|string|max:5',
         ]);
 

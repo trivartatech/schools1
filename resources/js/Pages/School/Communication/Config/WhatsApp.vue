@@ -18,6 +18,7 @@ const form = useForm({
     identifier: props.config.identifier || '',
     test_number: props.config.test_number || '',
     test_template_id: props.config.test_template_id || '',
+    language_code: props.config.language_code || 'en',
     number_prefix: props.config.number_prefix || '91'
 });
 
@@ -72,10 +73,25 @@ const sendTest = () => {
                                 <input type="text" v-model="form.number_prefix" placeholder="e.g. 91">
                             </div>
                         </div>
-                        <div class="form-row" style="margin-top:14px;">
+                        <div class="form-row-2" style="margin-top:14px;">
                             <div class="form-field">
                                 <label>Test Template ID</label>
-                                <input type="text" v-model="form.test_template_id" placeholder="Enter a registered WhatsApp template ID to test" style="font-family:monospace;font-size:.82rem;">
+                                <input type="text" v-model="form.test_template_id" placeholder="Approved WhatsApp template name (case-sensitive)" style="font-family:monospace;font-size:.82rem;">
+                            </div>
+                            <div class="form-field">
+                                <label>Template Language</label>
+                                <select v-model="form.language_code" style="height:38px;">
+                                    <option value="en">en (English)</option>
+                                    <option value="en_US">en_US (English — US)</option>
+                                    <option value="en_GB">en_GB (English — UK)</option>
+                                    <option value="hi">hi (Hindi)</option>
+                                    <option value="kn">kn (Kannada)</option>
+                                    <option value="ta">ta (Tamil)</option>
+                                    <option value="te">te (Telugu)</option>
+                                    <option value="ml">ml (Malayalam)</option>
+                                    <option value="mr">mr (Marathi)</option>
+                                </select>
+                                <p style="font-size:.72rem;color:var(--text-muted);margin-top:4px;">Must match the language code your template is registered under in MSG91 / Meta.</p>
                             </div>
                         </div>
                         <div class="form-row" style="margin-top:14px;">
