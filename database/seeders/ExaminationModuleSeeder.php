@@ -91,26 +91,49 @@ class ExaminationModuleSeeder extends Seeder
             $scholasticSubjects = $allSubjects->filter(fn($s) => !($s->is_co_scholastic || in_array($s->name, ['Drawing', 'Music', 'PE', 'Physical Education'])));
 
             $this->command->info('2. Creating schedules...');
+
+            // Pre-resolve / create co-scholastic subjects once (so the same subject
+            // ids are reused across SA1 and SA2 instead of duplicated).
+            $coSubjects = collect(['Drawing', 'Music', 'PE'])->map(fn($name) =>
+                Subject::updateOrCreate(['school_id' => $schoolId, 'name' => $name], ['is_co_scholastic' => true])
+            );
+
             foreach ($classes as $cls) {
+                // Same scholastic subject set for ALL 6 exams in this class.
+                // Prefer the per-class mapping in `class_subjects` if populated;
+                // otherwise fall back to the first 6 scholastic subjects (English,
+                // Hindi, Mathematics, Science, Science Lab, Social Science).
+                $mappedSubjectIds = DB::table('class_subjects')
+                    ->where('school_id', $schoolId)
+                    ->where('course_class_id', $cls->id)
+                    ->pluck('subject_id')
+                    ->toArray();
+
+                $classScholasticSubjects = $mappedSubjectIds
+                    ? $scholasticSubjects->whereIn('id', $mappedSubjectIds)->values()
+                    : $scholasticSubjects->take(6);
+
                 foreach ($examTypesMap as $code => $typeId) {
                     // CBSE mark scheme: FA out of 25 (Th 20 + IA 5), SA out of 100 (Th 80 + IA 20)
-                    $isFA      = str_starts_with($code, 'FA');
-                    $thMax     = $isFA ? 20 : 80;
-                    $thPass    = $isFA ? 7  : 26;
-                    $iaMax     = $isFA ? 5  : 20;
-                    $iaPass    = $isFA ? 2  : 7;
+                    $isFA   = str_starts_with($code, 'FA');
+                    $isSA   = str_starts_with($code, 'SA');
+                    $thMax  = $isFA ? 20 : 80;
+                    $thPass = $isFA ? 7  : 26;
+                    $iaMax  = $isFA ? 5  : 20;
+                    $iaPass = $isFA ? 2  : 7;
 
                     $schedule = ExamSchedule::create([
                         'school_id' => $schoolId, 'academic_year_id' => $academicYearId, 'exam_type_id' => $typeId,
                         'course_class_id' => $cls->id, 'weightage' => $weightageMap[$code] ?? 25,
-                        'has_co_scholastic' => true, 'scholastic_grading_system_id' => $scholasticGrading->id,
+                        'has_co_scholastic' => $isSA, 'scholastic_grading_system_id' => $scholasticGrading->id,
                         'co_scholastic_grading_system_id' => $coScholasticGrading?->id, 'status' => 'published',
                     ]);
 
                     $sections = Section::where('course_class_id', $cls->id)->pluck('id')->toArray();
                     $schedule->sections()->sync($sections);
 
-                    foreach ($scholasticSubjects->random(min(5, $scholasticSubjects->count())) as $sub) {
+                    // Same scholastic subjects for every exam (FA + SA)
+                    foreach ($classScholasticSubjects as $sub) {
                         $ess = ExamScheduleSubject::create(['exam_schedule_id' => $schedule->id, 'subject_id' => $sub->id, 'exam_assessment_id' => $mainAssessment->id, 'is_co_scholastic' => false, 'grading_system_id' => $scholasticGrading?->id, 'exam_date' => now(), 'exam_time' => '10:00:00']);
                         DB::table('exam_schedule_subject_marks')->insert([
                             ['exam_schedule_subject_id' => $ess->id, 'exam_assessment_item_id' => $thItem->id, 'max_marks' => $thMax, 'passing_marks' => $thPass],
@@ -118,10 +141,12 @@ class ExaminationModuleSeeder extends Seeder
                         ]);
                     }
 
-                    foreach (['Drawing', 'Music', 'PE'] as $coName) {
-                        $cosub = Subject::updateOrCreate(['school_id' => $schoolId, 'name' => $coName], ['is_co_scholastic' => true]);
-                        $cess = ExamScheduleSubject::create(['exam_schedule_id' => $schedule->id, 'subject_id' => $cosub->id, 'exam_assessment_id' => $coAssessment->id, 'is_co_scholastic' => true, 'grading_system_id' => $coScholasticGrading?->id]);
-                        DB::table('exam_schedule_subject_marks')->insert(['exam_schedule_subject_id' => $cess->id, 'exam_assessment_item_id' => $coItem->id, 'max_marks' => 100, 'passing_marks' => 33]);
+                    // Co-scholastic ONLY in summative assessments (SA1, SA2)
+                    if ($isSA) {
+                        foreach ($coSubjects as $cosub) {
+                            $cess = ExamScheduleSubject::create(['exam_schedule_id' => $schedule->id, 'subject_id' => $cosub->id, 'exam_assessment_id' => $coAssessment->id, 'is_co_scholastic' => true, 'grading_system_id' => $coScholasticGrading?->id]);
+                            DB::table('exam_schedule_subject_marks')->insert(['exam_schedule_subject_id' => $cess->id, 'exam_assessment_item_id' => $coItem->id, 'max_marks' => 100, 'passing_marks' => 33]);
+                        }
                     }
                 }
             }
