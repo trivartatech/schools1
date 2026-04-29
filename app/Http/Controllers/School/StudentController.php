@@ -864,6 +864,7 @@ class StudentController extends Controller
         $q        = $request->get('q', '');
 
         $students = Student::where('school_id', $schoolId)
+            ->enrolledInCurrentYear()
             ->with(['currentAcademicHistory.courseClass', 'currentAcademicHistory.section'])
             ->where(function ($query) use ($q) {
                 $query->where('first_name',    'like', "%{$q}%")
