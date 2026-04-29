@@ -237,6 +237,11 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     // Finance — Due Report (admin/accountant)
     Route::get('/finance/due-report',      [$MA, 'dueReport'])->name('api.mobile.finance.due-report');
 
+    // Communication Hub admin (logs + analytics, read-only)
+    $COMM = \App\Http\Controllers\Api\Mobile\CommunicationAdminController::class;
+    Route::get('/communication/logs',      [$COMM, 'logs'])     ->name('api.mobile.communication.logs');
+    Route::get('/communication/analytics', [$COMM, 'analytics'])->name('api.mobile.communication.analytics');
+
     // Disciplinary Records (admin only)
     $DR = \App\Http\Controllers\Api\Mobile\DisciplinaryController::class;
     Route::get  ('/disciplinary',                       [$DR, 'index'])         ->name('api.mobile.disciplinary.index');
