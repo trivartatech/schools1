@@ -34,11 +34,7 @@
         </div>
     @endif
 
-    @if(!empty($school->phone) || !empty($school->email))
-        <div class="school-address">
-            @if(!empty($school->phone)) Phone: {{ $school->phone }} @endif
-            @if(!empty($school->phone) && !empty($school->email)) | @endif
-            @if(!empty($school->email)) Email: {{ $school->email }} @endif
-        </div>
+    @if(!empty($school->phone))
+        <div class="school-address">Phone: {{ $school->phone }}</div>
     @endif
 </div>

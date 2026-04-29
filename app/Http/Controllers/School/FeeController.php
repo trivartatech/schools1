@@ -911,7 +911,14 @@ class FeeController extends Controller
         $schoolId = app('current_school_id');
         abort_if($feePayment->school_id !== $schoolId, 403);
 
-        $feePayment->load(['student', 'feeHead.feeGroup', 'collectedBy', 'academicYear']);
+        $feePayment->load([
+            'student.studentParent',
+            'student.academicHistories.courseClass',
+            'student.academicHistories.section',
+            'feeHead.feeGroup',
+            'collectedBy',
+            'academicYear',
+        ]);
         $school = \App\Models\School::find($schoolId);
 
         // Prepare verification URL for the QR Code

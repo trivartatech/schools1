@@ -57,32 +57,7 @@
 
     <div class="receipt-title">TRANSPORT FEE RECEIPT</div>
 
-    <table class="info-table">
-        <tr>
-            <td class="label">Receipt No:</td>
-            <td><strong>{{ $payment->receipt_no }}</strong></td>
-            <td class="label">Payment Date:</td>
-            <td>{{ \Carbon\Carbon::parse($payment->payment_date)->format('d-M-Y') }}</td>
-        </tr>
-        <tr>
-            <td class="label">Student Name:</td>
-            <td><strong>{{ $payment->student->first_name }} {{ $payment->student->last_name }}</strong></td>
-            <td class="label">Admission No:</td>
-            <td>{{ $payment->student->admission_no }}</td>
-        </tr>
-        <tr>
-            <td class="label">Academic Year:</td>
-            <td>{{ optional($payment->academicYear)->name ?? '—' }}</td>
-            <td class="label">Payment Mode:</td>
-            <td>{{ strtoupper($payment->payment_mode instanceof \App\Enums\PaymentMode ? $payment->payment_mode->value : $payment->payment_mode) }}</td>
-        </tr>
-        @if($payment->transaction_ref)
-        <tr>
-            <td class="label">Transaction Ref:</td>
-            <td colspan="3">{{ $payment->transaction_ref }}</td>
-        </tr>
-        @endif
-    </table>
+    @include('pdf._receipt-student-info')
 
     <table class="details-table">
         <thead>

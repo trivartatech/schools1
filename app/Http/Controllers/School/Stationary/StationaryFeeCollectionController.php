@@ -213,7 +213,10 @@ class StationaryFeeCollectionController extends Controller
 
         $payment->load([
             'allocation.lineItems.item:id,name,code',
-            'student:id,admission_no,first_name,last_name',
+            'student',
+            'student.studentParent',
+            'student.academicHistories.courseClass',
+            'student.academicHistories.section',
             'collectedBy:id,name',
             'academicYear:id,name',
         ]);

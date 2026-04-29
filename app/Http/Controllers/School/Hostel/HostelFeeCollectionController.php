@@ -231,7 +231,10 @@ class HostelFeeCollectionController extends Controller
             'allocation.bed:id,name,hostel_room_id',
             'allocation.bed.room:id,room_number,hostel_id',
             'allocation.bed.room.hostel:id,name',
-            'student:id,admission_no,first_name,last_name',
+            'student',
+            'student.studentParent',
+            'student.academicHistories.courseClass',
+            'student.academicHistories.section',
             'collectedBy:id,name',
             'academicYear:id,name',
         ]);

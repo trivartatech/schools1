@@ -232,7 +232,10 @@ class TransportFeeCollectionController extends Controller
         $payment->load([
             'allocation.route:id,route_name,route_code',
             'allocation.stop:id,stop_name',
-            'student:id,admission_no,first_name,last_name',
+            'student',
+            'student.studentParent',
+            'student.academicHistories.courseClass',
+            'student.academicHistories.section',
             'collectedBy:id,name',
             'academicYear:id,name',
         ]);
