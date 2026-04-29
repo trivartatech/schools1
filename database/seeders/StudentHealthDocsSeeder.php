@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 class StudentHealthDocsSeeder extends Seeder
@@ -16,12 +17,12 @@ class StudentHealthDocsSeeder extends Seeder
         $academicYearId = DB::table('academic_years')->where('school_id', $schoolId)->where('status', 'active')->value('id');
         $adminUserId    = DB::table('users')->where('school_id', $schoolId)->whereIn('user_type', ['principal', 'admin'])->value('id');
 
-        DB::statement('PRAGMA foreign_keys = OFF;');
+        Schema::disableForeignKeyConstraints();
         DB::table('student_health_records')->where('school_id', $schoolId)->delete();
         DB::table('student_documents')->where('school_id', $schoolId)->delete();
         DB::table('student_leaves')->where('school_id', $schoolId)->delete();
         DB::table('transfer_certificates')->where('school_id', $schoolId)->delete();
-        DB::statement('PRAGMA foreign_keys = ON;');
+        Schema::enableForeignKeyConstraints();
 
         $students = DB::table('students')->where('school_id', $schoolId)->get();
 

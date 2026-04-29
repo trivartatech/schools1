@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 class ChatSeeder extends Seeder
@@ -14,13 +15,13 @@ class ChatSeeder extends Seeder
         $schoolId = $school->id;
         $now      = Carbon::now();
 
-        DB::statement('PRAGMA foreign_keys = OFF;');
+        Schema::disableForeignKeyConstraints();
         DB::table('chat_message_reads')->whereIn('message_id', DB::table('chat_messages')->pluck('id'))->delete();
         DB::table('chat_messages')->whereIn('conversation_id', DB::table('chat_conversations')->where('school_id', $schoolId)->pluck('id'))->delete();
         DB::table('chat_participants')->whereIn('conversation_id', DB::table('chat_conversations')->where('school_id', $schoolId)->pluck('id'))->delete();
         DB::table('chat_typing_indicators')->whereIn('conversation_id', DB::table('chat_conversations')->where('school_id', $schoolId)->pluck('id'))->delete();
         DB::table('chat_conversations')->where('school_id', $schoolId)->delete();
-        DB::statement('PRAGMA foreign_keys = ON;');
+        Schema::enableForeignKeyConstraints();
 
         $users      = DB::table('users')->where('school_id', $schoolId)->get();
         $adminUser  = $users->where('user_type', 'principal')->first() ?? $users->first();

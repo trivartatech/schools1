@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 
@@ -19,12 +20,12 @@ class FrontOfficeSeeder extends Seeder
         $deptIds        = DB::table('departments')->where('school_id', $schoolId)->pluck('id', 'name')->toArray();
 
         // Clear existing data
-        DB::statement('PRAGMA foreign_keys = OFF;');
+        Schema::disableForeignKeyConstraints();
         DB::table('visitor_logs')->where('school_id', $schoolId)->delete();
         DB::table('gate_passes')->where('school_id', $schoolId)->delete();
         DB::table('complaints')->where('school_id', $schoolId)->delete();
         DB::table('correspondences')->where('school_id', $schoolId)->delete();
-        DB::statement('PRAGMA foreign_keys = ON;');
+        Schema::enableForeignKeyConstraints();
 
         // ── 1. Visitor Logs ────────────────────────────────────────────────────
         $visitorNames = [

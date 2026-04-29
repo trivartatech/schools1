@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 class AcademicResourcesSeeder extends Seeder
@@ -16,14 +17,14 @@ class AcademicResourcesSeeder extends Seeder
         $academicYearId = DB::table('academic_years')->where('school_id', $schoolId)->where('status', 'active')->value('id');
 
         // Clear existing data
-        DB::statement('PRAGMA foreign_keys = OFF;');
+        Schema::disableForeignKeyConstraints();
         DB::table('assignment_submissions')->whereIn('assignment_id', DB::table('assignments')->where('school_id', $schoolId)->pluck('id'))->delete();
         DB::table('assignments')->where('school_id', $schoolId)->delete();
         DB::table('learning_materials')->where('school_id', $schoolId)->delete();
         DB::table('student_diaries')->where('school_id', $schoolId)->delete();
         DB::table('book_lists')->where('school_id', $schoolId)->delete();
         DB::table('online_classes')->where('school_id', $schoolId)->delete();
-        DB::statement('PRAGMA foreign_keys = ON;');
+        Schema::enableForeignKeyConstraints();
 
         // Fetch staff (teachers) for teacher_id FK
         $staffIds = DB::table('staff')->where('school_id', $schoolId)->pluck('id')->toArray();

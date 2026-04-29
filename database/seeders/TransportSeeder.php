@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 class TransportSeeder extends Seeder
@@ -15,14 +16,14 @@ class TransportSeeder extends Seeder
         $now = Carbon::now();
 
         // Clear existing transport data
-        DB::statement('PRAGMA foreign_keys = OFF;');
+        Schema::disableForeignKeyConstraints();
         DB::table('transport_student_allocation')->where('school_id', $schoolId)->delete();
         DB::table('transport_gps_logs')->where('school_id', $schoolId)->delete();
         DB::table('transport_vehicle_live_locations')->where('school_id', $schoolId)->delete();
         DB::table('transport_vehicles')->where('school_id', $schoolId)->delete();
         DB::table('transport_stops')->where('school_id', $schoolId)->delete();
         DB::table('transport_routes')->where('school_id', $schoolId)->delete();
-        DB::statement('PRAGMA foreign_keys = ON;');
+        Schema::enableForeignKeyConstraints();
 
         // ── 1. Routes ──────────────────────────────────────────────────────────
         $routesData = [

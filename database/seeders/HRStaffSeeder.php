@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 class HRStaffSeeder extends Seeder
@@ -15,12 +16,12 @@ class HRStaffSeeder extends Seeder
         $now      = Carbon::now();
 
         // Disable FK checks
-        DB::statement('PRAGMA foreign_keys = OFF;');
+        Schema::disableForeignKeyConstraints();
         DB::table('payrolls')->truncate();
         DB::table('leaves')->truncate();
         DB::table('staff')->whereIn('school_id', [$schoolId])->delete();
         DB::table('designations')->where('school_id', $schoolId)->delete();
-        DB::statement('PRAGMA foreign_keys = ON;');
+        Schema::enableForeignKeyConstraints();
 
         // ── 1. HR Departments (add non-academic ones) ─────────────────────────
         $hrDepts = [

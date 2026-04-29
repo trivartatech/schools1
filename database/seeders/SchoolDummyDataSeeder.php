@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 class SchoolDummyDataSeeder extends Seeder
@@ -14,7 +15,7 @@ class SchoolDummyDataSeeder extends Seeder
         $now = Carbon::now();
 
         // ── 0. Clear existing data to prevent unique constraint errors ────
-        DB::statement('PRAGMA foreign_keys = OFF;');
+        Schema::disableForeignKeyConstraints();
 
         DB::table('class_subjects')->truncate();
         DB::table('subjects')->truncate();
@@ -29,7 +30,7 @@ class SchoolDummyDataSeeder extends Seeder
         DB::table('parents')->truncate();
         DB::table('academic_years')->where('school_id', $schoolId)->delete();
 
-        DB::statement('PRAGMA foreign_keys = ON;');
+        Schema::enableForeignKeyConstraints();
 
         // ── 1. Academic Year ──────────────────────────────────────────────────
         $currentYearStart = $now->month >= 4 ? $now->year : $now->year - 1;
@@ -117,7 +118,7 @@ class SchoolDummyDataSeeder extends Seeder
         // ── 4. Sections ───────────────────────────────────────────────────────
         $sectionLabels = ['A', 'B', 'C'];
         foreach ($classIds as $className => $classId) {
-            $sectionCount = (in_array($className, ['Class 11', 'Class 12'])) ? 2 : 3;
+            $sectionCount = 3;
             for ($i = 0; $i < $sectionCount; $i++) {
                 DB::table('sections')->insert([
                     'school_id'       => $schoolId,
@@ -267,7 +268,7 @@ class SchoolDummyDataSeeder extends Seeder
         $prefixes         = ['98', '99', '88', '77', '70', '96', '91'];
 
         $parentIds = [];
-        for ($i = 1; $i <= 50; $i++) {
+        for ($i = 1; $i <= 100; $i++) {
             $lastName      = $lastNames[array_rand($lastNames)];
             $fatherName    = $adultFirstNamesM[array_rand($adultFirstNamesM)] . ' ' . $lastName;
             $motherName    = $adultFirstNamesF[array_rand($adultFirstNamesF)] . ' ' . $lastName;
@@ -302,8 +303,8 @@ class SchoolDummyDataSeeder extends Seeder
             $sections = DB::table('sections')->where('course_class_id', $classId)->get();
 
             foreach ($sections as $section) {
-                // Class 5 Section A gets exactly 1 student; every other section gets 8
-                $studentsToAdd = ($className === 'Class 5' && $section->name === 'A') ? 1 : 8;
+                // Class 5 Section A gets exactly 1 student; every other section gets 10
+                $studentsToAdd = ($className === 'Class 5' && $section->name === 'A') ? 1 : 10;
 
                 for ($s = 1; $s <= $studentsToAdd; $s++) {
                     $pid            = $parentIds[array_rand($parentIds)];
@@ -374,6 +375,6 @@ class SchoolDummyDataSeeder extends Seeder
             ]));
         }
 
-        $this->command->info('✅ Dummy data seeded: school1 | All classes/sections | Class 5-A → 1 student, all others → 8 students');
+        $this->command->info('✅ Dummy data seeded: All 12 classes × 3 sections | Class 5-A → 1 student, all others → 10 students');
     }
 }

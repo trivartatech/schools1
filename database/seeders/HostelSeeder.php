@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 class HostelSeeder extends Seeder
@@ -18,7 +19,7 @@ class HostelSeeder extends Seeder
                     ?? DB::table('users')->where('school_id', $schoolId)->first()->id;
 
         // Clear existing hostel data
-        DB::statement('PRAGMA foreign_keys = OFF;');
+        Schema::disableForeignKeyConstraints();
         DB::table('hostel_complaints')->where('school_id', $schoolId)->delete();
         DB::table('hostel_leave_requests')->where('school_id', $schoolId)->delete();
         DB::table('hostel_visitors')->where('school_id', $schoolId)->delete();
@@ -27,7 +28,7 @@ class HostelSeeder extends Seeder
         DB::table('hostel_beds')->where('school_id', $schoolId)->delete();
         DB::table('hostel_rooms')->where('school_id', $schoolId)->delete();
         DB::table('hostels')->where('school_id', $schoolId)->delete();
-        DB::statement('PRAGMA foreign_keys = ON;');
+        Schema::enableForeignKeyConstraints();
 
         // ── 1. Hostels ─────────────────────────────────────────────────────────
         $boysHostelId = DB::table('hostels')->insertGetId([

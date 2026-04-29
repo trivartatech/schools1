@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 class LedgerSeeder extends Seeder
@@ -14,10 +15,10 @@ class LedgerSeeder extends Seeder
         $schoolId = $school->id;
         $now      = Carbon::now();
 
-        DB::statement('PRAGMA foreign_keys = OFF;');
+        Schema::disableForeignKeyConstraints();
         DB::table('ledgers')->where('school_id', $schoolId)->delete();
         DB::table('ledger_types')->where('school_id', $schoolId)->delete();
-        DB::statement('PRAGMA foreign_keys = ON;');
+        Schema::enableForeignKeyConstraints();
 
         // ── 1. Ledger Types ────────────────────────────────────────────────────
         $ledgerTypesData = [
