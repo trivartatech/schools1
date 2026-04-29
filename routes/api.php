@@ -350,6 +350,10 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     Route::post  ('/stationary/items',          [$STAT, 'storeItem'])  ->name('api.mobile.stationary.items.store');
     Route::patch ('/stationary/items/{id}',     [$STAT, 'updateItem']) ->whereNumber('id')->name('api.mobile.stationary.items.update');
     Route::delete('/stationary/items/{id}',     [$STAT, 'destroyItem'])->whereNumber('id')->name('api.mobile.stationary.items.destroy');
+    // Stationary allocations + fee collection
+    Route::get ('/stationary/allocations',                  [$STAT, 'allocations'])     ->name('api.mobile.stationary.allocations');
+    Route::post('/stationary/allocations',                  [$STAT, 'createAllocation'])->name('api.mobile.stationary.allocations.create');
+    Route::post('/stationary/allocations/{id}/collect',     [$STAT, 'collect'])         ->whereNumber('id')->name('api.mobile.stationary.allocations.collect');
 
     // Inventory (admin)
     Route::get  ('/inventory',                 [$MA, 'inventoryAssets'])    ->name('api.mobile.inventory');
