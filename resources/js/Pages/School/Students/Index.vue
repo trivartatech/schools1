@@ -14,10 +14,13 @@ import debounce from 'lodash/debounce';
 import Table from '@/Components/ui/Table.vue';
 import SortableTh from '@/Components/ui/SortableTh.vue';
 import EmptyState from '@/Components/ui/EmptyState.vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const { canDo } = usePermissions();
 const { del } = useDelete();
 const { sections, fetchSections } = useClassSections();
+const school = useSchoolStore();
+const formatDate = (value) => value ? school.fmtDate(value) : '—';
 
 const deleteStudent = (id) => del(
     `/school/students/${id}`,
@@ -192,7 +195,7 @@ watch([search, selectedClass, selectedSection, selectedHouse, defaulterFilter, s
                             <span v-else style="color:var(--text-muted);">—</span>
                         </td>
                         <td>{{ student.gender || '—' }}</td>
-                        <td style="white-space:nowrap;">{{ student.dob || '—' }}</td>
+                        <td style="white-space:nowrap;">{{ formatDate(student.dob) }}</td>
                         <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ student.student_parent?.father_name || student.student_parent?.mother_name || student.student_parent?.guardian_name || '—' }}</td>
                         <td style="white-space:nowrap;">{{ student.student_parent?.primary_phone || '—' }}</td>
                         <td>
