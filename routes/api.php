@@ -244,6 +244,11 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     Route::get ('/communication/emergency/options',   [$COMM, 'emergencyOptions']) ->name('api.mobile.communication.emergency.options');
     Route::post('/communication/emergency',           [$COMM, 'emergencyBroadcast'])->middleware('throttle:5,1')->name('api.mobile.communication.emergency.send');
 
+    // Houses + Leaderboard (read-only on mobile; admin still awards points from web)
+    $HOUSE = \App\Http\Controllers\Api\Mobile\HouseController::class;
+    Route::get('/houses/leaderboard', [$HOUSE, 'leaderboard'])->name('api.mobile.houses.leaderboard');
+    Route::get('/houses/my-house',    [$HOUSE, 'myHouse'])    ->name('api.mobile.houses.my-house');
+
     // Disciplinary Records (admin only)
     $DR = \App\Http\Controllers\Api\Mobile\DisciplinaryController::class;
     Route::get  ('/disciplinary',                       [$DR, 'index'])         ->name('api.mobile.disciplinary.index');
