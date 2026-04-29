@@ -4541,6 +4541,126 @@ class MobileApiController extends Controller
     }
 
     /**
+     * GET /mobile/finance/due-report
+     * Lists students with outstanding fee balance for the current academic year.
+     * Mirrors the web Due Report (LedgerController::dueReport) but returns a
+     * paginated JSON response and, by default, only students whose combined
+     * regular + transport + hostel + stationary balance is greater than zero.
+     *
+     * Query params (all optional):
+     *   class_id, section_id
+     *   status               'all' | 'defaulter' | 'not_defaulter'  (default 'all')
+     *   fee_types[]          subset of ['regular','transport','hostel','stationary']
+     *   student_type         'new' | 'old'
+     *   sort                 'balance' | 'name' | 'class'  (default 'balance')
+     *   order                'asc' | 'desc'                (default 'desc')
+     *   per_page             5..100                        (default 30)
+     *   page                 >=1                           (default 1)
+     *   include_zero_balance '1' to also return students with total_balance == 0
+     */
+    public function dueReport(Request $request, \App\Services\DueReportService $service): JsonResponse
+    {
+        $this->assertCanCollectFees($request);
+
+        $school = app('current_school');
+        $yearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
+        if (!$yearId) {
+            return response()->json(['error' => 'No active academic year.'], 422);
+        }
+
+        $status = in_array($request->input('status'), ['all', 'defaulter', 'not_defaulter'], true)
+            ? $request->input('status') : 'all';
+
+        $feeTypesIn = $request->input('fee_types', []);
+        if (is_string($feeTypesIn)) {
+            $feeTypesIn = array_filter(array_map('trim', explode(',', $feeTypesIn)));
+        }
+        $feeTypes = array_values(array_intersect(
+            ['regular', 'transport', 'hostel', 'stationary'],
+            (array) $feeTypesIn
+        ));
+
+        $studentType = in_array($request->input('student_type'), ['new', 'old'], true)
+            ? $request->input('student_type') : null;
+
+        $rows = $service->rowsFor(
+            $school->id,
+            $yearId,
+            $request->filled('class_id')   ? (int) $request->class_id   : null,
+            $request->filled('section_id') ? (int) $request->section_id : null,
+            $status,
+            $feeTypes,
+            null,
+            $studentType,
+        );
+
+        // Due report semantics: only students with an outstanding balance unless
+        // the caller explicitly asks for everyone (e.g. for a "paid" view).
+        if (!$request->boolean('include_zero_balance')) {
+            $rows = array_values(array_filter($rows, fn($r) => $r['total_balance'] > 0));
+        }
+
+        $sort  = in_array($request->input('sort'), ['balance', 'name', 'class'], true)
+            ? $request->input('sort') : 'balance';
+        $order = $request->input('order') === 'asc' ? 'asc' : 'desc';
+        usort($rows, function ($a, $b) use ($sort, $order) {
+            $cmp = match ($sort) {
+                'name'  => strcmp($a['name'],  $b['name']),
+                'class' => strcmp($a['class'], $b['class']),
+                default => $a['total_balance'] <=> $b['total_balance'],
+            };
+            return $order === 'asc' ? $cmp : -$cmp;
+        });
+
+        $perPage  = max(5, min(100, (int) $request->input('per_page', 30)));
+        $page     = max(1, (int) $request->input('page', 1));
+        $total    = count($rows);
+        $items    = array_slice($rows, ($page - 1) * $perPage, $perPage);
+        $lastPage = max(1, (int) ceil($total / $perPage));
+
+        $totalOutstanding = array_sum(array_column($rows, 'total_balance'));
+        $defaulterCount   = count(array_filter($rows, fn($r) => $r['is_defaulter']));
+
+        $classes = \App\Models\CourseClass::where('school_id', $school->id)
+            ->orderBy('numeric_value')->orderBy('name')
+            ->with(['sections' => fn($q) => $q->orderBy('name')])
+            ->get()
+            ->map(fn($c) => [
+                'id'       => $c->id,
+                'name'     => $c->name,
+                'sections' => $c->sections->map(fn($s) => [
+                    'id'   => $s->id,
+                    'name' => $s->name,
+                ])->values(),
+            ])->values();
+
+        return response()->json([
+            'data'         => $items,
+            'current_page' => $page,
+            'last_page'    => $lastPage,
+            'total'        => $total,
+            'per_page'     => $perPage,
+            'summary'      => [
+                'total_outstanding' => round($totalOutstanding, 2),
+                'defaulter_count'   => $defaulterCount,
+                'total_students'    => $total,
+            ],
+            'filters' => [
+                'classes' => $classes,
+                'applied' => [
+                    'class_id'     => $request->input('class_id'),
+                    'section_id'   => $request->input('section_id'),
+                    'status'       => $status,
+                    'fee_types'    => $feeTypes,
+                    'student_type' => $studentType,
+                    'sort'         => $sort,
+                    'order'        => $order,
+                ],
+            ],
+        ]);
+    }
+
+    /**
      * GET /mobile/attendance/report?class_id=X&section_id=Y&month=YYYY-MM
      * Returns per-student day-by-day map + counts, matching web AttendanceController::report().
      */

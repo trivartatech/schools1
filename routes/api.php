@@ -234,6 +234,9 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     Route::post('/payments/create-order',  [$MA, 'createPaymentOrder'])->name('api.mobile.payments.create-order');
     Route::post('/payments/verify',        [$MA, 'verifyPayment'])->name('api.mobile.payments.verify');
 
+    // Finance — Due Report (admin/accountant)
+    Route::get('/finance/due-report',      [$MA, 'dueReport'])->name('api.mobile.finance.due-report');
+
     // Report Card Download
     Route::get('/report-cards/{scheduleId}/download', [$MA, 'downloadReportCard'])->name('api.mobile.report-cards.download');
 
