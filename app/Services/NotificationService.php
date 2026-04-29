@@ -359,7 +359,11 @@ class NotificationService
                             [
                                 'type'       => 'body',
                                 'parameters' => array_map(function ($val) {
-                                    return ['type' => 'text', 'text' => $this->stringifyValue($val)];
+                                    $text = $this->stringifyValue($val);
+                                    // Meta rejects body parameters that are empty strings:
+                                    //   "Param body[N]: empty strings are not allowed".
+                                    // Substitute a space so the template can still render.
+                                    return ['type' => 'text', 'text' => $text === '' ? ' ' : $text];
                                 }, array_values($parameters))
                             ]
                         ]

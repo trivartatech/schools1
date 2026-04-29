@@ -182,10 +182,14 @@ class DailyReportBroadcaster
 
         // Pass the PDF link + caption summary as template parameters. The school
         // admin controls the exact placement of these in the template body.
+        // Include school_name + app_name so any placeholder in the approved
+        // template resolves — Meta rejects body parameters that are empty.
         $params = [
-            'caption' => mb_substr($caption, 0, 1000),
-            'link'    => $pdfLink,
-            'date'    => now()->format('d-M-Y'),
+            'caption'     => mb_substr($caption, 0, 1000),
+            'link'        => $pdfLink,
+            'date'        => now()->format('d-M-Y'),
+            'school_name' => $school->name,
+            'app_name'    => $school->name,
         ];
 
         $orderedParams = $this->extractOrderedParams($template->content, $params);
@@ -207,18 +211,21 @@ class DailyReportBroadcaster
     /**
      * Mirror NotificationService::extractOrderedWhatsAppParams without making
      * the original method public — small helper kept private here.
+     * Empty placeholders are filled with a single space so Meta does not
+     * reject the message ("body[N]: empty strings are not allowed").
      */
     private function extractOrderedParams(?string $templateContent, array $data): array
     {
-        if (empty($templateContent)) return array_values($data);
+        if (empty($templateContent)) return array_map(fn($v) => $v === '' || $v === null ? ' ' : (string) $v, array_values($data));
 
         preg_match_all('/##([A-Za-z0-9_]+)##/', $templateContent, $matches);
-        if (empty($matches[1])) return array_values($data);
+        if (empty($matches[1])) return array_map(fn($v) => $v === '' || $v === null ? ' ' : (string) $v, array_values($data));
 
         $out = [];
         foreach ($matches[1] as $key) {
             $lowerKey = strtolower($key);
-            $out[] = (string) ($data[$lowerKey] ?? ($data[$key] ?? ''));
+            $val = $data[$lowerKey] ?? ($data[$key] ?? '');
+            $out[] = ($val === '' || $val === null) ? ' ' : (string) $val;
         }
         return $out;
     }
