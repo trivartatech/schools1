@@ -188,6 +188,13 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     Route::post('/edit-request',        [$MA, 'submitEditRequest'])->name('api.mobile.edit-request.submit');
     Route::get('/edit-requests',        [$MA, 'editRequests'])->name('api.mobile.edit-requests');
 
+    // Edit Request approval queue (admin / principal review side)
+    $ERA = \App\Http\Controllers\Api\Mobile\EditRequestAdminController::class;
+    Route::get  ('/admin/edit-requests',                 [$ERA, 'index'])  ->name('api.mobile.admin.edit-requests');
+    Route::get  ('/admin/edit-requests/{id}',            [$ERA, 'show'])   ->whereNumber('id')->name('api.mobile.admin.edit-requests.show');
+    Route::post ('/admin/edit-requests/{id}/approve',    [$ERA, 'approve'])->whereNumber('id')->name('api.mobile.admin.edit-requests.approve');
+    Route::post ('/admin/edit-requests/{id}/reject',     [$ERA, 'reject']) ->whereNumber('id')->name('api.mobile.admin.edit-requests.reject');
+
     // ── New Module Endpoints ─────────────────────────────────────────────────
 
     // Holidays
