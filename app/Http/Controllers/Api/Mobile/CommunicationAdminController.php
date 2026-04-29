@@ -208,7 +208,7 @@ class CommunicationAdminController extends Controller
             ->with('user:id,phone')
             ->get()->pluck('user.phone')->filter();
 
-        $staffPhones = User::whereHas('schools', fn($q) => $q->where('schools.id', $schoolId))
+        $staffPhones = User::where('school_id', $schoolId)
             ->whereNotNull('phone')->pluck('phone');
 
         $recipientCount = $parentPhones->merge($staffPhones)->unique()->values()->count();
@@ -285,7 +285,7 @@ class CommunicationAdminController extends Controller
         // Collect unique phones from all parents + all staff for this school
         $parents = StudentParent::whereHas('students', fn($q) => $q->where('school_id', $schoolId))
             ->with('user:id,phone')->get()->pluck('user.phone')->filter();
-        $staff   = User::whereHas('schools', fn($q) => $q->where('schools.id', $schoolId))
+        $staff   = User::where('school_id', $schoolId)
             ->whereNotNull('phone')->pluck('phone');
         $phones  = $parents->merge($staff)->unique()->values();
 

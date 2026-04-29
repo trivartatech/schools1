@@ -5218,10 +5218,21 @@ class MobileApiController extends Controller
             ->groupBy(fn($r) => $normDate($r->date));
 
         // Class names for breakdown labels — order by id to match the
-        // ordering used by /mobile/class-options.
-        $classNames = \App\Models\CourseClass::where('school_id', $schoolId)
-            ->orderBy('id')
-            ->pluck('name', 'id');
+        // ordering used by /mobile/class-options. Scoped to the teacher's
+        // assigned classes when applicable so the filter dropdown only
+        // surfaces classes they actually teach or are incharge of.
+        $classNamesQuery = \App\Models\CourseClass::where('school_id', $schoolId)
+            ->orderBy('id');
+        if ($user->isTeacher()) {
+            $teacherScope = app(TeacherScopeService::class)->for($user);
+            if ($teacherScope->restricted && $teacherScope->classIds->isNotEmpty()) {
+                $classNamesQuery->whereIn('id', $teacherScope->classIds);
+            } elseif ($teacherScope->restricted) {
+                // Restricted but no assigned classes → no classes to show
+                $classNamesQuery->whereRaw('1=0');
+            }
+        }
+        $classNames = $classNamesQuery->pluck('name', 'id');
 
         // Per-class enrollment for "% present" computation
         $classEnrollment = $yearId
@@ -5449,9 +5460,18 @@ class MobileApiController extends Controller
         }
 
         // Class options for the filter UI — order by id (matches /mobile/class-options).
-        $classes = \App\Models\CourseClass::where('school_id', $schoolId)
-            ->orderBy('id')
-            ->get(['id', 'name'])
+        // Scoped to the teacher's assigned classes when applicable.
+        $classQuery = \App\Models\CourseClass::where('school_id', $schoolId)
+            ->orderBy('id');
+        if ($user->isTeacher()) {
+            $teacherScope = app(TeacherScopeService::class)->for($user);
+            if ($teacherScope->restricted && $teacherScope->classIds->isNotEmpty()) {
+                $classQuery->whereIn('id', $teacherScope->classIds);
+            } elseif ($teacherScope->restricted) {
+                $classQuery->whereRaw('1=0');
+            }
+        }
+        $classes = $classQuery->get(['id', 'name'])
             ->map(fn($c) => ['id' => (int) $c->id, 'name' => $c->name])
             ->values();
 
