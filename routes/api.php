@@ -247,10 +247,12 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     Route::get ('/communication/emergency/options',   [$COMM, 'emergencyOptions']) ->name('api.mobile.communication.emergency.options');
     Route::post('/communication/emergency',           [$COMM, 'emergencyBroadcast'])->middleware('throttle:5,1')->name('api.mobile.communication.emergency.send');
 
-    // Houses + Leaderboard (read-only on mobile; admin still awards points from web)
+    // Houses + Leaderboard (read-only for everyone; admin can also award points)
     $HOUSE = \App\Http\Controllers\Api\Mobile\HouseController::class;
-    Route::get('/houses/leaderboard', [$HOUSE, 'leaderboard'])->name('api.mobile.houses.leaderboard');
-    Route::get('/houses/my-house',    [$HOUSE, 'myHouse'])    ->name('api.mobile.houses.my-house');
+    Route::get   ('/houses/leaderboard',                  [$HOUSE, 'leaderboard'])->name('api.mobile.houses.leaderboard');
+    Route::get   ('/houses/my-house',                     [$HOUSE, 'myHouse'])    ->name('api.mobile.houses.my-house');
+    Route::post  ('/houses/{houseId}/points',             [$HOUSE, 'awardPoints'])->whereNumber('houseId')->name('api.mobile.houses.points.award');
+    Route::delete('/houses/{houseId}/points/{pointId}',   [$HOUSE, 'deletePoint'])->whereNumber('houseId')->whereNumber('pointId')->name('api.mobile.houses.points.delete');
 
     // Disciplinary Records (admin only)
     $DR = \App\Http\Controllers\Api\Mobile\DisciplinaryController::class;

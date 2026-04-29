@@ -28,6 +28,15 @@ class HouseController extends Controller
      * Mobile/* controllers — students see themselves, parents see the active
      * child (X-Active-Student-Id header or ?student_id=).
      */
+    private function assertAdmin(Request $request): void
+    {
+        $user = $request->user();
+        $type = $user->user_type instanceof \BackedEnum ? $user->user_type->value : (string) $user->user_type;
+        if (!in_array($type, ['admin', 'school_admin', 'principal', 'super_admin'], true)) {
+            abort(response()->json(['error' => 'Unauthorized.'], 403));
+        }
+    }
+
     private function resolveStudentId($user, ?Request $request = null): ?int
     {
         if ($user->isStudent()) return $user->student?->id;
@@ -45,6 +54,86 @@ class HouseController extends Controller
             return (int) $request->input('student_id');
         }
         return null;
+    }
+
+    /**
+     * POST /mobile/houses/{houseId}/points
+     *
+     * Award or deduct points to a house. Mirrors web HousePointController::store().
+     * Admin-only. Points must be non-zero; negative values deduct.
+     */
+    public function awardPoints(Request $request, int $houseId): JsonResponse
+    {
+        $this->assertAdmin($request);
+        $schoolId = app('current_school_id');
+        $yearId   = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
+        if (!$yearId) {
+            return response()->json(['error' => 'No active academic year.'], 422);
+        }
+
+        $house = House::where('school_id', $schoolId)->find($houseId);
+        if (!$house) {
+            return response()->json(['error' => 'House not found.'], 404);
+        }
+
+        $validated = $request->validate([
+            'category'    => 'required|in:sports,academic,cultural,discipline,general',
+            'points'      => 'required|integer|not_in:0|between:-999,999',
+            'description' => 'required|string|max:255',
+        ]);
+
+        $entry = HousePoint::create([
+            'school_id'        => $schoolId,
+            'house_id'         => $house->id,
+            'academic_year_id' => $yearId,
+            'category'         => $validated['category'],
+            'points'           => $validated['points'],
+            'description'      => $validated['description'],
+            'awarded_by'       => $request->user()->id,
+        ]);
+
+        $verb  = $validated['points'] > 0 ? 'awarded' : 'deducted';
+        $abs   = abs($validated['points']);
+        $newTotal = (int) HousePoint::where('school_id', $schoolId)
+            ->where('academic_year_id', $yearId)
+            ->where('house_id', $house->id)
+            ->sum('points');
+
+        return response()->json([
+            'message' => "{$abs} point(s) {$verb}.",
+            'data'    => [
+                'id'             => $entry->id,
+                'house_id'       => $house->id,
+                'house_name'     => $house->name,
+                'category'       => $entry->category,
+                'points'         => (int) $entry->points,
+                'description'    => $entry->description,
+                'new_total'      => $newTotal,
+                'created_at'     => $entry->created_at?->toIso8601String(),
+            ],
+        ], 201);
+    }
+
+    /**
+     * DELETE /mobile/houses/{houseId}/points/{pointId}
+     *
+     * Remove a single points entry. Admin-only. Mirrors web HousePointController::destroy().
+     */
+    public function deletePoint(Request $request, int $houseId, int $pointId): JsonResponse
+    {
+        $this->assertAdmin($request);
+        $schoolId = app('current_school_id');
+        $house = House::where('school_id', $schoolId)->find($houseId);
+        if (!$house) return response()->json(['error' => 'House not found.'], 404);
+
+        $point = HousePoint::where('id', $pointId)
+            ->where('school_id', $schoolId)
+            ->where('house_id', $house->id)
+            ->first();
+        if (!$point) return response()->json(['error' => 'Point entry not found.'], 404);
+
+        $point->delete();
+        return response()->json(['message' => 'Removed.', 'id' => $pointId]);
     }
 
     /**
