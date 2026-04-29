@@ -45,19 +45,35 @@ class ExaminationModuleSeeder extends Seeder
             DB::table('exam_terms')->delete();
             \Illuminate\Support\Facades\Schema::enableForeignKeyConstraints();
 
-            // Setup
+            // Setup — CCE pattern: 2 terms, 4 Formative + 2 Summative assessments
             $term1 = ExamTerm::create(['school_id' => $schoolId, 'academic_year_id' => $academicYearId, 'name' => 'T1', 'display_name' => 'Term 1']);
             $term2 = ExamTerm::create(['school_id' => $schoolId, 'academic_year_id' => $academicYearId, 'name' => 'T2', 'display_name' => 'Term 2']);
 
+            // CCE: Term 1 → FA1, FA2, SA1 ; Term 2 → FA3, FA4, SA2
+            // Weightage: each FA = 10, each SA = 30 (total = 100 per academic year)
+            $examTypesSpec = [
+                ['code' => 'FA1', 'display' => 'Formative Assessment 1', 'term' => $term1, 'weightage' => 10],
+                ['code' => 'FA2', 'display' => 'Formative Assessment 2', 'term' => $term1, 'weightage' => 10],
+                ['code' => 'SA1', 'display' => 'Summative Assessment 1', 'term' => $term1, 'weightage' => 30],
+                ['code' => 'FA3', 'display' => 'Formative Assessment 3', 'term' => $term2, 'weightage' => 10],
+                ['code' => 'FA4', 'display' => 'Formative Assessment 4', 'term' => $term2, 'weightage' => 10],
+                ['code' => 'SA2', 'display' => 'Summative Assessment 2', 'term' => $term2, 'weightage' => 30],
+            ];
+
             $examTypesMap = [];
-            $weightageMap = ['PT1' => 10, 'HY' => 30, 'PT2' => 10, 'ANNUAL' => 50];
-            foreach (['PT1', 'HY', 'PT2', 'ANNUAL'] as $code) {
-                $term = (strpos($code, '1') !== false || $code == 'HY') ? $term1 : $term2;
+            $weightageMap = [];
+            foreach ($examTypesSpec as $spec) {
                 $t = ExamType::create([
-                    'school_id' => $schoolId, 'academic_year_id' => $academicYearId, 'exam_term_id' => $term->id,
-                    'name' => $code, 'code' => $code, 'display_name' => $code, 'classification' => 'main',
+                    'school_id'        => $schoolId,
+                    'academic_year_id' => $academicYearId,
+                    'exam_term_id'     => $spec['term']->id,
+                    'name'             => $spec['code'],
+                    'code'             => $spec['code'],
+                    'display_name'     => $spec['display'],
+                    'classification'   => 'main',
                 ]);
-                $examTypesMap[$code] = $t->id;
+                $examTypesMap[$spec['code']] = $t->id;
+                $weightageMap[$spec['code']] = $spec['weightage'];
             }
 
             $mainAssessment = ExamAssessment::create(['school_id' => $schoolId, 'academic_year_id' => $academicYearId, 'name' => 'Scholastic']);
