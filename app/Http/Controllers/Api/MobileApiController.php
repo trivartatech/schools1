@@ -5297,6 +5297,159 @@ class MobileApiController extends Controller
         ]);
     }
 
+    /**
+     * GET /mobile/attendance/admin/forecast
+     *
+     * 30-day historical attendance rate plus a 7-day linear-regression
+     * projection. Mirrors web AttendanceController::forecast() but
+     * scoped for mobile (response is JSON, no Inertia view).
+     *
+     * Query params:
+     *   class_id   (optional) restrict to one class
+     *   section_id (optional) restrict to one section
+     *
+     * Rate = (present + 0.5 * late + 0.5 * half_day) / enrolled_count * 100
+     * so the trend captures partial-day attendance, matching the web method.
+     */
+    public function attendanceForecast(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $type = $user->user_type instanceof \BackedEnum ? $user->user_type->value : (string) $user->user_type;
+        if (!in_array($type, ['admin', 'school_admin', 'principal', 'super_admin', 'teacher', 'staff'], true)) {
+            return response()->json(['error' => 'Unauthorized.'], 403);
+        }
+
+        $school   = app('current_school');
+        $schoolId = $school->id;
+        $yearId   = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
+        $classId   = $request->input('class_id');
+        $sectionId = $request->input('section_id');
+
+        // Teacher scope — same gate as the date-wise endpoint
+        if ($user->isTeacher()) {
+            $scope = app(TeacherScopeService::class)->for($user);
+            if ($scope->restricted) {
+                if ($classId && !$scope->classIds->contains((int) $classId)) {
+                    return response()->json(['error' => 'You are not authorized to view this class.'], 403);
+                }
+                if ($sectionId && !$scope->sectionIds->contains((int) $sectionId)) {
+                    return response()->json(['error' => 'You are not authorized to view this section.'], 403);
+                }
+            }
+        }
+
+        $enrolledCount = StudentAcademicHistory::where('school_id', $schoolId)
+            ->when($yearId,    fn($q) => $q->where('academic_year_id', $yearId))
+            ->when($classId,   fn($q) => $q->where('class_id',   $classId))
+            ->when($sectionId, fn($q) => $q->where('section_id', $sectionId))
+            ->where('status', 'current')
+            ->count();
+
+        $from = now()->subDays(29)->toDateString();
+        $to   = now()->toDateString();
+
+        $records = Attendance::where('school_id', $schoolId)
+            ->when($classId,   fn($q) => $q->where('class_id',   $classId))
+            ->when($sectionId, fn($q) => $q->where('section_id', $sectionId))
+            ->whereBetween('date', [$from, $to])
+            ->selectRaw('date, status, COUNT(*) as cnt')
+            ->groupBy('date', 'status')
+            ->orderBy('date')
+            ->get();
+
+        $byDate = [];
+        foreach ($records as $r) {
+            $d = \Carbon\Carbon::parse($r->date)->toDateString();
+            if (!isset($byDate[$d])) {
+                $byDate[$d] = ['present' => 0, 'absent' => 0, 'late' => 0, 'half_day' => 0, 'leave' => 0];
+            }
+            $byDate[$d][$r->status] = (int) $r->cnt;
+        }
+
+        $denom = max(1, $enrolledCount);
+        $historical = [];
+        foreach ($byDate as $date => $c) {
+            $total   = array_sum($c);
+            $present = $c['present'] + (int) round($c['late'] * 0.5) + (int) round($c['half_day'] * 0.5);
+            $historical[] = [
+                'date'    => $date,
+                'rate'    => $total > 0 ? round($present / $denom * 100, 1) : null,
+                'present' => $c['present'],
+                'absent'  => $c['absent'],
+                'total'   => $total,
+            ];
+        }
+        // Sort ascending by date so the regression input is in chronological order.
+        usort($historical, fn($a, $b) => strcmp($a['date'], $b['date']));
+
+        // Linear regression over last 7 data points with non-null rates.
+        $forecast = [];
+        $rates    = array_values(array_filter(array_column(array_slice($historical, -7), 'rate'), fn($v) => $v !== null));
+        $n        = count($rates);
+
+        if ($n >= 3) {
+            $xMean = ($n - 1) / 2;
+            $yMean = array_sum($rates) / $n;
+            $num = 0; $den = 0;
+            foreach ($rates as $i => $y) {
+                $num += ($i - $xMean) * ($y - $yMean);
+                $den += ($i - $xMean) ** 2;
+            }
+            $slope     = $den > 0 ? $num / $den : 0;
+            $intercept = $yMean - $slope * $xMean;
+
+            for ($i = 1; $i <= 7; $i++) {
+                $forecast[] = [
+                    'date'           => now()->addDays($i)->toDateString(),
+                    'projected_rate' => round(max(0, min(100, $intercept + $slope * ($n - 1 + $i))), 1),
+                ];
+            }
+        }
+
+        $allRates = array_filter(array_column($historical, 'rate'), fn($v) => $v !== null);
+        $avgRate  = count($allRates) > 0 ? round(array_sum($allRates) / count($allRates), 1) : null;
+
+        // Trend descriptor — derived from the regression slope (where available)
+        // so the mobile UI can show "Improving / Stable / Declining" without
+        // re-running the math.
+        $trend = 'stable';
+        if (!empty($forecast)) {
+            $lastHist     = end($historical)['rate'] ?? null;
+            $lastForecast = end($forecast)['projected_rate'];
+            if ($lastHist !== null) {
+                $delta = $lastForecast - $lastHist;
+                if ($delta > 1.5)       $trend = 'improving';
+                else if ($delta < -1.5) $trend = 'declining';
+            }
+        }
+
+        // Class options for the filter UI (mirror date-wise endpoint shape)
+        $classes = \App\Models\CourseClass::where('school_id', $schoolId)
+            ->orderBy('numeric_value')->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn($c) => ['id' => (int) $c->id, 'name' => $c->name])
+            ->values();
+
+        return response()->json([
+            'data' => [
+                'historical' => $historical,
+                'forecast'   => $forecast,
+                'avg_rate'   => $avgRate,
+                'trend'      => $trend,
+                'enrolled'   => $enrolledCount,
+            ],
+            'applied' => [
+                'class_id'   => $classId,
+                'section_id' => $sectionId,
+                'from'       => $from,
+                'to'         => $to,
+            ],
+            'filters' => [
+                'classes' => $classes,
+            ],
+        ]);
+    }
+
     // ── AI Insights ───────────────────────────────────────────────────────────
 
     public function aiInsights(Request $request): JsonResponse
