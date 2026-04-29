@@ -17,10 +17,26 @@ git pull origin main
 
 # Pre-migration MySQL backup (so we can roll back if a migration breaks something)
 if [ -f .env ]; then
-    set -a
-    # shellcheck disable=SC1091
-    source .env
-    set +a
+    # Read DB credentials WITHOUT exporting them — see bootstrap.sh for why
+    # `source .env` corrupts subsequent `php artisan` commands via Dotenv's
+    # safeLoad(). Extract individual values via awk instead.
+    env_get() {
+        awk -F= -v k="$1" '
+            $1 == k {
+                sub(/^[^=]*=/, "")
+                sub(/^"/, "")
+                sub(/"$/, "")
+                print
+                exit
+            }
+        ' .env
+    }
+    DB_HOST=$(env_get DB_HOST)
+    DB_PORT=$(env_get DB_PORT)
+    DB_DATABASE=$(env_get DB_DATABASE)
+    DB_USERNAME=$(env_get DB_USERNAME)
+    DB_PASSWORD=$(env_get DB_PASSWORD)
+
     BACKUP_DIR=storage/backups
     mkdir -p "$BACKUP_DIR"
     BACKUP_FILE="$BACKUP_DIR/$(date +%Y%m%d-%H%M%S)-${DB_DATABASE}.sql.gz"

@@ -35,15 +35,35 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
-# Source .env (warn if it contains shell-unsafe chars)
-if grep -qE '^[A-Z_]+=.*[#$!\\].*' .env 2>/dev/null; then
-    echo "⚠️  .env may contain shell-unsafe chars (#, \$, !, \\)."
-    echo "    If sourcing fails, escape them or pick simpler password values."
-fi
-set -a
-# shellcheck disable=SC1091
-source .env
-set +a
+# Read .env values WITHOUT exporting them.
+#
+# We deliberately avoid `source .env`: that exports every variable into the
+# shell environment, including any empty ones (e.g. APP_KEY="" on a fresh
+# install). Dotenv's safeLoad() then refuses to override those non-empty-named
+# but empty-valued vars from .env when subsequent `php artisan` commands boot,
+# which causes `config:cache` to silently bake an empty APP_KEY into
+# bootstrap/cache/config.php → 500s with "No application encryption key" in
+# production. Pulling individual values via awk keeps them as plain shell
+# variables (not env), so child PHP processes still read .env afresh.
+env_get() {
+    awk -F= -v k="$1" '
+        $1 == k {
+            sub(/^[^=]*=/, "")
+            sub(/^"/, "")
+            sub(/"$/, "")
+            print
+            exit
+        }
+    ' .env
+}
+
+DB_HOST=$(env_get DB_HOST)
+DB_PORT=$(env_get DB_PORT)
+DB_DATABASE=$(env_get DB_DATABASE)
+DB_USERNAME=$(env_get DB_USERNAME)
+DB_PASSWORD=$(env_get DB_PASSWORD)
+DB_ROOT_USERNAME=$(env_get DB_ROOT_USERNAME)
+DB_ROOT_PASSWORD=$(env_get DB_ROOT_PASSWORD)
 
 # 1. Auto-create DB + user if root creds present
 if [ -n "${DB_ROOT_USERNAME:-}" ] && [ -n "${DB_ROOT_PASSWORD:-}" ]; then
@@ -67,17 +87,21 @@ fi
 echo "📦 composer install…"
 composer install --no-dev --optimize-autoloader --no-interaction
 
-# 3. APP_KEY (only if missing)
+# 3. CRITICAL: clear any stale config cache BEFORE key:generate.
+#    key:generate's regex anchors on config('app.key') — if a stale cache
+#    has the wrong (or empty) value, the regex won't match cleanly and the
+#    new key gets prepended to the old line instead of replacing it. Also
+#    ensures the seeder reads .env via config('school.*') fresh.
+php artisan config:clear
+
+# 4. APP_KEY (only if missing)
 if ! grep -q "^APP_KEY=base64:" .env; then
     echo "🔑 Generating APP_KEY…"
     php artisan key:generate --force
 fi
 
-# 4. Storage symlink
+# 5. Storage symlink
 php artisan storage:link || true
-
-# 5. CRITICAL: clear any stale config cache so the seeder reads .env via config('school.*')
-php artisan config:clear
 
 # 6. Migrations
 echo "🗄  Running migrations…"
@@ -109,6 +133,13 @@ chmod -R 775 storage bootstrap/cache 2>/dev/null || true
 
 # 11. Mark bootstrap complete
 date -u +"%Y-%m-%dT%H:%M:%SZ" > .bootstrap-done
+
+# Pull display values from .env now (after seeds wrote any defaults back).
+APP_URL=$(env_get APP_URL)
+SUPER_ADMIN_EMAIL=$(env_get SUPER_ADMIN_EMAIL)
+ADMIN_EMAIL=$(env_get ADMIN_EMAIL)
+PRINCIPAL_EMAIL=$(env_get PRINCIPAL_EMAIL)
+DEFAULT_PASSWORD=$(env_get DEFAULT_PASSWORD)
 
 echo ""
 echo "✅ Deploy complete. Login at: ${APP_URL}/login"
