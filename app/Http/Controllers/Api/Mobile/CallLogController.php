@@ -84,13 +84,14 @@ class CallLogController extends Controller
      */
     private function staffOptions(int $schoolId): array
     {
-        return Staff::where('school_id', $schoolId)
-            ->with('user:id,name')
-            ->orderBy('first_name')->orderBy('last_name')
-            ->get(['id', 'first_name', 'last_name', 'user_id'])
+        return Staff::where('staff.school_id', $schoolId)
+            ->join('users', 'users.id', '=', 'staff.user_id')
+            ->orderBy('users.name')
+            ->select('staff.id', 'staff.user_id', 'users.name as user_name')
+            ->get()
             ->map(fn ($s) => [
                 'id'   => $s->id,
-                'name' => $s->user?->name ?? trim(($s->first_name ?? '') . ' ' . ($s->last_name ?? '')),
+                'name' => $s->user_name ?: ('Staff #' . $s->id),
             ])
             ->values()
             ->all();
