@@ -84,6 +84,34 @@ class NotificationService
     }
 
     /**
+     * MSG91 frequently returns HTTP 2xx with `type: "error"` in the body when a
+     * request is rejected (template not approved, bad recipient, etc.). Treat
+     * any of those signals as a failure.
+     */
+    protected function msg91ResponseOk(\Illuminate\Http\Client\Response $response): bool
+    {
+        if (!$response->successful()) return false;
+
+        $body = $response->json();
+        if (!is_array($body)) return true; // unparseable = trust HTTP status
+
+        $type = strtolower((string) ($body['type'] ?? ''));
+        if (in_array($type, ['error', 'fail', 'failed', 'failure'], true)) return false;
+
+        $status = strtolower((string) ($body['status'] ?? ''));
+        if (in_array($status, ['error', 'fail', 'failed'], true)) return false;
+
+        // MSG91 sometimes returns 200 with a top-level error code/message but
+        // type=success — sniff for an explicit error message.
+        $msg = strtolower((string) ($body['message'] ?? ''));
+        if ($msg !== '' && (str_contains($msg, 'error') || str_contains($msg, 'does not exist') || str_contains($msg, 'invalid'))) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Safely stringify any placeholder value — handles BackedEnum, UnitEnum, null,
      * scalars, Stringable objects, arrays, and DateTime instances so that
      * `(string)$value` never explodes on an enum (PaymentMode, FeePaymentStatus, …).
@@ -261,7 +289,7 @@ class NotificationService
                 'accept'       => 'application/json'
             ])->post("https://control.msg91.com/api/v5/flow/?authkey={$authKey}", $payload);
 
-            $ok = $response->successful();
+            $ok = $this->msg91ResponseOk($response);
 
             CommunicationLog::create([
                 'school_id'         => $this->school->id,
@@ -345,7 +373,7 @@ class NotificationService
                 'authkey'      => $authKey
             ])->post("https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/", $payload);
 
-            $ok = $response->successful();
+            $ok = $this->msg91ResponseOk($response);
 
             CommunicationLog::create([
                 'school_id'         => $this->school->id,
