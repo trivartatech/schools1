@@ -2878,7 +2878,7 @@ class MobileApiController extends Controller
 
         $query = EditRequest::where('school_id', $school->id)
             ->where('requestable_type', Student::class)
-            ->with(['reviewer:id,name'])
+            ->with(['reviewer:id,name', 'requestable:id,first_name,last_name,admission_no'])
             ->orderByDesc('created_at');
 
         if ($user->isStudent()) {
