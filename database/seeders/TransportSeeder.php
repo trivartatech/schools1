@@ -17,9 +17,11 @@ class TransportSeeder extends Seeder
 
         // Clear existing transport data
         Schema::disableForeignKeyConstraints();
+        // gps_logs and live_locations scope by vehicle_id, not school_id
+        $vehicleIds = DB::table('transport_vehicles')->where('school_id', $schoolId)->pluck('id');
         DB::table('transport_student_allocation')->where('school_id', $schoolId)->delete();
-        DB::table('transport_gps_logs')->where('school_id', $schoolId)->delete();
-        DB::table('transport_vehicle_live_locations')->where('school_id', $schoolId)->delete();
+        DB::table('transport_gps_logs')->whereIn('vehicle_id', $vehicleIds)->delete();
+        DB::table('transport_vehicle_live_locations')->whereIn('vehicle_id', $vehicleIds)->delete();
         DB::table('transport_vehicles')->where('school_id', $schoolId)->delete();
         DB::table('transport_stops')->where('school_id', $schoolId)->delete();
         DB::table('transport_routes')->where('school_id', $schoolId)->delete();
