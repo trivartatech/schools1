@@ -8,9 +8,12 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import { useDelete } from '@/Composables/useDelete';
 import { useClassSections } from '@/Composables/useClassSections';
+import { useTableSort } from '@/Composables/useTableSort';
 import ExportDropdown from '@/Components/ExportDropdown.vue';
 import debounce from 'lodash/debounce';
 import Table from '@/Components/ui/Table.vue';
+import SortableTh from '@/Components/ui/SortableTh.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
 
 const { canDo } = usePermissions();
 const { del } = useDelete();
@@ -34,8 +37,15 @@ const selectedClass = ref(props.filters.class_id ?? '');
 const selectedSection = ref(props.filters.section_id ?? '');
 const selectedHouse = ref(props.filters.house_id ?? '');
 const defaulterFilter = ref(props.filters.defaulter ?? '');
+const selectedStudentType = ref(props.filters.student_type ?? '');
 const perPage = ref(Number(props.filters.per_page) || 20);
 const PER_PAGE_OPTIONS = [20, 40, 60, 100];
+
+// Server-side sort. Backend allowlist: name, erp_no, admission_no, gender, dob, status.
+const { sortKey, sortDir, toggleSort } = useTableSort(
+    props.filters.sort ?? null,
+    props.filters.dir ?? 'asc',
+);
 
 // Pre-load sections if class is already filtered
 if (selectedClass.value) {
@@ -44,14 +54,17 @@ if (selectedClass.value) {
 
 // Watch filters and debounce navigation. Always resets to page 1 so the user
 // doesn't land on a page that no longer exists after filtering.
-watch([search, selectedClass, selectedSection, selectedHouse, defaulterFilter, perPage], debounce(function ([s, cls, sec, house, def, pp]) {
+watch([search, selectedClass, selectedSection, selectedHouse, defaulterFilter, selectedStudentType, perPage, sortKey, sortDir], debounce(function ([s, cls, sec, house, def, stype, pp, sk, sd]) {
     router.get('/school/students', {
         search: s,
         class_id: cls,
         section_id: sec,
         house_id: house,
         defaulter: def,
+        student_type: stype,
         per_page: pp,
+        sort: sk,
+        dir: sd,
         page: 1,
     }, {
         preserveState: true,
@@ -77,8 +90,16 @@ watch([search, selectedClass, selectedSection, selectedHouse, defaulterFilter, p
                 </div>
                 <ExportDropdown
                     base-url="/school/export/students"
-                    :params="{ search, class_id: selectedClass, section_id: selectedSection }"
+                    :params="{ search, class_id: selectedClass, section_id: selectedSection, student_type: selectedStudentType }"
                 />
+                <Button variant="secondary" size="sm" as="a" :href="`/school/students/export-qr-pdf?class_id=${selectedClass}&section_id=${selectedSection}`" target="_blank" title="Print-ready PDF — 8 badges per A4 page">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m0 14v1m8-9h-1M5 12H4m11.314-6.314l-.707.707M6.393 17.607l-.707.707M17.607 17.607l-.707-.707M6.393 6.393l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                    QR Badges PDF
+                </Button>
+                <Button variant="secondary" size="sm" as="a" :href="`/school/students/export-qr?class_id=${selectedClass}&section_id=${selectedSection}`" title="Export QR codes to Excel">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    QR Excel
+                </Button>
                 <Button variant="secondary" size="sm" as="link" v-if="canDo('create', 'students')" href="/school/bulk-import?type=students">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
                     Bulk Import
@@ -100,7 +121,7 @@ watch([search, selectedClass, selectedSection, selectedHouse, defaulterFilter, p
         </PageHeader>
 
         <!-- Filters -->
-        <FilterBar :active="!!(search || selectedClass || selectedSection || selectedHouse || defaulterFilter !== '')" @clear="search = ''; selectedClass = ''; selectedSection = ''; selectedHouse = ''; defaulterFilter = '';">
+        <FilterBar :active="!!(search || selectedClass || selectedSection || selectedHouse || defaulterFilter !== '' || selectedStudentType)" @clear="search = ''; selectedClass = ''; selectedSection = ''; selectedHouse = ''; defaulterFilter = ''; selectedStudentType = '';">
             <div class="fb-search">
                 <svg class="fb-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/></svg>
                 <input v-model="search" type="search" placeholder="Search by name or admission no...">
@@ -122,90 +143,83 @@ watch([search, selectedClass, selectedSection, selectedHouse, defaulterFilter, p
                 <option value="1">Defaulters Only</option>
                 <option value="0">Non-Defaulters</option>
             </select>
-            <Button variant="secondary" size="sm" as="a" :href="`/school/students/export-qr-pdf?class_id=${selectedClass}&section_id=${selectedSection}`" target="_blank" title="Print-ready PDF — 8 badges per A4 page">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m0 14v1m8-9h-1M5 12H4m11.314-6.314l-.707.707M6.393 17.607l-.707.707M17.607 17.607l-.707-.707M6.393 6.393l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-                QR Badges PDF
-            </Button>
-            <Button variant="secondary" size="sm" as="a" :href="`/school/students/export-qr?class_id=${selectedClass}&section_id=${selectedSection}`" title="Export QR codes to Excel">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                QR Excel
-            </Button>
+            <select v-model="selectedStudentType" style="width:160px;" title="Filter by new or old student">
+                <option value="">All Students</option>
+                <option value="new">New Students</option>
+                <option value="old">Old Students</option>
+            </select>
         </FilterBar>
 
         <!-- ── List View ── -->
         <div v-if="viewMode === 'list'" class="card" style="overflow:hidden;margin-bottom:20px;">
-            <div style="overflow-x:auto;">
-                <Table>
-                    <thead>
-                        <tr>
-                            <th>Student</th>
-                            <th>ERP No</th>
-                            <th>Admission #</th>
-                            <th>Class / Section</th>
-                            <th>House</th>
-                            <th>Gender</th>
-                            <th>Date of Birth</th>
-                            <th>Parent</th>
-                            <th>Contact</th>
-                            <th>Status</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="student in students.data" :key="student.id">
-                            <td>
-                                <div style="display:flex;align-items:center;gap:10px;">
-                                    <div class="student-avatar-sm">
-                                        <img v-if="student.photo" :src="`/storage/${student.photo}`" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" />
-                                        <span v-else>{{ student.first_name?.charAt(0) }}{{ student.last_name?.charAt(0) }}</span>
-                                    </div>
-                                    <span style="font-weight:600;color:#0f172a;white-space:nowrap;">{{ student.first_name }} {{ student.last_name }}</span>
+            <Table v-if="students.data.length > 0" :sort-key="sortKey" :sort-dir="sortDir" @sort="toggleSort">
+                <thead>
+                    <tr>
+                        <SortableTh sort-key="name">Student</SortableTh>
+                        <SortableTh sort-key="erp_no">ERP No</SortableTh>
+                        <SortableTh sort-key="admission_no">Admission #</SortableTh>
+                        <th>Class / Section</th>
+                        <th>House</th>
+                        <SortableTh sort-key="gender">Gender</SortableTh>
+                        <SortableTh sort-key="dob">Date of Birth</SortableTh>
+                        <th>Parent</th>
+                        <th>Contact</th>
+                        <SortableTh sort-key="status">Status</SortableTh>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="student in students.data" :key="student.id">
+                        <td>
+                            <div style="display:flex;align-items:center;gap:10px;">
+                                <div class="student-avatar-sm">
+                                    <img v-if="student.photo" :src="`/storage/${student.photo}`" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" />
+                                    <span v-else>{{ student.first_name?.charAt(0) }}{{ student.last_name?.charAt(0) }}</span>
                                 </div>
-                            </td>
-                            <td><span class="erp-no-badge">{{ student.erp_no || '—' }}</span></td>
-                            <td><span style="font-family:monospace;font-size:0.8rem;color:#6366f1;font-weight:600;">{{ student.admission_no || '—' }}</span></td>
-                            <td>
-                                <div style="font-weight:600;color:#1e293b;">{{ student.current_academic_history?.course_class?.name || 'Unassigned' }}</div>
-                                <div style="font-size:0.75rem;color:#94a3b8;">{{ student.current_academic_history?.section?.name }}</div>
-                            </td>
-                            <td>
-                                <span v-if="student.current_house_assignment?.house" class="house-pill" :style="{ background: student.current_house_assignment.house.color + '22', color: student.current_house_assignment.house.color, borderColor: student.current_house_assignment.house.color + '55' }">
-                                    {{ student.current_house_assignment.house.name }}
-                                </span>
-                                <span v-else style="color:var(--text-muted);">—</span>
-                            </td>
-                            <td>{{ student.gender || '—' }}</td>
-                            <td style="white-space:nowrap;">{{ student.dob || '—' }}</td>
-                            <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ student.student_parent?.father_name || student.student_parent?.mother_name || student.student_parent?.guardian_name || '—' }}</td>
-                            <td style="white-space:nowrap;">{{ student.student_parent?.primary_phone || '—' }}</td>
-                            <td>
-                                <span class="badge" :class="student.status === 'Active' ? 'badge-green' : 'badge-gray'">{{ student.status || 'Active' }}</span>
-                                <span v-if="student.is_defaulter" class="defaulter-pill" title="Fee defaulter" style="margin-left:6px;">Defaulter</span>
-                            </td>
-                            <td>
-                                <Button variant="secondary" size="xs" as="link" :href="`/school/students/${student.id}`">View</Button>
-                            </td>
-                        </tr>
-                        <tr v-if="students.data.length === 0">
-                            <td colspan="10" style="text-align:center;padding:48px 24px;">
-                                <div class="empty-icon-wrap"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg></div>
-                                <p style="font-weight:600;color:#1e293b;margin-top:12px;">No students found</p>
-                                <p style="font-size:0.8125rem;color:#94a3b8;margin-top:4px;">Try adjusting your search or filters.</p>
-                            </td>
-                        </tr>
-                    </tbody>
-                </Table>
-            </div>
+                                <span style="font-weight:600;color:#0f172a;white-space:nowrap;">{{ student.first_name }} {{ student.last_name }}</span>
+                            </div>
+                        </td>
+                        <td><span class="erp-no-badge">{{ student.erp_no || '—' }}</span></td>
+                        <td><span style="font-family:monospace;font-size:0.8rem;color:#6366f1;font-weight:600;">{{ student.admission_no || '—' }}</span></td>
+                        <td>
+                            <div style="font-weight:600;color:#1e293b;">{{ student.current_academic_history?.course_class?.name || 'Unassigned' }}</div>
+                            <div style="font-size:0.75rem;color:#94a3b8;">{{ student.current_academic_history?.section?.name }}</div>
+                        </td>
+                        <td>
+                            <span v-if="student.current_house_assignment?.house" class="house-pill" :style="{ background: student.current_house_assignment.house.color + '22', color: student.current_house_assignment.house.color, borderColor: student.current_house_assignment.house.color + '55' }">
+                                {{ student.current_house_assignment.house.name }}
+                            </span>
+                            <span v-else style="color:var(--text-muted);">—</span>
+                        </td>
+                        <td>{{ student.gender || '—' }}</td>
+                        <td style="white-space:nowrap;">{{ student.dob || '—' }}</td>
+                        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ student.student_parent?.father_name || student.student_parent?.mother_name || student.student_parent?.guardian_name || '—' }}</td>
+                        <td style="white-space:nowrap;">{{ student.student_parent?.primary_phone || '—' }}</td>
+                        <td>
+                            <span class="badge" :class="student.status === 'Active' ? 'badge-green' : 'badge-gray'">{{ student.status || 'Active' }}</span>
+                            <span v-if="student.is_defaulter" class="defaulter-pill" title="Fee defaulter" style="margin-left:6px;">Defaulter</span>
+                        </td>
+                        <td>
+                            <Button variant="secondary" size="xs" as="link" :href="`/school/students/${student.id}`">View</Button>
+                        </td>
+                    </tr>
+                </tbody>
+            </Table>
+            <EmptyState
+                v-else
+                title="No students found"
+                description="Try adjusting your search or filters."
+            />
         </div>
 
         <!-- ── Card View ── -->
-        <div v-if="viewMode === 'card'" class="students-card-grid" style="margin-bottom:20px;">
-            <div v-if="students.data.length === 0" class="card" style="grid-column:1/-1;padding:64px 24px;text-align:center;">
-                <div class="empty-icon-wrap"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg></div>
-                <p style="font-weight:600;color:#1e293b;margin-top:12px;">No students found</p>
-                <p style="font-size:0.8125rem;color:#94a3b8;margin-top:4px;">Try adjusting your search or filters.</p>
-            </div>
-
+        <div v-if="viewMode === 'card' && students.data.length === 0" class="card" style="margin-bottom:20px;">
+            <EmptyState
+                title="No students found"
+                description="Try adjusting your search or filters."
+            />
+        </div>
+        <div v-else-if="viewMode === 'card'" class="students-card-grid" style="margin-bottom:20px;">
             <Link v-for="student in students.data" :key="student.id" v-memo="[student.id, student.status, student.photo, student.is_defaulter]" :href="`/school/students/${student.id}`" class="student-card">
                 <!-- Status dot -->
                 <div class="student-card-status" :class="student.status === 'Active' ? 'student-card-status--active' : 'student-card-status--inactive'"></div>
@@ -276,22 +290,6 @@ watch([search, selectedClass, selectedSection, selectedHouse, defaulterFilter, p
 </template>
 
 <style scoped>
-.filter-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-.filter-search { position: relative; flex: 1; min-width: 200px; }
-.filter-search-icon {
-    position: absolute;
-    left: 10px; top: 50%;
-    transform: translateY(-50%);
-    width: 16px; height: 16px;
-    color: #94a3b8;
-    pointer-events: none;
-}
-
 /* View toggle */
 .view-toggle {
     display: flex;
@@ -436,17 +434,6 @@ watch([search, selectedClass, selectedSection, selectedHouse, defaulterFilter, p
     font-size: 0.75rem; font-weight: 700; color: #6366f1;
     flex-shrink: 0; overflow: hidden;
 }
-
-/* Empty icon */
-.empty-icon-wrap {
-    width: 56px; height: 56px;
-    border-radius: 14px;
-    background: #f5f3ff;
-    display: flex; align-items: center; justify-content: center;
-    margin: 0 auto;
-    color: #a5b4fc;
-}
-.empty-icon-wrap svg { width: 28px; height: 28px; }
 
 /* Pagination footer */
 .pg-footer {

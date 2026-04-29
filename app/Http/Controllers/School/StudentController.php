@@ -119,10 +119,43 @@ class StudentController extends Controller
             });
         }
 
+        // New / Old student filter — matched against the explicit `student_type`
+        // tag on the current academic-history row (set at admission, overridable
+        // from the Record Detail modal). Substring match handles both 'new'/'old'
+        // and 'New Student'/'Old Student'.
+        if ($request->filled('student_type') && in_array($request->student_type, ['new', 'old'], true)) {
+            $type = $request->student_type;
+            $query->whereHas('currentAcademicHistory', function ($q) use ($type, $academicYearId) {
+                if ($academicYearId) {
+                    $q->where('academic_year_id', $academicYearId);
+                }
+                $q->where('student_type', 'like', "%{$type}%");
+            });
+        }
+
         // Manual defaulter flag — accepts 1/0/"yes"/"no". `filled()` lets the
         // filter toggle on explicitly without hijacking the unfiltered view.
         if ($request->filled('defaulter')) {
             $query->where('is_defaulter', $request->boolean('defaulter'));
+        }
+
+        // ── Sort — allowlist prevents arbitrary column ordering ─────────────
+        $sortMap = [
+            'name'         => 'first_name',
+            'erp_no'       => 'erp_no',
+            'admission_no' => 'admission_no',
+            'gender'       => 'gender',
+            'dob'          => 'dob',
+            'status'       => 'status',
+        ];
+        $sortKey = $request->input('sort');
+        $sortDir = strtolower($request->input('dir', 'asc')) === 'desc' ? 'desc' : 'asc';
+        if ($sortKey && isset($sortMap[$sortKey])) {
+            $query->orderBy($sortMap[$sortKey], $sortDir);
+            // Stable secondary sort on id so equal values get a deterministic order.
+            $query->orderBy('id', 'asc');
+        } else {
+            $query->orderBy('first_name')->orderBy('last_name');
         }
 
         // Page size — allowlist prevents abuse, default 20 matches historical behaviour.
@@ -209,7 +242,7 @@ class StudentController extends Controller
             'classes'             => $classes,
             'houses'              => $houses,
             'filters'             => array_merge(
-                $request->only(['search', 'class_id', 'section_id', 'status', 'house_id', 'defaulter']),
+                $request->only(['search', 'class_id', 'section_id', 'status', 'house_id', 'defaulter', 'student_type', 'sort', 'dir']),
                 ['per_page' => $perPage],
             ),
             'teacher_section_ids' => $scope->restricted ? $scope->sectionIds->values() : null,
