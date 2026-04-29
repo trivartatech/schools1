@@ -45,6 +45,15 @@ class StudentExportController extends Controller
         if ($request->filled('section_id')) {
             $query->whereHas('currentAcademicHistory', fn($q) => $q->where('section_id', $request->section_id));
         }
+        if ($request->filled('student_type') && in_array($request->student_type, ['new', 'old'], true)) {
+            $type = $request->student_type;
+            $query->whereHas('currentAcademicHistory', function ($q) use ($type, $academicYearId) {
+                if ($academicYearId) {
+                    $q->where('academic_year_id', $academicYearId);
+                }
+                $q->where('student_type', 'like', "%{$type}%");
+            });
+        }
 
         $students = $query->orderBy('first_name')->get();
 

@@ -26,6 +26,10 @@ class DueReportExportController extends Controller
         }
         $feeTypes = array_values(array_intersect(['regular', 'transport', 'hostel', 'stationary'], (array) $feeTypesIn));
 
+        $studentType = in_array($request->query('student_type'), ['new', 'old'], true)
+            ? $request->query('student_type')
+            : null;
+
         $rows = $service->rowsFor(
             $schoolId,
             $academicYearId,
@@ -33,6 +37,8 @@ class DueReportExportController extends Controller
             $request->filled('section_id') ? (int) $request->query('section_id') : null,
             $status,
             $feeTypes,
+            null,
+            $studentType,
         );
 
         $search = trim((string) $request->query('search', ''));

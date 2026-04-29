@@ -38,7 +38,8 @@ class DueReportService
         ?int $sectionId = null,
         string $status = 'all',
         array $feeTypes = [],
-        ?array $studentIds = null
+        ?array $studentIds = null,
+        ?string $studentType = null
     ): array {
         $students = Student::where('school_id', $schoolId)
             ->whereHas('currentAcademicHistory', fn($q) => $q->where('academic_year_id', $academicYearId))
@@ -90,15 +91,21 @@ class DueReportService
             $history = $student->currentAcademicHistory;
             if (!$history) continue;
 
-            $studentType = StudentAcademicHistory::resolveStudentType(
+            $resolvedType = StudentAcademicHistory::resolveStudentType(
                 $history->student_type,
                 $historyCounts[$student->id] ?? 1,
             );
+
+            // Skip rows that don't match the New/Old filter when one is set.
+            if ($studentType !== null && $resolvedType !== $studentType) {
+                continue;
+            }
+
             $gender = strtolower((string) $student->gender);
 
-            $applicable = $feeStructures->filter(function ($s) use ($history, $studentType, $gender) {
+            $applicable = $feeStructures->filter(function ($s) use ($history, $resolvedType, $gender) {
                 if ($s->class_id != $history->class_id) return false;
-                if ($s->student_type !== 'all' && $s->student_type !== $studentType) return false;
+                if ($s->student_type !== 'all' && $s->student_type !== $resolvedType) return false;
                 if ($s->gender !== 'all' && strtolower((string) $s->gender) !== $gender) return false;
                 return true;
             });

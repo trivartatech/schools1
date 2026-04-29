@@ -174,6 +174,10 @@ class LedgerController extends Controller
         }
         $feeTypes = array_values(array_intersect(['regular', 'transport', 'hostel'], (array) $feeTypesIn));
 
+        $studentType = in_array($request->student_type, ['new', 'old'], true)
+            ? $request->student_type
+            : null;
+
         $rows = $service->rowsFor(
             $schoolId,
             $academicYearId,
@@ -181,6 +185,8 @@ class LedgerController extends Controller
             $request->filled('section_id') ? (int) $request->section_id : null,
             $status,
             $feeTypes,
+            null,
+            $studentType,
         );
 
         $classes = \App\Models\CourseClass::where('school_id', $schoolId)
@@ -192,10 +198,11 @@ class LedgerController extends Controller
             'defaulters' => collect($rows)->values(),
             'classes'    => $classes,
             'filters'    => [
-                'class_id'   => $request->class_id,
-                'section_id' => $request->section_id,
-                'status'     => $status,
-                'fee_types'  => $feeTypes,
+                'class_id'     => $request->class_id,
+                'section_id'   => $request->section_id,
+                'status'       => $status,
+                'fee_types'    => $feeTypes,
+                'student_type' => $studentType ?? '',
             ],
         ]);
     }

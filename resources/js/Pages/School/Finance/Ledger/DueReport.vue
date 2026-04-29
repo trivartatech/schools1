@@ -21,10 +21,11 @@ const props = defineProps({
 });
 
 const filterForm = ref({
-    class_id:   props.filters.class_id   || '',
-    section_id: props.filters.section_id || '',
-    status:     props.filters.status     || 'all',
-    fee_types:  Array.isArray(props.filters.fee_types) ? [...props.filters.fee_types] : [],
+    class_id:     props.filters.class_id     || '',
+    section_id:   props.filters.section_id   || '',
+    status:       props.filters.status       || 'all',
+    fee_types:    Array.isArray(props.filters.fee_types) ? [...props.filters.fee_types] : [],
+    student_type: props.filters.student_type || '',
 });
 
 const sections = ref([]);
@@ -87,6 +88,7 @@ const resetFilter = () => {
     filterForm.value.section_id = '';
     filterForm.value.status = 'all';
     filterForm.value.fee_types = [];
+    filterForm.value.student_type = '';
     sections.value = [];
     searchQuery.value = '';
     fetchReport();
@@ -308,13 +310,14 @@ async function bulkFlagListed(flag) {
                 <ExportDropdown
                     :base-url="`/school/export/due-report`"
                     :params="{
-                        class_id:   filterForm.class_id,
-                        section_id: filterForm.section_id,
-                        status:     filterForm.status,
-                        fee_types:  filterForm.fee_types.join(','),
-                        search:     searchQuery,
-                        sort_key:   sortKey,
-                        sort_dir:   sortDir,
+                        class_id:     filterForm.class_id,
+                        section_id:   filterForm.section_id,
+                        status:       filterForm.status,
+                        fee_types:    filterForm.fee_types.join(','),
+                        student_type: filterForm.student_type,
+                        search:       searchQuery,
+                        sort_key:     sortKey,
+                        sort_dir:     sortDir,
                     }"
                     :formats="['excel', 'pdf']"
                 />
@@ -344,7 +347,7 @@ async function bulkFlagListed(flag) {
 
         <!-- Filters -->
         <FilterBar
-            :active="!!(filterForm.class_id || filterForm.section_id || (filterForm.status && filterForm.status !== 'all') || filterForm.fee_types.length || searchQuery)"
+            :active="!!(filterForm.class_id || filterForm.section_id || (filterForm.status && filterForm.status !== 'all') || filterForm.fee_types.length || filterForm.student_type || searchQuery)"
             @clear="resetFilter"
         >
             <div class="form-field">
@@ -369,6 +372,15 @@ async function bulkFlagListed(flag) {
                     <option value="all">All Students</option>
                     <option value="defaulter">Defaulters Only</option>
                     <option value="not_defaulter">Non-Defaulters Only</option>
+                </select>
+            </div>
+
+            <div class="form-field">
+                <label>Student Type</label>
+                <select v-model="filterForm.student_type" @change="fetchReport" style="width:170px;">
+                    <option value="">All Students</option>
+                    <option value="new">New Students</option>
+                    <option value="old">Old Students</option>
                 </select>
             </div>
 

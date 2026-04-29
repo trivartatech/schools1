@@ -247,6 +247,67 @@ function submitAssignTransport() {
     });
 }
 
+// ── Edit Transport (modal — shown when student has an existing allocation) ────
+const showEditTransport = ref(false);
+const editTransportForm = useForm({
+    route_id:    '',
+    stop_id:     '',
+    vehicle_id:  '',
+    pickup_type: 'both',
+    months:      Math.floor(props.standardMonths || 10),
+    days:        0,
+    start_date:  '',
+    end_date:    '',
+    status:      'active',
+});
+
+function openEditTransport() {
+    const a = props.student.transport_allocation;
+    if (!a) return;
+    const total = Number(a.months_opted ?? props.standardMonths ?? 10);
+    const whole = Math.floor(total);
+    const extraDays = Math.round((total - whole) * 30);
+    editTransportForm.route_id    = a.route_id ?? '';
+    editTransportForm.stop_id     = a.stop_id ?? '';
+    editTransportForm.vehicle_id  = a.vehicle_id ?? '';
+    editTransportForm.pickup_type = a.pickup_type ?? 'both';
+    editTransportForm.months      = whole;
+    editTransportForm.days        = extraDays;
+    editTransportForm.start_date  = a.start_date ?? '';
+    editTransportForm.end_date    = a.end_date ?? '';
+    editTransportForm.status      = a.status ?? 'active';
+    showEditTransport.value = true;
+}
+
+const editRouteStops = computed(() => {
+    if (!editTransportForm.route_id) return [];
+    const r = props.transportRoutes.find(r => r.id == editTransportForm.route_id);
+    return r?.stops ?? [];
+});
+const editSelectedStop = computed(() => editRouteStops.value.find(s => s.id == editTransportForm.stop_id));
+const editMonthsOpted = computed(() => {
+    const m = Math.max(0, Math.min(24, Number(editTransportForm.months) || 0));
+    const d = Math.max(0, Math.min(30, Number(editTransportForm.days)   || 0));
+    return Math.round((m + d / 30) * 100) / 100;
+});
+const editComputedFee = computed(() => {
+    if (!editSelectedStop.value?.fee) return 0;
+    const std = Number(props.standardMonths) > 0 ? Number(props.standardMonths) : 10;
+    return Math.round(((Number(editSelectedStop.value.fee) / std) * editMonthsOpted.value) * 100) / 100;
+});
+const editTermTooShort = computed(() => editMonthsOpted.value > 0 && editMonthsOpted.value < 0.5);
+
+function onEditRouteChange() { editTransportForm.stop_id = ''; }
+
+function submitEditTransport() {
+    const id = props.student.transport_allocation?.id;
+    if (!id) return;
+    editTransportForm.put(`/school/transport/allocations/${id}`, {
+        preserveScroll: true,
+        onSuccess: () => { showEditTransport.value = false; },
+    });
+}
+
 // ── Inline Assign Stationary Kit (shown when student has no allocation) ──────
 const showAssignStationary = ref(false);
 const assignStationaryForm = useForm({
@@ -1178,6 +1239,9 @@ const deleteDisc = async (id) => {
                                     </svg>
                                     Collect Fee
                                 </Button>
+                                <Button v-if="student.transport_allocation" variant="secondary" size="sm" @click="openEditTransport">
+                                    Edit
+                                </Button>
                                 <Button variant="secondary" size="sm" as="a" href="/school/transport/allocations">Manage Allocations</Button>
                             </div>
                         </div>
@@ -1383,6 +1447,93 @@ const deleteDisc = async (id) => {
                             </form>
                         </div>
                     </div>
+
+                    <!-- Edit Transport Modal -->
+                    <Modal v-model:open="showEditTransport" title="Edit Transport Allocation" size="md">
+                        <form @submit.prevent="submitEditTransport" id="edit-transport-form">
+                            <div v-if="Object.keys(editTransportForm.errors).length" style="background:#fef2f2;border:1px solid #fecaca;border-radius:0.5rem;padding:0.65rem 0.9rem;margin-bottom:12px;">
+                                <p v-for="(msg, key) in editTransportForm.errors" :key="key" style="font-size:0.8rem;color:#dc2626;margin:0.1rem 0;">{{ Array.isArray(msg) ? msg[0] : msg }}</p>
+                            </div>
+
+                            <div class="form-row form-row-2">
+                                <div class="form-field">
+                                    <label>Route *</label>
+                                    <select v-model="editTransportForm.route_id" @change="onEditRouteChange" required>
+                                        <option value="">— Select Route —</option>
+                                        <option v-for="r in transportRoutes" :key="r.id" :value="r.id">{{ r.route_name }}</option>
+                                    </select>
+                                </div>
+                                <div class="form-field">
+                                    <label>Boarding Stop *</label>
+                                    <select v-model="editTransportForm.stop_id" :disabled="!editTransportForm.route_id" required>
+                                        <option value="">Select Stop</option>
+                                        <option v-for="s in editRouteStops" :key="s.id" :value="s.id">
+                                            {{ s.stop_name }}{{ s.fee ? ' — ₹' + s.fee : '' }}
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-row form-row-2" style="margin-top:14px;">
+                                <div class="form-field">
+                                    <label>Months Opted *</label>
+                                    <input v-model.number="editTransportForm.months" type="number" min="0" max="24" step="1" required>
+                                </div>
+                                <div class="form-field">
+                                    <label>Extra Days</label>
+                                    <input v-model.number="editTransportForm.days" type="number" min="0" max="30" step="1">
+                                </div>
+                            </div>
+
+                            <div v-if="editSelectedStop?.fee > 0" style="padding:0.625rem 0.875rem;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.3);border-radius:0.5rem;font-size:0.8125rem;color:#065f46;margin:14px 0 0;line-height:1.5;">
+                                <div>Stop fee: <strong>₹{{ editSelectedStop.fee }}</strong> <span style="color:#6b7280;">(for {{ standardMonths }} months)</span></div>
+                                <div>Student opts for: <strong>{{ editTransportForm.months || 0 }} months{{ editTransportForm.days ? ' + ' + editTransportForm.days + ' days' : '' }}</strong> = <strong>{{ editMonthsOpted }} months</strong></div>
+                                <div style="margin-top:0.25rem;padding-top:0.25rem;border-top:1px dashed rgba(16,185,129,0.3);">
+                                    Transport fee: <strong style="color:var(--success);font-size:0.95rem;">₹{{ editComputedFee }}</strong>
+                                </div>
+                            </div>
+                            <div v-if="editTermTooShort" style="padding:0.5rem 0.75rem;background:#fef3c7;border:1px solid #fcd34d;border-radius:0.5rem;font-size:0.8125rem;color:#92400e;margin-top:14px;">
+                                Minimum term is 15 days (0.5 months).
+                            </div>
+
+                            <div class="form-row form-row-2" style="margin-top:14px;">
+                                <div class="form-field">
+                                    <label>Pickup Type *</label>
+                                    <select v-model="editTransportForm.pickup_type" required>
+                                        <option value="both">Both</option>
+                                        <option value="pickup">Pickup Only</option>
+                                        <option value="drop">Drop Only</option>
+                                    </select>
+                                </div>
+                                <div class="form-field">
+                                    <label>Status</label>
+                                    <select v-model="editTransportForm.status">
+                                        <option value="active">Active</option>
+                                        <option value="inactive">Inactive</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-row form-row-2" style="margin-top:14px;">
+                                <div class="form-field">
+                                    <label>Start Date</label>
+                                    <input v-model="editTransportForm.start_date" type="date">
+                                </div>
+                                <div class="form-field">
+                                    <label>End Date</label>
+                                    <input v-model="editTransportForm.end_date" type="date">
+                                </div>
+                            </div>
+                        </form>
+                        <template #footer>
+                            <Button variant="secondary" type="button" @click="showEditTransport = false">Cancel</Button>
+                            <Button type="submit" form="edit-transport-form"
+                                    :loading="editTransportForm.processing"
+                                    :disabled="editTransportForm.processing || editTermTooShort || editMonthsOpted === 0 || !editTransportForm.route_id || !editTransportForm.stop_id">
+                                {{ editTransportForm.processing ? 'Saving…' : 'Update' }}
+                            </Button>
+                        </template>
+                    </Modal>
                 </div>
 
                 <!-- ─── TAB: STATIONARY ────────────────────────────────────── -->

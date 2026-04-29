@@ -5,6 +5,7 @@ import PageHeader from '@/Components/ui/PageHeader.vue';
 import StatsRow from '@/Components/ui/StatsRow.vue';
 import EmptyState from '@/Components/ui/EmptyState.vue';
 import Table from '@/Components/ui/Table.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 import { ref, reactive, computed, watch } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -39,6 +40,45 @@ const form = reactive({
 const fetchingStudents = ref(false);
 const students = ref([]);
 const sections = ref([]);
+
+// ── Table filters (client-side) ─────────────────────────────────
+const filters = reactive({ search: '', class_id: '', section_id: '' });
+const filterSections = ref([]);
+
+watch(() => filters.class_id, async (val) => {
+    filters.section_id = '';
+    filterSections.value = [];
+    if (!val) return;
+    try {
+        const res = await fetch(`/school/classes/${val}/sections`);
+        filterSections.value = await res.json();
+    } catch (e) {
+        console.error('Error fetching filter sections', e);
+    }
+});
+
+const filtersActive = computed(() => !!(filters.search || filters.class_id || filters.section_id));
+function clearFilters() { filters.search = ''; filters.class_id = ''; filters.section_id = ''; }
+
+const filteredAllocations = computed(() => {
+    const q = filters.search.trim().toLowerCase();
+    const cid = filters.class_id ? Number(filters.class_id) : null;
+    const sid = filters.section_id ? Number(filters.section_id) : null;
+    return props.allocations.filter(a => {
+        if (cid || sid) {
+            const h = a.student?.current_academic_history;
+            if (!h) return false;
+            if (cid && Number(h.class_id) !== cid) return false;
+            if (sid && Number(h.section_id) !== sid) return false;
+        }
+        if (q) {
+            const name = (a.student?.user?.name || [a.student?.first_name, a.student?.last_name].filter(Boolean).join(' ') || '').toLowerCase();
+            const adm  = (a.student?.admission_no || '').toLowerCase();
+            if (!name.includes(q) && !adm.includes(q)) return false;
+        }
+        return true;
+    });
+});
 
 watch(() => form.class_id, async (val) => {
     form.section_id = '';
@@ -198,12 +238,29 @@ const statCards = computed(() => [
         <!-- Stats -->
         <StatsRow :cols="3" :stats="statCards" />
 
+        <!-- Filters -->
+        <FilterBar :active="filtersActive" @clear="clearFilters">
+            <div class="fb-search">
+                <svg class="fb-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/></svg>
+                <input v-model="filters.search" type="search" placeholder="Search by name or admission no.">
+            </div>
+            <select v-model="filters.class_id" style="width:140px;">
+                <option value="">All classes</option>
+                <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+            </select>
+            <select v-if="filters.class_id && filterSections.length > 0" v-model="filters.section_id" style="width:140px;">
+                <option value="">All sections</option>
+                <option v-for="s in filterSections" :key="s.id" :value="s.id">{{ s.name }}</option>
+            </select>
+        </FilterBar>
+
         <!-- Allocations Table -->
         <div class="card">
-            <Table :empty="!allocations.length">
+            <Table :empty="!filteredAllocations.length">
                 <thead>
                     <tr>
                         <th>Student</th>
+                        <th>Class / Section</th>
                         <th>Route</th>
                         <th>Stop</th>
                         <th>Vehicle</th>
@@ -214,10 +271,15 @@ const statCards = computed(() => [
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="a in allocations" :key="a.id">
+                    <tr v-for="a in filteredAllocations" :key="a.id">
                         <td>
                             <p style="font-weight:600;color:#111827;">{{ a.student?.user?.name || [a.student?.first_name, a.student?.last_name].filter(Boolean).join(' ') || '—' }}</p>
                             <p style="font-size:0.75rem;color:#9ca3af;">{{ a.student?.admission_no }}</p>
+                        </td>
+                        <td>
+                            <span style="font-size:0.85rem;color:#374151;">
+                                {{ [a.student?.current_academic_history?.course_class?.name, a.student?.current_academic_history?.section?.name].filter(Boolean).join(' - ') || '—' }}
+                            </span>
                         </td>
                         <td>{{ a.route?.route_name || '—' }}</td>
                         <td>{{ a.stop?.stop_name || '—' }}</td>
@@ -237,6 +299,14 @@ const statCards = computed(() => [
                 </tbody>
                 <template #empty>
                     <EmptyState
+                        v-if="filtersActive"
+                        title="No matches"
+                        description="No allocations match the current filter."
+                        action-label="Clear filters"
+                        @action="clearFilters"
+                    />
+                    <EmptyState
+                        v-else
                         title="No students assigned yet"
                         description="Assign students to a route and stop to start tracking transport."
                         :action-label="can('create_transport_allocations') ? '+ Assign Student' : ''"

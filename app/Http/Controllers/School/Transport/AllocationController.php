@@ -21,6 +21,9 @@ class AllocationController extends Controller
             ->with([
                 'student:id,admission_no,first_name,last_name',
                 'student.user:id,name',
+                'student.currentAcademicHistory:id,student_id,class_id,section_id',
+                'student.currentAcademicHistory.courseClass:id,name',
+                'student.currentAcademicHistory.section:id,name',
                 'route:id,route_name,route_code',
                 'stop:id,stop_name,stop_code,fee',
                 'vehicle:id,vehicle_number,vehicle_name',
