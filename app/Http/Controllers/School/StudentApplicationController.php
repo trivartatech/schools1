@@ -75,6 +75,7 @@ class StudentApplicationController extends Controller
             'class_id'          => ['required', Rule::exists('course_classes', 'id')->where('school_id', $schoolId)],
             'section_id'        => ['nullable', Rule::exists('sections', 'id')->where('school_id', $schoolId)],
             'student_type'      => 'nullable|in:New Student,Old Student',
+            'admission_date'    => 'nullable|date',
             'first_name'        => 'required|string|max:255',
             'last_name'         => 'nullable|string|max:255',
             'dob'               => 'required|date',
@@ -158,7 +159,9 @@ class StudentApplicationController extends Controller
         // Map application fields into the format AdmissionService expects
         $data = array_merge($registration->toArray(), [
             'roll_no'        => null, // will be auto-generated
-            'admission_date' => now()->format('Y-m-d'),
+            'admission_date' => $registration->admission_date
+                ? \Carbon\Carbon::parse($registration->admission_date)->format('Y-m-d')
+                : now()->format('Y-m-d'),
         ]);
 
         try {
@@ -252,6 +255,7 @@ class StudentApplicationController extends Controller
             'class_id'          => ['required', Rule::exists('course_classes', 'id')->where('school_id', $schoolId)],
             'section_id'        => ['nullable', Rule::exists('sections', 'id')->where('school_id', $schoolId)],
             'student_type'      => 'nullable|in:New Student,Old Student',
+            'admission_date'    => 'nullable|date',
             'first_name'        => 'required|string|max:255',
             'last_name'         => 'nullable|string|max:255',
             'dob'               => 'required|date',

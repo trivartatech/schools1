@@ -12,11 +12,14 @@ const props = defineProps({
     standardMonths: { type: Number, default: 10 },
 });
 
+const today = new Date().toISOString().slice(0, 10);
+
 const form = useForm({
     // Academic
     class_id: '',
     section_id: '',
     student_type: 'New Student',
+    admission_date: today,
 
     // Student
     first_name: '',
@@ -177,6 +180,12 @@ const submit = () => {
                             </select>
                             <span class="field-hint">Used for fee-rule matching ("New only" / "Old only" structures).</span>
                             <span v-if="form.errors.student_type" class="form-error">{{ form.errors.student_type }}</span>
+                        </div>
+
+                        <div class="form-field">
+                            <label>Admission Date <span class="required">*</span></label>
+                            <input v-model="form.admission_date" type="date" required>
+                            <span v-if="form.errors.admission_date" class="form-error">{{ form.errors.admission_date }}</span>
                         </div>
                     </div>
                 </div>

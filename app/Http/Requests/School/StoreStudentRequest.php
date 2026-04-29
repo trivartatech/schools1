@@ -21,6 +21,7 @@ class StoreStudentRequest extends FormRequest
             'class_id'   => ['required', Rule::exists('course_classes', 'id')->where('school_id', $schoolId)],
             'section_id' => ['required', Rule::exists('sections', 'id')->where('school_id', $schoolId)],
             'student_type' => 'nullable|in:New Student,Old Student',
+            'admission_date' => 'nullable|date',
 
             // Student Personal
             'first_name'               => 'required|string|max:255',

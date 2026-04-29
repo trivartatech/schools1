@@ -16,6 +16,7 @@ const form = useForm({
     class_id:           props.application.class_id       ?? '',
     section_id:         props.application.section_id     ?? '',
     student_type:       props.application.student_type   ?? 'New Student',
+    admission_date:     props.application.admission_date ?? '',
     first_name:         props.application.first_name     ?? '',
     last_name:          props.application.last_name      ?? '',
     dob:                props.application.dob            ?? '',
@@ -152,6 +153,13 @@ const submit = () => {
                             </select>
                             <p class="text-xs text-gray-400 mt-1">Drives fee-rule matching for this academic year.</p>
                             <p v-if="form.errors.student_type" class="text-xs text-red-500 mt-1">{{ form.errors.student_type }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Admission Date</label>
+                            <input v-model="form.admission_date" type="date"
+                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none" />
+                            <p class="text-xs text-gray-400 mt-1">Used when the application is approved.</p>
+                            <p v-if="form.errors.admission_date" class="text-xs text-red-500 mt-1">{{ form.errors.admission_date }}</p>
                         </div>
                     </div>
                 </div>
