@@ -93,6 +93,13 @@ class ExaminationModuleSeeder extends Seeder
             $this->command->info('2. Creating schedules...');
             foreach ($classes as $cls) {
                 foreach ($examTypesMap as $code => $typeId) {
+                    // CBSE mark scheme: FA out of 25 (Th 20 + IA 5), SA out of 100 (Th 80 + IA 20)
+                    $isFA      = str_starts_with($code, 'FA');
+                    $thMax     = $isFA ? 20 : 80;
+                    $thPass    = $isFA ? 7  : 26;
+                    $iaMax     = $isFA ? 5  : 20;
+                    $iaPass    = $isFA ? 2  : 7;
+
                     $schedule = ExamSchedule::create([
                         'school_id' => $schoolId, 'academic_year_id' => $academicYearId, 'exam_type_id' => $typeId,
                         'course_class_id' => $cls->id, 'weightage' => $weightageMap[$code] ?? 25,
@@ -106,8 +113,8 @@ class ExaminationModuleSeeder extends Seeder
                     foreach ($scholasticSubjects->random(min(5, $scholasticSubjects->count())) as $sub) {
                         $ess = ExamScheduleSubject::create(['exam_schedule_id' => $schedule->id, 'subject_id' => $sub->id, 'exam_assessment_id' => $mainAssessment->id, 'is_co_scholastic' => false, 'grading_system_id' => $scholasticGrading?->id, 'exam_date' => now(), 'exam_time' => '10:00:00']);
                         DB::table('exam_schedule_subject_marks')->insert([
-                            ['exam_schedule_subject_id' => $ess->id, 'exam_assessment_item_id' => $thItem->id, 'max_marks' => 80, 'passing_marks' => 26],
-                            ['exam_schedule_subject_id' => $ess->id, 'exam_assessment_item_id' => $iaItem->id, 'max_marks' => 20, 'passing_marks' => 7],
+                            ['exam_schedule_subject_id' => $ess->id, 'exam_assessment_item_id' => $thItem->id, 'max_marks' => $thMax, 'passing_marks' => $thPass],
+                            ['exam_schedule_subject_id' => $ess->id, 'exam_assessment_item_id' => $iaItem->id, 'max_marks' => $iaMax, 'passing_marks' => $iaPass],
                         ]);
                     }
 
@@ -133,14 +140,36 @@ class ExaminationModuleSeeder extends Seeder
                 foreach ($studentIds as $studentId) {
                     foreach ($schedule->scheduleSubjects as $ss) {
                         foreach ($ss->markConfigs as $mConfig) {
+                            $maxMarks  = (int) $mConfig->max_marks;
+                            $passMarks = (int) $mConfig->passing_marks;
+
+                            // Realistic CBSE-style spread: ~3% absent, ~7% fail, 90% pass.
+                            // Pass distribution skews towards mid-range (60-85% of max).
+                            $roll = rand(0, 100);
+                            if ($roll < 3) {
+                                // Absent — 0 marks, flagged.
+                                $isAbsent = true;
+                                $obtained = 0;
+                            } elseif ($roll < 10) {
+                                // Below passing
+                                $isAbsent = false;
+                                $obtained = $passMarks > 0 ? rand(0, max(0, $passMarks - 1)) : 0;
+                            } else {
+                                // Pass: skew to 50%-95% of max
+                                $isAbsent = false;
+                                $low      = max($passMarks, (int) round($maxMarks * 0.50));
+                                $high     = (int) round($maxMarks * 0.95);
+                                $obtained = $high > $low ? rand($low, $high) : $maxMarks;
+                            }
+
                             DB::table('exam_marks')->insert([
                                 'school_id'                => $schoolId,
                                 'academic_year_id'         => $academicYearId,
                                 'student_id'               => $studentId,
                                 'exam_schedule_subject_id' => $ss->id,
                                 'exam_assessment_item_id'  => $mConfig->exam_assessment_item_id,
-                                'marks_obtained'           => rand(30, 95),
-                                'is_absent'                => false,
+                                'marks_obtained'           => $obtained,
+                                'is_absent'                => $isAbsent,
                                 'created_at'               => now(), 'updated_at' => now(),
                             ]);
                             $marksInserted++;
