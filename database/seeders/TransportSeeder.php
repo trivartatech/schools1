@@ -27,13 +27,14 @@ class TransportSeeder extends Seeder
         DB::table('transport_routes')->where('school_id', $schoolId)->delete();
         Schema::enableForeignKeyConstraints();
 
-        // ── 1. Routes ──────────────────────────────────────────────────────────
+        // ── 1. Routes (Chitradurga district, Karnataka) ───────────────────────
+        $schoolEnd = 'School Campus, Chitradurga';
         $routesData = [
-            ['route_name' => 'Route A - Dwarka Express', 'route_code' => 'RT-A', 'start_location' => 'Dwarka Sector 23', 'end_location' => 'school1', 'distance' => 12.5, 'estimated_time' => '45 mins'],
-            ['route_name' => 'Route B - Rohini Corridor', 'route_code' => 'RT-B', 'start_location' => 'Rohini Sector 3',  'end_location' => 'school1', 'distance' => 18.0, 'estimated_time' => '60 mins'],
-            ['route_name' => 'Route C - Janakpuri Link',  'route_code' => 'RT-C', 'start_location' => 'Janakpuri West',   'end_location' => 'school1', 'distance' => 9.2,  'estimated_time' => '35 mins'],
-            ['route_name' => 'Route D - Pitampura Ring',  'route_code' => 'RT-D', 'start_location' => 'Pitampura Metro',  'end_location' => 'school1', 'distance' => 14.0, 'estimated_time' => '50 mins'],
-            ['route_name' => 'Route E - Paschim Vihar',  'route_code' => 'RT-E', 'start_location' => 'Paschim Vihar',    'end_location' => 'school1', 'distance' => 7.8,  'estimated_time' => '30 mins'],
+            ['route_name' => 'Route A - Davanagere Road', 'route_code' => 'RT-A', 'start_location' => 'Joladahalli Circle',     'end_location' => $schoolEnd, 'distance' => 12.5, 'estimated_time' => '40 mins'],
+            ['route_name' => 'Route B - Hiriyur Road',     'route_code' => 'RT-B', 'start_location' => 'Aimangala Village',      'end_location' => $schoolEnd, 'distance' => 18.0, 'estimated_time' => '55 mins'],
+            ['route_name' => 'Route C - Holalkere Road',   'route_code' => 'RT-C', 'start_location' => 'Mayakonda',              'end_location' => $schoolEnd, 'distance' => 9.2,  'estimated_time' => '30 mins'],
+            ['route_name' => 'Route D - Bellary Road',     'route_code' => 'RT-D', 'start_location' => 'Sugur Cross',            'end_location' => $schoolEnd, 'distance' => 14.0, 'estimated_time' => '45 mins'],
+            ['route_name' => 'Route E - City Inner Ring',  'route_code' => 'RT-E', 'start_location' => 'Gandhi Nagar Bus Stand', 'end_location' => $schoolEnd, 'distance' => 7.8,  'estimated_time' => '25 mins'],
         ];
 
         $routeIds = [];
@@ -45,35 +46,40 @@ class TransportSeeder extends Seeder
             ]));
         }
 
-        // ── 2. Stops per Route ─────────────────────────────────────────────────
+        // ── 2. Stops per Route (Chitradurga district lat/lng cluster ~14.22 N, 76.40 E) ──
         $stopsPerRoute = [
+            // RT-A: Davanagere Road (NE)
             'RT-A' => [
-                ['stop_name' => 'Dwarka Sector 23 Metro Gate 2', 'pickup_time' => '06:45:00', 'drop_time' => '15:30:00', 'distance_from_school' => 12.5, 'fee' => 2400, 'stop_order' => 1, 'lat' => 28.5562, 'lng' => 77.0595],
-                ['stop_name' => 'Dwarka Sector 19 Chowk',        'pickup_time' => '06:55:00', 'drop_time' => '15:20:00', 'distance_from_school' => 10.2, 'fee' => 2200, 'stop_order' => 2, 'lat' => 28.5661, 'lng' => 77.0632],
-                ['stop_name' => 'Dwarka Sector 12 Bus Terminal',  'pickup_time' => '07:05:00', 'drop_time' => '15:10:00', 'distance_from_school' => 7.8,  'fee' => 2000, 'stop_order' => 3, 'lat' => 28.5721, 'lng' => 77.0698],
-                ['stop_name' => 'Dwarka Sector 6 Market',         'pickup_time' => '07:15:00', 'drop_time' => '15:00:00', 'distance_from_school' => 5.5,  'fee' => 1800, 'stop_order' => 4, 'lat' => 28.5808, 'lng' => 77.0751],
+                ['stop_name' => 'Joladahalli Circle',         'pickup_time' => '06:45:00', 'drop_time' => '15:30:00', 'distance_from_school' => 12.5, 'fee' => 2400, 'stop_order' => 1, 'lat' => 14.2820, 'lng' => 76.4510],
+                ['stop_name' => 'Medehalli Junction',         'pickup_time' => '06:55:00', 'drop_time' => '15:20:00', 'distance_from_school' => 10.2, 'fee' => 2200, 'stop_order' => 2, 'lat' => 14.2685, 'lng' => 76.4380],
+                ['stop_name' => 'Onake Obavva Stadium Gate',   'pickup_time' => '07:05:00', 'drop_time' => '15:10:00', 'distance_from_school' => 7.8,  'fee' => 2000, 'stop_order' => 3, 'lat' => 14.2510, 'lng' => 76.4260],
+                ['stop_name' => 'Fort Road Crossing',          'pickup_time' => '07:15:00', 'drop_time' => '15:00:00', 'distance_from_school' => 5.5,  'fee' => 1800, 'stop_order' => 4, 'lat' => 14.2370, 'lng' => 76.4150],
             ],
+            // RT-B: Hiriyur Road (S, NH-48)
             'RT-B' => [
-                ['stop_name' => 'Rohini Sector 3 Metro',         'pickup_time' => '06:30:00', 'drop_time' => '15:45:00', 'distance_from_school' => 18.0, 'fee' => 2800, 'stop_order' => 1, 'lat' => 28.7133, 'lng' => 77.1070],
-                ['stop_name' => 'Rohini Sector 7 E-Block',       'pickup_time' => '06:42:00', 'drop_time' => '15:35:00', 'distance_from_school' => 15.5, 'fee' => 2600, 'stop_order' => 2, 'lat' => 28.7005, 'lng' => 77.1012],
-                ['stop_name' => 'Rohini Sector 11 Market',       'pickup_time' => '06:52:00', 'drop_time' => '15:25:00', 'distance_from_school' => 12.0, 'fee' => 2400, 'stop_order' => 3, 'lat' => 28.6921, 'lng' => 77.0985],
-                ['stop_name' => 'Shalimar Bagh Red Light',       'pickup_time' => '07:05:00', 'drop_time' => '15:12:00', 'distance_from_school' => 8.0,  'fee' => 2000, 'stop_order' => 4, 'lat' => 28.6805, 'lng' => 77.1801],
+                ['stop_name' => 'Aimangala Village',           'pickup_time' => '06:30:00', 'drop_time' => '15:45:00', 'distance_from_school' => 18.0, 'fee' => 2800, 'stop_order' => 1, 'lat' => 14.0820, 'lng' => 76.4420],
+                ['stop_name' => 'Bharamasagara Bus Stand',      'pickup_time' => '06:42:00', 'drop_time' => '15:35:00', 'distance_from_school' => 15.5, 'fee' => 2600, 'stop_order' => 2, 'lat' => 14.1180, 'lng' => 76.4360],
+                ['stop_name' => 'Turuvanur Junction',           'pickup_time' => '06:52:00', 'drop_time' => '15:25:00', 'distance_from_school' => 12.0, 'fee' => 2400, 'stop_order' => 3, 'lat' => 14.1520, 'lng' => 76.4280],
+                ['stop_name' => 'Hiriyur Road Toll',            'pickup_time' => '07:05:00', 'drop_time' => '15:12:00', 'distance_from_school' => 8.0,  'fee' => 2000, 'stop_order' => 4, 'lat' => 14.1820, 'lng' => 76.4180],
             ],
+            // RT-C: Holalkere Road (W)
             'RT-C' => [
-                ['stop_name' => 'Janakpuri West Metro',          'pickup_time' => '07:00:00', 'drop_time' => '15:25:00', 'distance_from_school' => 9.2,  'fee' => 2000, 'stop_order' => 1, 'lat' => 28.6282, 'lng' => 77.0826],
-                ['stop_name' => 'Janakpuri C-2 Block',           'pickup_time' => '07:10:00', 'drop_time' => '15:15:00', 'distance_from_school' => 6.8,  'fee' => 1800, 'stop_order' => 2, 'lat' => 28.6321, 'lng' => 77.0901],
-                ['stop_name' => 'Vikaspuri Main Market',         'pickup_time' => '07:18:00', 'drop_time' => '15:07:00', 'distance_from_school' => 4.5,  'fee' => 1600, 'stop_order' => 3, 'lat' => 28.6397, 'lng' => 77.0952],
+                ['stop_name' => 'Mayakonda Village',            'pickup_time' => '07:00:00', 'drop_time' => '15:25:00', 'distance_from_school' => 9.2,  'fee' => 2000, 'stop_order' => 1, 'lat' => 14.2280, 'lng' => 76.3160],
+                ['stop_name' => 'Holalkere Road Cross',         'pickup_time' => '07:10:00', 'drop_time' => '15:15:00', 'distance_from_school' => 6.8,  'fee' => 1800, 'stop_order' => 2, 'lat' => 14.2240, 'lng' => 76.3450],
+                ['stop_name' => 'Gowtham Hills Layout',         'pickup_time' => '07:18:00', 'drop_time' => '15:07:00', 'distance_from_school' => 4.5,  'fee' => 1600, 'stop_order' => 3, 'lat' => 14.2210, 'lng' => 76.3720],
             ],
+            // RT-D: Bellary Road (N)
             'RT-D' => [
-                ['stop_name' => 'Pitampura TV Tower Metro',      'pickup_time' => '06:40:00', 'drop_time' => '15:40:00', 'distance_from_school' => 14.0, 'fee' => 2600, 'stop_order' => 1, 'lat' => 28.7007, 'lng' => 77.1302],
-                ['stop_name' => 'Pitampura Shalimar Garden',     'pickup_time' => '06:50:00', 'drop_time' => '15:30:00', 'distance_from_school' => 11.5, 'fee' => 2400, 'stop_order' => 2, 'lat' => 28.6923, 'lng' => 77.1251],
-                ['stop_name' => 'Ashok Vihar Phase 2',           'pickup_time' => '07:02:00', 'drop_time' => '15:18:00', 'distance_from_school' => 8.0,  'fee' => 2000, 'stop_order' => 3, 'lat' => 28.6841, 'lng' => 77.1731],
-                ['stop_name' => 'Netaji Subhash Place',          'pickup_time' => '07:12:00', 'drop_time' => '15:08:00', 'distance_from_school' => 5.5,  'fee' => 1800, 'stop_order' => 4, 'lat' => 28.6931, 'lng' => 77.1536],
+                ['stop_name' => 'Sugur Cross',                  'pickup_time' => '06:40:00', 'drop_time' => '15:40:00', 'distance_from_school' => 14.0, 'fee' => 2600, 'stop_order' => 1, 'lat' => 14.3380, 'lng' => 76.4420],
+                ['stop_name' => 'Hampapatna Gate',              'pickup_time' => '06:50:00', 'drop_time' => '15:30:00', 'distance_from_school' => 11.5, 'fee' => 2400, 'stop_order' => 2, 'lat' => 14.3120, 'lng' => 76.4350],
+                ['stop_name' => 'Challakere Road Junction',     'pickup_time' => '07:02:00', 'drop_time' => '15:18:00', 'distance_from_school' => 8.0,  'fee' => 2000, 'stop_order' => 3, 'lat' => 14.2820, 'lng' => 76.4250],
+                ['stop_name' => 'Bharamapuram Layout',          'pickup_time' => '07:12:00', 'drop_time' => '15:08:00', 'distance_from_school' => 5.5,  'fee' => 1800, 'stop_order' => 4, 'lat' => 14.2580, 'lng' => 76.4180],
             ],
+            // RT-E: City Inner Ring
             'RT-E' => [
-                ['stop_name' => 'Paschim Vihar East Metro',      'pickup_time' => '07:10:00', 'drop_time' => '15:20:00', 'distance_from_school' => 7.8,  'fee' => 1800, 'stop_order' => 1, 'lat' => 28.6690, 'lng' => 77.1006],
-                ['stop_name' => 'Paschim Vihar A-Block',         'pickup_time' => '07:18:00', 'drop_time' => '15:12:00', 'distance_from_school' => 5.2,  'fee' => 1600, 'stop_order' => 2, 'lat' => 28.6712, 'lng' => 77.1055],
-                ['stop_name' => 'Meera Bagh Chowk',              'pickup_time' => '07:25:00', 'drop_time' => '15:05:00', 'distance_from_school' => 3.0,  'fee' => 1400, 'stop_order' => 3, 'lat' => 28.6742, 'lng' => 77.1109],
+                ['stop_name' => 'Gandhi Nagar Bus Stand',       'pickup_time' => '07:10:00', 'drop_time' => '15:20:00', 'distance_from_school' => 7.8,  'fee' => 1800, 'stop_order' => 1, 'lat' => 14.2330, 'lng' => 76.3950],
+                ['stop_name' => 'Santhe Bagilu Market Gate',    'pickup_time' => '07:18:00', 'drop_time' => '15:12:00', 'distance_from_school' => 5.2,  'fee' => 1600, 'stop_order' => 2, 'lat' => 14.2280, 'lng' => 76.4010],
+                ['stop_name' => 'IB Road Crossing',             'pickup_time' => '07:25:00', 'drop_time' => '15:05:00', 'distance_from_school' => 3.0,  'fee' => 1400, 'stop_order' => 3, 'lat' => 14.2250, 'lng' => 76.4055],
             ],
         ];
 
@@ -105,12 +111,13 @@ class TransportSeeder extends Seeder
         // Get driver-designation staff (we'll use any available staff as drivers)
         $staffIds = DB::table('staff')->where('school_id', $schoolId)->pluck('id')->toArray();
 
+        // KA 16 = Chitradurga RTO registration prefix
         $vehiclesData = [
-            ['vehicle_number' => 'DL 1C 0001', 'vehicle_name' => 'Tata Starbus Ultra 52',  'capacity' => 52, 'route_code' => 'RT-A', 'conductor_name' => 'Ramesh Yadav',   'gps' => 'GPS-A1', 'insurance_expiry' => '2026-12-31', 'fitness_expiry' => '2026-08-15', 'pollution_expiry' => '2026-05-10'],
-            ['vehicle_number' => 'DL 1C 0002', 'vehicle_name' => 'Eicher Skyline Pro 35',  'capacity' => 35, 'route_code' => 'RT-B', 'conductor_name' => 'Sunil Kumar',    'gps' => 'GPS-B1', 'insurance_expiry' => '2026-11-30', 'fitness_expiry' => '2026-07-20', 'pollution_expiry' => '2026-04-25'],
-            ['vehicle_number' => 'DL 1C 0003', 'vehicle_name' => 'Tata LP 909 Mini Bus',   'capacity' => 30, 'route_code' => 'RT-C', 'conductor_name' => 'Mahesh Singh',   'gps' => 'GPS-C1', 'insurance_expiry' => '2026-10-15', 'fitness_expiry' => '2026-09-30', 'pollution_expiry' => '2026-06-05'],
-            ['vehicle_number' => 'DL 1C 0004', 'vehicle_name' => 'Tata Starbus Ultra 45',  'capacity' => 45, 'route_code' => 'RT-D', 'conductor_name' => 'Dinesh Prasad',  'gps' => 'GPS-D1', 'insurance_expiry' => '2027-01-31', 'fitness_expiry' => '2026-06-10', 'pollution_expiry' => '2026-07-15'],
-            ['vehicle_number' => 'DL 1C 0005', 'vehicle_name' => 'Force Traveller 26 STD', 'capacity' => 26, 'route_code' => 'RT-E', 'conductor_name' => 'Rajendra Verma', 'gps' => 'GPS-E1', 'insurance_expiry' => '2026-09-30', 'fitness_expiry' => '2026-10-20', 'pollution_expiry' => '2026-08-01'],
+            ['vehicle_number' => 'KA 16 A 0001', 'vehicle_name' => 'Tata Starbus Ultra 52',  'capacity' => 52, 'route_code' => 'RT-A', 'conductor_name' => 'Manjunath G',   'gps' => 'GPS-A1', 'insurance_expiry' => '2026-12-31', 'fitness_expiry' => '2026-08-15', 'pollution_expiry' => '2026-05-10'],
+            ['vehicle_number' => 'KA 16 A 0002', 'vehicle_name' => 'Eicher Skyline Pro 35',  'capacity' => 35, 'route_code' => 'RT-B', 'conductor_name' => 'Venkatesh M',   'gps' => 'GPS-B1', 'insurance_expiry' => '2026-11-30', 'fitness_expiry' => '2026-07-20', 'pollution_expiry' => '2026-04-25'],
+            ['vehicle_number' => 'KA 16 B 0003', 'vehicle_name' => 'Tata LP 909 Mini Bus',   'capacity' => 30, 'route_code' => 'RT-C', 'conductor_name' => 'Nagaraj K',     'gps' => 'GPS-C1', 'insurance_expiry' => '2026-10-15', 'fitness_expiry' => '2026-09-30', 'pollution_expiry' => '2026-06-05'],
+            ['vehicle_number' => 'KA 16 B 0004', 'vehicle_name' => 'Tata Starbus Ultra 45',  'capacity' => 45, 'route_code' => 'RT-D', 'conductor_name' => 'Basavaraj N',   'gps' => 'GPS-D1', 'insurance_expiry' => '2027-01-31', 'fitness_expiry' => '2026-06-10', 'pollution_expiry' => '2026-07-15'],
+            ['vehicle_number' => 'KA 16 C 0005', 'vehicle_name' => 'Force Traveller 26 STD', 'capacity' => 26, 'route_code' => 'RT-E', 'conductor_name' => 'Shivakumar R',  'gps' => 'GPS-E1', 'insurance_expiry' => '2026-09-30', 'fitness_expiry' => '2026-10-20', 'pollution_expiry' => '2026-08-01'],
         ];
 
         $vehicleIds = []; // route_code => vehicle_id
