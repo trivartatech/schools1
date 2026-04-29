@@ -237,6 +237,13 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     // Finance — Due Report (admin/accountant)
     Route::get('/finance/due-report',      [$MA, 'dueReport'])->name('api.mobile.finance.due-report');
 
+    // Disciplinary Records (admin only)
+    $DR = \App\Http\Controllers\Api\Mobile\DisciplinaryController::class;
+    Route::get  ('/disciplinary',                       [$DR, 'index'])         ->name('api.mobile.disciplinary.index');
+    Route::post ('/disciplinary',                       [$DR, 'store'])         ->name('api.mobile.disciplinary.store');
+    Route::patch('/disciplinary/{id}',                  [$DR, 'update'])        ->whereNumber('id')->name('api.mobile.disciplinary.update');
+    Route::get  ('/disciplinary/student/{studentId}',   [$DR, 'studentHistory'])->whereNumber('studentId')->name('api.mobile.disciplinary.student-history');
+
     // Transport — Admin (read-only fleet/route/allocation views)
     $TA = \App\Http\Controllers\Api\Mobile\TransportAdminController::class;
     Route::get('/transport/admin/routes',          [$TA, 'routes'])      ->name('api.mobile.transport.admin.routes');
