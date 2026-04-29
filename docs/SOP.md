@@ -856,7 +856,7 @@ get a draft paper. Edit before using.
 
 The biggest module. Every monetary action in the school flows through here.
 
-### Fee Collect
+### Collect Fee
 **Path:** Sidebar → **Finance & Fees** → **Collect Fee**
 
 The most-used screen in this module — used multiple times a day at the
@@ -1135,7 +1135,7 @@ Student complaints (food, water, electricity, room issues).
 
 Per-meal headcount used for catering.
 
-**Hostel Fee Collection** — done from **Sidebar → Finance → Fee Collect**
+**Hostel Fee Collection** — done from **Sidebar → Finance & Fees → Collect Fee**
 when the student has a hostel fee head, or via the Hostel allocation page.
 Receipt obeys the same Receipt Print Settings.
 
@@ -1190,7 +1190,7 @@ Map view of buses (requires the GPS device on each bus to be reporting).
 
 Per-driver shift / location history.
 
-**Transport Fee Collection** — done from **Sidebar → Finance → Fee Collect**
+**Transport Fee Collection** — done from **Sidebar → Finance & Fees → Collect Fee**
 or from the allocations page. Same receipt format.
 
 ---
@@ -1556,7 +1556,7 @@ Each morning (≈ 15 minutes):
 
 Once a week (Friday afternoon works well):
 
-1. **Defaulter report** — Sidebar → Finance → Fee Due Report. Sort by
+1. **Defaulter report** — Sidebar → **Finance & Fees** → **Due Report**. Sort by
    ageing. From the page, trigger reminder SMS / WhatsApp via Communication.
 2. **Staff attendance & pending leaves** — Sidebar → HR → Leaves.
 3. **House points** (if you run the house system) — Sidebar (Houses page,
@@ -1571,9 +1571,9 @@ End-of-month / first of next month (≈ 60-90 minutes):
 
 1. **Run payroll** — Sidebar → HR → Payroll → Generate → Review → Mark as
    Paid.
-2. **Finance reports** — Sidebar → Finance → Profit & Loss for the month;
+2. **Finance reports** — Sidebar → **Finance & Fees** → **Financial Statements** (Profit & Loss tab) for the month;
    Trial Balance to verify books are balanced.
-3. **Budget variance** — Sidebar → Finance → Budgets.
+3. **Budget variance** — Sidebar → **Finance & Fees** → **Budget Management**.
 4. **Transport fee defaulters** — Sidebar → Transport → Transport Fee
    Defaulters.
 5. **Inventory stock check** — Settings → Asset Configuration if managing
@@ -1720,10 +1720,10 @@ The most common cause: it isn't published yet.
    notification was received.
 2. Sidebar → **Finance & Fees** → **Transactions** — search by amount or
    parent phone, see if a Fee Payment was created.
-3. If yes → go to Sidebar → Finance → Fee Collect → student → it should
+3. If yes → go to Sidebar → **Finance & Fees** → **Collect Fee** → student → it should
    show as paid; print receipt.
 4. If no → call IT (Razorpay webhook may have failed); meanwhile, manually
-   record the payment in Fee Collect with **Online** as the method.
+   record the payment in **Collect Fee** with **Online** as the method.
 
 ### Daily Master Report didn't arrive
 
@@ -2094,7 +2094,7 @@ Test every template on yourself before broadcasting.
 | **Active / Inactive** | A staff member or user who can no longer log in / be selected in workflows but is preserved for historical records. Always **deactivate**, don't delete. |
 | **Allocation** | A student's assignment to a transport route, hostel bed, or stationary item set. |
 | **Audit Log** | Settings → Activity Log. Every meaningful change with user, time, IP, before/after. Available to admin and auditor roles. |
-| **Concession** | A discount or waiver applied to a student's fee. Defined as a type in Sidebar → Finance → Fee Concessions, then assigned per student. |
+| **Concession** | A discount or waiver applied to a student's fee. Defined as a type in Sidebar → Finance & Fees → Concessions, then assigned per student. |
 | **Custom Field** | A school-specific field added to Student / Staff forms via Settings → Custom Fields. |
 | **Day Book** | A single day's complete cash movement summary. |
 | **Defaulter** | A student with overdue fee. |
@@ -2104,7 +2104,7 @@ Test every template on yourself before broadcasting.
 | **Fee Head** | A single line item on a fee bill (Tuition, Lab, Library, Dev Fund). |
 | **Fee Structure** | The mapping of fee groups to classes (or sections, or specific students). |
 | **Fine** | Late-payment penalty added automatically when a fee head crosses its due date. |
-| **GL Auto-posting** | The mapping of each fee head and expense category to a chart-of-accounts ledger. Configured in Sidebar → Finance → GL Auto-posting Config. |
+| **GL Auto-posting** | The mapping of each fee head and expense category to a chart-of-accounts ledger. Configured in Sidebar → Finance & Fees → GL Auto-Posting. |
 | **Grading System** | The mapping of marks to grades, used by exam results. |
 | **Holiday** | A non-working day declared in Sidebar → Holidays & Events. The 00:30 holiday-fill job auto-marks attendance for these. |
 | **Incharge** | The class teacher / section in-charge assigned in Sidebar → Staff & HR → Incharge Assignment. |
