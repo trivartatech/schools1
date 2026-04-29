@@ -320,6 +320,15 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     Route::get('/exam-marks/students',  [$EMC, 'students'])->name('api.mobile.exam-marks.students');
     Route::post('/exam-marks/save',     [$EMC, 'save'])->name('api.mobile.exam-marks.save');
 
+    // Hostel admin (lean v1: rooms / allocations)
+    $HOST = \App\Http\Controllers\Api\Mobile\HostelController::class;
+    Route::get  ('/hostel/hostels',                       [$HOST, 'hostels'])         ->name('api.mobile.hostel.hostels');
+    Route::get  ('/hostel/rooms',                         [$HOST, 'rooms'])           ->name('api.mobile.hostel.rooms');
+    Route::get  ('/hostel/available-beds',                [$HOST, 'availableBeds'])   ->name('api.mobile.hostel.available-beds');
+    Route::get  ('/hostel/allocations',                   [$HOST, 'allocations'])     ->name('api.mobile.hostel.allocations');
+    Route::post ('/hostel/allocations',                   [$HOST, 'createAllocation'])->name('api.mobile.hostel.allocations.create');
+    Route::patch('/hostel/allocations/{id}/vacate',       [$HOST, 'vacateAllocation'])->whereNumber('id')->name('api.mobile.hostel.allocations.vacate');
+
     // Stationary items (admin)
     $STAT = \App\Http\Controllers\Api\Mobile\StationaryController::class;
     Route::get   ('/stationary/items',          [$STAT, 'items'])      ->name('api.mobile.stationary.items');
