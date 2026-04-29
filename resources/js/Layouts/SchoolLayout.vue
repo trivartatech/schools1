@@ -165,6 +165,77 @@ watch(showPunchPanel, (v) => {
     else document.removeEventListener('click', closePunchPanel);
 });
 
+// ── Topbar Student Search ────────────────────────────────────────
+const studentSearchQuery = ref('');
+const studentSearchResults = ref([]);
+const studentSearchOpen = ref(false);
+const studentSearchLoading = ref(false);
+const studentSearchActive = ref(-1);
+let studentSearchAbort = null;
+let studentSearchTimer = null;
+
+watch(studentSearchQuery, (q) => {
+    clearTimeout(studentSearchTimer);
+    studentSearchActive.value = -1;
+    if (!q || q.trim().length < 2) {
+        studentSearchResults.value = [];
+        studentSearchLoading.value = false;
+        studentSearchOpen.value = false;
+        return;
+    }
+    studentSearchOpen.value = true;
+    studentSearchLoading.value = true;
+    studentSearchTimer = setTimeout(async () => {
+        try {
+            if (studentSearchAbort) studentSearchAbort.abort();
+            studentSearchAbort = new AbortController();
+            const res = await fetch(`/school/students/search?q=${encodeURIComponent(q.trim())}`, { signal: studentSearchAbort.signal });
+            if (!res.ok) throw new Error('search failed');
+            studentSearchResults.value = await res.json();
+        } catch (e) {
+            if (e.name !== 'AbortError') {
+                studentSearchResults.value = [];
+            }
+        } finally {
+            studentSearchLoading.value = false;
+        }
+    }, 250);
+});
+
+function gotoStudent(id) {
+    studentSearchOpen.value = false;
+    studentSearchQuery.value = '';
+    studentSearchResults.value = [];
+    router.visit(`/school/students/${id}`);
+}
+
+function onStudentSearchKey(e) {
+    const list = studentSearchResults.value;
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (!list.length) return;
+        studentSearchActive.value = (studentSearchActive.value + 1) % list.length;
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!list.length) return;
+        studentSearchActive.value = (studentSearchActive.value - 1 + list.length) % list.length;
+    } else if (e.key === 'Enter') {
+        const pick = list[studentSearchActive.value] ?? list[0];
+        if (pick) { e.preventDefault(); gotoStudent(pick.id); }
+    } else if (e.key === 'Escape') {
+        studentSearchOpen.value = false;
+    }
+}
+
+function closeStudentSearch(e) {
+    const wrap = document.getElementById('topbar-student-search');
+    if (wrap && !wrap.contains(e.target)) studentSearchOpen.value = false;
+}
+watch(studentSearchOpen, (v) => {
+    if (v) setTimeout(() => document.addEventListener('click', closeStudentSearch), 0);
+    else document.removeEventListener('click', closeStudentSearch);
+});
+
 // Human-readable role label for the sidebar footer
 const roleLabel = computed(() => ({
     super_admin: 'Super Admin',
@@ -428,6 +499,51 @@ const canSeeUserManagement = computed(() => {
                         <span class="topbar-breadcrumb">{{ schoolName }}</span>
                     </div>
                 </div>
+
+                <!-- Topbar Student Search -->
+                <div v-if="can('view_students')" id="topbar-student-search" class="topbar-search">
+                    <div class="topbar-search-input-wrap">
+                        <svg class="topbar-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
+                        </svg>
+                        <input
+                            v-model="studentSearchQuery"
+                            @focus="studentSearchQuery && studentSearchResults.length && (studentSearchOpen = true)"
+                            @keydown="onStudentSearchKey"
+                            type="search"
+                            class="topbar-search-input"
+                            placeholder="Search student by name, admission no, phone..."
+                            autocomplete="off"
+                        >
+                        <span v-if="studentSearchLoading" class="topbar-search-spinner"></span>
+                    </div>
+
+                    <!-- Dropdown -->
+                    <div v-if="studentSearchOpen && studentSearchQuery.trim().length >= 2" class="topbar-search-dropdown">
+                        <div v-if="studentSearchLoading && !studentSearchResults.length" class="topbar-search-empty">
+                            Searching…
+                        </div>
+                        <div v-else-if="!studentSearchResults.length" class="topbar-search-empty">
+                            No students match "{{ studentSearchQuery }}"
+                        </div>
+                        <button
+                            v-for="(s, i) in studentSearchResults"
+                            :key="s.id"
+                            type="button"
+                            class="topbar-search-item"
+                            :class="{ 'topbar-search-item--active': i === studentSearchActive }"
+                            @click="gotoStudent(s.id)"
+                            @mouseenter="studentSearchActive = i"
+                        >
+                            <div class="topbar-search-item-main">
+                                <span class="topbar-search-item-name">{{ [s.first_name, s.last_name].filter(Boolean).join(' ') || '—' }}</span>
+                                <span class="topbar-search-item-adm">{{ s.admission_no }}</span>
+                            </div>
+                            <span v-if="s.class_section" class="topbar-search-item-meta">{{ s.class_section }}</span>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="topbar-right">
                     <!-- Super Admin School Switcher -->
                     <div class="relative group" v-if="page.props.auth?.user?.user_type === 'super_admin' && page.props.all_schools?.length > 0">
@@ -1076,6 +1192,130 @@ body {
     line-height: 1;
 }
 .topbar-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+/* ── Topbar Student Search ───────────────────────────────────── */
+.topbar-search {
+    position: relative;
+    flex: 1 1 auto;
+    max-width: 420px;
+    min-width: 0;
+    margin: 0 12px;
+}
+.topbar-search-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.topbar-search-icon {
+    position: absolute;
+    left: 11px;
+    width: 15px;
+    height: 15px;
+    color: #94a3b8;
+    pointer-events: none;
+}
+.topbar-search-input {
+    width: 100%;
+    height: 36px;
+    padding: 0 32px 0 34px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #f8fafc;
+    font-size: 0.85rem;
+    color: #1e293b;
+    outline: none;
+    transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+    font-family: inherit;
+}
+.topbar-search-input::placeholder { color: #94a3b8; }
+.topbar-search-input:focus {
+    border-color: #1169cd;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(17, 105, 205, 0.08);
+}
+.topbar-search-spinner {
+    position: absolute;
+    right: 11px;
+    width: 14px;
+    height: 14px;
+    border: 2px solid #cbd5e1;
+    border-top-color: #1169cd;
+    border-radius: 50%;
+    animation: topbarSearchSpin 0.7s linear infinite;
+}
+@keyframes topbarSearchSpin { to { transform: rotate(360deg); } }
+.topbar-search-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.18), 0 4px 12px -4px rgba(15, 23, 42, 0.08);
+    max-height: 360px;
+    overflow-y: auto;
+    z-index: 50;
+    padding: 4px;
+}
+.topbar-search-empty {
+    padding: 14px 16px;
+    font-size: 0.8125rem;
+    color: #94a3b8;
+    text-align: center;
+}
+.topbar-search-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.1s;
+}
+.topbar-search-item--active,
+.topbar-search-item:hover {
+    background: #f1f5f9;
+}
+.topbar-search-item-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.topbar-search-item-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.topbar-search-item-adm {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    font-family: ui-monospace, monospace;
+    margin-top: 1px;
+}
+.topbar-search-item-meta {
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: #64748b;
+    background: #f1f5f9;
+    padding: 3px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* On narrow screens, hide the search to keep the topbar usable */
+@media (max-width: 768px) {
+    .topbar-search { display: none; }
+}
 
 /* Topbar divider */
 .topbar-divider {
