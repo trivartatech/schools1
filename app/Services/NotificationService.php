@@ -102,10 +102,27 @@ class NotificationService
         return (string) $value;
     }
 
+    /**
+     * Globally-resolved placeholders that always fall back to a tenant-derived
+     * value when the caller omits them. Keeps per-method `notify*` data arrays
+     * lean — every template can use ##SCHOOL_NAME## / ##APP_NAME## without the
+     * notifier having to remember to inject them.
+     */
+    protected function globalPlaceholders(): array
+    {
+        $schoolName = $this->school->name ?? config('app.name', 'School ERP');
+        return [
+            'app_name'    => $schoolName,
+            'school_name' => $schoolName,
+        ];
+    }
+
     protected function replacePlaceholders($content, $data)
     {
-        if (!isset($data['app_name'])) {
-            $data['app_name'] = $this->school->name;
+        foreach ($this->globalPlaceholders() as $key => $value) {
+            if (!isset($data[$key])) {
+                $data[$key] = $value;
+            }
         }
 
         return preg_replace_callback('/##([A-Za-z0-9_]+)##/', function($matches) use ($data) {
@@ -114,7 +131,11 @@ class NotificationService
 
             if (isset($data[$key]))       return $this->stringifyValue($data[$key]);
             if (isset($data[$lowerKey]))  return $this->stringifyValue($data[$lowerKey]);
-            if ($lowerKey === 'app_name') return $this->school->name;
+
+            // Final fallback for globally-resolved placeholders even if caller
+            // somehow stripped them from $data.
+            $globals = $this->globalPlaceholders();
+            if (isset($globals[$lowerKey])) return $globals[$lowerKey];
 
             return $matches[0];
         }, $content);
@@ -131,14 +152,17 @@ class NotificationService
             return array_map(fn($v) => $this->stringifyValue($v), array_values($data));
         }
 
-        $params = [];
+        $globals = $this->globalPlaceholders();
+        $params  = [];
+
         foreach ($matches[1] as $key) {
             $lowerKey = strtolower($key);
-            if ($lowerKey === 'app_name' && !isset($data[$lowerKey]) && !isset($data[$key])) {
-                $params[] = $this->school->name;
-            } else {
-                $params[] = $this->stringifyValue($data[$lowerKey] ?? ($data[$key] ?? ''));
-            }
+
+            if (isset($data[$lowerKey])) { $params[] = $this->stringifyValue($data[$lowerKey]); continue; }
+            if (isset($data[$key]))      { $params[] = $this->stringifyValue($data[$key]);      continue; }
+            if (isset($globals[$lowerKey])) { $params[] = $globals[$lowerKey];                  continue; }
+
+            $params[] = '';
         }
         return $params;
     }

@@ -43,11 +43,12 @@ class CommunicationTemplate extends Model
     public const SYSTEM_TRIGGERS = [
         'attendance_update' => [
             'name'      => 'Student Daily Attendance',
-            'variables' => ['name', 'attendance', 'date', 'father_name', 'course_name', 'batch_name', 'app_name'],
+            'variables' => ['name', 'attendance', 'date', 'father_name', 'course_name', 'batch_name', 'school_name', 'app_name'],
             'channels'  => ['sms', 'whatsapp', 'voice', 'push'],
             'defaults'  => [
                 'sms'      => 'Dear ##FATHER_NAME##, your ward ##NAME## was marked ##ATTENDANCE## on ##DATE## at ##COURSE_NAME## - ##BATCH_NAME##.',
-                'whatsapp' => 'Dear ##FATHER_NAME##, your ward ##NAME## was marked ##ATTENDANCE## on ##DATE## at ##COURSE_NAME## - ##BATCH_NAME##.',
+                // Meta-approved Utility template (Apr 2026). Variable order: name, attendance, date, course_name, batch_name, school_name.
+                'whatsapp' => "Dear Parent,\n\nWe would like to inform you that ##NAME## was marked ##ATTENDANCE## on ##DATE## for ##COURSE_NAME## - ##BATCH_NAME##. Kindly contact the class teacher for any clarifications regarding attendance.\n\nRegards,\n##SCHOOL_NAME## Administration",
                 'voice'    => 'Dear parent, your ward ##NAME## was marked ##ATTENDANCE## on ##DATE##.',
                 'push'     => '##NAME## was marked ##ATTENDANCE## on ##DATE##.',
             ],
@@ -55,22 +56,25 @@ class CommunicationTemplate extends Model
         ],
         'transport_attendance' => [
             'name'      => 'Transport Attendance',
-            'variables' => ['name', 'status', 'trip_type', 'trip_label', 'stop_name', 'date', 'time', 'father_name', 'app_name'],
+            'variables' => ['name', 'status', 'trip_type', 'trip_label', 'stop_name', 'date', 'time', 'father_name', 'school_name', 'app_name'],
             'channels'  => ['sms', 'whatsapp', 'push'],
             'defaults'  => [
                 'sms'      => 'Dear ##FATHER_NAME##, your ward ##NAME## has ##TRIP_LABEL## at ##STOP_NAME## on ##DATE## at ##TIME##.',
-                'whatsapp' => 'Dear ##FATHER_NAME##, your ward ##NAME## has ##TRIP_LABEL## at ##STOP_NAME## on ##DATE## at ##TIME##.',
+                // Meta-approved Utility template (Apr 2026). Variable order: name, trip_label, stop_name, date, time, school_name.
+                'whatsapp' => "Dear Parent,\n\nThis is to inform you that your ward ##NAME## has ##TRIP_LABEL## at ##STOP_NAME## on ##DATE## at ##TIME##. Please ensure pick-up and drop-off arrangements are in place.\n\nRegards,\n##SCHOOL_NAME## Transport Team",
                 'push'     => '##NAME## has ##TRIP_LABEL## at ##STOP_NAME##.',
             ],
             'subjects'  => ['push' => 'Transport Update - ##NAME##'],
         ],
         'fee_payment_confirmed' => [
             'name'      => 'Fee Payment Confirmed',
-            'variables' => ['name', 'amount', 'receipt_no', 'datetime', 'payment_method', 'course_name', 'batch_name'],
+            'variables' => ['name', 'amount', 'receipt_no', 'datetime', 'payment_method', 'course_name', 'batch_name', 'school_name'],
             'channels'  => ['sms', 'whatsapp', 'voice', 'push'],
             'defaults'  => [
                 'sms'      => 'Dear Parent, Rs.##AMOUNT## fee received for ##NAME## (Receipt: ##RECEIPT_NO##) on ##DATETIME## via ##PAYMENT_METHOD##.',
-                'whatsapp' => 'Dear Parent, Rs.##AMOUNT## fee received for ##NAME## (Receipt: ##RECEIPT_NO##) on ##DATETIME## via ##PAYMENT_METHOD##.',
+                // Meta-approved Utility template (Apr 2026). Receipt number dropped for density compliance.
+                // Variable order: amount, name, datetime, payment_method, school_name.
+                'whatsapp' => "Dear Parent,\n\nWe have received Rs.##AMOUNT## towards school fee for ##NAME## on ##DATETIME## via ##PAYMENT_METHOD##. Thank you for the prompt payment.\n\n- ##SCHOOL_NAME## Administration",
                 'voice'    => 'Dear parent, fee payment of rupees ##AMOUNT## has been received for ##NAME##. Receipt number ##RECEIPT_NO##.',
                 'push'     => 'Rs.##AMOUNT## received for ##NAME##. Receipt: ##RECEIPT_NO##.',
             ],
@@ -78,11 +82,12 @@ class CommunicationTemplate extends Model
         ],
         'fee_due_reminder' => [
             'name'      => 'Fee Due Reminder',
-            'variables' => ['name', 'amount', 'date', 'course_name', 'batch_name'],
+            'variables' => ['name', 'amount', 'date', 'course_name', 'batch_name', 'school_name'],
             'channels'  => ['sms', 'whatsapp', 'voice', 'push'],
             'defaults'  => [
                 'sms'      => 'Dear Parent, fee of Rs.##AMOUNT## is due for ##NAME## (##COURSE_NAME##) by ##DATE##. Please pay at the earliest.',
-                'whatsapp' => 'Dear Parent, fee of Rs.##AMOUNT## is due for ##NAME## (##COURSE_NAME##) by ##DATE##. Please pay at the earliest.',
+                // Meta-approved Utility template (Apr 2026). Variable order: amount, name, course_name, date, school_name.
+                'whatsapp' => "Dear Parent,\n\nThis is a gentle reminder that school fee of Rs.##AMOUNT## is due for ##NAME## (##COURSE_NAME##) by ##DATE##. Please make the payment at the earliest to avoid late fee charges.\n\nRegards,\n##SCHOOL_NAME## Administration",
                 'voice'    => 'Dear parent, fee of rupees ##AMOUNT## is due for ##NAME## by ##DATE##. Please pay at the earliest.',
                 'push'     => 'Fee of Rs.##AMOUNT## is due for ##NAME## by ##DATE##.',
             ],
@@ -116,11 +121,12 @@ class CommunicationTemplate extends Model
         ],
         'exam_published' => [
             'name'      => 'Exam Schedule Published',
-            'variables' => ['name', 'title', 'datetime', 'class_name', 'type'],
+            'variables' => ['name', 'title', 'datetime', 'class_name', 'type', 'school_name'],
             'channels'  => ['sms', 'whatsapp', 'voice', 'push'],
             'defaults'  => [
                 'sms'      => 'Dear Parent, ##TITLE## exam schedule for ##CLASS_NAME## has been published. Please check the portal for details.',
-                'whatsapp' => 'Dear Parent, ##TITLE## exam schedule for ##CLASS_NAME## has been published. Please check the portal for details.',
+                // Meta-approved Utility template (Apr 2026). Variable order: title, class_name, school_name.
+                'whatsapp' => "Dear Parent,\n\nThe ##TITLE## exam schedule for ##CLASS_NAME## has been published. Please check the school portal or contact the class teacher for further details and timetable.\n\nRegards,\n##SCHOOL_NAME## Administration",
                 'voice'    => 'Dear parent, the ##TITLE## exam schedule for ##CLASS_NAME## has been published. Please check the school portal.',
                 'push'     => '##TITLE## exam schedule for ##CLASS_NAME## is now available.',
             ],
@@ -136,11 +142,13 @@ class CommunicationTemplate extends Model
         ],
         'daily_report' => [
             'name'      => 'Daily Master Report',
-            'variables' => ['app_name', 'date', 'caption', 'link'],
+            'variables' => ['app_name', 'date', 'caption', 'link', 'school_name'],
             'channels'  => ['sms', 'whatsapp'],
             'defaults'  => [
                 'sms'      => '##APP_NAME## Daily Report ##DATE##: ##CAPTION##. Full report: ##LINK##',
-                'whatsapp' => '##APP_NAME## — Daily Master Report (##DATE##)' . "\n\n" . '##CAPTION##' . "\n\n" . 'Open full PDF: ##LINK##',
+                // Meta-approved Utility template (Apr 2026). Reshaped to satisfy
+                // no-variable-at-start rule. Variable order: date, caption, link, school_name.
+                'whatsapp' => "Dear Admin,\n\nThe Daily Master Report for ##DATE## is ready. ##CAPTION## Please open the full PDF report at ##LINK## for detailed insights.\n\nRegards,\n##SCHOOL_NAME## Administration",
             ],
         ],
     ];
