@@ -237,6 +237,21 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     // Finance — Due Report (admin/accountant)
     Route::get('/finance/due-report',      [$MA, 'dueReport'])->name('api.mobile.finance.due-report');
 
+    // PTM — Parent-Teacher Meetings
+    $PTM = \App\Http\Controllers\Api\Mobile\PtmController::class;
+    // Admin
+    Route::get  ('/ptm/sessions',                    [$PTM, 'sessions'])      ->name('api.mobile.ptm.sessions');
+    Route::post ('/ptm/sessions',                    [$PTM, 'createSession']) ->name('api.mobile.ptm.sessions.create');
+    Route::get  ('/ptm/sessions/{id}',               [$PTM, 'sessionDetail']) ->whereNumber('id')->name('api.mobile.ptm.sessions.detail');
+    Route::patch('/ptm/sessions/{id}/status',        [$PTM, 'updateStatus'])  ->whereNumber('id')->name('api.mobile.ptm.sessions.status');
+    // Teacher
+    Route::get  ('/ptm/teacher/bookings',            [$PTM, 'teacherBookings'])->name('api.mobile.ptm.teacher.bookings');
+    Route::patch('/ptm/bookings/{id}/notes',         [$PTM, 'addNotes'])      ->whereNumber('id')->name('api.mobile.ptm.bookings.notes');
+    // Parent
+    Route::get  ('/ptm/parent/sessions',             [$PTM, 'parentSessions'])->name('api.mobile.ptm.parent.sessions');
+    Route::post ('/ptm/slots/{slotId}/book',         [$PTM, 'bookSlot'])      ->whereNumber('slotId')->name('api.mobile.ptm.slots.book');
+    Route::patch('/ptm/bookings/{id}/cancel',        [$PTM, 'cancelBooking']) ->whereNumber('id')->name('api.mobile.ptm.bookings.cancel');
+
     // Report Card Download
     Route::get('/report-cards/{scheduleId}/download', [$MA, 'downloadReportCard'])->name('api.mobile.report-cards.download');
 
