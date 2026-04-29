@@ -281,6 +281,13 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     // Report Card Download
     Route::get('/report-cards/{scheduleId}/download', [$MA, 'downloadReportCard'])->name('api.mobile.report-cards.download');
 
+    // Admit Cards (parent + student view)
+    Route::get('/admit-cards',                  [$MA, 'admitCards'])     ->name('api.mobile.admit-cards');
+    Route::get('/admit-cards/{scheduleId}',     [$MA, 'admitCardDetail'])->whereNumber('scheduleId')->name('api.mobile.admit-cards.detail');
+
+    // Transfer Certificate (parent + student view, latest TC only)
+    Route::get('/transfer-certificate',         [$MA, 'transferCertificate'])->name('api.mobile.transfer-certificate');
+
     // Student Attendance (mark + report) — must come before generic /attendance
     Route::get('/attendance/students',    [$MA, 'attendanceStudents'])->name('api.mobile.attendance.students');
     Route::post('/attendance/mark',       [$MA, 'markAttendance'])->name('api.mobile.attendance.mark');

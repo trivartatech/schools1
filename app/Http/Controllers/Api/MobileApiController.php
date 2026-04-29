@@ -3919,6 +3919,239 @@ class MobileApiController extends Controller
         ]);
     }
 
+    /**
+     * GET /mobile/admit-cards
+     *
+     * List of admit cards available to the active student. One row per
+     * published exam schedule for the student's current class. Mirrors
+     * the report-cards endpoint shape so the UI can render the same
+     * "available exams" pattern. Parents pick the active child via
+     * X-Active-Student-Id; teachers/admins can pass ?student_id=.
+     */
+    public function admitCards(Request $request): JsonResponse
+    {
+        $user      = $request->user();
+        $studentId = $this->resolveStudentId($user, $request);
+
+        // Allow admin/teacher to query a specific student via ?student_id= even
+        // if they are not a parent of that student — the existing studentDetail
+        // endpoint follows the same convention.
+        if (!$studentId && $request->filled('student_id')) {
+            $studentId = (int) $request->input('student_id');
+        }
+        if (!$studentId) {
+            return response()->json(['data' => []]);
+        }
+
+        $school = app('current_school');
+        $student = \App\Models\Student::with('currentAcademicHistory.courseClass')
+            ->where('school_id', $school->id)->find($studentId);
+        if (!$student) {
+            return response()->json(['data' => []]);
+        }
+
+        $classId = $student->currentAcademicHistory?->course_class_id;
+        if (!$classId) {
+            return response()->json(['data' => []]);
+        }
+
+        $schedules = ExamSchedule::with(['examType:id,name', 'academicYear:id,name', 'scheduleSubjects.subject:id,name'])
+            ->where('school_id', $school->id)
+            ->where('course_class_id', $classId)
+            ->where('status', 'published')
+            ->orderByDesc('updated_at')
+            ->get();
+
+        $data = $schedules->map(function ($s) {
+            $first = $s->scheduleSubjects->where('is_co_scholastic', false)
+                ->sortBy(fn($r) => $r->exam_date . ' ' . $r->exam_time)->first();
+            $last  = $s->scheduleSubjects->where('is_co_scholastic', false)
+                ->sortByDesc(fn($r) => $r->exam_date . ' ' . $r->exam_time)->first();
+            return [
+                'schedule_id'    => $s->id,
+                'exam_name'      => $s->examType?->name ?? 'Exam',
+                'academic_year'  => $s->academicYear?->name,
+                'subjects_count' => $s->scheduleSubjects->where('is_co_scholastic', false)->count(),
+                'starts_on'      => $first?->exam_date,
+                'ends_on'        => $last?->exam_date,
+            ];
+        })->values();
+
+        return response()->json(['data' => $data]);
+    }
+
+    /**
+     * GET /mobile/admit-cards/{scheduleId}
+     *
+     * Returns the structured admit-card payload for one exam schedule —
+     * student + class + exam + subject-wise schedule. The mobile UI
+     * renders this as a styled card (the web does the same via Inertia).
+     */
+    public function admitCardDetail(Request $request, int $scheduleId): JsonResponse
+    {
+        $user      = $request->user();
+        $studentId = $this->resolveStudentId($user, $request);
+        if (!$studentId && $request->filled('student_id')) {
+            $studentId = (int) $request->input('student_id');
+        }
+        if (!$studentId) {
+            return response()->json(['error' => 'No student context.'], 422);
+        }
+
+        $school  = app('current_school');
+        $student = \App\Models\Student::with([
+                'currentAcademicHistory.courseClass:id,name',
+                'currentAcademicHistory.section:id,name',
+                'studentParent:id,father_name,mother_name',
+            ])
+            ->where('school_id', $school->id)->find($studentId);
+        if (!$student) {
+            return response()->json(['error' => 'Student not found.'], 404);
+        }
+
+        $schedule = ExamSchedule::with([
+                'examType:id,name',
+                'academicYear:id,name',
+                'scheduleSubjects' => fn($q) => $q->where('is_co_scholastic', false)
+                    ->where('is_enabled', true)
+                    ->orderBy('exam_date')->orderBy('exam_time'),
+                'scheduleSubjects.subject:id,name',
+            ])
+            ->where('school_id', $school->id)
+            ->where('course_class_id', $student->currentAcademicHistory?->course_class_id ?? 0)
+            ->where('status', 'published')
+            ->find($scheduleId);
+
+        if (!$schedule) {
+            return response()->json(['error' => 'Admit card not available for this exam.'], 404);
+        }
+
+        $hist = $student->currentAcademicHistory;
+        return response()->json([
+            'data' => [
+                'schedule_id'    => $schedule->id,
+                'exam_name'      => $schedule->examType?->name ?? 'Exam',
+                'academic_year'  => $schedule->academicYear?->name,
+                'student' => [
+                    'id'           => $student->id,
+                    'name'         => trim($student->first_name . ' ' . $student->last_name),
+                    'admission_no' => $student->admission_no,
+                    'roll_no'      => $hist?->roll_no,
+                    'class'        => $hist?->courseClass?->name,
+                    'section'      => $hist?->section?->name,
+                    'father_name'  => $student->studentParent?->father_name,
+                    'mother_name'  => $student->studentParent?->mother_name,
+                    'photo_url'    => $this->publicFileUrl($student->photo),
+                ],
+                'school' => [
+                    'name'    => $school->name,
+                    'address' => $school->address ?? '',
+                    'logo'    => $school->logo_url ?? null,
+                ],
+                'subjects' => $schedule->scheduleSubjects->map(fn($s) => [
+                    'subject'         => $s->subject?->name ?? '—',
+                    'exam_date'       => $s->exam_date instanceof \Carbon\Carbon
+                        ? $s->exam_date->toDateString()
+                        : (is_string($s->exam_date) ? substr($s->exam_date, 0, 10) : null),
+                    'exam_time'       => $s->exam_time,
+                    'duration_minutes'=> $s->duration_minutes,
+                ])->values(),
+            ],
+        ]);
+    }
+
+    /**
+     * GET /mobile/transfer-certificate
+     *
+     * Returns the Transfer Certificate for the active student if and only if
+     * one has been issued. The web flow (request → approve → issue) is admin-
+     * driven and stays on web; the mobile API exposes only the issued artifact
+     * so parents can pull the certificate they're entitled to without a phone
+     * call to the office.
+     */
+    public function transferCertificate(Request $request): JsonResponse
+    {
+        $user      = $request->user();
+        $studentId = $this->resolveStudentId($user, $request);
+        if (!$studentId && $request->filled('student_id')) {
+            $studentId = (int) $request->input('student_id');
+        }
+        if (!$studentId) {
+            return response()->json(['error' => 'No student context.'], 422);
+        }
+
+        $school  = app('current_school');
+        $student = \App\Models\Student::with([
+                'currentAcademicHistory.courseClass:id,name',
+                'currentAcademicHistory.section:id,name',
+                'studentParent:id,father_name,mother_name',
+            ])
+            ->where('school_id', $school->id)->find($studentId);
+        if (!$student) {
+            return response()->json(['error' => 'Student not found.'], 404);
+        }
+
+        // Latest TC for this student in this school. We surface ANY status to
+        // parents (so they can see "requested" / "approved" progress), but the
+        // downloadable / printable rendering only kicks in once issued.
+        $tc = \App\Models\TransferCertificate::where('school_id', $school->id)
+            ->where('student_id', $studentId)
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$tc) {
+            return response()->json([
+                'data' => [
+                    'has_certificate' => false,
+                    'student' => [
+                        'id'           => $student->id,
+                        'name'         => trim($student->first_name . ' ' . $student->last_name),
+                        'admission_no' => $student->admission_no,
+                    ],
+                ],
+            ]);
+        }
+
+        $hist = $student->currentAcademicHistory;
+        return response()->json([
+            'data' => [
+                'has_certificate' => true,
+                'is_downloadable' => $tc->status === 'issued',
+                'certificate' => [
+                    'id'                  => $tc->id,
+                    'certificate_no'      => $tc->certificate_no,
+                    'status'              => $tc->status,
+                    'leaving_date'        => $tc->leaving_date instanceof \Carbon\Carbon
+                        ? $tc->leaving_date->toDateString() : (is_string($tc->leaving_date) ? substr($tc->leaving_date, 0, 10) : null),
+                    'reason'              => $tc->reason,
+                    'conduct'             => $tc->conduct,
+                    'last_class_studied'  => $tc->last_class_studied,
+                    'fee_paid_upto'       => $tc->fee_paid_upto instanceof \Carbon\Carbon
+                        ? $tc->fee_paid_upto->toDateString() : (is_string($tc->fee_paid_upto) ? substr($tc->fee_paid_upto, 0, 10) : null),
+                    'has_dues'            => (bool) $tc->has_dues,
+                    'remarks'             => $tc->remarks,
+                    'approved_at'         => $tc->approved_at?->toIso8601String(),
+                    'issued_at'           => $tc->issued_at?->toIso8601String(),
+                ],
+                'student' => [
+                    'id'           => $student->id,
+                    'name'         => trim($student->first_name . ' ' . $student->last_name),
+                    'admission_no' => $student->admission_no,
+                    'class'        => $hist?->courseClass?->name,
+                    'section'      => $hist?->section?->name,
+                    'father_name'  => $student->studentParent?->father_name,
+                    'mother_name'  => $student->studentParent?->mother_name,
+                    'photo_url'    => $this->publicFileUrl($student->photo),
+                ],
+                'school' => [
+                    'name'    => $school->name,
+                    'address' => $school->address ?? '',
+                    'logo'    => $school->logo_url ?? null,
+                ],
+            ],
+        ]);
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     /**
