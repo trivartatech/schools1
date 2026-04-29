@@ -9,8 +9,10 @@ import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useToast } from '@/Composables/useToast';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const toast = useToast();
+const school = useSchoolStore();
 
 const props = defineProps({
     allocations: Object,
@@ -191,7 +193,7 @@ function saveTransfer() {
                         </td>
                         <td v-if="a.bed">{{ a.bed.room.hostel.name }} / Rm {{ a.bed.room.room_number }} / {{ a.bed.name }}</td>
                         <td v-else><span class="badge badge-amber">Unassigned</span></td>
-                        <td>{{ a.admission_date }}</td>
+                        <td>{{ school.fmtDate(a.admission_date) }}</td>
                         <td>
                             <div style="font-weight: 500;">{{ a.guardian_name }}</div>
                             <div style="font-size: 0.75rem; color: var(--text-muted);">{{ a.guardian_phone }}</div>

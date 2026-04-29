@@ -2,6 +2,9 @@
 import Button from '@/Components/ui/Button.vue';
 import { Head } from '@inertiajs/vue3';
 import { onMounted } from 'vue';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     scheduleData: Object,
@@ -75,7 +78,7 @@ const instructions = [
                             </tr>
                             <tr>
                                 <th>Date of Birth</th>
-                                <td class="text-gray-800 border-b">{{ student.dob || 'N/A' }}</td>
+                                <td class="text-gray-800 border-b">{{ student.dob ? school.fmtDate(student.dob) : 'N/A' }}</td>
                             </tr>
                         </table>
                     </div>
@@ -101,7 +104,7 @@ const instructions = [
                         </thead>
                         <tbody>
                             <tr v-for="sub in scheduleData?.schedule_subjects" :key="sub.id" class="text-sm">
-                                <td class="font-semibold text-gray-800 whitespace-nowrap">{{ sub.exam_date || 'TBA' }}</td>
+                                <td class="font-semibold text-gray-800 whitespace-nowrap">{{ sub.exam_date ? school.fmtDate(sub.exam_date) : 'TBA' }}</td>
                                 <td class="text-gray-600">{{ sub.subject?.code }}</td>
                                 <td class="font-bold text-gray-800">{{ sub.subject?.name }}</td>
                                 <td class="text-gray-700 whitespace-nowrap">{{ sub.start_time || 'TBA' }}</td>

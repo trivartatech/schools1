@@ -220,7 +220,7 @@ const grouped = computed(() => {
                                 </td>
                                 <td class="text-right text-sm font-semibold text-gray-900">{{ school.fmtMoney(s.amount) }}</td>
                                 <td class="text-right text-sm text-gray-500">{{ s.late_fee_per_day > 0 ? school.fmtMoney(s.late_fee_per_day) : '—' }}</td>
-                                <td class="text-center text-xs text-gray-500">{{ s.due_date || '—' }}</td>
+                                <td class="text-center text-xs text-gray-500">{{ s.due_date ? school.fmtDate(s.due_date) : '—' }}</td>
                                 <td class="text-right">
                                     <div class="flex items-center justify-end gap-1">
                                         <button @click="edit(s)" class="p-1 text-gray-400 hover:text-blue-500 rounded transition" title="Edit">

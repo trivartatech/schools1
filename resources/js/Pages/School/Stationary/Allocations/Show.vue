@@ -229,7 +229,7 @@ async function voidReturn(ret) {
                     <div v-for="iss in allocation.issuances" :key="iss.id" style="padding:14px 18px;border-bottom:1px solid #f1f5f9;">
                         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
                             <div>
-                                <p style="font-size:0.84rem;font-weight:600;color:#1e293b;">{{ new Date(iss.issued_at).toLocaleString() }}</p>
+                                <p style="font-size:0.84rem;font-weight:600;color:#1e293b;">{{ school.fmtDateTime(iss.issued_at) }}</p>
                                 <p style="font-size:0.78rem;color:#94a3b8;">By {{ iss.issued_by?.name || '—' }}</p>
                             </div>
                             <button v-if="can('issue_stationary_items')" @click="voidIssuance(iss)" class="btn-void">Void</button>
@@ -249,7 +249,7 @@ async function voidReturn(ret) {
                     <div v-for="ret in allocation.returns" :key="ret.id" style="padding:14px 18px;border-bottom:1px solid #f1f5f9;">
                         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
                             <div>
-                                <p style="font-size:0.84rem;font-weight:600;color:#1e293b;">{{ new Date(ret.returned_at).toLocaleString() }}</p>
+                                <p style="font-size:0.84rem;font-weight:600;color:#1e293b;">{{ school.fmtDateTime(ret.returned_at) }}</p>
                                 <p style="font-size:0.78rem;color:#94a3b8;">By {{ ret.accepted_by?.name || '—' }}</p>
                             </div>
                             <button v-if="can('accept_stationary_returns')" @click="voidReturn(ret)" class="btn-void">Void</button>
@@ -289,7 +289,7 @@ async function voidReturn(ret) {
                     <tbody>
                         <tr v-for="p in allocation.payments" :key="p.id">
                             <td><span style="font-family:monospace;font-weight:600;">{{ p.receipt_no }}</span></td>
-                            <td>{{ p.payment_date }}</td>
+                            <td>{{ school.fmtDate(p.payment_date) }}</td>
                             <td>{{ p.payment_mode }}</td>
                             <td class="text-right">{{ fmt(p.amount_paid) }}</td>
                             <td class="text-right">{{ fmt(p.discount) }}</td>

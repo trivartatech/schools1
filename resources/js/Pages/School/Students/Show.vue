@@ -652,7 +652,7 @@ const deleteDisc = async (id) => {
                                 </div>
                                 <div class="info-field">
                                     <p class="info-label">Admission Date</p>
-                                    <span class="info-value">{{ student.admission_date || '—' }}</span>
+                                    <span class="info-value">{{ formatDate(student.admission_date) }}</span>
                                 </div>
                                 <div class="info-field">
                                     <p class="info-label">Status</p>
@@ -1311,7 +1311,7 @@ const deleteDisc = async (id) => {
                                 </div>
                                 <div class="transport-field">
                                     <div class="transport-field-label">Start Date</div>
-                                    <div class="transport-field-value">{{ student.transport_allocation.start_date ?? '—' }}</div>
+                                    <div class="transport-field-value">{{ formatDate(student.transport_allocation.start_date) }}</div>
                                 </div>
                                 <div class="transport-field">
                                     <div class="transport-field-label">Distance from School</div>
@@ -1566,7 +1566,7 @@ const deleteDisc = async (id) => {
                                     <div class="stationary-route-meta">
                                         Academic Year: {{ student.stationary_allocation.academic_year?.name ?? '—' }}
                                         <span v-if="student.stationary_allocation.last_issued_date">
-                                            · Last issued: {{ student.stationary_allocation.last_issued_date }}
+                                            · Last issued: {{ formatDate(student.stationary_allocation.last_issued_date) }}
                                         </span>
                                     </div>
                                 </div>
@@ -1653,7 +1653,7 @@ const deleteDisc = async (id) => {
                                             <span style="font-family:monospace;">{{ p.receipt_no }}</span>
                                             <span style="color:#059669;font-weight:600;">{{ school.fmtMoney(p.amount_paid) }}</span>
                                         </div>
-                                        <div style="color:#94a3b8;">{{ p.payment_date }} · {{ p.payment_mode }}</div>
+                                        <div style="color:#94a3b8;">{{ school.fmtDate(p.payment_date) }} · {{ p.payment_mode }}</div>
                                     </div>
                                 </div>
                                 <div>
@@ -1828,7 +1828,7 @@ const deleteDisc = async (id) => {
                                 </div>
                                 <div class="transport-field">
                                     <div class="transport-field-label">Admission Date</div>
-                                    <div class="transport-field-value">{{ student.hostel_allocation.admission_date ?? '—' }}</div>
+                                    <div class="transport-field-value">{{ formatDate(student.hostel_allocation.admission_date) }}</div>
                                 </div>
                                 <div class="transport-field" v-if="student.hostel_allocation.guardian_name">
                                     <div class="transport-field-label">Guardian</div>
@@ -1841,7 +1841,7 @@ const deleteDisc = async (id) => {
                                 </div>
                                 <div class="transport-field" v-if="student.hostel_allocation.vacate_date">
                                     <div class="transport-field-label">Vacate Date</div>
-                                    <div class="transport-field-value">{{ student.hostel_allocation.vacate_date }}</div>
+                                    <div class="transport-field-value">{{ formatDate(student.hostel_allocation.vacate_date) }}</div>
                                 </div>
                             </div>
                         </div>

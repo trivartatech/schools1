@@ -10,8 +10,10 @@ import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import { useConfirm } from '@/Composables/useConfirm';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const confirm = useConfirm();
+const school = useSchoolStore();
 
 const props = defineProps({
     vehicles:   Array,
@@ -157,9 +159,9 @@ const statCards = computed(() => [
                         </td>
                         <td style="text-align: center;">
                             <div class="expiry-stack">
-                                <div :class="expiryClass(v.insurance_expiry)">Ins: {{ v.insurance_expiry || '—' }}</div>
-                                <div :class="expiryClass(v.fitness_expiry)">Fit: {{ v.fitness_expiry || '—' }}</div>
-                                <div :class="expiryClass(v.pollution_expiry)">Pol: {{ v.pollution_expiry || '—' }}</div>
+                                <div :class="expiryClass(v.insurance_expiry)">Ins: {{ v.insurance_expiry ? school.fmtDate(v.insurance_expiry) : '—' }}</div>
+                                <div :class="expiryClass(v.fitness_expiry)">Fit: {{ v.fitness_expiry ? school.fmtDate(v.fitness_expiry) : '—' }}</div>
+                                <div :class="expiryClass(v.pollution_expiry)">Pol: {{ v.pollution_expiry ? school.fmtDate(v.pollution_expiry) : '—' }}</div>
                             </div>
                         </td>
                         <td style="text-align: center;">

@@ -11,8 +11,10 @@ import { useTableSort } from '@/Composables/useTableSort';
 import { useForm, router } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 import { useConfirm } from '@/Composables/useConfirm';
+import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const confirm = useConfirm();
+const school = useSchoolStore();
 
 const props = defineProps({
     backups: Array,
@@ -112,7 +114,7 @@ const sortedBackups = computed(() => sortRows(props.backups || [], {
                             {{ b.duration_seconds != null ? b.duration_seconds + 's' : '—' }}
                         </td>
                         <td>{{ b.created_by || '—' }}</td>
-                        <td style="white-space:nowrap;">{{ b.created_at }}</td>
+                        <td style="white-space:nowrap;">{{ school.fmtDateTime(b.created_at) }}</td>
                         <td style="text-align:right;">
                             <div style="display:inline-flex;gap:6px;align-items:center;">
                                 <a

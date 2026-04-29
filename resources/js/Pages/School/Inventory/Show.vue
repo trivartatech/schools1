@@ -338,7 +338,7 @@ const sortedMaintenance = computed(() => maintSort.sortRows(props.asset.maintena
                                 <div class="audit-meta">
                                     <span class="audit-event" :style="{ color: auditEventColor[entry.event] ?? '#64748b' }">{{ entry.event }}</span>
                                     <span class="audit-by">by {{ entry.causer_name }}</span>
-                                    <span class="audit-time">{{ entry.created_at }}</span>
+                                    <span class="audit-time">{{ school.fmtDateTime(entry.created_at) }}</span>
                                 </div>
                                 <div v-if="formatChanges(entry.changes).length" class="audit-changes">
                                     <div v-for="ch in formatChanges(entry.changes)" :key="ch.field" class="audit-change-row">
