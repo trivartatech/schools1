@@ -1513,12 +1513,17 @@ class MobileApiController extends Controller
         $userData = $user->makeHidden(['password', 'remember_token'])->toArray();
         unset($userData['school']); // Remove school relation (contains sensitive settings/API keys)
 
-        // Build safe school data (only public fields)
+        // Build safe school data (only public fields). Localization keys are
+        // included so the mobile formatter (src/utils/formatters.js) can render
+        // dates/times/currency exactly the way System Config is configured.
         $safeSchool = $school ? [
-            'id'       => $school->id,
-            'name'     => $school->name,
-            'logo'     => $school->logo,
-            'currency' => $school->currency,
+            'id'          => $school->id,
+            'name'        => $school->name,
+            'logo'        => $school->logo,
+            'currency'    => $school->currency ?? '₹',
+            'timezone'    => $school->timezone ?? 'Asia/Kolkata',
+            'date_format' => $school->settings['date_format'] ?? 'DD/MM/YYYY',
+            'time_format' => $school->settings['time_format'] ?? 'h:mm A',
         ] : null;
 
         // Include children list for parent users
@@ -1932,20 +1937,32 @@ class MobileApiController extends Controller
 
         // Daily / Monthly / Yearly collected — sum across all four fee streams
         // (tuition, transport, hostel, stationary) so the KPI matches Day Book.
-        $sumPaymentsToday = function (string $modelClass) use ($school) {
-            return (float) $modelClass::where('school_id', $school->id)
-                ->whereDate('payment_date', today())
-                ->where('status', '!=', 'cancelled')
-                ->sum('amount_paid');
+        // Only the FeePayment (tuition) table has a `status` column for the
+        // cancelled-receipt flow; transport / hostel / stationary fee_payments
+        // tables are append-only receipts with no cancellation state, so
+        // applying `where('status','!=','cancelled')` against them blows up
+        // with "Unknown column 'status'" on schemas that haven't been migrated
+        // to add it (and would silently filter out all rows on schemas that
+        // happen to share the column name with a different meaning).
+        $applyNonCancelled = function ($query, string $modelClass) {
+            if ($modelClass === FeePayment::class) {
+                $query->where('status', '!=', 'cancelled');
+            }
+            return $query;
         };
-        $sumPaymentsMonth = function (string $modelClass) use ($school) {
-            return (float) $modelClass::where('school_id', $school->id)
-                ->whereBetween('payment_date', [now()->startOfMonth(), now()->endOfMonth()])
-                ->where('status', '!=', 'cancelled')
-                ->sum('amount_paid');
+        $sumPaymentsToday = function (string $modelClass) use ($school, $applyNonCancelled) {
+            $q = $modelClass::where('school_id', $school->id)
+                ->whereDate('payment_date', today());
+            return (float) $applyNonCancelled($q, $modelClass)->sum('amount_paid');
         };
-        $sumPaymentsYear = function (string $modelClass) use ($school, $yearId) {
-            $q = $modelClass::where('school_id', $school->id)->where('status', '!=', 'cancelled');
+        $sumPaymentsMonth = function (string $modelClass) use ($school, $applyNonCancelled) {
+            $q = $modelClass::where('school_id', $school->id)
+                ->whereBetween('payment_date', [now()->startOfMonth(), now()->endOfMonth()]);
+            return (float) $applyNonCancelled($q, $modelClass)->sum('amount_paid');
+        };
+        $sumPaymentsYear = function (string $modelClass) use ($school, $yearId, $applyNonCancelled) {
+            $q = $modelClass::where('school_id', $school->id);
+            $applyNonCancelled($q, $modelClass);
             if ($yearId) $q->where('academic_year_id', $yearId);
             return (float) $q->sum('amount_paid');
         };
@@ -2048,10 +2065,15 @@ class MobileApiController extends Controller
             $end   = now()->subMonths($i)->endOfMonth();
             $sum   = 0.0;
             foreach ($feeStreamModels as $modelClass) {
-                $sum += (float) $modelClass::where('school_id', $schoolId)
-                    ->where('status', '!=', 'cancelled')
-                    ->whereBetween('payment_date', [$start, $end])
-                    ->sum('amount_paid');
+                $q = $modelClass::where('school_id', $schoolId)
+                    ->whereBetween('payment_date', [$start, $end]);
+                // Only the FeePayment (tuition) table has a `status` column.
+                // Transport / hostel / stationary fee_payments tables don't —
+                // applying the filter against them throws "Unknown column 'status'".
+                if ($modelClass === FeePayment::class) {
+                    $q->where('status', '!=', 'cancelled');
+                }
+                $sum += (float) $q->sum('amount_paid');
             }
             $feeTrend[] = [
                 'label'  => $start->format('M'),
