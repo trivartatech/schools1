@@ -116,11 +116,41 @@
             height: 60px;
             margin-bottom: 6px;
         }
+        .cut-line {
+            text-align: center;
+            border-top: 1px dashed #999;
+            margin: 10px 0;
+            padding-top: 3px;
+            color: #888;
+            font-size: 10px;
+            letter-spacing: 2px;
+        }
+        /* Compact mode: when more than 1 copy is requested, shrink everything so multiple copies fit on the same paper */
+        body.multi-copy { font-size: 10px; padding: 5px; }
+        body.multi-copy .school-name { font-size: 17px; }
+        body.multi-copy .school-address { font-size: 10px; margin-top: 2px; }
+        body.multi-copy .school-logo { height: 38px; margin-bottom: 3px; }
+        body.multi-copy .header { padding-bottom: 8px; margin-bottom: 8px; }
+        body.multi-copy .receipt-title { font-size: 13px; margin: 6px 0; }
+        body.multi-copy .info-table { margin-bottom: 6px; }
+        body.multi-copy .info-table td { padding: 2px 4px; }
+        body.multi-copy .details-table { margin-bottom: 6px; }
+        body.multi-copy .details-table th,
+        body.multi-copy .details-table td { padding: 4px 6px; }
+        body.multi-copy .footer { margin-top: 10px; }
+        body.multi-copy .qr-code { width: 65px; height: 65px; }
+        body.multi-copy .qr-text { font-size: 9px; }
+        body.multi-copy .signature-line { width: 150px; padding-top: 3px; }
+        body.multi-copy .copy-label { font-size: 9px; padding: 1px 6px; }
     </style>
 </head>
-<body>
+@php $multiCopy = count($copyLabels ?? ['Original']) > 1; @endphp
+<body class="{{ $multiCopy ? 'multi-copy' : '' }}">
 @foreach (($copyLabels ?? ['Original']) as $copyIndex => $copyLabel)
-<div class="copy-page" @if(!$loop->first) style="page-break-before: always;" @endif>
+@if(!$loop->first)
+    <div class="cut-line">- - - - - - - - - - - - - - - cut here - - - - - - - - - - - - - - -</div>
+@endif
+<div class="copy-page">
     <div class="copy-label-bar"><span class="copy-label">{{ $copyLabel }}</span></div>
 
     @include('pdf._receipt-header')
