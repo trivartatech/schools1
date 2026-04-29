@@ -154,7 +154,8 @@ class DummyDataSeeder extends Seeder
 
         // 4. Fee Payments
         $this->command->info('Seeding Fee Payments...');
-        $modes = ['cash', 'online', 'upi', 'bank_transfer'];
+        // Match the fee_payments.payment_mode ENUM: cash, cheque, online, upi, dd, card
+        $modes = ['cash', 'online', 'upi', 'card', 'cheque'];
         foreach ($students->take(10) as $student) { // Only do first 10 students
             
             // Partial payment for Tuition

@@ -98,7 +98,7 @@ class AnnouncementsSeeder extends Seeder
                 'communication_template_id' => $templateId,
                 'is_broadcasted'            => $a['is_broadcasted'],
                 'scheduled_at'              => $a['scheduled_at'],
-                'broadcast_error'           => false,
+                'broadcast_error'           => null,
                 'created_at'                => $a['scheduled_at'],
                 'updated_at'                => $a['scheduled_at'],
             ]);
