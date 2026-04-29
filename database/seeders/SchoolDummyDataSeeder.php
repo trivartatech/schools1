@@ -191,42 +191,57 @@ class SchoolDummyDataSeeder extends Seeder
             ]));
         }
 
-        // ── 7. Class-Subject Assignments ──────────────────────────────────────
-        // Class 5 — Primary
-        $class5Id = $classIds['Class 5'];
-        foreach (['English', 'Hindi', 'Mathematics', 'Science', 'Science Lab', 'Social Science', 'Physical Education', 'Art & Craft'] as $sub) {
-            DB::table('class_subjects')->insert([
-                'school_id'        => $schoolId,
-                'course_class_id'  => $class5Id,
-                'section_id'       => null,
-                'subject_id'       => $subjectIds[$sub],
-                'is_co_scholastic' => in_array($sub, ['Physical Education', 'Art & Craft']),
-                'created_at'       => $now,
-                'updated_at'       => $now,
-            ]);
-        }
-        // Class 10 — Secondary
-        $class10Id = $classIds['Class 10'];
-        foreach (['English', 'Hindi', 'Mathematics', 'Science', 'Science Lab', 'Social Science', 'Computer Science', 'Physical Education'] as $sub) {
-            DB::table('class_subjects')->insert([
-                'school_id'        => $schoolId,
-                'course_class_id'  => $class10Id,
-                'section_id'       => null,
-                'subject_id'       => $subjectIds[$sub],
-                'is_co_scholastic' => in_array($sub, ['Physical Education']),
-                'created_at'       => $now,
-                'updated_at'       => $now,
-            ]);
-        }
-        // Class 11 & 12 — Sr Secondary (Science stream)
-        foreach (['Class 11', 'Class 12'] as $cn) {
-            foreach (['English', 'Physics', 'Chemistry', 'Mathematics', 'Biology', 'Physical Education'] as $sub) {
+        // ── 7. Class-Subject Assignments (CBSE per-grade-band pattern) ────────
+        // Every class gets a meaningful subject list so admin → Class Subjects
+        // never shows an empty grid, and the exam seeder's per-class lookup
+        // resolves consistently. Co-scholastic subjects are flagged so
+        // ExaminationModuleSeeder filters them out of FA schedules.
+        $primarySubjects   = [
+            ['English',            false],
+            ['Hindi',              false],
+            ['Mathematics',        false],
+            ['Science',            false],
+            ['Science Lab',        false],
+            ['Social Science',     false],
+            ['Physical Education', true],
+            ['Art & Craft',        true],
+        ];
+        $middleSubjects    = [
+            ['English',            false],
+            ['Hindi',              false],
+            ['Mathematics',        false],
+            ['Science',            false],
+            ['Science Lab',        false],
+            ['Social Science',     false],
+            ['Computer Science',   false],
+            ['Physical Education', true],
+        ];
+        $srSecondaryScience = [
+            ['English',            false],
+            ['Physics',            false],
+            ['Chemistry',          false],
+            ['Mathematics',        false],
+            ['Biology',            false],
+            ['Physical Education', true],
+        ];
+
+        $bandSubjects = function (int $num) use ($primarySubjects, $middleSubjects, $srSecondaryScience) {
+            if ($num <= 5)  return $primarySubjects;       // Class 1-5
+            if ($num <= 10) return $middleSubjects;        // Class 6-10
+            return $srSecondaryScience;                    // Class 11-12
+        };
+
+        foreach ($classData as $c) {
+            $cid     = $classIds[$c['name']];
+            $entries = $bandSubjects($c['num']);
+            foreach ($entries as [$subName, $isCo]) {
+                if (!isset($subjectIds[$subName])) continue;
                 DB::table('class_subjects')->insert([
                     'school_id'        => $schoolId,
-                    'course_class_id'  => $classIds[$cn],
+                    'course_class_id'  => $cid,
                     'section_id'       => null,
-                    'subject_id'       => $subjectIds[$sub],
-                    'is_co_scholastic' => $sub === 'Physical Education',
+                    'subject_id'       => $subjectIds[$subName],
+                    'is_co_scholastic' => $isCo,
                     'created_at'       => $now,
                     'updated_at'       => $now,
                 ]);
