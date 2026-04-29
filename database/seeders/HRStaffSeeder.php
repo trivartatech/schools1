@@ -203,12 +203,19 @@ class HRStaffSeeder extends Seeder
             ]);
         }
 
-        // Fetch unpaid leave counts per user per month
+        // Fetch unpaid leave counts per user per month (driver-aware: MySQL vs SQLite)
+        $isSqlite  = DB::connection()->getDriverName() === 'sqlite';
+        $monthExpr = $isSqlite ? 'CAST(strftime("%m", start_date) AS INTEGER)' : 'MONTH(start_date)';
+        $yearExpr  = $isSqlite ? 'CAST(strftime("%Y", start_date) AS INTEGER)' : 'YEAR(start_date)';
+        $daysExpr  = $isSqlite
+            ? 'SUM(CAST(julianday(end_date) - julianday(start_date) + 1 AS INTEGER))'
+            : 'SUM(DATEDIFF(end_date, start_date) + 1)';
+
         $unpaidLeaves = DB::table('leaves')
-            ->select(DB::raw('user_id, CAST(strftime("%m", start_date) AS INTEGER) as m, CAST(strftime("%Y", start_date) AS INTEGER) as y, SUM(CAST(julianday(end_date) - julianday(start_date) + 1 AS INTEGER)) as days'))
+            ->select(DB::raw("user_id, $monthExpr as m, $yearExpr as y, $daysExpr as days"))
             ->where('leave_type', 'unpaid')
             ->where('status', 'approved')
-            ->groupBy('user_id', 'm', 'y')
+            ->groupBy('user_id', DB::raw($monthExpr), DB::raw($yearExpr))
             ->get()
             ->keyBy(function($item) {
                 return $item->user_id . '-' . $item->m . '-' . $item->y;
