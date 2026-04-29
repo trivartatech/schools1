@@ -20,21 +20,26 @@
 @endphp
 
 <div class="header">
-    @if($logoData)
-        <img src="{{ $logoData }}" alt="" class="school-logo">
-    @endif
-
-    <h1 class="school-name">{{ $school->name }}</h1>
-
-    @if($line1 || $line2 || $cityStatePin)
-        <div class="school-address">
-            @if($line1) {{ $line1 }} <br> @endif
-            @if($line2) {{ $line2 }} <br> @endif
-            @if($cityStatePin) {{ $cityStatePin }} @endif
-        </div>
-    @endif
-
-    @if(!empty($school->phone))
-        <div class="school-address">Phone: {{ $school->phone }}</div>
-    @endif
+    <table class="header-table">
+        <tr>
+            @if($logoData)
+            <td class="header-logo-cell">
+                <img src="{{ $logoData }}" alt="" class="school-logo">
+            </td>
+            @endif
+            <td class="header-text-cell">
+                <div class="school-name">{{ $school->name }}</div>
+                @if($line1 || $line2 || $cityStatePin)
+                    <div class="school-address">
+                        @if($line1) {{ $line1 }}@if($line2 || $cityStatePin), @endif @endif
+                        @if($line2) {{ $line2 }}@if($cityStatePin), @endif @endif
+                        @if($cityStatePin) {{ $cityStatePin }} @endif
+                    </div>
+                @endif
+                @if(!empty($school->phone))
+                    <div class="school-address">Phone: {{ $school->phone }}</div>
+                @endif
+            </td>
+        </tr>
+    </table>
 </div>
