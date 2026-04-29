@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Api\Mobile;
 use App\Http\Controllers\Controller;
 use App\Models\Hostel;
 use App\Models\HostelBed;
+use App\Models\HostelLeaveRequest;
 use App\Models\HostelRoom;
 use App\Models\HostelStudent;
+use App\Models\HostelVisitor;
 use App\Models\Student;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
@@ -440,5 +443,319 @@ class HostelController extends Controller
                 'type' => $hostel->type,
             ] : null,
         ];
+    }
+
+    // ── Gate Passes (HostelLeaveRequest) ──────────────────────────────────────
+
+    private function gatePassPayload(HostelLeaveRequest $g): array
+    {
+        $today = now()->toDateString();
+        $bucket = 'upcoming';
+        if ($g->status === 'returned')           $bucket = 'returned';
+        elseif ($g->status === 'rejected')       $bucket = 'rejected';
+        elseif ($g->actual_out_time && !$g->actual_in_time) $bucket = 'out';
+        elseif ($g->to_date && $g->to_date < $today && $g->status !== 'returned') $bucket = 'overdue';
+        elseif ($g->status === 'pending')        $bucket = 'pending';
+        elseif ($g->status === 'approved')       $bucket = 'approved';
+
+        return [
+            'id'              => $g->id,
+            'student'         => $g->student ? [
+                'id'           => $g->student->id,
+                'name'         => trim(($g->student->first_name ?? '') . ' ' . ($g->student->last_name ?? '')),
+                'admission_no' => $g->student->admission_no,
+            ] : null,
+            'leave_type'      => $g->leave_type,
+            'from_date'       => $g->from_date,
+            'to_date'         => $g->to_date,
+            'destination'     => $g->destination,
+            'reason'          => $g->reason,
+            'status'          => $g->status,
+            'bucket'          => $bucket,
+            'escort_name'     => $g->escort_name,
+            'escort_phone'    => $g->escort_phone,
+            'escort_relation' => $g->escort_relation,
+            'parent_approval' => (bool) $g->parent_approval,
+            'actual_out_time' => $g->actual_out_time?->toIso8601String(),
+            'actual_in_time'  => $g->actual_in_time?->toIso8601String(),
+            'approver'        => $g->approver ? ['id' => $g->approver->id, 'name' => $g->approver->name] : null,
+            'created_at'      => $g->created_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * GET /mobile/hostel/gate-passes
+     *
+     * Query params: status (pending|approved|out|returned|rejected|all), q (student name/admission), per_page.
+     */
+    public function gatePasses(Request $request): JsonResponse
+    {
+        $this->assertHostelAdmin($request);
+        $schoolId = app('current_school_id');
+
+        $status  = (string) $request->input('status', 'all');
+        $q       = trim((string) $request->input('q', ''));
+        $perPage = max(5, min(100, (int) $request->input('per_page', 30)));
+
+        $query = HostelLeaveRequest::where('school_id', $schoolId)
+            ->with(['student:id,first_name,last_name,admission_no,school_id', 'approver:id,name'])
+            ->latest();
+
+        if ($status === 'out') {
+            $query->whereNotNull('actual_out_time')->whereNull('actual_in_time');
+        } elseif (in_array($status, ['pending', 'approved', 'rejected', 'returned'], true)) {
+            $query->where('status', $status);
+        }
+
+        if ($q !== '') {
+            $query->whereHas('student', function ($s) use ($q) {
+                $s->where('first_name', 'like', "%{$q}%")
+                  ->orWhere('last_name', 'like', "%{$q}%")
+                  ->orWhere('admission_no', 'like', "%{$q}%");
+            });
+        }
+
+        $paginated = $query->paginate($perPage);
+
+        // Tab counters
+        $today  = now()->toDateString();
+        $counts = [
+            'pending'  => HostelLeaveRequest::where('school_id', $schoolId)->where('status', 'pending')->count(),
+            'approved' => HostelLeaveRequest::where('school_id', $schoolId)->where('status', 'approved')->count(),
+            'out'      => HostelLeaveRequest::where('school_id', $schoolId)
+                              ->whereNotNull('actual_out_time')->whereNull('actual_in_time')->count(),
+            'overdue'  => HostelLeaveRequest::where('school_id', $schoolId)
+                              ->whereNotNull('actual_out_time')->whereNull('actual_in_time')
+                              ->where('to_date', '<', $today)->count(),
+        ];
+
+        return response()->json([
+            'data'         => collect($paginated->items())->map(fn ($g) => $this->gatePassPayload($g))->values(),
+            'current_page' => $paginated->currentPage(),
+            'last_page'    => $paginated->lastPage(),
+            'total'        => $paginated->total(),
+            'summary'      => $counts,
+        ]);
+    }
+
+    /**
+     * POST /mobile/hostel/gate-passes
+     */
+    public function createGatePass(Request $request): JsonResponse
+    {
+        $this->assertHostelAdmin($request);
+        $schoolId = app('current_school_id');
+
+        $validated = $request->validate([
+            'student_id'      => ['required', Rule::exists('students', 'id')->where('school_id', $schoolId)],
+            'leave_type'      => 'required|in:Day-out,Home-leave,Medical,Other',
+            'from_date'       => 'required|date',
+            'to_date'         => 'required|date|after_or_equal:from_date',
+            'destination'     => 'nullable|string|max:255',
+            'reason'          => 'required|string|max:1000',
+            'escort_name'     => 'nullable|string|max:120',
+            'escort_phone'    => 'nullable|string|max:20',
+            'escort_relation' => 'nullable|string|max:60',
+            'status'          => 'nullable|in:pending,approved',
+        ]);
+
+        $g = new HostelLeaveRequest($validated);
+        $g->school_id = $schoolId;
+        $g->status    = $validated['status'] ?? 'pending';
+        if ($g->status === 'approved') {
+            $g->approved_by = $request->user()->id;
+        }
+        $g->save();
+        $g->load(['student:id,first_name,last_name,admission_no,school_id', 'approver:id,name']);
+
+        return response()->json(['message' => 'Gate pass created.', 'data' => $this->gatePassPayload($g)], 201);
+    }
+
+    /**
+     * PATCH /mobile/hostel/gate-passes/{id}/status
+     * Body: { action: approve|reject|out|return, [late_reason] }
+     */
+    public function updateGatePassStatus(Request $request, int $id): JsonResponse
+    {
+        $this->assertHostelAdmin($request);
+        $schoolId = app('current_school_id');
+
+        $g = HostelLeaveRequest::where('school_id', $schoolId)->find($id);
+        if (!$g) return response()->json(['error' => 'Gate pass not found.'], 404);
+
+        $validated = $request->validate([
+            'action'      => 'required|in:approve,reject,out,return',
+            'late_reason' => 'nullable|string|max:500',
+        ]);
+
+        $now = Carbon::now();
+        switch ($validated['action']) {
+            case 'approve':
+                if ($g->status !== 'pending') return response()->json(['error' => 'Only pending passes can be approved.'], 422);
+                $g->status      = 'approved';
+                $g->approved_by = $request->user()->id;
+                break;
+            case 'reject':
+                if ($g->status !== 'pending') return response()->json(['error' => 'Only pending passes can be rejected.'], 422);
+                $g->status      = 'rejected';
+                $g->approved_by = $request->user()->id;
+                break;
+            case 'out':
+                if ($g->status !== 'approved') return response()->json(['error' => 'Pass must be approved before exit.'], 422);
+                if ($g->actual_out_time)       return response()->json(['error' => 'Already marked exited.'], 422);
+                $g->actual_out_time = $now;
+                break;
+            case 'return':
+                if (!$g->actual_out_time) return response()->json(['error' => 'Pass has not been used yet.'], 422);
+                if ($g->actual_in_time)   return response()->json(['error' => 'Already marked returned.'], 422);
+                $g->actual_in_time = $now;
+                $g->status         = 'returned';
+                if (!empty($validated['late_reason'])) {
+                    $g->late_reason = $validated['late_reason'];
+                }
+                break;
+        }
+        $g->save();
+        $g->load(['student:id,first_name,last_name,admission_no,school_id', 'approver:id,name']);
+
+        return response()->json(['message' => 'Gate pass updated.', 'data' => $this->gatePassPayload($g)]);
+    }
+
+    // ── Visitors (HostelVisitor) ──────────────────────────────────────────────
+
+    private function visitorPayload(HostelVisitor $v): array
+    {
+        return [
+            'id'            => $v->id,
+            'visitor_name'  => $v->visitor_name,
+            'relation'      => $v->relation,
+            'phone'         => $v->phone,
+            'visitor_type'  => $v->visitor_type,
+            'meet_user_type'=> $v->meet_user_type,
+            'visitor_count' => (int) ($v->visitor_count ?? 1),
+            'date'          => $v->date,
+            'in_time'       => $v->in_time,
+            'out_time'      => $v->out_time,
+            'purpose'       => $v->purpose,
+            'id_proof_type' => $v->id_proof_type,
+            'remarks'       => $v->remarks,
+            'is_approved'   => (bool) $v->is_approved,
+            'student'       => $v->student ? [
+                'id'           => $v->student->id,
+                'name'         => trim(($v->student->first_name ?? '') . ' ' . ($v->student->last_name ?? '')),
+                'admission_no' => $v->student->admission_no,
+            ] : null,
+            'staff'         => $v->staff ? [
+                'id'   => $v->staff->id,
+                'name' => $v->staff->user?->name ?? ('Staff #' . $v->staff->id),
+            ] : null,
+            'created_at'    => $v->created_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * GET /mobile/hostel/visitors
+     * Query params: scope (today|active|all), q, per_page.
+     */
+    public function visitors(Request $request): JsonResponse
+    {
+        $this->assertHostelAdmin($request);
+        $schoolId = app('current_school_id');
+
+        $scope   = (string) $request->input('scope', 'today');
+        $q       = trim((string) $request->input('q', ''));
+        $perPage = max(5, min(100, (int) $request->input('per_page', 30)));
+
+        $query = HostelVisitor::where('school_id', $schoolId)
+            ->with(['student:id,first_name,last_name,admission_no,school_id', 'staff.user:id,name'])
+            ->latest();
+
+        $today = now()->toDateString();
+        if ($scope === 'today') {
+            $query->where('date', $today);
+        } elseif ($scope === 'active') {
+            $query->where('date', $today)->whereNull('out_time');
+        }
+
+        if ($q !== '') {
+            $query->where(function ($w) use ($q) {
+                $w->where('visitor_name', 'like', "%{$q}%")
+                  ->orWhere('phone', 'like', "%{$q}%")
+                  ->orWhereHas('student', fn ($s) => $s
+                      ->where('first_name', 'like', "%{$q}%")
+                      ->orWhere('last_name', 'like', "%{$q}%")
+                      ->orWhere('admission_no', 'like', "%{$q}%"));
+            });
+        }
+
+        $paginated = $query->paginate($perPage);
+
+        $counts = [
+            'today'  => HostelVisitor::where('school_id', $schoolId)->where('date', $today)->count(),
+            'active' => HostelVisitor::where('school_id', $schoolId)->where('date', $today)->whereNull('out_time')->count(),
+            'total'  => HostelVisitor::where('school_id', $schoolId)->count(),
+        ];
+
+        return response()->json([
+            'data'         => collect($paginated->items())->map(fn ($v) => $this->visitorPayload($v))->values(),
+            'current_page' => $paginated->currentPage(),
+            'last_page'    => $paginated->lastPage(),
+            'total'        => $paginated->total(),
+            'summary'      => $counts,
+        ]);
+    }
+
+    /**
+     * POST /mobile/hostel/visitors  — log a new check-in.
+     */
+    public function logVisitor(Request $request): JsonResponse
+    {
+        $this->assertHostelAdmin($request);
+        $schoolId = app('current_school_id');
+
+        $validated = $request->validate([
+            'visitor_name'  => 'required|string|max:120',
+            'relation'      => 'nullable|string|max:60',
+            'phone'         => 'nullable|string|max:20',
+            'date'          => 'nullable|date',
+            'in_time'       => 'nullable|string|max:8',
+            'purpose'       => 'nullable|string|max:255',
+            'id_proof_type' => 'nullable|string|max:60',
+            'visitor_count' => 'nullable|integer|min:1|max:20',
+            'meet_user_type'=> 'nullable|in:student,staff',
+            'student_id'    => ['nullable', Rule::exists('students', 'id')->where('school_id', $schoolId)],
+            'staff_id'      => ['nullable', Rule::exists('staff', 'id')->where('school_id', $schoolId)],
+            'remarks'       => 'nullable|string|max:1000',
+        ]);
+
+        $v = new HostelVisitor($validated);
+        $v->school_id     = $schoolId;
+        $v->date          = $validated['date']    ?? now()->toDateString();
+        $v->in_time       = $validated['in_time'] ?? now()->format('H:i');
+        $v->visitor_count = $validated['visitor_count'] ?? 1;
+        $v->is_approved   = true;
+        $v->save();
+        $v->load(['student:id,first_name,last_name,admission_no,school_id', 'staff.user:id,name']);
+
+        return response()->json(['message' => 'Visitor logged.', 'data' => $this->visitorPayload($v)], 201);
+    }
+
+    /**
+     * PATCH /mobile/hostel/visitors/{id}/checkout
+     */
+    public function checkoutVisitor(Request $request, int $id): JsonResponse
+    {
+        $this->assertHostelAdmin($request);
+        $schoolId = app('current_school_id');
+
+        $v = HostelVisitor::where('school_id', $schoolId)->find($id);
+        if (!$v)          return response()->json(['error' => 'Visitor entry not found.'], 404);
+        if ($v->out_time) return response()->json(['error' => 'Already checked out.'], 422);
+
+        $v->out_time = now()->format('H:i');
+        $v->save();
+        $v->load(['student:id,first_name,last_name,admission_no,school_id', 'staff.user:id,name']);
+
+        return response()->json(['message' => 'Visitor checked out.', 'data' => $this->visitorPayload($v)]);
     }
 }

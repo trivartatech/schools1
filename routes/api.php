@@ -335,6 +335,14 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     Route::get  ('/hostel/allocations',                   [$HOST, 'allocations'])     ->name('api.mobile.hostel.allocations');
     Route::post ('/hostel/allocations',                   [$HOST, 'createAllocation'])->name('api.mobile.hostel.allocations.create');
     Route::patch('/hostel/allocations/{id}/vacate',       [$HOST, 'vacateAllocation'])->whereNumber('id')->name('api.mobile.hostel.allocations.vacate');
+    // Hostel gate passes (HostelLeaveRequest)
+    Route::get  ('/hostel/gate-passes',                   [$HOST, 'gatePasses'])         ->name('api.mobile.hostel.gate-passes');
+    Route::post ('/hostel/gate-passes',                   [$HOST, 'createGatePass'])     ->name('api.mobile.hostel.gate-passes.create');
+    Route::patch('/hostel/gate-passes/{id}/status',       [$HOST, 'updateGatePassStatus'])->whereNumber('id')->name('api.mobile.hostel.gate-passes.status');
+    // Hostel visitors
+    Route::get  ('/hostel/visitors',                      [$HOST, 'visitors'])           ->name('api.mobile.hostel.visitors');
+    Route::post ('/hostel/visitors',                      [$HOST, 'logVisitor'])         ->name('api.mobile.hostel.visitors.create');
+    Route::patch('/hostel/visitors/{id}/checkout',        [$HOST, 'checkoutVisitor'])    ->whereNumber('id')->name('api.mobile.hostel.visitors.checkout');
 
     // Stationary items (admin)
     $STAT = \App\Http\Controllers\Api\Mobile\StationaryController::class;
