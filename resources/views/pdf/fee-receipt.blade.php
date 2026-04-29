@@ -97,10 +97,12 @@
             color: #777;
             margin-top: 5px;
         }
+        .copy-label-bar {
+            text-align: right;
+            margin-bottom: 4px;
+        }
         .copy-label {
-            position: absolute;
-            top: 8px;
-            right: 12px;
+            display: inline-block;
             font-size: 10px;
             font-weight: bold;
             color: #555;
@@ -110,31 +112,18 @@
             letter-spacing: 0.5px;
             text-transform: uppercase;
         }
-        .copy-page {
-            position: relative;
+        .school-logo {
+            height: 60px;
+            margin-bottom: 6px;
         }
     </style>
 </head>
 <body>
 @foreach (($copyLabels ?? ['Original']) as $copyIndex => $copyLabel)
 <div class="copy-page" @if(!$loop->first) style="page-break-before: always;" @endif>
-    <div class="copy-label">{{ $copyLabel }}</div>
+    <div class="copy-label-bar"><span class="copy-label">{{ $copyLabel }}</span></div>
 
-    <div class="header">
-        <h1 class="school-name">{{ $school->name }}</h1>
-        @if($school->address)
-            <div class="school-address">
-                {{ $school->address }} <br>
-                {{ $school->city }}, {{ $school->state }} - {{ $school->zip_code }}
-            </div>
-        @endif
-        @if($school->email || $school->phone)
-            <div class="school-address">
-                @if($school->phone) Phone: {{ $school->phone }} @endif
-                @if($school->email) | Email: {{ $school->email }} @endif
-            </div>
-        @endif
-    </div>
+    @include('pdf._receipt-header')
 
     <div class="receipt-title">FEE RECEIPT</div>
 

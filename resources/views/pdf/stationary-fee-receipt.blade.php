@@ -22,29 +22,17 @@
         .qr-box { display: table-cell; width: 50%; vertical-align: bottom; }
         .qr-code { width: 100px; height: 100px; }
         .qr-text { font-size: 10px; color: #777; margin-top: 5px; }
-        .copy-label { position: absolute; top: 8px; right: 12px; font-size: 10px; font-weight: bold; color: #555; border: 1px solid #999; padding: 2px 8px; border-radius: 3px; letter-spacing: 0.5px; text-transform: uppercase; }
-        .copy-page { position: relative; }
+        .copy-label-bar { text-align: right; margin-bottom: 4px; }
+        .copy-label { display: inline-block; font-size: 10px; font-weight: bold; color: #555; border: 1px solid #999; padding: 2px 8px; border-radius: 3px; letter-spacing: 0.5px; text-transform: uppercase; }
+        .school-logo { height: 60px; margin-bottom: 6px; }
     </style>
 </head>
 <body>
 @foreach (($copyLabels ?? ['Original']) as $copyIndex => $copyLabel)
 <div class="copy-page" @if(!$loop->first) style="page-break-before: always;" @endif>
-    <div class="copy-label">{{ $copyLabel }}</div>
-    <div class="header">
-        <h1 class="school-name">{{ $school->name }}</h1>
-        @if($school->address)
-            <div class="school-address">
-                {{ $school->address }} <br>
-                {{ $school->city }}, {{ $school->state }} - {{ $school->zip_code }}
-            </div>
-        @endif
-        @if($school->email || $school->phone)
-            <div class="school-address">
-                @if($school->phone) Phone: {{ $school->phone }} @endif
-                @if($school->email) | Email: {{ $school->email }} @endif
-            </div>
-        @endif
-    </div>
+    <div class="copy-label-bar"><span class="copy-label">{{ $copyLabel }}</span></div>
+
+    @include('pdf._receipt-header')
 
     <div class="receipt-title">STATIONARY FEE RECEIPT</div>
 
