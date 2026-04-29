@@ -119,11 +119,21 @@ Route::middleware('auth')->group(function () {
         Route::post('staff-punch/clock-out', [$SPC, 'clockOut']) ->name('staff-punch.clock-out');
 
         // AI Features
-        Route::post('ai/chat', [\App\Http\Controllers\School\AiChatController::class, 'chat'])->name('ai.chat');
-        Route::post('ai/report-card-comments', [\App\Http\Controllers\School\AiChatController::class, 'generateReportComments'])->name('ai.report-card-comments');
+        Route::post('ai/chat', [\App\Http\Controllers\School\AiChatController::class, 'chat'])->middleware('throttle:30,1')->name('ai.chat');
+        Route::post('ai/chat/stream', [\App\Http\Controllers\School\AiChatController::class, 'chatStream'])->middleware('throttle:30,1')->name('ai.chat.stream');
+        Route::post('ai/report-card-comments', [\App\Http\Controllers\School\AiChatController::class, 'generateReportComments'])->middleware('throttle:5,1')->name('ai.report-card-comments');
         Route::get('ai/insights', [\App\Http\Controllers\School\AiInsightsController::class, 'index'])->name('ai.insights');
-        Route::post('ai/insights/generate', [\App\Http\Controllers\School\AiInsightsController::class, 'generateInsights'])->name('ai.insights.generate');
-        Route::post('ai/query', [\App\Http\Controllers\School\AiInsightsController::class, 'queryData'])->name('ai.query');
+        Route::post('ai/insights/generate', [\App\Http\Controllers\School\AiInsightsController::class, 'generateInsights'])->middleware('throttle:10,1')->name('ai.insights.generate');
+        Route::post('ai/query', [\App\Http\Controllers\School\AiInsightsController::class, 'queryData'])->middleware('throttle:30,1')->name('ai.query');
+        Route::post('ai/query/stream', [\App\Http\Controllers\School\AiInsightsController::class, 'queryDataStream'])->middleware('throttle:30,1')->name('ai.query.stream');
+        Route::post('ai/suggestions', [\App\Http\Controllers\School\AiSuggestionsController::class, 'index'])->middleware('throttle:60,1')->name('ai.suggestions');
+        Route::post('ai/explain-chart', [\App\Http\Controllers\School\AiInsightsController::class, 'explainChart'])->middleware('throttle:20,1')->name('ai.explain-chart');
+        Route::get('ai/insights/charts', [\App\Http\Controllers\School\AiInsightsController::class, 'charts'])->name('ai.insights.charts');
+        Route::get('ai/insights/views', [\App\Http\Controllers\School\AiInsightViewsController::class, 'index'])->name('ai.insights.views.index');
+        Route::post('ai/insights/views', [\App\Http\Controllers\School\AiInsightViewsController::class, 'store'])->middleware('throttle:30,1')->name('ai.insights.views.store');
+        Route::delete('ai/insights/views/{view}', [\App\Http\Controllers\School\AiInsightViewsController::class, 'destroy'])->name('ai.insights.views.destroy');
+        Route::post('ai/insights/export-pdf', [\App\Http\Controllers\School\AiInsightsController::class, 'exportPdf'])->middleware('throttle:10,1')->name('ai.insights.export.pdf');
+        Route::get('ai/insights/export-excel', [\App\Http\Controllers\School\AiInsightsController::class, 'exportExcel'])->middleware('throttle:10,1')->name('ai.insights.export.excel');
         // School Profile → redirects to General Config (consolidated)
         Route::get('settings/profile', fn() => redirect('/school/settings/general-config', 301))->name('settings.profile');
 

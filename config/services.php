@@ -35,12 +35,10 @@ return [
         ],
     ],
 
-    'gemini' => [
-        'key' => env('GEMINI_API_KEY'),
-    ],
-
     'groq' => [
-        'key' => env('GROQ_API_KEY'),
+        'key'      => env('GROQ_API_KEY'),
+        'model'    => env('GROQ_MODEL', 'llama-3.3-70b-versatile'),
+        'endpoint' => env('GROQ_ENDPOINT', 'https://api.groq.com/openai/v1/chat/completions'),
     ],
 
 ];

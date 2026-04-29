@@ -32,7 +32,7 @@
                     </div>
                     <div class="ai-header-info">
                         <div class="ai-header-name">ERP Assistant</div>
-                        <div class="ai-header-status"><span class="ai-status-dot"></span> Powered by Gemini AI</div>
+                        <div class="ai-header-status"><span class="ai-status-dot"></span> Powered by AI</div>
                     </div>
                     <div class="ai-header-actions">
                         <button v-if="activeTab === 'chat'" class="ai-hdr-btn" @click="newChat" title="New chat">
@@ -228,7 +228,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onMounted } from 'vue';
+import { ref, computed, nextTick, onMounted, reactive } from 'vue';
 import axios from 'axios';
 import { useSchoolStore } from '@/stores/useSchoolStore';
 
@@ -475,7 +475,22 @@ const DEFAULT_SUGGESTIONS = [
     'Which students have pending fees?',
     'How do I generate report cards?',
 ];
-const pageSuggestions = computed(() => PAGE_SUGGESTIONS[window.location.pathname] ?? DEFAULT_SUGGESTIONS);
+const pageSuggestions = ref(PAGE_SUGGESTIONS[window.location.pathname] ?? DEFAULT_SUGGESTIONS);
+
+async function refreshPageSuggestions() {
+    try {
+        const { data } = await axios.post('/school/ai/suggestions', {
+            page: window.location.pathname,
+            context: 'chat',
+            count: 4,
+        });
+        if (Array.isArray(data?.suggestions) && data.suggestions.length) {
+            pageSuggestions.value = data.suggestions;
+        }
+    } catch {
+        // Keep static fallback already set
+    }
+}
 
 // ── Sessions ─────────────────────────────────────────────────
 const sessionsSorted = computed(() => [...sessions.value].sort((a, b) => b.updatedAt - a.updatedAt));
@@ -610,11 +625,66 @@ async function send() {
     saveCurrentSession();
     await nextTick(); scrollToBottom(); resetInputHeight();
 
-    try {
-        const history = messages.value.slice(0, -1).slice(-14).map(m => ({ role: m.role, content: m.content }));
-        const { data } = await axios.post('/school/ai/chat', { message: text, history, page: window.location.pathname });
+    const history = messages.value.slice(0, -1).slice(-14).map(m => ({ role: m.role, content: m.content }));
+    const assistantMsg = reactive({ role: 'assistant', content: '', follow_ups: [], time: Date.now() });
 
-        messages.value.push({ role: 'assistant', content: data.reply, follow_ups: data.follow_ups ?? [], time: Date.now() });
+    try {
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const resp = await fetch('/school/ai/chat/stream', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'text/event-stream',
+                'X-CSRF-TOKEN': csrf,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({ message: text, history, page: window.location.pathname }),
+        });
+
+        if (!resp.ok || !resp.body) {
+            // Fallback to JSON endpoint on streaming failure
+            const { data } = await axios.post('/school/ai/chat', { message: text, history, page: window.location.pathname });
+            assistantMsg.content    = data.reply;
+            assistantMsg.follow_ups = data.follow_ups ?? [];
+            messages.value.push(assistantMsg);
+        } else {
+            messages.value.push(assistantMsg);
+            const reader = resp.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                let idx;
+                while ((idx = buffer.indexOf('\n\n')) !== -1) {
+                    const evt = buffer.slice(0, idx);
+                    buffer = buffer.slice(idx + 2);
+                    const dataLine = evt.split('\n').find(l => l.startsWith('data: '));
+                    if (!dataLine) continue;
+                    try {
+                        const parsed = JSON.parse(dataLine.slice(6));
+                        if (parsed.t) {
+                            assistantMsg.content += parsed.t;
+                            await nextTick();
+                            scrollToBottom();
+                        }
+                    } catch {}
+                }
+            }
+
+            // After stream completes, fetch contextual follow-ups (lightweight)
+            try {
+                const followResp = await axios.post('/school/ai/suggestions', {
+                    page: window.location.pathname,
+                    context: 'chat',
+                    last_question: text,
+                    count: 3,
+                });
+                assistantMsg.follow_ups = followResp.data?.suggestions ?? [];
+            } catch {}
+        }
+
         saveCurrentSession();
         if (!isOpen.value) unread.value++;
     } catch (e) {
@@ -695,6 +765,7 @@ onMounted(() => {
     if (lastOpenedAt) {
         unread.value = messages.value.filter(m => m.role === 'assistant' && m.time && m.time > parseInt(lastOpenedAt)).length;
     }
+    refreshPageSuggestions();
 });
 </script>
 
