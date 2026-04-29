@@ -930,6 +930,7 @@ class FeeController extends Controller
             'copyLabels' => $printSettings->copyLabels(),
         ])->setPaper(strtolower($printSettings->paper_size), 'portrait');
 
-        return $pdf->stream("Receipt-{$feePayment->receipt_no}.pdf");
+        $safeReceiptNo = str_replace(['/', '\\'], '-', (string) $feePayment->receipt_no);
+        return $pdf->stream("Receipt-{$safeReceiptNo}.pdf");
     }
 }

@@ -253,7 +253,8 @@ class TransportFeeCollectionController extends Controller
             'copyLabels' => $printSettings->copyLabels(),
         ])->setPaper(strtolower($printSettings->paper_size), 'portrait');
 
-        return $pdf->stream("Transport-Receipt-{$payment->receipt_no}.pdf");
+        $safeReceiptNo = str_replace(['/', '\\'], '-', (string) $payment->receipt_no);
+        return $pdf->stream("Transport-Receipt-{$safeReceiptNo}.pdf");
     }
 
     /**
