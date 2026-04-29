@@ -84,7 +84,7 @@ class AcademicResourcesSeeder extends Seeder
 
             $classSubjects = DB::table('class_subjects')
                 ->where('school_id', $schoolId)
-                ->where('class_id', $cls->id)
+                ->where('course_class_id', $cls->id)
                 ->pluck('subject_id')
                 ->toArray();
 
