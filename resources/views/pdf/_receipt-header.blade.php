@@ -17,6 +17,9 @@
         $school->state ?? null,
         $school->pincode ?? null,
     ])), ', ');
+
+    // Tagline / description from General Config (shown above school name)
+    $description = $school->settings['app_description'] ?? null;
 @endphp
 
 <div class="header">
@@ -28,6 +31,9 @@
             </td>
             @endif
             <td class="header-text-cell">
+                @if($description)
+                    <div class="school-description">{{ $description }}</div>
+                @endif
                 <div class="school-name">{{ $school->name }}</div>
                 @if($line1 || $line2 || $cityStatePin)
                     <div class="school-address">
