@@ -237,6 +237,12 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     // Finance — Due Report (admin/accountant)
     Route::get('/finance/due-report',      [$MA, 'dueReport'])->name('api.mobile.finance.due-report');
 
+    // Transport — Admin (read-only fleet/route/allocation views)
+    $TA = \App\Http\Controllers\Api\Mobile\TransportAdminController::class;
+    Route::get('/transport/admin/routes',          [$TA, 'routes'])      ->name('api.mobile.transport.admin.routes');
+    Route::get('/transport/admin/routes/{id}',     [$TA, 'routeDetail']) ->whereNumber('id')->name('api.mobile.transport.admin.routes.detail');
+    Route::get('/transport/admin/vehicles',        [$TA, 'vehicles'])    ->name('api.mobile.transport.admin.vehicles');
+
     // Front Office — Call Logs + Follow-Ups
     $CL = \App\Http\Controllers\Api\Mobile\CallLogController::class;
     Route::get   ('/front-office/call-logs',                    [$CL, 'index'])         ->name('api.mobile.call-logs.index');
