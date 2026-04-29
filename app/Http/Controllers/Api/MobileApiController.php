@@ -6320,4 +6320,123 @@ class MobileApiController extends Controller
             ]),
         ]);
     }
+
+    private function assertInventoryAdmin(Request $request): void
+    {
+        $user = $request->user();
+        $type = $user->user_type instanceof \BackedEnum ? $user->user_type->value : (string) $user->user_type;
+        if (!in_array($type, ['admin', 'school_admin', 'principal', 'super_admin'], true)) {
+            abort(response()->json(['error' => 'Unauthorized.'], 403));
+        }
+    }
+
+    /**
+     * GET /mobile/inventory/categories
+     * Returns asset categories (with counts) for the create/edit form picker.
+     */
+    public function inventoryCategories(Request $request): JsonResponse
+    {
+        $school = app('current_school');
+        $cats = \App\Models\AssetCategory::where('school_id', $school->id)
+            ->withCount('assets')
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn($c) => [
+                'id'           => $c->id,
+                'name'         => $c->name,
+                'assets_count' => (int) ($c->assets_count ?? 0),
+            ]);
+        return response()->json(['data' => $cats]);
+    }
+
+    /**
+     * POST /mobile/inventory — admin: create an asset.
+     * Mirrors the web InventoryController::store() validation.
+     */
+    public function storeInventoryAsset(Request $request): JsonResponse
+    {
+        $this->assertInventoryAdmin($request);
+        $schoolId = app('current_school_id');
+
+        $validated = $request->validate([
+            'category_id'         => 'required|exists:asset_categories,id',
+            'name'                => 'required|string|max:200',
+            'asset_code'          => 'nullable|string|max:50',
+            'brand'               => 'nullable|string|max:100',
+            'model_no'            => 'nullable|string|max:100',
+            'serial_no'           => 'nullable|string|max:100',
+            'purchase_date'       => 'nullable|date',
+            'purchase_cost'       => 'nullable|numeric|min:0',
+            'warranty_until'      => 'nullable|string|max:20',
+            'useful_life_years'   => 'nullable|integer|min:1|max:50',
+            'depreciation_method' => 'nullable|in:straight_line,declining_balance',
+            'condition'           => 'nullable|in:excellent,good,fair,poor,condemned',
+            'notes'               => 'nullable|string',
+        ]);
+
+        $asset = \App\Models\Asset::create(array_merge($validated, [
+            'school_id' => $schoolId,
+            'status'    => 'available',
+        ]));
+        $asset->load('category:id,name');
+
+        return response()->json([
+            'message' => 'Asset created.',
+            'data'    => $this->shapeInventoryRow($asset),
+        ], 201);
+    }
+
+    /**
+     * PATCH /mobile/inventory/{id} — admin: update an asset.
+     */
+    public function updateInventoryAsset(Request $request, int $id): JsonResponse
+    {
+        $this->assertInventoryAdmin($request);
+        $schoolId = app('current_school_id');
+
+        $asset = \App\Models\Asset::where('school_id', $schoolId)->find($id);
+        if (!$asset) {
+            return response()->json(['error' => 'Asset not found.'], 404);
+        }
+
+        $validated = $request->validate([
+            'category_id'         => 'sometimes|required|exists:asset_categories,id',
+            'name'                => 'sometimes|required|string|max:200',
+            'asset_code'          => 'nullable|string|max:50',
+            'brand'               => 'nullable|string|max:100',
+            'model_no'            => 'nullable|string|max:100',
+            'serial_no'           => 'nullable|string|max:100',
+            'purchase_date'       => 'nullable|date',
+            'purchase_cost'       => 'nullable|numeric|min:0',
+            'warranty_until'      => 'nullable|string|max:20',
+            'useful_life_years'   => 'nullable|integer|min:1|max:50',
+            'depreciation_method' => 'nullable|in:straight_line,declining_balance',
+            'condition'           => 'nullable|in:excellent,good,fair,poor,condemned',
+            'notes'               => 'nullable|string',
+        ]);
+        $asset->update($validated);
+        $asset->load('category:id,name');
+
+        return response()->json([
+            'message' => 'Asset updated.',
+            'data'    => $this->shapeInventoryRow($asset->fresh(['category'])),
+        ]);
+    }
+
+    private function shapeInventoryRow(\App\Models\Asset $a): array
+    {
+        return [
+            'id'             => $a->id,
+            'name'           => $a->name,
+            'asset_code'     => $a->asset_code,
+            'brand'          => $a->brand,
+            'serial_no'      => $a->serial_no,
+            'category'       => $a->category?->name,
+            'category_id'    => $a->category_id,
+            'purchase_cost'  => (float) $a->purchase_cost,
+            'condition'      => $a->condition,
+            'status'         => $a->status,
+            'warranty_until' => $a->warranty_until,
+        ];
+    }
 }
