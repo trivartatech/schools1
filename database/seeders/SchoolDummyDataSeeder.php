@@ -132,6 +132,21 @@ class SchoolDummyDataSeeder extends Seeder
             }
         }
 
+        // ── 4b. Bind every section to the current academic year ───────────────
+        // The Section model has scopeForCurrentYear() which filters by the
+        // section_academic_year pivot. Without this, sections look "unconnected"
+        // in the UI even though students/classes reference them correctly.
+        $allSectionIds = DB::table('sections')->where('school_id', $schoolId)->pluck('id');
+        $pivotRows = $allSectionIds->map(fn($sid) => [
+            'section_id'       => $sid,
+            'academic_year_id' => $yearId,
+            'created_at'       => $now,
+            'updated_at'       => $now,
+        ])->all();
+        if (!empty($pivotRows)) {
+            DB::table('section_academic_year')->insertOrIgnore($pivotRows);
+        }
+
         // ── 5. Subject Types ─────────────────────────────────────────────────
         $partTypes = [
             ['label' => 'Part A',          'description' => 'First part / theory component',               'sort_order' => 1],
