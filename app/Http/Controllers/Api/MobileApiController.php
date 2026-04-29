@@ -427,9 +427,11 @@ class MobileApiController extends Controller
         $user   = $request->user();
         $school = app('current_school');
 
+        // Order by id so the class list appears in the same order across all
+        // mobile filters (matches the natural order ExamMarks shows, since
+        // schedules are returned with implicit id ordering inside a year).
         $classQuery = \App\Models\CourseClass::where('school_id', $school->id)
-            ->orderBy('numeric_value')
-            ->orderBy('name');
+            ->orderBy('id');
 
         // Teachers only see their assigned classes/sections
         $teacherSectionIds = null;
@@ -4965,8 +4967,8 @@ class MobileApiController extends Controller
         $defaulterCount   = count(array_filter($rows, fn($r) => $r['is_defaulter']));
 
         $classes = \App\Models\CourseClass::where('school_id', $school->id)
-            ->orderBy('numeric_value')->orderBy('name')
-            ->with(['sections' => fn($q) => $q->orderBy('name')])
+            ->orderBy('id')
+            ->with(['sections' => fn($q) => $q->orderBy('id')])
             ->get()
             ->map(fn($c) => [
                 'id'       => $c->id,
@@ -5215,9 +5217,10 @@ class MobileApiController extends Controller
             ->get()
             ->groupBy(fn($r) => $normDate($r->date));
 
-        // Class names for breakdown labels
+        // Class names for breakdown labels — order by id to match the
+        // ordering used by /mobile/class-options.
         $classNames = \App\Models\CourseClass::where('school_id', $schoolId)
-            ->orderBy('numeric_value')->orderBy('name')
+            ->orderBy('id')
             ->pluck('name', 'id');
 
         // Per-class enrollment for "% present" computation
@@ -5445,9 +5448,9 @@ class MobileApiController extends Controller
             }
         }
 
-        // Class options for the filter UI (mirror date-wise endpoint shape)
+        // Class options for the filter UI — order by id (matches /mobile/class-options).
         $classes = \App\Models\CourseClass::where('school_id', $schoolId)
-            ->orderBy('numeric_value')->orderBy('name')
+            ->orderBy('id')
             ->get(['id', 'name'])
             ->map(fn($c) => ['id' => (int) $c->id, 'name' => $c->name])
             ->values();
