@@ -4784,6 +4784,198 @@ class MobileApiController extends Controller
         ]);
     }
 
+    /**
+     * GET /mobile/attendance/admin/date-wise
+     *
+     * Daily attendance summary across classes for a date range. Mirrors the
+     * web AttendanceController::dateWise() in shape but is leaner — returns
+     * the same per-date totals and per-class breakdown so the mobile UI can
+     * render a "What happened on each day" overview without a second
+     * round trip per day.
+     *
+     * Query params:
+     *   from         YYYY-MM-DD (default: 7 days ago)
+     *   to           YYYY-MM-DD (default: today)
+     *   class_id     restrict to one class
+     *   section_id   restrict to one section
+     *
+     * The range is capped at 31 days to keep payloads small on mobile.
+     */
+    public function attendanceDateWise(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $type = $user->user_type instanceof \BackedEnum ? $user->user_type->value : (string) $user->user_type;
+        if (!in_array($type, ['admin', 'school_admin', 'principal', 'super_admin', 'teacher', 'staff'], true)) {
+            return response()->json(['error' => 'Unauthorized.'], 403);
+        }
+
+        $school   = app('current_school');
+        $schoolId = $school->id;
+        $yearId   = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
+
+        $to   = $request->input('to',   now()->toDateString());
+        $from = $request->input('from', now()->subDays(6)->toDateString());
+
+        try {
+            $fromDate = \Carbon\Carbon::parse($from);
+            $toDate   = \Carbon\Carbon::parse($to);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => 'Invalid date range.'], 422);
+        }
+        if ($fromDate->gt($toDate)) {
+            [$from, $to] = [$to, $from];
+            $fromDate = \Carbon\Carbon::parse($from);
+            $toDate   = \Carbon\Carbon::parse($to);
+        }
+        if ($fromDate->diffInDays($toDate) > 31) {
+            $fromDate = $toDate->copy()->subDays(31);
+            $from     = $fromDate->toDateString();
+        }
+
+        $classId   = $request->input('class_id');
+        $sectionId = $request->input('section_id');
+
+        // Teacher scope — mirror the existing report endpoint's behaviour
+        if ($user->isTeacher()) {
+            $scope = app(TeacherScopeService::class)->for($user);
+            if ($scope->restricted) {
+                if ($classId && !$scope->classIds->contains((int) $classId)) {
+                    return response()->json(['error' => 'You are not authorized to view this class.'], 403);
+                }
+                if ($sectionId && !$scope->sectionIds->contains((int) $sectionId)) {
+                    return response()->json(['error' => 'You are not authorized to view this section.'], 403);
+                }
+            }
+        }
+
+        $normDate = fn($d) => \Carbon\Carbon::parse($d)->toDateString();
+
+        // Per-day aggregate counts by status
+        $dayStatusCounts = Attendance::where('school_id', $schoolId)
+            ->when($yearId,    fn($q) => $q->where('academic_year_id', $yearId))
+            ->when($classId,   fn($q) => $q->where('class_id',   $classId))
+            ->when($sectionId, fn($q) => $q->where('section_id', $sectionId))
+            ->whereBetween('date', [$from, $to])
+            ->selectRaw('date, status, COUNT(*) as cnt')
+            ->groupBy('date', 'status')
+            ->get()
+            ->groupBy(fn($r) => $normDate($r->date));
+
+        // Per-day per-class counts
+        $dayClassCounts = Attendance::where('school_id', $schoolId)
+            ->when($yearId,    fn($q) => $q->where('academic_year_id', $yearId))
+            ->when($classId,   fn($q) => $q->where('class_id',   $classId))
+            ->when($sectionId, fn($q) => $q->where('section_id', $sectionId))
+            ->whereBetween('date', [$from, $to])
+            ->selectRaw('date, class_id, status, COUNT(*) as cnt')
+            ->groupBy('date', 'class_id', 'status')
+            ->get()
+            ->groupBy(fn($r) => $normDate($r->date));
+
+        // Class names for breakdown labels
+        $classNames = \App\Models\CourseClass::where('school_id', $schoolId)
+            ->orderBy('numeric_value')->orderBy('name')
+            ->pluck('name', 'id');
+
+        // Per-class enrollment for "% present" computation
+        $classEnrollment = $yearId
+            ? StudentAcademicHistory::where('school_id', $schoolId)
+                ->where('academic_year_id', $yearId)
+                ->when($classId,   fn($q) => $q->where('class_id',   $classId))
+                ->when($sectionId, fn($q) => $q->where('section_id', $sectionId))
+                ->where('status', 'current')
+                ->selectRaw('class_id, COUNT(*) as enrolled')
+                ->groupBy('class_id')
+                ->pluck('enrolled', 'class_id')
+                ->toArray()
+            : [];
+        $totalEnrolled = array_sum($classEnrollment);
+
+        // Build a date list (descending — newest day first feels natural in a list)
+        $dates = [];
+        $cursor = $toDate->copy();
+        while ($cursor->gte($fromDate)) {
+            $dates[] = $cursor->toDateString();
+            $cursor->subDay();
+        }
+
+        $extract = function ($rows, string $status): int {
+            return (int) ($rows->where('status', $status)->first()?->cnt ?? 0);
+        };
+
+        $data = [];
+        foreach ($dates as $d) {
+            $statusRows = $dayStatusCounts->get($d, collect());
+            $present  = $extract($statusRows, 'present');
+            $absent   = $extract($statusRows, 'absent');
+            $late     = $extract($statusRows, 'late');
+            $halfDay  = $extract($statusRows, 'half_day');
+            $leave    = $extract($statusRows, 'leave');
+            $marked   = $present + $absent + $late + $halfDay + $leave;
+
+            $unmarked = max(0, $totalEnrolled - $marked);
+            $pct      = $totalEnrolled > 0 ? round(($present / $totalEnrolled) * 100, 1) : null;
+
+            // Class breakdown
+            $classRowsForDay = $dayClassCounts->get($d, collect())->groupBy('class_id');
+            $classes = [];
+            foreach ($classRowsForDay as $cid => $rows) {
+                $cP = $extract($rows, 'present');
+                $cA = $extract($rows, 'absent');
+                $cL = $extract($rows, 'late');
+                $cH = $extract($rows, 'half_day');
+                $cV = $extract($rows, 'leave');
+                $cEnrolled = (int) ($classEnrollment[$cid] ?? ($cP + $cA + $cL + $cH + $cV));
+                $cPct = $cEnrolled > 0 ? round(($cP / $cEnrolled) * 100, 1) : null;
+                $classes[] = [
+                    'class_id'   => (int) $cid,
+                    'class_name' => $classNames[$cid] ?? '—',
+                    'enrolled'   => $cEnrolled,
+                    'present'    => $cP,
+                    'absent'     => $cA,
+                    'late'       => $cL,
+                    'half_day'   => $cH,
+                    'leave'      => $cV,
+                    'percent'    => $cPct,
+                ];
+            }
+            // Sort breakdown by class number-ish ordering — fall back to name
+            usort($classes, fn($a, $b) => strcasecmp($a['class_name'], $b['class_name']));
+
+            $data[] = [
+                'date'    => $d,
+                'summary' => [
+                    'enrolled' => $totalEnrolled,
+                    'marked'   => $marked,
+                    'unmarked' => $unmarked,
+                    'present'  => $present,
+                    'absent'   => $absent,
+                    'late'     => $late,
+                    'half_day' => $halfDay,
+                    'leave'    => $leave,
+                    'percent'  => $pct,
+                ],
+                'classes' => $classes,
+            ];
+        }
+
+        return response()->json([
+            'data'    => $data,
+            'applied' => [
+                'from'       => $from,
+                'to'         => $to,
+                'class_id'   => $classId,
+                'section_id' => $sectionId,
+                'days'       => count($dates),
+            ],
+            'filters' => [
+                'classes' => $classNames->map(fn($name, $id) => [
+                    'id' => (int) $id, 'name' => $name,
+                ])->values(),
+            ],
+        ]);
+    }
+
     // ── AI Insights ───────────────────────────────────────────────────────────
 
     public function aiInsights(Request $request): JsonResponse

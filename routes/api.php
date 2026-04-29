@@ -280,6 +280,7 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     Route::get('/attendance/students',    [$MA, 'attendanceStudents'])->name('api.mobile.attendance.students');
     Route::post('/attendance/mark',       [$MA, 'markAttendance'])->name('api.mobile.attendance.mark');
     Route::get('/attendance/report',      [$MA, 'attendanceReport'])->name('api.mobile.attendance.report');
+    Route::get('/attendance/admin/date-wise', [$MA, 'attendanceDateWise'])->name('api.mobile.attendance.admin.date-wise');
     Route::post('/attendance/rapid-scan',       [$MA, 'rapidScanAttendance'])->name('api.mobile.attendance.rapid-scan');
     Route::post('/staff-attendance/rapid-scan', [$MA, 'rapidScanStaffAttendance'])->name('api.mobile.staff-attendance.rapid-scan');
     Route::get('/staff-qr/me',                  [$MA, 'staffQrSelf'])->name('api.mobile.staff-qr.me');
