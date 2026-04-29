@@ -192,6 +192,9 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
 
     // Holidays
     Route::get('/holidays',             [$MA, 'holidays'])->name('api.mobile.holidays');
+    Route::post  ('/holidays',          [$MA, 'storeHoliday'])  ->name('api.mobile.holidays.store');
+    Route::patch ('/holidays/{id}',     [$MA, 'updateHoliday']) ->whereNumber('id')->name('api.mobile.holidays.update');
+    Route::delete('/holidays/{id}',     [$MA, 'destroyHoliday'])->whereNumber('id')->name('api.mobile.holidays.destroy');
 
     // Subjects for a class (used in create forms)
     Route::get('/subjects-for-class',   [$MA, 'subjectsForClass'])->name('api.mobile.subjects-for-class');

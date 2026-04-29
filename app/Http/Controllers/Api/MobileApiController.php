@@ -3041,6 +3041,94 @@ class MobileApiController extends Controller
         return response()->json(['data' => $holidays]);
     }
 
+    private function holidayPayload(Holiday $h, $dateFmt): array
+    {
+        return [
+            'id'               => $h->id,
+            'name'             => $h->title,
+            'date'             => $h->date?->toDateString(),
+            'date_display'     => $h->date?->format($dateFmt),
+            'end_date'         => $h->end_date?->toDateString(),
+            'end_date_display' => $h->end_date?->format($dateFmt),
+            'type'             => $h->type ?? 'holiday',
+            'description'      => $h->description,
+        ];
+    }
+
+    private function assertHolidayAdmin(Request $request): void
+    {
+        $user = $request->user();
+        $type = $user->user_type instanceof \BackedEnum ? $user->user_type->value : (string) $user->user_type;
+        if (!in_array($type, ['admin', 'school_admin', 'principal', 'super_admin'], true)) {
+            abort(response()->json(['error' => 'Unauthorized.'], 403));
+        }
+    }
+
+    /**
+     * POST /mobile/holidays — admin: create a holiday/event entry.
+     * Mirrors HolidayController::store() validation exactly.
+     */
+    public function storeHoliday(Request $request): JsonResponse
+    {
+        $this->assertHolidayAdmin($request);
+        $school = app('current_school');
+
+        $validated = $request->validate([
+            'title'       => 'required|string|max:255',
+            'date'        => 'required|date',
+            'end_date'    => 'nullable|date|after_or_equal:date',
+            'type'        => 'required|in:holiday,event,exam,other',
+            'description' => 'nullable|string|max:1000',
+        ]);
+        $validated['school_id'] = $school->id;
+        $holiday = Holiday::create($validated);
+
+        return response()->json([
+            'message' => 'Created.',
+            'data'    => $this->holidayPayload($holiday, $school->dateFmt()),
+        ], 201);
+    }
+
+    /**
+     * PATCH /mobile/holidays/{id} — admin: update an existing entry.
+     */
+    public function updateHoliday(Request $request, int $id): JsonResponse
+    {
+        $this->assertHolidayAdmin($request);
+        $school  = app('current_school');
+        $holiday = Holiday::where('school_id', $school->id)->find($id);
+        if (!$holiday) {
+            return response()->json(['error' => 'Holiday not found.'], 404);
+        }
+
+        $validated = $request->validate([
+            'title'       => 'sometimes|required|string|max:255',
+            'date'        => 'sometimes|required|date',
+            'end_date'    => 'nullable|date|after_or_equal:date',
+            'type'        => 'sometimes|required|in:holiday,event,exam,other',
+            'description' => 'nullable|string|max:1000',
+        ]);
+        $holiday->update($validated);
+
+        return response()->json([
+            'message' => 'Updated.',
+            'data'    => $this->holidayPayload($holiday->fresh(), $school->dateFmt()),
+        ]);
+    }
+
+    /** DELETE /mobile/holidays/{id} — admin: soft-delete an entry. */
+    public function destroyHoliday(Request $request, int $id): JsonResponse
+    {
+        $this->assertHolidayAdmin($request);
+        $school  = app('current_school');
+        $holiday = Holiday::where('school_id', $school->id)->find($id);
+        if (!$holiday) {
+            return response()->json(['error' => 'Holiday not found.'], 404);
+        }
+        $holiday->delete();
+        return response()->json(['message' => 'Deleted.', 'id' => $id]);
+    }
+
     // ── Student Diary ────────────────────────────────────────────────────────
 
     public function diary(Request $request): JsonResponse
