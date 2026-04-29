@@ -167,13 +167,13 @@ class MobileApiController extends Controller
                 'studentParent',
                 'user:id,name,email,phone',
                 'documents',
-                'transportAllocation.route',
+                'transportAllocation.route.stops',
                 'transportAllocation.stop',
                 'transportAllocation.vehicle',
             ])
             ->findOrFail($id);
 
-        // Academic history — latest record
+        // Academic history — latest record (used for the legacy class_name / section_name fields)
         $history = \DB::table('student_academic_histories as sah')
             ->leftJoin('course_classes as cc', 'cc.id', '=', 'sah.class_id')
             ->leftJoin('sections as sec', 'sec.id', '=', 'sah.section_id')
@@ -181,6 +181,31 @@ class MobileApiController extends Controller
             ->orderByDesc('sah.id')
             ->select('cc.name as class_name', 'sec.name as section_name', 'sah.class_id', 'sah.section_id')
             ->first();
+
+        // Full academic history list — what the web's "Record" tab shows
+        $academicHistories = \DB::table('student_academic_histories as sah')
+            ->leftJoin('course_classes as cc',  'cc.id',  '=', 'sah.class_id')
+            ->leftJoin('sections as sec',       'sec.id', '=', 'sah.section_id')
+            ->leftJoin('academic_years as ay',  'ay.id',  '=', 'sah.academic_year_id')
+            ->where('sah.student_id', $id)
+            ->orderByDesc('ay.start_date')
+            ->orderByDesc('sah.id')
+            ->select(
+                'sah.id', 'sah.enrollment_type', 'sah.student_type', 'sah.status', 'sah.remarks',
+                'cc.name as class_name', 'sec.name as section_name', 'ay.name as year_name'
+            )
+            ->get()
+            ->map(fn ($h) => [
+                'id'              => (int) $h->id,
+                'year'            => $h->year_name,
+                'class'           => $h->class_name,
+                'section'         => $h->section_name,
+                'enrollment_type' => $h->enrollment_type ?: 'Regular',
+                'student_type'    => $h->student_type    ?: 'Old Student',
+                'status'          => $h->status,
+                'remarks'         => $h->remarks,
+            ])
+            ->values();
 
         // Teachers: verify the student belongs to one of their assigned sections
         if ($user->isTeacher()) {
@@ -331,23 +356,157 @@ class MobileApiController extends Controller
             'file_url'               => $this->publicFileUrl($d->file_path),
         ])->values();
 
-        // Transport
+        // Transport — mirrors the web Show.vue Transport tab payload, including
+        // amount paid / balance / payment_status, distance, and the full route
+        // stops timeline so the mobile UI can render the active stop highlighted.
         $alloc     = $student->transportAllocation;
         $transport = $alloc ? [
+            'id'              => $alloc->id,
             'route_name'      => $alloc->route?->route_name,
             'route_code'      => $alloc->route?->route_code,
             'start_location'  => $alloc->route?->start_location,
             'end_location'    => $alloc->route?->end_location,
+            'stop_id'         => $alloc->stop_id,
             'stop_name'       => $alloc->stop?->stop_name,
             'pickup_time'     => $alloc->stop?->pickup_time,
             'drop_time'       => $alloc->stop?->drop_time,
+            'distance_km'     => $alloc->stop?->distance_from_school !== null
+                                    ? (float) $alloc->stop->distance_from_school : null,
             'vehicle_number'  => $alloc->vehicle?->vehicle_number,
             'vehicle_name'    => $alloc->vehicle?->vehicle_name,
-            'transport_fee'   => $alloc->transport_fee,
+            'transport_fee'   => (float) $alloc->transport_fee,
+            'amount_paid'     => (float) ($alloc->amount_paid  ?? 0),
+            'discount'        => (float) ($alloc->discount     ?? 0),
+            'fine'            => (float) ($alloc->fine         ?? 0),
+            'balance'         => (float) ($alloc->balance      ?? 0),
+            'payment_status'  => $alloc->payment_status,
+            'months_opted'    => $alloc->months_opted !== null ? (float) $alloc->months_opted : null,
             'pickup_type'     => $alloc->pickup_type,
             'start_date'      => $alloc->start_date,
+            'end_date'        => $alloc->end_date,
             'status'          => $alloc->status,
+            'stops'           => collect($alloc->route?->stops ?? [])
+                ->map(fn ($s) => [
+                    'id'           => $s->id,
+                    'stop_name'    => $s->stop_name,
+                    'pickup_time'  => $s->pickup_time,
+                    'fee'          => $s->fee !== null ? (float) $s->fee : null,
+                    'distance_km'  => $s->distance_from_school !== null ? (float) $s->distance_from_school : null,
+                    'is_active'    => $s->id === $alloc->stop_id,
+                ])->values(),
         ] : null;
+
+        // Siblings — students under the same parent (excluding this student)
+        $siblings = [];
+        if ($parent && $parent->id) {
+            $siblings = Student::where('school_id', $school->id)
+                ->where('parent_id', $parent->id)
+                ->where('id', '!=', $student->id)
+                ->with(['currentAcademicHistory.courseClass:id,name', 'currentAcademicHistory.section:id,name'])
+                ->get(['id', 'first_name', 'last_name', 'admission_no', 'parent_id', 'school_id', 'gender'])
+                ->map(fn ($sib) => [
+                    'id'           => $sib->id,
+                    'name'         => trim(($sib->first_name ?? '') . ' ' . ($sib->last_name ?? '')),
+                    'admission_no' => $sib->admission_no,
+                    'gender'       => $sib->gender,
+                    'class'        => $sib->currentAcademicHistory?->courseClass?->name,
+                    'section'      => $sib->currentAcademicHistory?->section?->name,
+                ])->values();
+        }
+
+        // Hostel — current allocation (if any)
+        $hostelRow = \App\Models\HostelStudent::where('school_id', $school->id)
+            ->where('student_id', $id)
+            ->whereNull('vacate_date')
+            ->with(['bed.room.hostel'])
+            ->latest('id')
+            ->first();
+        $hostel = $hostelRow ? [
+            'id'                => $hostelRow->id,
+            'admission_date'    => $hostelRow->admission_date?->toDateString(),
+            'mess_type'         => $hostelRow->mess_type,
+            'status'            => $hostelRow->status,
+            'guardian_name'     => $hostelRow->guardian_name,
+            'guardian_phone'    => $hostelRow->guardian_phone,
+            'guardian_relation' => $hostelRow->guardian_relation,
+            'hostel_fee'        => (float) ($hostelRow->hostel_fee  ?? 0),
+            'months_opted'      => (float) ($hostelRow->months_opted ?? 0),
+            'amount_paid'       => (float) ($hostelRow->amount_paid ?? 0),
+            'balance'           => (float) ($hostelRow->balance     ?? 0),
+            'payment_status'    => $hostelRow->payment_status,
+            'last_payment_date' => $hostelRow->last_payment_date?->toDateString(),
+            'bed'               => $hostelRow->bed ? [
+                'id'   => $hostelRow->bed->id,
+                'name' => $hostelRow->bed->name,
+            ] : null,
+            'room'              => $hostelRow->bed?->room ? [
+                'id'          => $hostelRow->bed->room->id,
+                'room_number' => $hostelRow->bed->room->room_number,
+                'room_type'   => $hostelRow->bed->room->room_type,
+                'block_name'  => $hostelRow->bed->room->block_name,
+                'floor_name'  => $hostelRow->bed->room->floor_name,
+            ] : null,
+            'hostel'            => $hostelRow->bed?->room?->hostel ? [
+                'id'   => $hostelRow->bed->room->hostel->id,
+                'name' => $hostelRow->bed->room->hostel->name,
+                'type' => $hostelRow->bed->room->hostel->type,
+            ] : null,
+        ] : null;
+
+        // Stationary — current academic year allocation (if any)
+        $stationaryRow = \App\Models\StationaryStudentAllocation::where('school_id', $school->id)
+            ->where('student_id', $id)
+            ->when($yearId, fn ($q) => $q->where('academic_year_id', $yearId))
+            ->with(['lineItems.item:id,name,code,unit_price'])
+            ->latest('id')
+            ->first();
+        $stationary = $stationaryRow ? [
+            'id'                => $stationaryRow->id,
+            'total_amount'      => (float) $stationaryRow->total_amount,
+            'amount_paid'       => (float) $stationaryRow->amount_paid,
+            'balance'           => (float) $stationaryRow->balance,
+            'discount'          => (float) $stationaryRow->discount,
+            'fine'              => (float) $stationaryRow->fine,
+            'payment_status'    => $stationaryRow->payment_status,
+            'collection_status' => $stationaryRow->collection_status,
+            'status'            => $stationaryRow->status,
+            'remarks'           => $stationaryRow->remarks,
+            'last_payment_date' => $stationaryRow->last_payment_date?->toDateString(),
+            'lines'             => $stationaryRow->lineItems->map(fn ($l) => [
+                'id'             => $l->id,
+                'item_name'      => $l->item?->name ?? 'Unknown',
+                'item_code'      => $l->item?->code,
+                'qty_entitled'   => (int) $l->qty_entitled,
+                'qty_collected'  => (int) $l->qty_collected,
+                'qty_remaining'  => max(0, (int) $l->qty_entitled - (int) $l->qty_collected),
+                'unit_price'     => (float) $l->unit_price,
+                'line_total'     => (float) $l->line_total,
+            ])->values(),
+        ] : null;
+
+        // Disciplinary records for this student
+        $disciplinary = \App\Models\DisciplinaryRecord::where('school_id', $school->id)
+            ->where('student_id', $id)
+            ->with(['reportedBy:id,name', 'reviewedBy:id,name'])
+            ->orderByDesc('incident_date')
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn ($r) => [
+                'id'                  => $r->id,
+                'incident_date'       => $r->incident_date?->toDateString(),
+                'category'            => $r->category,
+                'severity'            => $r->severity,
+                'status'              => $r->status,
+                'description'         => $r->description,
+                'action_taken'        => $r->action_taken,
+                'consequence'         => $r->consequence,
+                'consequence_from'    => $r->consequence_from?->toDateString(),
+                'consequence_to'      => $r->consequence_to?->toDateString(),
+                'parent_notified'     => (bool) $r->parent_notified,
+                'parent_notified_at'  => $r->parent_notified_at?->toDateString(),
+                'reported_by'         => $r->reportedBy ? ['id' => $r->reportedBy->id, 'name' => $r->reportedBy->name] : null,
+                'reviewed_by'         => $r->reviewedBy ? ['id' => $r->reviewedBy->id, 'name' => $r->reviewedBy->name] : null,
+            ])->values();
 
         // Teachers do not see sensitive PII (Aadhaar, religion, caste, category)
         $isTeacher = $user->isTeacher();
@@ -416,9 +575,14 @@ class MobileApiController extends Controller
                 'discount'  => $feeSummary['discount']  ?? 0,
                 'payments'  => $feePayments,
             ],
-            'exam_marks' => $examMarks,
-            'documents'  => $documents,
-            'transport'  => $transport,
+            'exam_marks'         => $examMarks,
+            'documents'          => $documents,
+            'transport'          => $transport,
+            'siblings'           => $siblings,
+            'academic_histories' => $academicHistories,
+            'hostel'             => $hostel,
+            'stationary'         => $stationary,
+            'disciplinary'       => $disciplinary,
         ]);
     }
 
