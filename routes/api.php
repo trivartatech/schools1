@@ -320,6 +320,13 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     Route::get('/exam-marks/students',  [$EMC, 'students'])->name('api.mobile.exam-marks.students');
     Route::post('/exam-marks/save',     [$EMC, 'save'])->name('api.mobile.exam-marks.save');
 
+    // Stationary items (admin)
+    $STAT = \App\Http\Controllers\Api\Mobile\StationaryController::class;
+    Route::get   ('/stationary/items',          [$STAT, 'items'])      ->name('api.mobile.stationary.items');
+    Route::post  ('/stationary/items',          [$STAT, 'storeItem'])  ->name('api.mobile.stationary.items.store');
+    Route::patch ('/stationary/items/{id}',     [$STAT, 'updateItem']) ->whereNumber('id')->name('api.mobile.stationary.items.update');
+    Route::delete('/stationary/items/{id}',     [$STAT, 'destroyItem'])->whereNumber('id')->name('api.mobile.stationary.items.destroy');
+
     // Inventory (admin)
     Route::get  ('/inventory',                 [$MA, 'inventoryAssets'])    ->name('api.mobile.inventory');
     Route::get  ('/inventory/categories',      [$MA, 'inventoryCategories'])->name('api.mobile.inventory.categories');
