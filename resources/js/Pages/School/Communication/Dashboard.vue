@@ -1,6 +1,7 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
 import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -195,7 +196,7 @@ const breakdownEntries = computed(() => {
                         </tr>
                     </tbody>
                 </Table>
-                <div v-else class="empty-state">No recent communication logs.</div>
+                <EmptyState v-else variant="compact" tone="muted" title="No recent communication logs." />
             </div>
 
             <!-- ── 5. Pending Announcements ────────────────────────── -->
@@ -223,7 +224,7 @@ const breakdownEntries = computed(() => {
                         </div>
                     </div>
                 </div>
-                <div v-else class="empty-state">No pending announcements.</div>
+                <EmptyState v-else variant="compact" tone="muted" title="No pending announcements." />
             </div>
         </div>
 
@@ -548,13 +549,6 @@ const breakdownEntries = computed(() => {
     line-height: 1;
 }
 
-/* ── Empty State ─────────────────────────────────────────────── */
-.empty-state {
-    padding: 32px 18px;
-    text-align: center;
-    font-size: 0.8125rem;
-    color: #94a3b8;
-}
 
 /* ── Responsive ──────────────────────────────────────────────── */
 @media (max-width: 1024px) {

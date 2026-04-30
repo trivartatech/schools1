@@ -359,8 +359,6 @@ const nextPhaseActionFor = (state) => {
 </template>
 
 <style scoped>
-.page-header { margin-bottom: 1.5rem; }
-
 .run-panel {
     max-width: 820px; margin: 0 auto 1.5rem;
     background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-lg);

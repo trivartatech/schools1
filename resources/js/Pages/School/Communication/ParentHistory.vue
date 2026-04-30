@@ -133,26 +133,6 @@ const relativeTime = (dateStr) => {
 </template>
 
 <style scoped>
-.page-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-    gap: 12px;
-}
-.page-header-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #1e293b;
-    margin: 0;
-}
-.page-header-sub {
-    font-size: .82rem;
-    color: #64748b;
-    margin: 2px 0 0;
-}
-
 .timeline {
     display: flex;
     flex-direction: column;

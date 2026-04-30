@@ -2,6 +2,7 @@
 import Button from '@/Components/ui/Button.vue';
 import Modal from '@/Components/ui/Modal.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
 import { ref, computed, watch, nextTick } from 'vue';
 import QRCode from 'qrcode';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
@@ -887,11 +888,16 @@ const handleResetPassword = async (target) => {
                             <span class="badge badge-blue">{{ siblings.length }} found</span>
                         </div>
                         <div class="card-body" style="padding: 0;">
-                            <div v-if="siblings.length === 0" class="empty-state">
-                                <div class="empty-state-icon">🧑‍🤝‍🧑</div>
-                                <p class="empty-state-title">No siblings found</p>
-                                <p class="empty-state-sub">No other students are registered under the same parent.</p>
-                            </div>
+                            <EmptyState
+                                v-if="siblings.length === 0"
+                                tone="muted"
+                                title="No siblings found"
+                                description="No other students are registered under the same parent."
+                            >
+                                <template #icon>
+                                    <span style="font-size:1.5rem;line-height:1;">🧑‍🤝‍🧑</span>
+                                </template>
+                            </EmptyState>
                             <div v-else class="sibling-list">
                                 <Link
                                     v-for="sibling in siblings"
@@ -1028,10 +1034,15 @@ const handleResetPassword = async (target) => {
                                     </div>
                                 </div>
                             </div>
-                            <div v-else class="empty-state">
-                                <div class="empty-state-icon">💰</div>
-                                <p class="empty-state-title">No fee structure found for this academic year.</p>
-                            </div>
+                            <EmptyState
+                                v-else
+                                tone="muted"
+                                title="No fee structure found for this academic year."
+                            >
+                                <template #icon>
+                                    <span style="font-size:1.5rem;line-height:1;">💰</span>
+                                </template>
+                            </EmptyState>
                         </div>
                     </div>
 
@@ -1042,10 +1053,15 @@ const handleResetPassword = async (target) => {
                             <span v-if="feePayments.length" class="badge-count" style="margin-left:8px;">{{ feePayments.length }}</span>
                         </div>
                         <div class="card-body" style="padding:0;">
-                            <div v-if="feePayments.length === 0" class="empty-state" style="padding:32px;">
-                                <div class="empty-state-icon">🧾</div>
-                                <p class="empty-state-title">No payments recorded for this academic year.</p>
-                            </div>
+                            <EmptyState
+                                v-if="feePayments.length === 0"
+                                tone="muted"
+                                title="No payments recorded for this academic year."
+                            >
+                                <template #icon>
+                                    <span style="font-size:1.5rem;line-height:1;">🧾</span>
+                                </template>
+                            </EmptyState>
                             <div v-else class="payment-table-wrap">
                                 <table class="payment-table">
                                     <thead>
@@ -1098,10 +1114,15 @@ const handleResetPassword = async (target) => {
                             <span class="card-title">Attendance Report</span>
                         </div>
                         <div class="card-body">
-                            <div v-if="!attendanceSummary.total" class="empty-state">
-                                <div class="empty-state-icon">📭</div>
-                                <p class="empty-state-title">No attendance records found for this academic year.</p>
-                            </div>
+                            <EmptyState
+                                v-if="!attendanceSummary.total"
+                                tone="muted"
+                                title="No attendance records found for this academic year."
+                            >
+                                <template #icon>
+                                    <span style="font-size:1.5rem;line-height:1;">📭</span>
+                                </template>
+                            </EmptyState>
 
                             <template v-else>
                                 <div class="att-summary">
@@ -1182,10 +1203,15 @@ const handleResetPassword = async (target) => {
                             </Button>
                         </div>
                         <div class="card-body">
-                            <div v-if="!examMarks.length" class="empty-state">
-                                <div class="empty-state-icon">📄</div>
-                                <p class="empty-state-title">No exam marks recorded for this academic year.</p>
-                            </div>
+                            <EmptyState
+                                v-if="!examMarks.length"
+                                tone="muted"
+                                title="No exam marks recorded for this academic year."
+                            >
+                                <template #icon>
+                                    <span style="font-size:1.5rem;line-height:1;">📄</span>
+                                </template>
+                            </EmptyState>
 
                             <div v-else class="exam-list">
                                 <div v-for="exam in examMarks" :key="exam.id" class="exam-block">
@@ -1277,13 +1303,16 @@ const handleResetPassword = async (target) => {
                                     </div>
                                 </div>
                             </div>
-                            <div v-else class="empty-state">
-                                <svg class="w-12 h-12 empty-state-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h4a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                                </svg>
-                                <p class="empty-state-title">No documents added yet.</p>
-                                <Button variant="secondary" size="sm" @click="showDocumentModal = true" class="mt-2">Add the first document</Button>
-                            </div>
+                            <EmptyState v-else tone="muted" title="No documents added yet.">
+                                <template #icon>
+                                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h4a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                                    </svg>
+                                </template>
+                                <template #action>
+                                    <Button variant="secondary" size="sm" @click="showDocumentModal = true">Add the first document</Button>
+                                </template>
+                            </EmptyState>
                         </div>
                     </div>
                 </div>
@@ -1404,19 +1433,26 @@ const handleResetPassword = async (target) => {
                         </div>
                         <div class="card-body" v-else>
                             <!-- Empty state (before user clicks "Assign Transport") -->
-                            <div v-if="!showAssignTransport" class="empty-state">
-                                <svg class="w-12 h-12 empty-state-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 6H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-3M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M8 6h8" />
-                                </svg>
-                                <p class="empty-state-title">No transport allocated</p>
-                                <p class="empty-state-sub">This student is not assigned to any transport route.</p>
-                                <Button v-if="transportRoutes.length" size="sm" @click="showAssignTransport = true" class="mt-2.5">
-                                    Assign Transport
-                                </Button>
-                                <p v-else class="empty-state-sub" style="margin-top:8px;">
-                                    No active transport routes. Add routes in the Transport module first.
-                                </p>
-                            </div>
+                            <EmptyState
+                                v-if="!showAssignTransport"
+                                tone="muted"
+                                title="No transport allocated"
+                                description="This student is not assigned to any transport route."
+                            >
+                                <template #icon>
+                                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 6H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-3M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M8 6h8" />
+                                    </svg>
+                                </template>
+                                <template #action>
+                                    <Button v-if="transportRoutes.length" size="sm" @click="showAssignTransport = true">
+                                        Assign Transport
+                                    </Button>
+                                    <p v-else style="font-size:0.78rem;color:#94a3b8;margin-top:8px;">
+                                        No active transport routes. Add routes in the Transport module first.
+                                    </p>
+                                </template>
+                            </EmptyState>
 
                             <!-- Inline Assign Transport form -->
                             <form v-else @submit.prevent="submitAssignTransport" class="assign-transport-form">
@@ -1746,19 +1782,24 @@ const handleResetPassword = async (target) => {
 
                         <!-- WHEN NO ALLOCATION -->
                         <div v-else class="card-body">
-                            <div v-if="!showAssignStationary" class="empty-state">
-                                <div class="empty-state-icon">📚</div>
-                                <p class="empty-state-text">
-                                    No stationary kit assigned for this student.
-                                </p>
-                                <Button v-if="stationaryItems.length" size="sm" @click="showAssignStationary = true" class="mt-2.5">
-                                    + Assign Kit
-                                </Button>
-                                <p v-else style="font-size:0.78rem;color:#94a3b8;margin-top:8px;">
-                                    No active stationary items defined yet.
-                                    <a href="/school/stationary/items" style="color:#6366f1;">Add items first →</a>
-                                </p>
-                            </div>
+                            <EmptyState
+                                v-if="!showAssignStationary"
+                                tone="muted"
+                                title="No stationary kit assigned for this student."
+                            >
+                                <template #icon>
+                                    <span style="font-size:1.5rem;line-height:1;">📚</span>
+                                </template>
+                                <template #action>
+                                    <Button v-if="stationaryItems.length" size="sm" @click="showAssignStationary = true">
+                                        + Assign Kit
+                                    </Button>
+                                    <p v-else style="font-size:0.78rem;color:#94a3b8;margin-top:8px;">
+                                        No active stationary items defined yet.
+                                        <a href="/school/stationary/items" style="color:#6366f1;">Add items first →</a>
+                                    </p>
+                                </template>
+                            </EmptyState>
 
                             <!-- Inline assign form -->
                             <form v-else @submit.prevent="submitAssignStationary" style="display:flex;flex-direction:column;gap:14px;">
@@ -1909,19 +1950,26 @@ const handleResetPassword = async (target) => {
                         </div>
                         <div class="card-body" v-else>
                             <!-- Empty state (before user clicks "Assign Hostel") -->
-                            <div v-if="!showAssignHostel" class="empty-state">
-                                <svg class="w-12 h-12 empty-state-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                                </svg>
-                                <p class="empty-state-title">No hostel allocated</p>
-                                <p class="empty-state-sub">This student is not assigned to any hostel bed.</p>
-                                <Button v-if="availableHostelBeds.length" size="sm" @click="openAssignHostel" class="mt-2.5">
-                                    Assign Hostel Bed
-                                </Button>
-                                <p v-else class="empty-state-sub" style="margin-top:8px;">
-                                    No available beds. Add hostels and rooms in the Hostel module first.
-                                </p>
-                            </div>
+                            <EmptyState
+                                v-if="!showAssignHostel"
+                                tone="muted"
+                                title="No hostel allocated"
+                                description="This student is not assigned to any hostel bed."
+                            >
+                                <template #icon>
+                                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                                    </svg>
+                                </template>
+                                <template #action>
+                                    <Button v-if="availableHostelBeds.length" size="sm" @click="openAssignHostel">
+                                        Assign Hostel Bed
+                                    </Button>
+                                    <p v-else style="font-size:0.78rem;color:#94a3b8;margin-top:8px;">
+                                        No available beds. Add hostels and rooms in the Hostel module first.
+                                    </p>
+                                </template>
+                            </EmptyState>
 
                             <!-- Inline Assign Hostel form -->
                             <form v-else @submit.prevent="submitAssignHostel" class="assign-transport-form">
@@ -2009,10 +2057,15 @@ const handleResetPassword = async (target) => {
                             <Button size="sm" style="margin-left:auto;" @click="openAddDisc">+ Add Incident</Button>
                         </div>
                         <div class="card-body" style="padding:0;">
-                            <div v-if="disciplinaryRecords.length === 0" class="empty-state" style="padding:32px;">
-                                <div class="empty-state-icon">⚖️</div>
-                                <p class="empty-state-title">No disciplinary records for this student.</p>
-                            </div>
+                            <EmptyState
+                                v-if="disciplinaryRecords.length === 0"
+                                tone="muted"
+                                title="No disciplinary records for this student."
+                            >
+                                <template #icon>
+                                    <span style="font-size:1.5rem;line-height:1;">⚖️</span>
+                                </template>
+                            </EmptyState>
                             <div v-else class="payment-table-wrap">
                                 <table class="payment-table">
                                     <thead>
@@ -2743,38 +2796,6 @@ const handleResetPassword = async (target) => {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-/* ── Empty State ──────────────────────────────────────────────────────────── */
-.empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 48px 16px;
-    color: #94a3b8;
-}
-
-.empty-state-icon {
-    font-size: 44px;
-    margin-bottom: 12px;
-}
-
-.empty-state-svg {
-    color: #cbd5e1;
-    margin-bottom: 12px;
-}
-
-.empty-state-title {
-    font-size: 14px;
-    font-weight: 600;
-    margin: 0 0 4px;
-    color: #64748b;
-}
-
-.empty-state-sub {
-    font-size: 12px;
-    margin: 0;
-    text-align: center;
 }
 
 /* ── Sibling List ─────────────────────────────────────────────────────────── */

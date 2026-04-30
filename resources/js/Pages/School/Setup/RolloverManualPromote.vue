@@ -394,9 +394,6 @@ const classLabel = (c) => c.numeric_value !== null && c.numeric_value !== undefi
 </template>
 
 <style scoped>
-.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
-.page-header-title { font-size: 1.2rem; font-weight: 700; color: #1e293b; margin: 0 0 0.25rem 0; }
-.page-header-sub { font-size: 0.85rem; color: #64748b; margin: 0; }
 .back-link { font-size: 0.85rem; color: var(--accent); font-weight: 600; text-decoration: none; }
 .back-link:hover { text-decoration: underline; }
 

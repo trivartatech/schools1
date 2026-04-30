@@ -177,15 +177,6 @@ const submit = () => {
 </template>
 
 <style scoped>
-/* ── Layout ── */
-.page-header {
-    margin-bottom: 2rem;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 1rem;
-}
-
 /* ── Form grids ── */
 .form-grid {
     display: grid;

@@ -1,6 +1,7 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
 import { ref, computed } from 'vue';
 import { useForm, Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -279,9 +280,15 @@ const mappings = [
             </div>
         </div>
 
-        <div v-else-if="categories && categories.length === 0" class="empty-state" style="margin-top:24px;">
-            <p>No expense categories found. <Link :href="route('school.expense-categories.index')" style="color:#6366f1;">Add expense categories</Link> to enable per-category GL mapping.</p>
-        </div>
+        <EmptyState
+            v-else-if="categories && categories.length === 0"
+            tone="muted"
+            title="No expense categories found"
+            description="Add expense categories to enable per-category GL mapping."
+            action-label="Add expense categories"
+            :action-href="route('school.expense-categories.index')"
+            style="margin-top:24px;"
+        />
     </SchoolLayout>
 </template>
 
@@ -348,8 +355,4 @@ const mappings = [
 .badge-green { background:#d1fae5;color:#059669; }
 .badge-gray  { background:#f1f5f9;color:#94a3b8; }
 
-.empty-state {
-    background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;
-    padding:20px;text-align:center;font-size:0.84rem;color:#64748b;
-}
 </style>

@@ -124,22 +124,12 @@ const submit = () => {
     <SchoolLayout title="New Student Admission">
 
         <!-- Page Header -->
-        <PageHeader>
-            <template #title>
-                <div class="ph-title-row">
-                    <Button variant="secondary" size="sm" as="link" href="/school/students" class="back-btn">
-                        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                        Back
-                    </Button>
-                    <div class="page-header-title">Add New Student</div>
-                </div>
-            </template>
-            <template #subtitle>
-                <div class="page-header-sub">Enroll a new student into the school system.</div>
-            </template>
-        </PageHeader>
+        <PageHeader
+            title="Add New Student"
+            back-href="/school/students"
+            back-label="← Back to students"
+            subtitle="Enroll a new student into the school system."
+        />
 
         <form @submit.prevent="submit" class="admission-form">
 
@@ -522,17 +512,6 @@ const submit = () => {
 </template>
 
 <style scoped>
-/* ── Page header layout ── */
-.ph-title-row {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-}
-
-.back-btn {
-    flex-shrink: 0;
-}
-
 /* ── Form wrapper ── */
 .admission-form {
     display: flex;

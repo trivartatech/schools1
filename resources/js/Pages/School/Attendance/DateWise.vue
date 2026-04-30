@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import StatsRow from '@/Components/ui/StatsRow.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
 import DateRangeFilter from '@/Components/ui/DateRangeFilter.vue';
@@ -63,6 +64,22 @@ const pctColor = (pct) => {
 
 const STATUS_LABEL = { present: 'P', absent: 'A', late: 'L', half_day: 'HD', leave: 'LV' };
 const STATUS_COLOR = { present: '#22c55e', absent: '#ef4444', late: '#eab308', half_day: '#f97316', leave: '#3b82f6' };
+
+const statCards = computed(() => {
+    const s = stats.value;
+    if (!s) return [];
+    const avgColor = s.avg === null ? undefined : s.avg >= 90 ? 'success' : s.avg >= 75 ? 'warning' : 'danger';
+    const cards = [
+        { label: 'Days Taken', value: s.taken },
+        { label: 'Avg Attendance', value: s.avg !== null ? s.avg + '%' : '—', color: avgColor },
+        { label: 'Best Day', value: s.best !== null ? s.best + '%' : '—', color: 'success' },
+        { label: 'Worst Day', value: s.worst !== null ? s.worst + '%' : '—', color: 'danger' },
+        { label: 'Total Absences', value: s.totalAbsent, color: 'danger' },
+    ];
+    if (s.totalUnmarked > 0) cards.push({ label: 'Total Unmarked', value: s.totalUnmarked, color: 'warning' });
+    if (props.enrolledCount) cards.push({ label: 'Enrolled', value: props.enrolledCount });
+    return cards;
+});
 </script>
 
 <template>
@@ -100,38 +117,7 @@ const STATUS_COLOR = { present: '#22c55e', absent: '#ef4444', late: '#eab308', h
         </FilterBar>
 
         <!-- Summary cards -->
-        <div v-if="stats" class="stats-row">
-            <div class="stat-card">
-                <div class="stat-label">Days Taken</div>
-                <div class="stat-value">{{ stats.taken }}</div>
-            </div>
-            <div class="stat-card" :class="stats.avg >= 90 ? 'stat-green' : stats.avg >= 75 ? 'stat-amber' : 'stat-red'">
-                <div class="stat-label">Avg Attendance</div>
-                <div class="stat-value" :style="{ color: pctColor(stats.avg) }">
-                    {{ stats.avg !== null ? stats.avg + '%' : '—' }}
-                </div>
-            </div>
-            <div class="stat-card stat-green">
-                <div class="stat-label">Best Day</div>
-                <div class="stat-value" style="color:#10b981;">{{ stats.best !== null ? stats.best + '%' : '—' }}</div>
-            </div>
-            <div class="stat-card stat-red">
-                <div class="stat-label">Worst Day</div>
-                <div class="stat-value" style="color:#ef4444;">{{ stats.worst !== null ? stats.worst + '%' : '—' }}</div>
-            </div>
-            <div class="stat-card stat-red">
-                <div class="stat-label">Total Absences</div>
-                <div class="stat-value" style="color:#ef4444;">{{ stats.totalAbsent }}</div>
-            </div>
-            <div v-if="stats.totalUnmarked > 0" class="stat-card stat-amber">
-                <div class="stat-label">Total Unmarked</div>
-                <div class="stat-value" style="color:#f59e0b;">{{ stats.totalUnmarked }}</div>
-            </div>
-            <div v-if="enrolledCount" class="stat-card">
-                <div class="stat-label">Enrolled</div>
-                <div class="stat-value">{{ enrolledCount }}</div>
-            </div>
-        </div>
+        <StatsRow v-if="stats" :stats="statCards" :cols="4" />
 
         <!-- Table -->
         <div v-if="report.length > 0" class="card" style="overflow:hidden;">
@@ -252,24 +238,6 @@ const STATUS_COLOR = { present: '#22c55e', absent: '#ef4444', late: '#eab308', h
 </template>
 
 <style scoped>
-.stats-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 12px;
-    margin-bottom: 18px;
-}
-.stat-card {
-    background: #fff;
-    border-radius: 10px;
-    padding: 14px 16px;
-    border: 1.5px solid #e2e8f0;
-}
-.stat-label { font-size: .72rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
-.stat-value { font-size: 1.5rem; font-weight: 800; color: #1e293b; margin-top: 4px; }
-.stat-green  { border-left: 4px solid #22c55e; }
-.stat-red    { border-left: 4px solid #ef4444; }
-.stat-amber  { border-left: 4px solid #f59e0b; }
-
 .hint-bar {
     padding: 8px 16px;
     background: #f0f9ff;

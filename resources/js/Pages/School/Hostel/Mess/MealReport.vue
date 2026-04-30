@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import StatsRow from '@/Components/ui/StatsRow.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
@@ -66,13 +67,13 @@ const messColor = (type) => ({ 'Veg': '#22c55e', 'Non-Veg': '#ef4444', 'Custom':
     </FilterBar>
 
     <!-- Summary Cards -->
-    <div class="stats-row" v-if="report.length">
-        <div class="stat-card"><div class="stat-label">Total Students</div><div class="stat-value">{{ totals.total }}</div></div>
-        <div class="stat-card stat-green"><div class="stat-label">Veg</div><div class="stat-value">{{ totals.veg }}</div></div>
-        <div class="stat-card stat-red"><div class="stat-label">Non-Veg</div><div class="stat-value">{{ totals.nonVeg }}</div></div>
-        <div class="stat-card stat-amber"><div class="stat-label">Custom</div><div class="stat-value">{{ totals.custom }}</div></div>
-        <div class="stat-card"><div class="stat-label">None</div><div class="stat-value">{{ totals.none }}</div></div>
-    </div>
+    <StatsRow v-if="report.length" :cols="4" :stats="[
+        { label: 'Total Students', value: totals.total },
+        { label: 'Veg', value: totals.veg, color: 'success' },
+        { label: 'Non-Veg', value: totals.nonVeg, color: 'danger' },
+        { label: 'Custom', value: totals.custom, color: 'warning' },
+        { label: 'None', value: totals.none, color: 'gray' },
+    ]" />
 
     <!-- Hostel Breakdown -->
     <div v-if="report.length">
@@ -124,11 +125,6 @@ const messColor = (type) => ({ 'Veg': '#22c55e', 'Non-Veg': '#ef4444', 'Custom':
 </template>
 
 <style scoped>
-.stats-row { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:12px; margin-bottom:16px; }
-.stat-card { background:#fff; border-radius:10px; padding:12px 14px; border:1.5px solid #e2e8f0; }
-.stat-label { font-size:.7rem; color:#64748b; font-weight:600; text-transform:uppercase; }
-.stat-value { font-size:1.4rem; font-weight:800; color:#1e293b; margin-top:2px; }
-.stat-green { border-left:4px solid #22c55e; } .stat-red { border-left:4px solid #ef4444; } .stat-amber { border-left:4px solid #f59e0b; }
 .hostel-card { margin-bottom:12px; overflow:hidden; }
 .hostel-header { display:flex; justify-content:space-between; align-items:center; padding:14px 18px; cursor:pointer; transition:background .15s; }
 .hostel-header:hover { background:#f8fafc; }

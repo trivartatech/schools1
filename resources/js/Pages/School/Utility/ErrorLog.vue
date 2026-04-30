@@ -5,6 +5,7 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
 import Table from '@/Components/ui/Table.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
 import debounce from 'lodash/debounce';
 import { useSchoolStore } from '@/stores/useSchoolStore';
 
@@ -156,16 +157,11 @@ const isErrorLevel = (level) =>
                         </tr>
                     </tbody>
                     <template #empty>
-                        <div class="empty-state">
-                            <div class="empty-icon">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                            </div>
-                            <h3>No Log Entries Found</h3>
-                            <p>Try adjusting your filters or check back later.</p>
-                        </div>
+                        <EmptyState
+                            tone="muted"
+                            title="No Log Entries Found"
+                            description="Try adjusting your filters or check back later."
+                        />
                     </template>
                 </Table>
             </div>
@@ -355,20 +351,6 @@ const isErrorLevel = (level) =>
 .el-trace-btn:hover { background: #e2e8f0; color: #1169cd; transform: translateY(-1px); }
 
 .text-center { text-align: center; }
-
-/* ── Empty State ── */
-.empty-state { display: flex; flex-direction: column; align-items: center; }
-.empty-icon {
-    width: 56px; height: 56px;
-    background: #f1f5f9;
-    border-radius: 16px;
-    display: flex; align-items: center; justify-content: center;
-    color: #94a3b8;
-    margin-bottom: 16px;
-}
-.empty-icon svg { width: 28px; height: 28px; }
-.empty-state h3 { font-size: 1rem; font-weight: 700; color: #1e293b; margin: 0; }
-.empty-state p  { font-size: 0.875rem; color: #64748b; margin: 6px 0 0; }
 
 /* ── Pagination ── */
 .el-pg { display: flex; justify-content: flex-end; gap: 6px; }

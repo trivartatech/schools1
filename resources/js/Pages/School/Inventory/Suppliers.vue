@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import StatsRow from '@/Components/ui/StatsRow.vue';
 import Modal from '@/Components/ui/Modal.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import EmptyState from '@/Components/ui/EmptyState.vue';
@@ -107,24 +108,10 @@ const sortedSuppliers = computed(() => sortRows(props.suppliers || [], {
         <div v-if="pageErrors.supplier" class="flash-error">{{ pageErrors.supplier }}</div>
 
         <!-- Stats -->
-        <div class="stats-row">
-            <div class="stat-card stat-blue">
-                <div class="stat-icon"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg></div>
-                <div>
-                    <div class="stat-label">Total Suppliers</div>
-                    <div class="stat-value" style="color:#3b82f6;">{{ suppliers.length }}</div>
-                    <div class="stat-sub">registered</div>
-                </div>
-            </div>
-            <div class="stat-card stat-green">
-                <div class="stat-icon"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
-                <div>
-                    <div class="stat-label">Linked to Assets</div>
-                    <div class="stat-value" style="color:#10b981;">{{ linkedCount() }}</div>
-                    <div class="stat-sub">active suppliers</div>
-                </div>
-            </div>
-        </div>
+        <StatsRow :cols="2" :stats="[
+            { label: 'Total Suppliers', value: suppliers.length, color: 'info', sub: 'registered' },
+            { label: 'Linked to Assets', value: linkedCount(), color: 'success', sub: 'active suppliers' },
+        ]" />
 
         <!-- Table -->
         <div class="card" style="overflow:hidden;">
@@ -278,16 +265,6 @@ const sortedSuppliers = computed(() => sortRows(props.suppliers || [], {
 <style scoped>
 .flash-success { background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;border-radius:10px;padding:10px 16px;font-size:.85rem;margin-bottom:16px; }
 .flash-error   { background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:10px;padding:10px 16px;font-size:.85rem;margin-bottom:16px; }
-
-.stats-row { display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px; }
-@media (max-width:900px) { .stats-row { grid-template-columns:repeat(2,1fr); } }
-.stat-card { display:flex;align-items:flex-start;gap:14px;background:#fff;border-radius:12px;padding:18px 20px;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,.05); }
-.stat-icon  { width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
-.stat-green .stat-icon { background:#dcfce7;color:#16a34a; }
-.stat-blue  .stat-icon { background:#dbeafe;color:#2563eb; }
-.stat-label { font-size:.7rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em; }
-.stat-value { font-size:1.75rem;font-weight:800;line-height:1.1;margin-top:2px; }
-.stat-sub   { font-size:.72rem;color:#94a3b8;margin-top:2px; }
 
 .card { background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05); }
 

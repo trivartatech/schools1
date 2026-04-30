@@ -4,6 +4,7 @@ import { Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
 import { useConfirm } from '@/Composables/useConfirm';
 
@@ -145,13 +146,12 @@ const methodColor = (method) => {
             </Table>
 
             <!-- Empty State -->
-            <div v-else class="empty-state">
-                <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="#94a3b8" stroke-width="1.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <h3 class="empty-title">No scheduled messages</h3>
-                <p class="empty-text">Scheduled messages will appear here once created.</p>
-            </div>
+            <EmptyState
+                v-else
+                tone="muted"
+                title="No scheduled messages"
+                description="Scheduled messages will appear here once created."
+            />
         </div>
 
         <!-- Pagination -->
@@ -176,26 +176,6 @@ const methodColor = (method) => {
 </template>
 
 <style scoped>
-.page-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-    gap: 12px;
-}
-.page-header-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #1e293b;
-    margin: 0;
-}
-.page-header-sub {
-    font-size: .82rem;
-    color: #64748b;
-    margin: 2px 0 0;
-}
-
 .card {
     background: #fff;
     border: 1px solid #e2e8f0;
@@ -273,23 +253,6 @@ const methodColor = (method) => {
 .action-cancel { background: #fee2e2; color: #ef4444; }
 .action-retry { background: #fef3c7; color: #92400e; }
 .action-none { color: #cbd5e1; font-size: .82rem; }
-
-.empty-state {
-    text-align: center;
-    padding: 48px 24px;
-}
-.empty-state svg { margin-bottom: 12px; }
-.empty-title {
-    font-size: 1rem;
-    font-weight: 700;
-    color: #1e293b;
-    margin: 0 0 6px;
-}
-.empty-text {
-    font-size: .85rem;
-    color: #94a3b8;
-    margin: 0;
-}
 
 .pagination {
     display: flex;

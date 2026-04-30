@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import StatsRow from '@/Components/ui/StatsRow.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
 import Table from '@/Components/ui/Table.vue';
@@ -126,12 +127,12 @@ const pct = (row) => {
             </div>
 
             <!-- Summary -->
-            <div class="stats-row">
-                <div class="stat-card"><div class="stat-label">Total Students</div><div class="stat-value">{{ summary.total_students }}</div></div>
-                <div class="stat-card stat-green"><div class="stat-label">Avg Present/Day</div><div class="stat-value">{{ summary.avg_present }}</div></div>
-                <div class="stat-card stat-red"><div class="stat-label">Total Absent Days</div><div class="stat-value">{{ summary.total_absent }}</div></div>
-                <div class="stat-card stat-amber"><div class="stat-label">Total Late Days</div><div class="stat-value">{{ summary.total_late }}</div></div>
-            </div>
+            <StatsRow :cols="4" :stats="[
+                { label: 'Total Students', value: summary.total_students },
+                { label: 'Avg Present/Day', value: summary.avg_present, color: 'success' },
+                { label: 'Total Absent Days', value: summary.total_absent, color: 'danger' },
+                { label: 'Total Late Days', value: summary.total_late, color: 'warning' },
+            ]" />
 
             <!-- Calendar Grid -->
             <div class="card">
@@ -213,15 +214,6 @@ const pct = (row) => {
 <style scoped>
 .month-nav { display:flex; align-items:center; gap:16px; margin-bottom:16px; }
 .month-title { font-size:1.1rem; font-weight:700; color:#1e293b; }
-
-
-.stats-row { display:grid; grid-template-columns:repeat(auto-fill, minmax(160px,1fr)); gap:12px; margin-bottom:18px; }
-.stat-card { background:#fff; border-radius:10px; padding:14px 16px; border:1.5px solid #e2e8f0; }
-.stat-label { font-size:.72rem; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
-.stat-value { font-size:1.5rem; font-weight:800; color:#1e293b; margin-top:4px; }
-.stat-green { border-left:4px solid #22c55e; }
-.stat-red   { border-left:4px solid #ef4444; }
-.stat-amber { border-left:4px solid #f59e0b; }
 
 .toolbar { display:flex; flex-wrap:wrap; gap:12px; align-items:center; padding:14px 18px; border-bottom:1px solid #f1f5f9; }
 .search-input { border:1.5px solid #e2e8f0; border-radius:8px; padding:7px 12px; font-size:.84rem; outline:none; font-family:inherit; min-width:180px; }

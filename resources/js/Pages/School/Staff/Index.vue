@@ -1,7 +1,9 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import StatsRow from '@/Components/ui/StatsRow.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
 import { ref, reactive, watch } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -79,44 +81,12 @@ const deleteStaff = (id, name) => del(`/school/staff/${id}`, `Delete staff membe
         </PageHeader>
 
         <!-- Stats Row -->
-        <div class="stats-row">
-            <div class="stat-card">
-                <div class="stat-card-icon" style="background:#ede9fe;">
-                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#6366f1"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                </div>
-                <div>
-                    <div class="stat-card-value">{{ staff.total ?? staff.data.length }}</div>
-                    <div class="stat-card-label">Total Staff</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-card-icon" style="background:#d1fae5;">
-                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#10b981"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                </div>
-                <div>
-                    <div class="stat-card-value">{{ staff.data.filter(m => m.status === 'active').length }}</div>
-                    <div class="stat-card-label">Active</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-card-icon" style="background:#fef3c7;">
-                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#f59e0b"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                </div>
-                <div>
-                    <div class="stat-card-value">{{ staff.data.filter(m => m.status === 'on_leave').length }}</div>
-                    <div class="stat-card-label">On Leave</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-card-icon" style="background:#fee2e2;">
-                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#ef4444"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
-                </div>
-                <div>
-                    <div class="stat-card-value">{{ staff.data.filter(m => m.status !== 'active' && m.status !== 'on_leave').length }}</div>
-                    <div class="stat-card-label">Inactive / Other</div>
-                </div>
-            </div>
-        </div>
+        <StatsRow :cols="4" :stats="[
+            { label: 'Total Staff', value: staff.total ?? staff.data.length },
+            { label: 'Active', value: staff.data.filter(m => m.status === 'active').length, color: 'success' },
+            { label: 'On Leave', value: staff.data.filter(m => m.status === 'on_leave').length, color: 'warning' },
+            { label: 'Inactive / Other', value: staff.data.filter(m => m.status !== 'active' && m.status !== 'on_leave').length, color: 'danger' },
+        ]" />
 
         <!-- Filters -->
         <FilterBar :active="!!filters.search" @clear="filters.search = ''">
@@ -131,14 +101,15 @@ const deleteStaff = (id, name) => del(`/school/staff/${id}`, `Delete staff membe
         </FilterBar>
 
         <!-- Empty State -->
-        <div v-if="staff.data.length === 0" class="card empty-state">
-            <div class="empty-icon">
-                <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="#6366f1"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-            </div>
-            <h3 class="empty-title">No Staff Members Found</h3>
-            <p class="empty-sub">Add your first employee to the directory.</p>
-            <Button v-if="canDo('create', 'staff')" as="link" href="/school/staff/create">Add New Staff</Button>
-        </div>
+        <EmptyState
+            v-if="staff.data.length === 0"
+            title="No Staff Members Found"
+            description="Add your first employee to the directory."
+        >
+            <template #action>
+                <Button v-if="canDo('create', 'staff')" as="link" href="/school/staff/create">Add New Staff</Button>
+            </template>
+        </EmptyState>
 
         <!-- Staff Table -->
         <div v-else class="card" style="overflow:hidden;">
@@ -217,16 +188,6 @@ const deleteStaff = (id, name) => del(`/school/staff/${id}`, `Delete staff membe
 </template>
 
 <style scoped>
-/* Stats row */
-.stats-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
-    margin-bottom: 20px;
-}
-@media (max-width: 900px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 500px) { .stats-row { grid-template-columns: 1fr; } }
-
 /* Filter bar */
 .filter-bar {
     display: flex;
@@ -353,33 +314,6 @@ const deleteStaff = (id, name) => del(`/school/staff/${id}`, `Delete staff membe
     display: flex;
     gap: 6px;
     align-items: center;
-}
-
-/* Empty state */
-.empty-state {
-    padding: 64px 24px;
-    text-align: center;
-}
-.empty-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 14px;
-    background: #f5f3ff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 16px;
-}
-.empty-title {
-    font-size: 0.9375rem;
-    font-weight: 700;
-    color: #1e293b;
-    margin-bottom: 6px;
-}
-.empty-sub {
-    font-size: 0.8125rem;
-    color: #64748b;
-    margin-bottom: 20px;
 }
 
 /* Pagination */

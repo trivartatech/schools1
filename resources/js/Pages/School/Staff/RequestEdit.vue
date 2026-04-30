@@ -39,9 +39,11 @@ const submit = () => {
         <PageHeader>
             <template #title>
                 <div class="ph-title-row">
-                    <button type="button" @click="() => window.history.back()" class="back-btn" aria-label="Go back">
-                        <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                    </button>
+                    <Button variant="icon" size="sm" type="button" @click="() => window.history.back()" aria-label="Go back">
+                        <template #icon>
+                            <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                        </template>
+                    </Button>
                     <h1 class="page-header-title">Request Profile Edit</h1>
                 </div>
             </template>
@@ -215,21 +217,6 @@ const submit = () => {
 <style scoped>
 /* ── Header ── */
 .ph-title-row { display: flex; align-items: center; gap: .875rem; }
-.back-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    background: var(--surface);
-    color: #64748b;
-    cursor: pointer;
-    transition: background .15s, color .15s;
-    flex-shrink: 0;
-}
-.back-btn:hover { background: #f1f5f9; color: #1e293b; }
 
 /* ── Workflow notice ── */
 .workflow-notice {

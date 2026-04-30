@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import StatsRow from '@/Components/ui/StatsRow.vue';
 import Modal from '@/Components/ui/Modal.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import Table from '@/Components/ui/Table.vue';
@@ -145,32 +146,11 @@ const showTxnModal = computed({
         </div>
 
         <!-- Stats -->
-        <div class="stats-row">
-            <div class="stat-card stat-blue">
-                <div class="stat-icon"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7"/></svg></div>
-                <div>
-                    <div class="stat-label">Item Types</div>
-                    <div class="stat-value" style="color:#3b82f6;">{{ store.items?.length ?? 0 }}</div>
-                    <div class="stat-sub">in this store</div>
-                </div>
-            </div>
-            <div class="stat-card stat-green">
-                <div class="stat-icon"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
-                <div>
-                    <div class="stat-label">Total Stock Value</div>
-                    <div class="stat-value" style="color:#10b981;">{{ fmt(totalValue) }}</div>
-                    <div class="stat-sub">at current prices</div>
-                </div>
-            </div>
-            <div class="stat-card stat-amber">
-                <div class="stat-icon"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div>
-                <div>
-                    <div class="stat-label">Low Stock Alerts</div>
-                    <div class="stat-value" style="color:#f59e0b;">{{ lowStockItems.length }}</div>
-                    <div class="stat-sub">items need restocking</div>
-                </div>
-            </div>
-        </div>
+        <StatsRow :cols="3" :stats="[
+            { label: 'Item Types', value: store.items?.length ?? 0, color: 'info', sub: 'in this store' },
+            { label: 'Total Stock Value', value: fmt(totalValue), color: 'success', sub: 'at current prices' },
+            { label: 'Low Stock Alerts', value: lowStockItems.length, color: 'warning', sub: 'items need restocking' },
+        ]" />
 
         <!-- Items Table -->
         <div class="card" style="overflow:hidden;">
@@ -323,17 +303,6 @@ const showTxnModal = computed({
 .flash-error   { background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:10px;padding:10px 16px;font-size:.85rem;margin-bottom:16px; }
 
 .low-stock-banner { display:flex;align-items:center;gap:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px 16px;margin-bottom:16px;font-size:.85rem;color:#92400e; }
-
-.stats-row { display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px; }
-@media (max-width:900px) { .stats-row { grid-template-columns:1fr 1fr; } }
-.stat-card { display:flex;align-items:flex-start;gap:14px;background:#fff;border-radius:12px;padding:18px 20px;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,.05); }
-.stat-icon  { width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
-.stat-green .stat-icon { background:#dcfce7;color:#16a34a; }
-.stat-blue  .stat-icon { background:#dbeafe;color:#2563eb; }
-.stat-amber .stat-icon { background:#fef3c7;color:#d97706; }
-.stat-label { font-size:.7rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em; }
-.stat-value { font-size:1.5rem;font-weight:800;line-height:1.1;margin-top:2px; }
-.stat-sub   { font-size:.72rem;color:#94a3b8;margin-top:2px; }
 
 .card { background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05); }
 :deep(tfoot td) { background:#f8fafc;border-top:2px solid #e2e8f0;border-bottom:none !important; }

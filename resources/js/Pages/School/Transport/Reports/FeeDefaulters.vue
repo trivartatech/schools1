@@ -1,6 +1,7 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
 import { ref, computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -144,13 +145,11 @@ function formatCurrency(value) {
                         </tr>
                     </tbody>
                 </Table>
-                <div v-else class="empty-state">
-                    <svg class="w-12 h-12" style="margin: 0 auto 0.75rem; color: #e5e7eb;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    <p v-if="search.trim()">No defaulters found matching "{{ search }}".</p>
-                    <p v-else>No fee defaulters found.</p>
-                </div>
+                <EmptyState
+                    v-else
+                    tone="muted"
+                    :title="search.trim() ? `No defaulters found matching &quot;${search}&quot;.` : 'No fee defaulters found.'"
+                />
             </div>
         </div>
 
@@ -233,10 +232,4 @@ function formatCurrency(value) {
     font-size: 0.75rem;
 }
 
-.empty-state {
-    text-align: center;
-    padding: 4rem 0;
-    color: #9ca3af;
-    font-size: 0.875rem;
-}
 </style>

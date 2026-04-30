@@ -1,6 +1,8 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
+import StatsRow from '@/Components/ui/StatsRow.vue';
 import { ref, computed } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -63,54 +65,24 @@ const handlerName = (log) => {
         </PageHeader>
 
         <!-- Stats Row -->
-        <div class="stats-row">
-            <div class="card stat-card stat-card--red">
-                <div class="card-body">
-                    <div class="stat-icon stat-icon--red">
-                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    </div>
-                    <div class="stat-info">
-                        <span class="stat-number">{{ stats.overdue_count }}</span>
-                        <span class="stat-label">Overdue</span>
-                    </div>
-                </div>
-            </div>
-            <div class="card stat-card stat-card--amber">
-                <div class="card-body">
-                    <div class="stat-icon stat-icon--amber">
-                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    </div>
-                    <div class="stat-info">
-                        <span class="stat-number">{{ stats.today_count }}</span>
-                        <span class="stat-label">Due Today</span>
-                    </div>
-                </div>
-            </div>
-            <div class="card stat-card stat-card--blue">
-                <div class="card-body">
-                    <div class="stat-icon stat-icon--blue">
-                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                    </div>
-                    <div class="stat-info">
-                        <span class="stat-number">{{ stats.upcoming_count }}</span>
-                        <span class="stat-label">Upcoming</span>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <StatsRow :cols="3" :stats="[
+            { label: 'Overdue', value: stats.overdue_count, color: 'danger' },
+            { label: 'Due Today', value: stats.today_count, color: 'warning' },
+            { label: 'Upcoming', value: stats.upcoming_count, color: 'info' },
+        ]" />
 
         <!-- Tab Bar -->
         <div class="tab-bar">
-            <button
+            <Button
                 v-for="tab in tabs"
                 :key="tab.key"
+                variant="tab"
+                :active="activeTab === tab.key"
                 @click="activeTab = tab.key"
-                class="tab-item"
-                :class="{ 'tab-active': activeTab === tab.key }"
             >
                 {{ tab.label }}
                 <span v-if="tab.count.value > 0" class="tab-count" :class="`tab-count--${tab.key}`">{{ tab.count.value }}</span>
-            </button>
+            </Button>
         </div>
 
         <!-- Active Section Table -->
@@ -138,8 +110,8 @@ const handlerName = (log) => {
                     </thead>
                     <tbody>
                         <tr v-if="activeList.length === 0">
-                            <td colspan="7" class="empty-state">
-                                No follow-ups in this category.
+                            <td colspan="7">
+                                <EmptyState variant="compact" tone="muted" title="No follow-ups in this category." />
                             </td>
                         </tr>
                         <tr
@@ -216,8 +188,8 @@ const handlerName = (log) => {
                         </thead>
                         <tbody>
                             <tr v-if="recentCompleted.length === 0">
-                                <td colspan="7" class="empty-state">
-                                    No completed follow-ups yet.
+                                <td colspan="7">
+                                    <EmptyState variant="compact" tone="muted" title="No completed follow-ups yet." />
                                 </td>
                             </tr>
                             <tr v-for="log in recentCompleted" :key="log.id" class="row-completed">
@@ -243,62 +215,6 @@ const handlerName = (log) => {
 </template>
 
 <style scoped>
-/* Stats row */
-.stats-row {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
-@media (max-width: 640px) {
-    .stats-row { grid-template-columns: 1fr; }
-}
-
-.stat-card .card-body {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.stat-icon {
-    width: 3rem;
-    height: 3rem;
-    border-radius: var(--radius);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.stat-icon--red { background: #fee2e2; color: #dc2626; }
-.stat-icon--amber { background: #fef3c7; color: #d97706; }
-.stat-icon--blue { background: #dbeafe; color: #2563eb; }
-
-.stat-card--red { border-left: 3px solid #dc2626; }
-.stat-card--amber { border-left: 3px solid #d97706; }
-.stat-card--blue { border-left: 3px solid #2563eb; }
-
-.stat-info {
-    display: flex;
-    flex-direction: column;
-}
-
-.stat-number {
-    font-size: 1.75rem;
-    font-weight: 800;
-    line-height: 1;
-    color: var(--text-primary);
-}
-
-.stat-label {
-    font-size: .75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: .05em;
-    color: var(--text-muted);
-    margin-top: .25rem;
-}
-
 /* Tab bar */
 .tab-bar {
     display: flex;
@@ -307,27 +223,6 @@ const handlerName = (log) => {
     font-size: .875rem;
     font-weight: 500;
     gap: .25rem;
-}
-
-.tab-item {
-    padding: .75rem 1.25rem;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-    background: none;
-    border-top: none;
-    border-left: none;
-    border-right: none;
-    cursor: pointer;
-    color: var(--text-muted);
-    transition: color .15s;
-    display: flex;
-    align-items: center;
-    gap: .5rem;
-}
-
-.tab-active {
-    border-bottom-color: var(--accent);
-    color: var(--accent);
 }
 
 .tab-count {
@@ -342,12 +237,6 @@ const handlerName = (log) => {
 .tab-count--today { background: #d97706; }
 .tab-count--upcoming { background: #2563eb; }
 
-/* Table rows */
-.empty-state {
-    text-align: center;
-    padding: 2.5rem;
-    color: var(--text-muted);
-}
 
 .row-overdue {
     background: #fef2f2;

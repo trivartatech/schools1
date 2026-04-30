@@ -89,7 +89,6 @@ const statusClass = (s) => ({
 </template>
 
 <style scoped>
-.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
 .back-link { font-size: 0.85rem; font-weight: 700; color: var(--accent); text-decoration: none; }
 .back-link:hover { text-decoration: underline; }
 

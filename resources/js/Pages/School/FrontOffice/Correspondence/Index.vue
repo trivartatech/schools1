@@ -163,10 +163,9 @@ const filteredData = computed(() => {
 
         <!-- TABS -->
         <div class="tab-bar">
-            <button v-for="tab in tabs" :key="tab" @click="activeTab = tab"
-                    class="tab-item" :class="{ 'tab-active': activeTab === tab }">
+            <Button v-for="tab in tabs" :key="tab" variant="tab" :active="activeTab === tab" @click="activeTab = tab">
                 {{ tab }}
-            </button>
+            </Button>
         </div>
 
         <!-- CORRESPONDENCE CARDS -->
@@ -278,23 +277,6 @@ const filteredData = computed(() => {
     font-weight: 500;
     gap: .25rem;
 }
-.tab-item {
-    padding: .75rem 1.25rem;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-    background: none;
-    border-top: none;
-    border-left: none;
-    border-right: none;
-    cursor: pointer;
-    color: var(--text-muted);
-    transition: color .15s;
-}
-.tab-active {
-    border-bottom-color: var(--accent);
-    color: var(--accent);
-}
-
 /* Card grid */
 .corr-grid {
     display: grid;

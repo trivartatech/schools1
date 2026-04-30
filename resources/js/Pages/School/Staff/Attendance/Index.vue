@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import StatsRow from '@/Components/ui/StatsRow.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed, watchEffect } from 'vue';
 import { router } from '@inertiajs/vue3';
@@ -138,13 +139,13 @@ const fmt = (n) => String(n).padStart(2, '0');
         </PageHeader>
 
         <!-- Stats -->
-        <div class="stats-row">
-            <div class="stat-card"><div class="stat-label">Total Staff</div><div class="stat-value">{{ summary.total }}</div></div>
-            <div class="stat-card stat-green"><div class="stat-label">Present</div><div class="stat-value">{{ summary.present }}</div></div>
-            <div class="stat-card stat-red"><div class="stat-label">Absent</div><div class="stat-value">{{ summary.absent }}</div></div>
-            <div class="stat-card stat-blue"><div class="stat-label">On Leave</div><div class="stat-value">{{ summary.leave }}</div></div>
-            <div class="stat-card stat-amber"><div class="stat-label">Unmarked</div><div class="stat-value">{{ summary.unmarked }}</div></div>
-        </div>
+        <StatsRow :cols="4" :stats="[
+            { label: 'Total Staff', value: summary.total },
+            { label: 'Present', value: summary.present, color: 'success' },
+            { label: 'Absent', value: summary.absent, color: 'danger' },
+            { label: 'On Leave', value: summary.leave, color: 'info' },
+            { label: 'Unmarked', value: summary.unmarked, color: 'warning' },
+        ]" />
 
         <FilterBar :active="!!search" @clear="search = ''">
             <input type="date" v-model="selectedDate" @change="changeDate" style="width:160px;" />
@@ -233,15 +234,6 @@ const fmt = (n) => String(n).padStart(2, '0');
 </template>
 
 <style scoped>
-.stats-row { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:12px; margin-bottom:18px; }
-.stat-card { background:#fff; border-radius:10px; padding:14px 16px; border:1.5px solid #e2e8f0; }
-.stat-label { font-size:0.72rem; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
-.stat-value { font-size:1.5rem; font-weight:800; color:#1e293b; margin-top:4px; }
-.stat-green { border-left:4px solid #22c55e; }
-.stat-red   { border-left:4px solid #ef4444; }
-.stat-blue  { border-left:4px solid #3b82f6; }
-.stat-amber { border-left:4px solid #f59e0b; }
-
 .mark-all-group { display:flex; align-items:center; gap:6px; }
 .mark-all-label { font-size:.75rem; font-weight:600; color:#64748b; }
 .mark-all-btn { border:none; border-radius:6px; padding:5px 10px; font-size:.72rem; font-weight:700; cursor:pointer; transition:opacity .15s; }

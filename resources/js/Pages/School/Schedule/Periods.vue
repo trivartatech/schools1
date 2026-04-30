@@ -1,6 +1,7 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
 import { ref, computed } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -122,12 +123,12 @@ const calcDuration = (start, end) => {
                     </thead>
                     <tbody>
                         <tr v-if="filteredPeriods.length === 0">
-                            <td colspan="7" class="empty-state">
-                                <div class="empty-icon">
-                                    <svg width="26" height="26" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                </div>
-                                <p class="empty-title">No {{ activeTab }} periods configured</p>
-                                <p class="empty-sub">Configure your bell timings using the Add Period button.</p>
+                            <td colspan="7">
+                                <EmptyState
+                                    tone="muted"
+                                    :title="`No ${activeTab} periods configured`"
+                                    description="Configure your bell timings using the Add Period button."
+                                />
                             </td>
                         </tr>
                         <tr v-for="p in filteredPeriods" :key="p.id" class="period-row">
@@ -243,15 +244,6 @@ const calcDuration = (start, end) => {
 
 
 <style scoped>
-/* ── Page header ── */
-.page-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
-
 /* ── Track tabs ── */
 .track-tabs {
     display: flex;
@@ -364,36 +356,6 @@ const calcDuration = (start, end) => {
     align-items: center;
     justify-content: flex-end;
     gap: 0.4rem;
-}
-
-/* ── Empty state ── */
-.empty-state {
-    text-align: center;
-    padding: 4rem 1rem;
-    color: #64748b;
-}
-.empty-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 54px;
-    height: 54px;
-    border-radius: 50%;
-    background: #f1f5f9;
-    color: #94a3b8;
-    margin-bottom: 0.9rem;
-}
-.empty-title {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: #1e293b;
-    margin: 0 0 0.35rem;
-    text-transform: capitalize;
-}
-.empty-sub {
-    font-size: 0.82rem;
-    color: #94a3b8;
-    margin: 0;
 }
 
 /* ── Panel ── */

@@ -1,6 +1,7 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
 import { computed } from 'vue';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
@@ -101,7 +102,7 @@ const formatDate = (dateStr) => school.fmtDate(dateStr);
                         <span class="legend-item"><span class="legend-dot dot-red"></span> Failed</span>
                     </div>
                 </div>
-                <div v-else class="empty-state">No trend data available for this period.</div>
+                <EmptyState v-else variant="compact" tone="muted" title="No trend data available for this period." />
             </div>
         </div>
 
@@ -126,7 +127,7 @@ const formatDate = (dateStr) => school.fmtDate(dateStr);
                         </div>
                     </div>
                 </div>
-                <div v-else class="empty-state">No channel data available.</div>
+                <EmptyState v-else variant="compact" tone="muted" title="No channel data available." />
             </div>
         </div>
 
@@ -142,7 +143,7 @@ const formatDate = (dateStr) => school.fmtDate(dateStr);
                         <span class="failure-count">{{ f.total }} failures</span>
                     </div>
                 </div>
-                <div v-else class="empty-state">No failures recorded.</div>
+                <EmptyState v-else variant="compact" tone="muted" title="No failures recorded." />
             </div>
         </div>
     </SchoolLayout>
@@ -349,30 +350,5 @@ const formatDate = (dateStr) => school.fmtDate(dateStr);
     font-weight: 600;
 }
 
-.empty-state {
-    text-align: center;
-    padding: 32px 16px;
-    color: #94a3b8;
-    font-size: .88rem;
-}
 
-.page-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-    gap: 12px;
-}
-.page-header-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #1e293b;
-    margin: 0;
-}
-.page-header-sub {
-    font-size: .82rem;
-    color: #64748b;
-    margin: 2px 0 0;
-}
 </style>

@@ -5,6 +5,7 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
 import Table from '@/Components/ui/Table.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
 import debounce from 'lodash/debounce';
 import { useSchoolStore } from '@/stores/useSchoolStore';
 
@@ -143,15 +144,11 @@ const viewDetails = (log) => {
                         </tr>
                     </tbody>
                     <template #empty>
-                        <div class="empty-state">
-                            <div class="empty-icon-box">
-                                <svg class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.628.282a2 2 0 01-1.154 0l-.628-.282a6 6 0 00-3.86-.517l-2.387.477.1.1a2 2 0 001.022.547l2.387.477a6 6 0 003.86-.517l.628-.282a2 2 0 011.154 0l.628.282a6 6 0 003.86.517l2.387-.477z" />
-                                </svg>
-                            </div>
-                            <h3>No Activity Records</h3>
-                            <p>Adjust your filters or check back later for new events.</p>
-                        </div>
+                        <EmptyState
+                            tone="muted"
+                            title="No Activity Records"
+                            description="Adjust your filters or check back later for new events."
+                        />
                     </template>
                 </Table>
             </div>
@@ -324,9 +321,4 @@ const viewDetails = (log) => {
 .w-20 { width: 80px; }
 .text-center { text-align: center; }
 
-/* ── Empty State ── */
-.empty-state { display: flex; flex-direction: column; align-items: center; text-align: center; }
-.empty-icon-box { width: 64px; height: 64px; background: #f1f5f9; border-radius: 20px; display: flex; align-items: center; justify-content: center; color: #94a3b8; margin-bottom: 20px; }
-.empty-state h3 { font-size: 1.125rem; font-weight: 700; color: #1e293b; margin: 0; }
-.empty-state p { font-size: 0.875rem; color: #64748b; margin: 8px 0 0; }
 </style>

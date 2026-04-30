@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import StatsRow from '@/Components/ui/StatsRow.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import Table from '@/Components/ui/Table.vue';
 import { ref, computed } from 'vue';
@@ -76,12 +77,12 @@ const pct = (v, t) => t > 0 ? Math.round((v/t)*100) : 0;
             <Button variant="icon" size="sm" aria-label="Next month" @click="navigate(1)">&raquo;</Button>
         </div>
 
-        <div class="stats-row">
-            <div class="stat-card"><div class="stat-label">Students</div><div class="stat-value">{{ summary.total_students }}</div></div>
-            <div class="stat-card stat-green"><div class="stat-label">Avg Present</div><div class="stat-value">{{ summary.avg_present }}</div></div>
-            <div class="stat-card stat-red"><div class="stat-label">Total Absent</div><div class="stat-value">{{ summary.total_absent }}</div></div>
-            <div class="stat-card stat-amber"><div class="stat-label">Total Medical</div><div class="stat-value">{{ summary.total_medical }}</div></div>
-        </div>
+        <StatsRow :cols="4" :stats="[
+            { label: 'Students', value: summary.total_students },
+            { label: 'Avg Present', value: summary.avg_present, color: 'success' },
+            { label: 'Total Absent', value: summary.total_absent, color: 'danger' },
+            { label: 'Total Medical', value: summary.total_medical, color: 'warning' },
+        ]" />
 
         <div class="card">
             <div class="toolbar">
@@ -128,11 +129,6 @@ const pct = (v, t) => t > 0 ? Math.round((v/t)*100) : 0;
 .month-nav { display:flex; align-items:center; gap:16px; margin-bottom:16px; }
 .month-title { font-size:1.1rem; font-weight:700; color:#1e293b; }
 
-.stats-row { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:12px; margin-bottom:16px; }
-.stat-card { background:#fff; border-radius:10px; padding:12px 14px; border:1.5px solid #e2e8f0; }
-.stat-label { font-size:.7rem; color:#64748b; font-weight:600; text-transform:uppercase; }
-.stat-value { font-size:1.4rem; font-weight:800; color:#1e293b; margin-top:2px; }
-.stat-green { border-left:4px solid #22c55e; } .stat-red { border-left:4px solid #ef4444; } .stat-amber { border-left:4px solid #f97316; }
 .toolbar { display:flex; flex-wrap:wrap; gap:12px; align-items:center; padding:14px 18px; border-bottom:1px solid #f1f5f9; }
 .search-input { border:1.5px solid #e2e8f0; border-radius:8px; padding:7px 12px; font-size:.84rem; outline:none; min-width:180px; font-family:inherit; }
 .legend { display:flex; gap:12px; flex-wrap:wrap; margin-left:auto; }

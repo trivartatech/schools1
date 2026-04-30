@@ -287,8 +287,8 @@ const platformMeta = (p) => ({
             </template>
         </PageHeader>
 
-        <!-- Stats row -->
-        <div class="stats-row">
+        <!-- Stats pills -->
+        <div class="stats-pills">
             <div class="stat-pill">
                 <span class="stat-dot live-dot"></span>
                 <strong>{{ groupedClasses.live.length }}</strong> Live Now
@@ -747,8 +747,8 @@ const platformMeta = (p) => ({
 </template>
 
 <style scoped>
-/* Stats row */
-.stats-row {
+/* Stats pills */
+.stats-pills {
     display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
     margin-bottom: 16px;
 }

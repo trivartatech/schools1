@@ -415,9 +415,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
-.page-header-title { font-size: 1.25rem; font-weight: 700; color: var(--text-primary); }
-.page-header-sub { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.15rem; }
 .text-green { color: #16a34a; font-weight: 600; }
 .ml-2 { margin-left: 0.5rem; }
 

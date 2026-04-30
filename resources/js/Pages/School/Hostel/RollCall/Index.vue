@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import StatsRow from '@/Components/ui/StatsRow.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
@@ -110,13 +111,13 @@ const statusBtns = [
 
     <template v-if="selHostel && students.length > 0">
         <!-- Stats -->
-        <div class="stats-row">
-            <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">{{ stats.total }}</div></div>
-            <div class="stat-card stat-green"><div class="stat-label">Present</div><div class="stat-value">{{ stats.present }}</div></div>
-            <div class="stat-card stat-red"><div class="stat-label">Absent</div><div class="stat-value">{{ stats.absent }}</div></div>
-            <div class="stat-card stat-blue"><div class="stat-label">Leave</div><div class="stat-value">{{ stats.leave }}</div></div>
-            <div class="stat-card stat-amber"><div class="stat-label">Medical</div><div class="stat-value">{{ stats.medical }}</div></div>
-        </div>
+        <StatsRow :cols="4" :stats="[
+            { label: 'Total', value: stats.total },
+            { label: 'Present', value: stats.present, color: 'success' },
+            { label: 'Absent', value: stats.absent, color: 'danger' },
+            { label: 'Leave', value: stats.leave, color: 'info' },
+            { label: 'Medical', value: stats.medical, color: 'warning' },
+        ]" />
 
         <div class="card">
             <div class="toolbar">
@@ -179,12 +180,6 @@ const statusBtns = [
 </template>
 
 <style scoped>
-.stats-row { display:grid; grid-template-columns:repeat(auto-fill, minmax(130px,1fr)); gap:10px; margin-bottom:16px; }
-.stat-card { background:#fff; border-radius:10px; padding:12px 14px; border:1.5px solid #e2e8f0; }
-.stat-label { font-size:.7rem; color:#64748b; font-weight:600; text-transform:uppercase; }
-.stat-value { font-size:1.3rem; font-weight:800; color:#1e293b; margin-top:2px; }
-.stat-green { border-left:4px solid #22c55e; } .stat-red { border-left:4px solid #ef4444; }
-.stat-blue { border-left:4px solid #3b82f6; } .stat-amber { border-left:4px solid #f97316; }
 .toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:12px 16px; border-bottom:1px solid #f1f5f9; }
 .search-input { border:1.5px solid #e2e8f0; border-radius:8px; padding:7px 12px; font-size:.84rem; outline:none; min-width:180px; font-family:inherit; }
 .search-input:focus { border-color:#6366f1; }

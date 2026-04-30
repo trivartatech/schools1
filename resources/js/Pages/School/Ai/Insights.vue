@@ -19,7 +19,7 @@
         </PageHeader>
 
         <!-- ── Filter bar ── -->
-        <div class="filter-bar">
+        <FilterBar>
             <DateRangeFilter
                 :from="filters.from"
                 :to="filters.to"
@@ -43,7 +43,7 @@
                     <div v-if="!savedViews.length" class="views-empty">No saved views yet</div>
                 </div>
             </div>
-        </div>
+        </FilterBar>
 
         <!-- ── Two-column layout ── -->
         <div class="ai-hub-grid">
@@ -331,6 +331,7 @@ import PageHeader from '@/Components/ui/PageHeader.vue';
 import { Head, usePage, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import DateRangeFilter from '@/Components/ui/DateRangeFilter.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 import Modal from '@/Components/ui/Modal.vue';
 import Button from '@/Components/ui/Button.vue';
 import TrendChart from '@/Components/dashboard/TrendChart.vue';
@@ -830,17 +831,6 @@ onMounted(() => {
     .ai-hub-grid { grid-template-columns: 1fr; }
 }
 
-.filter-bar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 16px;
-    padding: 12px 16px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    margin-bottom: 16px;
-}
 .cmp-toggle {
     display: inline-flex;
     align-items: center;

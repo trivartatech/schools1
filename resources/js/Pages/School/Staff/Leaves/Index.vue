@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import StatsRow from '@/Components/ui/StatsRow.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed } from 'vue';
 import { useForm, router, Link } from '@inertiajs/vue3';
@@ -173,20 +174,11 @@ const rejected = computed(() => (props.leaves?.data || []).filter(l => l.status 
         </transition>
 
         <!-- Summary Stats -->
-        <div class="stats-row" style="margin-bottom:20px;">
-            <div class="stat-card stat-card--amber">
-                <div class="stat-value">{{ leaves.total }}</div>
-                <div class="stat-label">Total Requests</div>
-            </div>
-            <div class="stat-card stat-card--green">
-                <div class="stat-value">{{ approved }}</div>
-                <div class="stat-label">Approved (This Page)</div>
-            </div>
-            <div class="stat-card stat-card--red">
-                <div class="stat-value">{{ pending }}</div>
-                <div class="stat-label">Pending (This Page)</div>
-            </div>
-        </div>
+        <StatsRow :cols="3" :stats="[
+            { label: 'Total Requests', value: leaves.total, color: 'warning' },
+            { label: 'Approved (This Page)', value: approved, color: 'success' },
+            { label: 'Pending (This Page)', value: pending, color: 'danger' },
+        ]" />
 
         <!-- Filters -->
         <FilterBar :active="!!(statusFilter || typeFilter)" @clear="statusFilter = ''; typeFilter = ''; applyFilters()">
@@ -292,20 +284,6 @@ const rejected = computed(() => (props.leaves?.data || []).filter(l => l.status 
 <style scoped>
 .slide-enter-active, .slide-leave-active { transition: all 0.25s ease; }
 .slide-enter-from, .slide-leave-to { opacity: 0; transform: translateY(-8px); }
-
-.stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-.stat-card { border-radius: 10px; padding: 16px; text-align: center; border: 1px solid; }
-.stat-card--amber { background: #fffbeb; border-color: #fde68a; }
-.stat-card--green { background: #f0fdf4; border-color: #bbf7d0; }
-.stat-card--red   { background: #fef2f2; border-color: #fecaca; }
-.stat-value { font-size: 1.5rem; font-weight: 700; }
-.stat-label { font-size: .75rem; font-weight: 500; margin-top: 4px; }
-.stat-card--amber .stat-value { color: #b45309; }
-.stat-card--amber .stat-label { color: #d97706; }
-.stat-card--green .stat-value { color: #15803d; }
-.stat-card--green .stat-label { color: #16a34a; }
-.stat-card--red   .stat-value { color: #b91c1c; }
-.stat-card--red   .stat-label { color: #dc2626; }
 
 /* Pagination */
 .pagination-bar { display: flex; justify-content: center; padding: 16px; border-top: 1px solid var(--border-light); }

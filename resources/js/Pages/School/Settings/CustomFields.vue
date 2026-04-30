@@ -1,6 +1,7 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import EmptyState from '@/Components/ui/EmptyState.vue';
 import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
 import { useForm, router, Link } from '@inertiajs/vue3'
 import Sortable from 'sortablejs'
@@ -160,12 +161,12 @@ const formatOptionsPreview = (opts) => {
                     </thead>
                     <tbody ref="tbodyRef">
                         <tr v-if="localFields.length === 0">
-                            <td colspan="7" class="empty-state">
-                                <div class="empty-icon">
-                                    <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                                </div>
-                                <p class="empty-title">No custom fields yet</p>
-                                <p class="empty-sub">No fields defined for <strong>{{ entityType }}s</strong>. Click "Add Field" to get started.</p>
+                            <td colspan="7">
+                                <EmptyState
+                                    tone="muted"
+                                    title="No custom fields yet"
+                                    :description="`No fields defined for ${entityType}s. Click &quot;Add Field&quot; to get started.`"
+                                />
                             </td>
                         </tr>
                         <tr v-for="f in localFields" :key="f.id">
@@ -299,14 +300,6 @@ const formatOptionsPreview = (opts) => {
 </template>
 
 <style scoped>
-/* ── Page header ── */
-.page-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
 .header-actions {
     display: flex;
     align-items: center;
@@ -413,35 +406,6 @@ const formatOptionsPreview = (opts) => {
     align-items: center;
     justify-content: flex-end;
     gap: 0.4rem;
-}
-
-/* ── Empty state ── */
-.empty-state {
-    text-align: center;
-    padding: 4rem 1rem;
-    color: #64748b;
-}
-.empty-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background: #f1f5f9;
-    color: #94a3b8;
-    margin-bottom: 0.9rem;
-}
-.empty-title {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: #1e293b;
-    margin: 0 0 0.35rem;
-}
-.empty-sub {
-    font-size: 0.82rem;
-    color: #94a3b8;
-    margin: 0;
 }
 
 .drag-hint {

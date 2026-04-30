@@ -85,22 +85,12 @@ const submit = () => {
     <SchoolLayout title="New Student Application">
 
         <!-- Page Header -->
-        <PageHeader>
-            <template #title>
-                <div class="ph-title-row">
-                    <Button variant="secondary" size="sm" as="link" href="/school/registrations" class="back-btn">
-                        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                        Back
-                    </Button>
-                    <div class="page-header-title">New Student Registration</div>
-                </div>
-            </template>
-            <template #subtitle>
-                <div class="page-header-sub">Submit an application for review. The student will be admitted after approval.</div>
-            </template>
-        </PageHeader>
+        <PageHeader
+            title="New Student Registration"
+            back-href="/school/registrations"
+            back-label="← Back to applications"
+            subtitle="Submit an application for review. The student will be admitted after approval."
+        />
 
         <form @submit.prevent="submit" class="reg-form">
 
@@ -477,13 +467,6 @@ const submit = () => {
 </template>
 
 <style scoped>
-.ph-title-row {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-}
-.back-btn { flex-shrink: 0; }
-
 .reg-form {
     display: flex;
     flex-direction: column;
