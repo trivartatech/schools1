@@ -752,10 +752,14 @@ class MobileApiController extends Controller
                       ->first();
 
         if ($staff) {
+            // NB: StaffAttendance defines the relation as `marker()` (not
+            // `markedBy()` — that's the Attendance model's name). Using the
+            // wrong name throws a 500 RelationNotFoundException, which was
+            // the root cause of "My Attendance shows 0".
             $records = StaffAttendance::where('school_id', $school->id)
                 ->where('staff_id', $staff->id)
                 ->whereBetween('date', [$from, $to])
-                ->with('markedBy:id,name')
+                ->with('marker:id,name')
                 ->orderBy('date')
                 ->get(['id', 'date', 'status', 'remarks', 'marked_by']);
 
@@ -788,7 +792,7 @@ class MobileApiController extends Controller
                     'date'      => $r->date ? Carbon::parse($r->date)->format($dateFmt) : null,
                     'status'    => $r->status,
                     'remarks'   => $r->remarks,
-                    'marked_by' => $r->markedBy?->name,
+                    'marked_by' => $r->marker?->name,
                 ]),
             ]);
         }
