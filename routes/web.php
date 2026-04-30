@@ -360,6 +360,7 @@ Route::middleware('auth')->group(function () {
             Route::patch('students/{student}/record', [\App\Http\Controllers\School\StudentController::class, 'updateRecord'])->name('students.record.update');
             Route::patch('students/{student}/defaulter', [\App\Http\Controllers\School\StudentController::class, 'toggleDefaulter'])->name('students.defaulter.toggle');
             Route::post('students/bulk-flag-defaulter', [\App\Http\Controllers\School\StudentController::class, 'bulkFlagDefaulter'])->name('students.defaulter.bulk');
+            Route::post('students/{student}/reset-password', [\App\Http\Controllers\School\StudentController::class, 'resetUserPassword'])->name('students.reset-password');
 
             $R = \App\Http\Controllers\School\StudentApplicationController::class;
             Route::resource('registrations', $R)->except(['destroy']);

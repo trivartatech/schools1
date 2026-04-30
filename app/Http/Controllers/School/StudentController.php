@@ -23,6 +23,8 @@ use App\Services\AdmissionService;
 use App\Services\TeacherScopeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -351,6 +353,8 @@ class StudentController extends Controller
 
         $student->load([
             'studentParent',
+            'user:id,name,username,email,phone,is_active,user_type',
+            'studentParent.user:id,name,username,email,phone,is_active,user_type',
             'academicHistories.courseClass',
             'academicHistories.section',
             'academicHistories.academicYear',
@@ -1276,5 +1280,60 @@ class StudentController extends Controller
         return back()->with('success', $validated['is_defaulter']
             ? "{$count} student(s) flagged as defaulter."
             : "{$count} student(s) unflagged.");
+    }
+
+    /**
+     * Reset the password of the student's own login or one of its linked
+     * parent's logins back to the default ('password'). Used by the
+     * Credentials tab on the student profile so admins can hand out a known
+     * password verbally / via SMS when a user is locked out.
+     */
+    public function resetUserPassword(Request $request, Student $student)
+    {
+        abort_if($student->school_id !== app('current_school_id'), 403);
+
+        $validated = $request->validate([
+            'target' => ['required', Rule::in(['student', 'parent'])],
+        ]);
+
+        $user = $validated['target'] === 'student'
+            ? $student->user
+            : $student->studentParent?->user;
+
+        if (! $user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No login account exists for this ' . $validated['target'] . '.',
+            ], 422);
+        }
+
+        if ($user->school_id !== app('current_school_id')) {
+            abort(403);
+        }
+
+        if ($user->id === auth()->id()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Use the profile page to change your own password.',
+            ], 422);
+        }
+
+        $newPassword = 'password';
+        $user->update(['password' => Hash::make($newPassword)]);
+
+        Log::info('Student credentials password reset', [
+            'reset_by'   => auth()->id(),
+            'reset_for'  => $user->id,
+            'target'     => $validated['target'],
+            'student_id' => $student->id,
+            'school_id'  => $student->school_id,
+            'timestamp'  => now()->toIso8601String(),
+        ]);
+
+        return response()->json([
+            'success'  => true,
+            'message'  => 'Password reset to default. Share it with the user once, then close.',
+            'password' => $newPassword,
+        ]);
     }
 }

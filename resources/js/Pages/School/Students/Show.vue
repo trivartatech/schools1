@@ -8,6 +8,7 @@ import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useDelete } from '@/Composables/useDelete';
 import { useConfirm } from '@/Composables/useConfirm';
+import { useToast } from '@/Composables/useToast';
 import { usePermissions } from '@/Composables/usePermissions';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
@@ -15,6 +16,16 @@ import { useSchoolStore } from '@/stores/useSchoolStore';
 const { canDo, canRequestEditStudent } = usePermissions();
 const school = useSchoolStore();
 const confirm = useConfirm();
+const toast = useToast();
+
+// CSRF header for fetch() calls (the meta tag goes stale on long-lived pages,
+// so read the rotated XSRF-TOKEN cookie like axios does internally).
+const csrfHeader = () => {
+    const m = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/);
+    return m
+        ? { 'X-XSRF-TOKEN': decodeURIComponent(m[1]) }
+        : { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '' };
+};
 
 const deleteStudent = async (id) => {
     const ok = await confirm({
@@ -69,6 +80,7 @@ const tabs = [
     { key: 'stationary',  label: 'Stationary',  icon: '📚' },
     { key: 'hostel',      label: 'Hostel',      icon: '🏠' },
     { key: 'disciplinary', label: 'Disciplinary', icon: '⚖️' },
+    { key: 'credentials', label: 'Credentials', icon: '🔐' },
 ];
 
 // ── Inline Admission No Edit ──────────────────────────────────────────────────
@@ -467,6 +479,51 @@ const deleteDisc = async (id) => {
     });
     if (!ok) return;
     router.delete(`/school/disciplinary/${id}`, { preserveScroll: true });
+};
+
+// ── Credentials Tab ───────────────────────────────────────────────────────────
+const studentUser = computed(() => props.student.user || null);
+const parentUser  = computed(() => props.student.student_parent?.user || null);
+
+const showPwd = ref({ student: false, parent: false });
+const togglePwd = (target) => { showPwd.value[target] = !showPwd.value[target]; };
+const resettingFor = ref(null);
+
+const handleCopyUsername = (username) => {
+    if (!username) return;
+    navigator.clipboard.writeText(username);
+    toast.info('Username copied to clipboard.');
+};
+
+const handleResetPassword = async (target) => {
+    const user = target === 'student' ? studentUser.value : parentUser.value;
+    if (!user) return;
+    const ok = await confirm({
+        title: 'Reset password?',
+        message: `${user.name}'s password will be reset to the default ("password"). They must change it after their next login.`,
+        confirmLabel: 'Reset Password',
+        danger: true,
+    });
+    if (!ok) return;
+    resettingFor.value = target;
+    try {
+        const response = await fetch(`/school/students/${props.student.id}/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', ...csrfHeader() },
+            body: JSON.stringify({ target }),
+        });
+        const result = await response.json();
+        if (result.success) {
+            toast.success(result.message || 'Password reset to "password".');
+        } else {
+            toast.error(result.message || 'Could not reset password.');
+        }
+    } catch (e) {
+        console.error('Error resetting password:', e);
+        toast.error('Could not reset password. Try again.');
+    } finally {
+        resettingFor.value = null;
+    }
 };
 </script>
 
@@ -2000,6 +2057,143 @@ const deleteDisc = async (id) => {
                                         </tr>
                                     </tbody>
                                 </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ─── TAB: CREDENTIALS ───────────────────────────────────── -->
+                <div v-if="activeTab === 'credentials'">
+                    <div class="cred-grid">
+
+                        <!-- Student Login -->
+                        <div class="cred-card">
+                            <div class="cred-card-header">
+                                <div class="cred-card-icon cred-card-icon--student">🎓</div>
+                                <div>
+                                    <div class="cred-card-title">Student Login</div>
+                                    <div class="cred-card-subtitle">{{ student.first_name }} {{ student.last_name }}</div>
+                                </div>
+                                <span v-if="studentUser"
+                                      class="badge"
+                                      :class="studentUser.is_active ? 'badge-green' : 'badge-red'"
+                                      style="margin-left:auto;">
+                                    {{ studentUser.is_active ? 'Active' : 'Disabled' }}
+                                </span>
+                            </div>
+
+                            <div v-if="!studentUser" class="cred-empty">
+                                <div class="cred-empty-icon">🚫</div>
+                                <p class="cred-empty-title">No login account linked.</p>
+                                <p class="cred-empty-hint">Create one from User Management → Create missing logins.</p>
+                            </div>
+
+                            <div v-else class="cred-card-body">
+                                <div class="cred-row">
+                                    <span class="cred-row-label">Username</span>
+                                    <div class="cred-row-value">
+                                        <span class="cred-row-text info-mono">{{ studentUser.username || '—' }}</span>
+                                        <button v-if="studentUser.username"
+                                                type="button"
+                                                class="cred-icon-btn"
+                                                title="Copy username"
+                                                @click="handleCopyUsername(studentUser.username)">📋</button>
+                                    </div>
+                                </div>
+                                <div class="cred-row">
+                                    <span class="cred-row-label">Password</span>
+                                    <div class="cred-row-value">
+                                        <span class="cred-row-text info-mono">
+                                            {{ showPwd.student ? 'password' : '••••••••' }}
+                                        </span>
+                                        <button type="button"
+                                                class="cred-icon-btn"
+                                                :title="showPwd.student ? 'Hide hint' : 'Show default hint'"
+                                                @click="togglePwd('student')">
+                                            {{ showPwd.student ? '🙈' : '👁️' }}
+                                        </button>
+                                    </div>
+                                </div>
+                                <p class="cred-hint">
+                                    Reset returns the password to the default <code>password</code>.
+                                    The actual current password is hashed and not visible — what's shown is only what users would have after a reset.
+                                </p>
+                                <div class="cred-actions">
+                                    <Button variant="danger"
+                                            size="sm"
+                                            :loading="resettingFor === 'student'"
+                                            @click="handleResetPassword('student')">
+                                        🔄 Reset to default
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Parent Login -->
+                        <div class="cred-card">
+                            <div class="cred-card-header">
+                                <div class="cred-card-icon cred-card-icon--parent">👨‍👩‍👧</div>
+                                <div>
+                                    <div class="cred-card-title">Parent Login</div>
+                                    <div class="cred-card-subtitle">
+                                        {{ student.student_parent?.father_name
+                                            || student.student_parent?.guardian_name
+                                            || student.student_parent?.mother_name
+                                            || 'Linked Parent' }}
+                                    </div>
+                                </div>
+                                <span v-if="parentUser"
+                                      class="badge"
+                                      :class="parentUser.is_active ? 'badge-green' : 'badge-red'"
+                                      style="margin-left:auto;">
+                                    {{ parentUser.is_active ? 'Active' : 'Disabled' }}
+                                </span>
+                            </div>
+
+                            <div v-if="!parentUser" class="cred-empty">
+                                <div class="cred-empty-icon">🚫</div>
+                                <p class="cred-empty-title">No parent login account linked.</p>
+                                <p class="cred-empty-hint">Create one from User Management → Create missing logins.</p>
+                            </div>
+
+                            <div v-else class="cred-card-body">
+                                <div class="cred-row">
+                                    <span class="cred-row-label">Username</span>
+                                    <div class="cred-row-value">
+                                        <span class="cred-row-text info-mono">{{ parentUser.username || '—' }}</span>
+                                        <button v-if="parentUser.username"
+                                                type="button"
+                                                class="cred-icon-btn"
+                                                title="Copy username"
+                                                @click="handleCopyUsername(parentUser.username)">📋</button>
+                                    </div>
+                                </div>
+                                <div class="cred-row">
+                                    <span class="cred-row-label">Password</span>
+                                    <div class="cred-row-value">
+                                        <span class="cred-row-text info-mono">
+                                            {{ showPwd.parent ? 'password' : '••••••••' }}
+                                        </span>
+                                        <button type="button"
+                                                class="cred-icon-btn"
+                                                :title="showPwd.parent ? 'Hide hint' : 'Show default hint'"
+                                                @click="togglePwd('parent')">
+                                            {{ showPwd.parent ? '🙈' : '👁️' }}
+                                        </button>
+                                    </div>
+                                </div>
+                                <p class="cred-hint">
+                                    Reset returns the password to the default <code>password</code>.
+                                    The actual current password is hashed and not visible — what's shown is only what users would have after a reset.
+                                </p>
+                                <div class="cred-actions">
+                                    <Button variant="danger"
+                                            size="sm"
+                                            :loading="resettingFor === 'parent'"
+                                            @click="handleResetPassword('parent')">
+                                        🔄 Reset to default
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -3555,4 +3749,128 @@ const deleteDisc = async (id) => {
     transition: background 0.18s;
 }
 .defaulter-toggle--on .defaulter-dot { background: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.18); }
+
+/* ── Credentials Tab ─────────────────────────────────────────────────────── */
+.cred-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+@media (max-width: 768px) {
+    .cred-grid { grid-template-columns: 1fr; }
+}
+.cred-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.cred-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid #e2e8f0;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+.cred-card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+.cred-card-icon--student { background: #e0e7ff; }
+.cred-card-icon--parent  { background: #fef3c7; }
+.cred-card-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+.cred-card-subtitle {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-top: 2px;
+}
+.cred-card-body { padding: 16px 18px; }
+.cred-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px dashed #e2e8f0;
+}
+.cred-row:last-of-type { border-bottom: none; }
+.cred-row-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #94a3b8;
+}
+.cred-row-value {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.cred-row-text {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #1e293b;
+}
+.cred-icon-btn {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+.cred-icon-btn:hover { background: #e2e8f0; border-color: #cbd5e1; }
+.cred-hint {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin: 12px 0 0;
+    padding: 10px 12px;
+    background: #fefce8;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    line-height: 1.4;
+}
+.cred-hint code {
+    background: #fff;
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid #fde68a;
+    font-family: 'Courier New', monospace;
+    font-size: 0.72rem;
+    color: #92400e;
+}
+.cred-actions {
+    margin-top: 14px;
+    display: flex;
+    justify-content: flex-end;
+}
+.cred-empty {
+    padding: 32px 18px;
+    text-align: center;
+}
+.cred-empty-icon { font-size: 28px; margin-bottom: 8px; }
+.cred-empty-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #475569;
+    margin: 0 0 4px;
+}
+.cred-empty-hint {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin: 0;
+}
 </style>
