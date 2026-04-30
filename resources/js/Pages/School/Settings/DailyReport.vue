@@ -18,6 +18,7 @@ const settingsNav = [
     { id: 'asset-config',     label: 'Asset Config',     route: '/school/settings/asset-config' },
     { id: 'system-config',    label: 'System Config',    route: '/school/settings/system-config' },
     { id: 'geofence-config',  label: 'Geofence Config',  route: '/school/settings/geofence-config' },
+    { id: 'attendance-timings', label: 'Attendance Timings', route: '/school/settings/attendance-timings' },
     { id: 'admin-contacts',   label: 'Admin Numbers',    route: '/school/settings/admin-contacts' },
     { id: 'daily-report',     label: 'Daily Report',     route: '/school/settings/daily-report' },
     { id: 'receipt-print',    label: 'Receipt Print',    route: '/school/settings/receipt-print' },

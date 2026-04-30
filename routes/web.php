@@ -178,6 +178,11 @@ Route::middleware('auth')->group(function () {
         Route::get('settings/system-config',  [\App\Http\Controllers\School\SystemConfigController::class, 'index']) ->name('settings.system-config');
         Route::post('settings/system-config', [\App\Http\Controllers\School\SystemConfigController::class, 'update'])->name('settings.system-config.update');
 
+        // Attendance Timings (per-role, per-day-bucket late thresholds)
+        $ATC = \App\Http\Controllers\School\Settings\AttendanceTimingsController::class;
+        Route::get ('settings/attendance-timings', [$ATC, 'index'])->name('settings.attendance-timings');
+        Route::post('settings/attendance-timings', [$ATC, 'update'])->name('settings.attendance-timings.update');
+
         // Admin Contacts (admin numbers for system notifications)
         $ACC = \App\Http\Controllers\School\AdminContactController::class;
         Route::get   ('settings/admin-contacts',           [$ACC, 'index'])  ->name('settings.admin-contacts');

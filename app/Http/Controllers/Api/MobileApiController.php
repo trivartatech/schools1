@@ -4860,8 +4860,9 @@ class MobileApiController extends Controller
             return response()->json(['error' => 'Staff not found or inactive.'], 404);
         }
 
-        // Determine late vs present using the school's late_threshold setting
-        $lateThreshold = $school->settings['late_threshold'] ?? '09:30';
+        // Late threshold honours /school/settings/attendance-timings; falls
+        // back to legacy `settings.late_threshold` for older configs.
+        $lateThreshold = $school->lateThresholdFor('staff');
         $now           = now()->format('H:i:s');
         $status        = Carbon::parse($now)->gt(Carbon::parse($lateThreshold)) ? 'late' : 'present';
 
@@ -5038,7 +5039,7 @@ class MobileApiController extends Controller
 
         if (!$staff) return null;
 
-        $lateThreshold = $school->settings['late_threshold'] ?? '09:30';
+        $lateThreshold = $school->lateThresholdFor('staff');
         $now           = now()->format('H:i:s');
         $status        = Carbon::parse($now)->gt(Carbon::parse($lateThreshold)) ? 'late' : 'present';
 
@@ -6356,8 +6357,9 @@ class MobileApiController extends Controller
             return response()->json(['message' => 'You have already clocked in today.', 'error' => 'duplicate'], 422);
         }
 
-        // Determine late vs present
-        $lateThreshold = $school->settings['late_threshold'] ?? '09:30';
+        // Late threshold honours /school/settings/attendance-timings; falls
+        // back to legacy `settings.late_threshold` for older configs.
+        $lateThreshold = $school->lateThresholdFor('staff');
         $now           = now()->format('H:i:s');
         $status        = Carbon::parse($now)->gt(Carbon::parse($lateThreshold)) ? 'late' : 'present';
 

@@ -89,4 +89,52 @@ class School extends Model
         $n = (int) ($this->settings['page_length'] ?? $fallback);
         return max(5, min(100, $n));
     }
+
+    // ── Attendance timings ───────────────────────────────────────────────
+    // Settings shape (`settings.attendance_timings`):
+    //   weekend_days: int[]   — day-of-week numbers (0 = Sunday … 6 = Saturday)
+    //   staff:    { weekday: { working: bool, late_after: 'HH:MM' },
+    //               weekend: { working: bool, late_after: 'HH:MM' } }
+    //   student:  { weekday: { working: bool, late_after: 'HH:MM' },
+    //               weekend: { working: bool, late_after: 'HH:MM' } }
+    //
+    // Both helpers fall back to the legacy `settings.late_threshold` key
+    // (and to a sensible default) if the new structure is absent, so
+    // existing schools keep working without a settings update.
+
+    /** Returns 'weekday' or 'weekend' for the given moment. */
+    protected function dayBucket(?\Carbon\Carbon $when = null): string
+    {
+        $when = $when ?? now();
+        $weekendDays = $this->settings['attendance_timings']['weekend_days'] ?? [0]; // Sunday default
+        return in_array((int) $when->dayOfWeek, array_map('intval', (array) $weekendDays), true)
+            ? 'weekend'
+            : 'weekday';
+    }
+
+    /**
+     * HH:MM after which a punch / mark is considered late.
+     *
+     * @param string $for 'staff' | 'student'
+     */
+    public function lateThresholdFor(string $for, ?\Carbon\Carbon $when = null): string
+    {
+        $bucket = $this->dayBucket($when);
+        $configured = $this->settings['attendance_timings'][$for][$bucket]['late_after'] ?? null;
+        $legacy     = $this->settings['late_threshold'] ?? null;
+        $default    = $for === 'student' ? '08:30' : '09:30';
+        return $configured ?: ($legacy ?: $default);
+    }
+
+    /** True when today (or `$when`) is configured as a working day for the role. */
+    public function isWorkingDay(string $for, ?\Carbon\Carbon $when = null): bool
+    {
+        $bucket = $this->dayBucket($when);
+        $val = $this->settings['attendance_timings'][$for][$bucket]['working'] ?? null;
+        if ($val === null) {
+            // No new structure yet: weekday treated as working, weekend as off.
+            return $bucket === 'weekday';
+        }
+        return (bool) $val;
+    }
 }

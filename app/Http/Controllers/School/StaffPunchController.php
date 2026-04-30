@@ -121,6 +121,13 @@ class StaffPunchController extends Controller
         $today = now()->toDateString();
         $now   = now()->format('H:i:s');
 
+        // Honour the per-role / per-day-bucket "is working day?" toggle from
+        // /school/settings/attendance-timings. Falls back to "weekday is
+        // working, weekend is off" when the new structure is absent.
+        if (! $school->isWorkingDay('staff')) {
+            return back()->withErrors(['punch' => 'Today is not a working day for staff.']);
+        }
+
         $existing = StaffAttendance::where('school_id', $school->id)
             ->where('staff_id', $staff->id)
             ->whereDate('date', $today)
@@ -130,8 +137,9 @@ class StaffPunchController extends Controller
             return back()->withErrors(['punch' => 'You have already clocked in today.']);
         }
 
-        // Determine if late (after 9:30 AM by default — configurable via school settings)
-        $lateThreshold = $school->settings['late_threshold'] ?? '09:30';
+        // Late threshold honours the new attendance_timings settings shape and
+        // falls back to legacy `settings.late_threshold` (default 09:30).
+        $lateThreshold = $school->lateThresholdFor('staff');
         $status = Carbon::parse($now)->gt(Carbon::parse($lateThreshold)) ? 'late' : 'present';
 
         StaffAttendance::updateOrCreate(
