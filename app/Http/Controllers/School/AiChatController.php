@@ -239,9 +239,19 @@ SYS;
             $name       = trim(($st['first_name'] ?? '') . ' ' . ($st['last_name'] ?? ''));
             $percentage = $st['report_calculated']['overall_percentage'] ?? 0;
             $subjects   = collect($st['report_calculated']['subjects'] ?? [])->map(function ($sub) {
-                $grade = $sub['grade'] ?? '';
-                if (($sub['obtained'] ?? null) === 'ABS') return "{$sub['subject_name']}: ABS";
-                return "{$sub['subject_name']}: {$sub['obtained']}/{$sub['max']}" . ($grade ? " ({$grade})" : '');
+                $name     = $sub['subject_name'] ?? '';
+                $grade    = $sub['grade'] ?? '';
+                $gradeStr = $grade ? " ({$grade})" : '';
+
+                // Cumulative / term / weighted reports: no flat obtained/max — use percentage
+                if (!array_key_exists('obtained', $sub)) {
+                    $pct = $sub['percentage'] ?? null;
+                    return $pct !== null ? "{$name}: {$pct}%{$gradeStr}" : "{$name}{$gradeStr}";
+                }
+
+                // Single-exam raw report
+                if ($sub['obtained'] === 'ABS') return "{$name}: ABS";
+                return "{$name}: {$sub['obtained']}/{$sub['max']}{$gradeStr}";
             })->implode(', ');
 
             $summaries[] = "ID:{$st['id']} Name:{$name} Overall:{$percentage}% Subjects:[{$subjects}]";
