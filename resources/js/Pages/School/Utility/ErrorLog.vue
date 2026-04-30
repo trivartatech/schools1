@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
 import Table from '@/Components/ui/Table.vue';
 import debounce from 'lodash/debounce';
@@ -87,15 +88,16 @@ const isErrorLevel = (level) =>
         <div class="el-page">
 
             <!-- ── Page Header ──────────────────────────────────────── -->
-            <div class="el-header">
-                <h1 class="el-title">Error Log</h1>
-                <p class="el-subtitle">
-                    Laravel application log &mdash;
-                    <span class="el-meta">{{ totalEntries.toLocaleString() }} entries</span>
-                    <span class="el-meta-sep">·</span>
-                    <span class="el-meta">{{ logSize }}</span>
-                </p>
-            </div>
+            <PageHeader title="Error Log">
+                <template #subtitle>
+                    <p class="el-subtitle page-header-sub">
+                        Laravel application log &mdash;
+                        <span class="el-meta">{{ totalEntries.toLocaleString() }} entries</span>
+                        <span class="el-meta-sep">·</span>
+                        <span class="el-meta">{{ logSize }}</span>
+                    </p>
+                </template>
+            </PageHeader>
 
             <!-- ── Filters ─────────────────────────────────────────── -->
             <FilterBar :active="hasFilters()" @clear="resetFilters">

@@ -126,7 +126,7 @@ const submit = () => {
         <!-- Page Header -->
         <PageHeader>
             <template #title>
-                <div class="page-header-left">
+                <div class="ph-title-row">
                     <Button variant="secondary" size="sm" as="link" href="/school/students" class="back-btn">
                         <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -523,7 +523,7 @@ const submit = () => {
 
 <style scoped>
 /* ── Page header layout ── */
-.page-header-left {
+.ph-title-row {
     display: flex;
     align-items: center;
     gap: 14px;

@@ -99,11 +99,27 @@ const filteredPasses = computed(() => {
     return props.gatePasses.filter(p => p.status === activeTab.value);
 });
 
+// Approval/rejection notes modal (replaces native prompt)
+const notesOpen = ref(false);
+const notesValue = ref('');
+const notesContext = ref({ passId: null, status: '' });
+function askNotes(pass, newStatus) {
+    notesContext.value = { passId: pass.id, status: newStatus };
+    notesValue.value = '';
+    notesOpen.value = true;
+}
+function submitNotes() {
+    const { passId, status } = notesContext.value;
+    router.patch(`/school/front-office/gate-passes/${passId}/status`, {
+        status,
+        approval_notes: notesValue.value,
+    }, { preserveScroll: true });
+    notesOpen.value = false;
+}
+
 const updateStatus = (pass, newStatus) => {
     if (newStatus === 'Rejected' || newStatus === 'Approved') {
-        const notes = prompt(`Enter ${newStatus} notes (optional):`);
-        if (notes === null) return;
-        router.patch(`/school/front-office/gate-passes/${pass.id}/status`, { status: newStatus, approval_notes: notes }, { preserveScroll: true });
+        askNotes(pass, newStatus);
     } else {
         router.patch(`/school/front-office/gate-passes/${pass.id}/status`, { status: newStatus }, { preserveScroll: true });
     }
@@ -289,6 +305,20 @@ const updateStatus = (pass, newStatus) => {
             <template #footer>
                 <span style="font-size:.75rem;color:var(--text-muted);margin-right:auto;">Align face within boundary</span>
                 <Button @click="capturePhoto">Snap Photo</Button>
+            </template>
+        </Modal>
+
+        <!-- Approval/rejection notes modal (replaces native prompt) -->
+        <Modal v-model:open="notesOpen" :title="`${notesContext.status} — notes (optional)`" size="md">
+            <div class="form-field">
+                <label>Notes</label>
+                <textarea v-model="notesValue" rows="3" placeholder="Add a short note (optional)"
+                          class="form-input"
+                          style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:0.85rem;"></textarea>
+            </div>
+            <template #footer>
+                <Button variant="secondary" @click="notesOpen = false">Cancel</Button>
+                <Button @click="submitNotes">{{ notesContext.status }}</Button>
             </template>
         </Modal>
 

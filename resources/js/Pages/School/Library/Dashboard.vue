@@ -1,6 +1,7 @@
 <script setup>
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import Button from '@/Components/ui/Button.vue';
 import Table from '@/Components/ui/Table.vue';
 import SortableTh from '@/Components/ui/SortableTh.vue';
 import { useTableSort } from '@/Composables/useTableSort';
@@ -35,8 +36,8 @@ const sortedIssues = computed(() => sortRows(props.recentIssues || [], {
     <SchoolLayout title="Library">
         <PageHeader title="Library">
             <template #actions>
-                <Link href="/school/library/books" class="btn btn-secondary btn-sm">Catalog</Link>
-                <Link href="/school/library/issues" class="btn btn-primary btn-sm">Issues</Link>
+                <Button as="link" variant="secondary" size="sm" href="/school/library/books">Catalog</Button>
+                <Button as="link" variant="primary"   size="sm" href="/school/library/issues">Issues</Button>
             </template>
         </PageHeader>
 

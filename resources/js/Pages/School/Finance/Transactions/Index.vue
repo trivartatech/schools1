@@ -2,6 +2,7 @@
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
+import DateRangeFilter from '@/Components/ui/DateRangeFilter.vue';
 import { ref, computed } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -130,8 +131,11 @@ const statusClass = {
                 <option value="posted">Posted</option>
                 <option value="void">Void</option>
             </select>
-            <input type="date" v-model="filterFrom" @change="applyFilter" style="width:150px;">
-            <input type="date" v-model="filterTo" @change="applyFilter" style="width:150px;">
+            <DateRangeFilter
+                :from="filterFrom"
+                :to="filterTo"
+                @change="(v) => { filterFrom = v.from; filterTo = v.to; applyFilter(); }"
+            />
         </FilterBar>
 
         <!-- Table -->

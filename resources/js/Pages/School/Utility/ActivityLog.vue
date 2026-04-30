@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue';
 import { usePage, Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
 import Table from '@/Components/ui/Table.vue';
 import debounce from 'lodash/debounce';
@@ -65,10 +66,10 @@ const viewDetails = (log) => {
         <div class="utl-page">
             
             <!-- ── Page Header ──────────────────────────────────────── -->
-            <div class="al-header">
-                <h1 class="al-title">Activity Log Utility</h1>
-                <p class="al-subtitle">Advanced audit trail for all system and user operations.</p>
-            </div>
+            <PageHeader
+                title="Activity Log Utility"
+                subtitle="Advanced audit trail for all system and user operations."
+            />
 
             <!-- ── Filters ─────────────────────────────────────────── -->
             <FilterBar :active="!!(filterForm.search || filterForm.date || filterForm.log_name)" @clear="resetFilters">

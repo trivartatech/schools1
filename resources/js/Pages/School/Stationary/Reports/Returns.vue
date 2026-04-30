@@ -6,6 +6,7 @@ import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import Table from '@/Components/ui/Table.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
+import DateRangeFilter from '@/Components/ui/DateRangeFilter.vue';
 
 const props = defineProps({
     returns: Array,
@@ -78,15 +79,11 @@ const refundBadge = (m) => ({
 
         <!-- Filters -->
         <FilterBar :active="!!(from || to)" @clear="from = ''; to = ''; applyFilters()">
-            <div class="form-field">
-                <label>From</label>
-                <input v-model="from" type="date" style="width:160px;" />
-            </div>
-            <div class="form-field">
-                <label>To</label>
-                <input v-model="to" type="date" style="width:160px;" />
-            </div>
-            <Button variant="secondary" size="sm" @click="applyFilters">Apply</Button>
+            <DateRangeFilter
+                :from="from"
+                :to="to"
+                @change="(v) => { from = v.from; to = v.to; applyFilters(); }"
+            />
         </FilterBar>
 
         <!-- Table -->

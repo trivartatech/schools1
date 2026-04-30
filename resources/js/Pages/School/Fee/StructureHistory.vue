@@ -1,6 +1,8 @@
 <script setup>
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import Button from '@/Components/ui/Button.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 import Table from '@/Components/ui/Table.vue';
 import SortableTh from '@/Components/ui/SortableTh.vue';
 import { useTableSort } from '@/Composables/useTableSort';
@@ -58,33 +60,31 @@ const sortedArchived = computed(() => sortRows(archivedEntries.value, {
         </PageHeader>
 
         <!-- Filter -->
-        <div class="card" style="margin-bottom:20px;">
-            <div class="card-header"><span class="card-title">Select Fee Structure</span></div>
-            <div style="padding:16px;display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px;align-items:end;">
-                <div class="form-field" style="margin:0;">
-                    <label>Class</label>
-                    <select v-model="classId">
-                        <option value="">— Select Class —</option>
-                        <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
-                    </select>
-                </div>
-                <div class="form-field" style="margin:0;">
-                    <label>Fee Head</label>
-                    <select v-model="feeHeadId">
-                        <option value="">— Select Fee Head —</option>
-                        <option v-for="f in feeHeads" :key="f.id" :value="f.id">{{ f.name }}</option>
-                    </select>
-                </div>
-                <div class="form-field" style="margin:0;">
-                    <label>Term</label>
-                    <select v-model="term">
-                        <option value="">— Select Term —</option>
-                        <option v-for="t in terms" :key="t" :value="t">{{ t }}</option>
-                    </select>
-                </div>
-                <button class="btn btn-primary" @click="search" :disabled="!classId || !feeHeadId || !term">View History</button>
+        <FilterBar :active="!!(classId || feeHeadId || term)"
+                   @clear="classId=''; feeHeadId=''; term=''">
+            <div class="form-field">
+                <label>Class</label>
+                <select v-model="classId" style="width:160px;">
+                    <option value="">— Select Class —</option>
+                    <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </select>
             </div>
-        </div>
+            <div class="form-field">
+                <label>Fee Head</label>
+                <select v-model="feeHeadId" style="width:200px;">
+                    <option value="">— Select Fee Head —</option>
+                    <option v-for="f in feeHeads" :key="f.id" :value="f.id">{{ f.name }}</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label>Term</label>
+                <select v-model="term" style="width:160px;">
+                    <option value="">— Select Term —</option>
+                    <option v-for="t in terms" :key="t" :value="t">{{ t }}</option>
+                </select>
+            </div>
+            <Button @click="search" :disabled="!classId || !feeHeadId || !term">View History</Button>
+        </FilterBar>
 
         <div v-if="history.length === 0 && (classId && feeHeadId && term)" style="text-align:center;padding:40px;color:#94a3b8;">
             No history found for this combination.

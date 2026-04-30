@@ -7,6 +7,7 @@ import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
+import DateRangeFilter from '@/Components/ui/DateRangeFilter.vue';
 
 const props = defineProps({
     records: Array,
@@ -67,14 +68,11 @@ const { formatDate } = useFormat();
 
             <!-- Filters -->
             <FilterBar :active="!!(from || to || routeId)" @clear="from = ''; to = ''; routeId = ''; applyFilters()">
-                <div class="form-field">
-                    <label>From</label>
-                    <input v-model="from" type="date" style="width:160px;">
-                </div>
-                <div class="form-field">
-                    <label>To</label>
-                    <input v-model="to" type="date" style="width:160px;">
-                </div>
+                <DateRangeFilter
+                    :from="from"
+                    :to="to"
+                    @change="(v) => { from = v.from; to = v.to; applyFilters(); }"
+                />
                 <div class="form-field">
                     <label>Route</label>
                     <select v-model="routeId" style="width:180px;">

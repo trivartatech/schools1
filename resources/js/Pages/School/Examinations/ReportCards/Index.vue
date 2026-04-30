@@ -1,6 +1,7 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 import { ref, computed, watch } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -358,10 +359,11 @@ const resultTitle = computed(() => {
                 <!-- Row 2: Class / Section / (Exam | Term) -->
                 <div v-if="reportType">
                     <label class="rt-label">Step 2 · Class &amp; {{ reportType === 'term' ? 'Term' : 'Exam' }}</label>
-                    <div class="form-row" style="grid-template-columns:1fr 1fr 1fr auto;align-items:flex-end;gap:12px;">
+                    <FilterBar :active="!!(selectedClassId || selectedSectionId || selectedScheduleId || selectedTermId)"
+                               @clear="selectedClassId=''; selectedSectionId=''; selectedScheduleId=''; selectedTermId=''">
                         <div class="form-field">
                             <label>Class *</label>
-                            <select v-model="selectedClassId">
+                            <select v-model="selectedClassId" style="width:160px;">
                                 <option value="">-- Select Class --</option>
                                 <option v-for="cls in availableClasses" :key="cls.id" :value="cls.id">
                                     {{ cls.name }}
@@ -370,7 +372,7 @@ const resultTitle = computed(() => {
                         </div>
                         <div class="form-field">
                             <label>Section *</label>
-                            <select v-model="selectedSectionId" :disabled="!selectedClassId || !availableSections.length">
+                            <select v-model="selectedSectionId" :disabled="!selectedClassId || !availableSections.length" style="width:160px;">
                                 <option value="">-- Select Section --</option>
                                 <option v-for="sec in availableSections" :key="sec.id" :value="sec.id">
                                     {{ sec.name }}
@@ -381,7 +383,7 @@ const resultTitle = computed(() => {
                         <!-- Exam-wise + Cumulative: Exam picker -->
                         <div class="form-field" v-if="reportType === 'exam' || reportType === 'cumulative'">
                             <label>{{ reportType === 'cumulative' ? 'Anchor Exam *' : 'Exam *' }}</label>
-                            <select v-model="selectedScheduleId" :disabled="!selectedSectionId">
+                            <select v-model="selectedScheduleId" :disabled="!selectedSectionId" style="width:240px;">
                                 <option value="">-- Select Exam --</option>
                                 <option v-for="sc in availableExams" :key="sc.id" :value="sc.id">
                                     {{ sc.exam_type?.name }}<span v-if="reportType === 'cumulative'"> (defines subject list)</span>
@@ -392,7 +394,7 @@ const resultTitle = computed(() => {
                         <!-- Term-wise: Term picker -->
                         <div class="form-field" v-if="reportType === 'term'">
                             <label>Term *</label>
-                            <select v-model="selectedTermId" :disabled="!selectedSectionId || !availableTerms.length">
+                            <select v-model="selectedTermId" :disabled="!selectedSectionId || !availableTerms.length" style="width:200px;">
                                 <option value="">-- Select Term --</option>
                                 <option v-for="t in availableTerms" :key="t.id" :value="t.id">
                                     {{ t.display_name || t.name }}
@@ -400,16 +402,10 @@ const resultTitle = computed(() => {
                             </select>
                         </div>
 
-                        <div>
-                            <Button @click="loadPreview" :disabled="!canLoad || loading">
-                                <svg v-if="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke-width="4"/>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-                                </svg>
-                                {{ loading ? 'Loading…' : 'Load Students' }}
-                            </Button>
-                        </div>
-                    </div>
+                        <Button @click="loadPreview" :disabled="!canLoad || loading" :loading="loading">
+                            {{ loading ? 'Loading…' : 'Load Students' }}
+                        </Button>
+                    </FilterBar>
                 </div>
 
                 <!-- Row 3: Weightage toggle (universal, contextual copy) -->

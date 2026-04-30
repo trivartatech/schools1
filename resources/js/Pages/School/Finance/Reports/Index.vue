@@ -11,6 +11,7 @@ import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 import Table from '@/Components/ui/Table.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
+import DateRangeFilter from '@/Components/ui/DateRangeFilter.vue';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend);
 
@@ -173,14 +174,11 @@ const barChartData = computed(() => {
 
             <!-- Filters -->
             <FilterBar class="print:hidden" :active="!!(filterForm.start_date || filterForm.end_date || filterForm.class_id || filterForm.section_id)" @clear="resetFilter">
-                <div class="form-field">
-                    <label>From Date</label>
-                    <input type="date" v-model="filterForm.start_date" style="width:160px;" />
-                </div>
-                <div class="form-field">
-                    <label>To Date</label>
-                    <input type="date" v-model="filterForm.end_date" style="width:160px;" />
-                </div>
+                <DateRangeFilter
+                    :from="filterForm.start_date"
+                    :to="filterForm.end_date"
+                    @change="(v) => { filterForm.start_date = v.from; filterForm.end_date = v.to; fetchReport(); }"
+                />
                 <div class="form-field">
                     <label>Class</label>
                     <select v-model="filterForm.class_id" @change="fetchSections" style="width:160px;">

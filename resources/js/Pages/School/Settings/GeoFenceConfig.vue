@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { useForm, usePage, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 
 const props = defineProps({
     school: { type: Object, default: () => ({}) },
@@ -67,10 +68,10 @@ function useCurrentLocation() {
 
             <!-- Content -->
             <div class="flex-1 space-y-6">
-                <div>
-                    <h1 class="text-lg font-semibold text-gray-900">Geofence Configuration</h1>
-                    <p class="text-sm text-gray-500 mt-1">Set the school campus centre and radius. Staff can only punch attendance within this boundary.</p>
-                </div>
+                <PageHeader
+                    title="Geofence Configuration"
+                    subtitle="Set the school campus centre and radius. Staff can only punch attendance within this boundary."
+                />
 
                 <form @submit.prevent="submit" class="bg-white rounded-xl border border-gray-200 shadow-sm divide-y divide-gray-100">
                     <!-- Coordinates -->

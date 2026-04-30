@@ -4,6 +4,8 @@ import { Head, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import axios from 'axios';
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
+import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const school = useSchoolStore();
@@ -118,26 +120,21 @@ const fmt = (n) => school.fmtMoney(n, { fixed: true });
         <div class="max-w-4xl mx-auto p-4 sm:p-6 space-y-5">
 
             <!-- Header -->
-            <div class="flex items-start justify-between flex-wrap gap-3">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                        <svg class="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <h1 class="text-xl font-bold text-gray-900 leading-tight">Online Fee Payment</h1>
-                        <p class="text-sm text-gray-500">View fee details and pay online securely</p>
-                    </div>
-                </div>
-                <a href="/portal/fees/history"
-                    class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-indigo-600 bg-white border border-indigo-200 hover:bg-indigo-50 rounded-lg transition-colors shadow-sm">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    Payment History
-                </a>
-            </div>
+            <PageHeader
+                title="Online Fee Payment"
+                subtitle="View fee details and pay online securely"
+            >
+                <template #actions>
+                    <Button as="a" href="/portal/fees/history" variant="secondary" size="sm">
+                        <template #icon>
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </template>
+                        Payment History
+                    </Button>
+                </template>
+            </PageHeader>
 
             <!-- No students empty state -->
             <div v-if="!students.length" class="bg-white rounded-2xl border shadow-sm p-14 text-center">
@@ -236,7 +233,7 @@ const fmt = (n) => school.fmtMoney(n, { fixed: true });
                         </div>
 
                         <div class="overflow-x-auto">
-                            <table class="w-full text-sm">
+                            <Table class="w-full text-sm">
                                 <thead>
                                     <tr class="border-b bg-gray-50">
                                         <th v-if="payment_enabled && pendingFees.length" class="px-4 py-3 w-10">
@@ -283,7 +280,7 @@ const fmt = (n) => school.fmtMoney(n, { fixed: true });
                                         </td>
                                     </tr>
                                 </tbody>
-                            </table>
+                            </Table>
                         </div>
                     </div>
 

@@ -1,6 +1,7 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 import { ref, computed, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -201,40 +202,37 @@ const saveMarks = () => {
         </PageHeader>
 
         <!-- Filters Section -->
-        <div class="card" style="margin-bottom:20px;">
-            <div class="card-body">
-                <div class="form-row" style="grid-template-columns:repeat(4,1fr);">
-                    <div class="form-field">
-                        <label>Select Class *</label>
-                        <select v-model="selectedClassId">
-                            <option value="">-- Choose Class --</option>
-                            <option v-for="cls in allowedClasses" :key="cls.id" :value="cls.id">{{ cls.name }}</option>
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label>Select Exam *</label>
-                        <select v-model="selectedScheduleId" :disabled="!selectedClassId">
-                            <option value="">-- Choose Exam --</option>
-                            <option v-for="sc in activeScheduleSchedules" :key="sc.id" :value="sc.id">{{ sc.exam_type?.name }}</option>
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label>Select Section *</label>
-                        <select v-model="selectedSectionId" :disabled="!selectedClassId">
-                            <option value="">-- Choose Section --</option>
-                            <option v-for="sec in allowedSections" :key="sec.id" :value="sec.id">{{ sec.name }}</option>
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label>Select Subject *</label>
-                        <select v-model="selectedScheduleSubjectId" :disabled="!selectedSectionId">
-                            <option value="">-- Choose Subject --</option>
-                            <option v-for="sub in allowedSubjects" :key="sub.id" :value="sub.id">{{ sub.subject?.name }}</option>
-                        </select>
-                    </div>
-                </div>
+        <FilterBar :active="!!(selectedClassId || selectedScheduleId || selectedSectionId || selectedScheduleSubjectId)"
+                   @clear="selectedClassId=''; selectedScheduleId=''; selectedSectionId=''; selectedScheduleSubjectId=''">
+            <div class="form-field">
+                <label>Class *</label>
+                <select v-model="selectedClassId" style="width:160px;">
+                    <option value="">-- Choose Class --</option>
+                    <option v-for="cls in allowedClasses" :key="cls.id" :value="cls.id">{{ cls.name }}</option>
+                </select>
             </div>
-        </div>
+            <div class="form-field">
+                <label>Exam *</label>
+                <select v-model="selectedScheduleId" :disabled="!selectedClassId" style="width:200px;">
+                    <option value="">-- Choose Exam --</option>
+                    <option v-for="sc in activeScheduleSchedules" :key="sc.id" :value="sc.id">{{ sc.exam_type?.name }}</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label>Section *</label>
+                <select v-model="selectedSectionId" :disabled="!selectedClassId" style="width:160px;">
+                    <option value="">-- Choose Section --</option>
+                    <option v-for="sec in allowedSections" :key="sec.id" :value="sec.id">{{ sec.name }}</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label>Subject *</label>
+                <select v-model="selectedScheduleSubjectId" :disabled="!selectedSectionId" style="width:200px;">
+                    <option value="">-- Choose Subject --</option>
+                    <option v-for="sub in allowedSubjects" :key="sub.id" :value="sub.id">{{ sub.subject?.name }}</option>
+                </select>
+            </div>
+        </FilterBar>
 
         <!-- Marks Entry Table -->
         <div class="card" style="position:relative;">

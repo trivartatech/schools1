@@ -1,11 +1,13 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 import { ref, computed } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import axios from 'axios';
 import Table from '@/Components/ui/Table.vue';
+import SortableTh from '@/Components/ui/SortableTh.vue';
 
 const props = defineProps({ schedules: Array });
 
@@ -89,8 +91,6 @@ const sortedRows = computed(() => {
     });
 });
 
-const sortIcon = (key) => sortKey.value === key ? (sortDir.value === 'asc' ? ' ▲' : ' ▼') : '';
-
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function getSubjectMark(row, subjectId) {
     return row.subjects.find(s => s.subject_id == subjectId) ?? null;
@@ -133,42 +133,33 @@ function openResultsPrint() {
         </PageHeader>
 
         <!-- Filters -->
-        <div class="card mb-6">
-            <div class="card-body">
-                <div class="form-row" style="grid-template-columns:1fr 1fr 1fr auto;align-items:flex-end;gap:12px;">
-                    <div class="form-field">
-                        <label>Class</label>
-                        <select v-model="selectedClassId" @change="onClassChange">
-                            <option value="">-- Select Class --</option>
-                            <option v-for="cls in availableClasses" :key="cls.id" :value="cls.id">{{ cls.name }}</option>
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label>Section</label>
-                        <select v-model="selectedSectionId" @change="onSectionChange" :disabled="!selectedClassId">
-                            <option value="">-- Select Section --</option>
-                            <option v-for="sec in availableSections" :key="sec.id" :value="sec.id">{{ sec.name }}</option>
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label>Exam</label>
-                        <select v-model="selectedScheduleId" :disabled="!selectedSectionId">
-                            <option value="">-- Select Exam --</option>
-                            <option v-for="sc in availableExams" :key="sc.id" :value="sc.id">{{ sc.exam_type?.name }}</option>
-                        </select>
-                    </div>
-                    <div>
-                        <Button @click="load" :disabled="!selectedScheduleId || !selectedSectionId || loading">
-                            <svg v-if="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke-width="4"/>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-                            </svg>
-                            {{ loading ? 'Loading…' : 'Load Results' }}
-                        </Button>
-                    </div>
-                </div>
+        <FilterBar :active="!!(selectedClassId || selectedSectionId || selectedScheduleId)"
+                   @clear="selectedClassId=''; selectedSectionId=''; selectedScheduleId=''">
+            <div class="form-field">
+                <label>Class</label>
+                <select v-model="selectedClassId" @change="onClassChange" style="width:160px;">
+                    <option value="">-- Select Class --</option>
+                    <option v-for="cls in availableClasses" :key="cls.id" :value="cls.id">{{ cls.name }}</option>
+                </select>
             </div>
-        </div>
+            <div class="form-field">
+                <label>Section</label>
+                <select v-model="selectedSectionId" @change="onSectionChange" :disabled="!selectedClassId" style="width:160px;">
+                    <option value="">-- Select Section --</option>
+                    <option v-for="sec in availableSections" :key="sec.id" :value="sec.id">{{ sec.name }}</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label>Exam</label>
+                <select v-model="selectedScheduleId" :disabled="!selectedSectionId" style="width:200px;">
+                    <option value="">-- Select Exam --</option>
+                    <option v-for="sc in availableExams" :key="sc.id" :value="sc.id">{{ sc.exam_type?.name }}</option>
+                </select>
+            </div>
+            <Button @click="load" :disabled="!selectedScheduleId || !selectedSectionId || loading" :loading="loading">
+                {{ loading ? 'Loading…' : 'Load Results' }}
+            </Button>
+        </FilterBar>
 
         <!-- Error -->
         <div v-if="errorMsg" class="res-error">{{ errorMsg }}</div>
@@ -210,22 +201,18 @@ function openResultsPrint() {
                 </span>
             </div>
             <div style="overflow-x:auto;">
-                <Table>
+                <Table :sort-key="sortKey" :sort-dir="sortDir" @sort="sort">
                     <thead>
                         <tr>
-                            <th class="sortable" @click="sort('rank')">Rank{{ sortIcon('rank') }}</th>
-                            <th class="sortable" @click="sort('roll_no')">Roll No{{ sortIcon('roll_no') }}</th>
-                            <th class="sortable" @click="sort('name')">Student{{ sortIcon('name') }}</th>
+                            <SortableTh sort-key="rank">Rank</SortableTh>
+                            <SortableTh sort-key="roll_no">Roll No</SortableTh>
+                            <SortableTh sort-key="name">Student</SortableTh>
                             <th v-for="sub in result.subjects" :key="sub.id"
                                 style="text-align:center;min-width:90px;">
                                 {{ sub.name }}
                             </th>
-                            <th class="sortable" @click="sort('total_obtained')" style="text-align:center;">
-                                Total{{ sortIcon('total_obtained') }}
-                            </th>
-                            <th class="sortable" @click="sort('percentage')" style="text-align:center;">
-                                %{{ sortIcon('percentage') }}
-                            </th>
+                            <SortableTh sort-key="total_obtained" align="center">Total</SortableTh>
+                            <SortableTh sort-key="percentage" align="center">%</SortableTh>
                             <th style="text-align:center;">Result</th>
                         </tr>
                     </thead>

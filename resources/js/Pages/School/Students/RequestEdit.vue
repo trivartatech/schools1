@@ -53,7 +53,7 @@ const submit = () => {
         <!-- Page header -->
         <PageHeader>
             <template #title>
-                <div class="page-header-left">
+                <div class="ph-title-row">
                     <Link :href="`/school/students/${student.id}`" class="back-btn" aria-label="Back">
                         <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                     </Link>
@@ -289,7 +289,7 @@ const submit = () => {
 
 <style scoped>
 /* ── Header ── */
-.page-header-left { display: flex; align-items: center; gap: .875rem; }
+.ph-title-row { display: flex; align-items: center; gap: .875rem; }
 .back-btn {
     display: inline-flex;
     align-items: center;

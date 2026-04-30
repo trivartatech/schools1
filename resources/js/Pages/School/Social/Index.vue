@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import PostCard from './Partials/PostCard.vue';
 import SocialComposer from './Partials/SocialComposer.vue';
 
@@ -77,7 +78,9 @@ const isStaffOrAdmin = computed(() => ['super_admin','admin','school_admin','pri
     <SchoolLayout title="Social Buzz">
         <div class="sb-page">
 
-            <!-- Hero header -->
+            <!-- Hero header (custom social hero preserved via PageHeader #title slot) -->
+            <PageHeader>
+            <template #title>
             <div class="sb-hero">
                 <div class="sb-hero-bg"></div>
                 <div class="sb-hero-content">
@@ -104,6 +107,8 @@ const isStaffOrAdmin = computed(() => ['super_admin','admin','school_admin','pri
                     </div>
                 </Transition>
             </div>
+            </template>
+            </PageHeader>
 
             <div class="sb-container">
 

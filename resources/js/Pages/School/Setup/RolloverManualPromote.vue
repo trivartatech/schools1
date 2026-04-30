@@ -4,6 +4,7 @@ import { router } from '@inertiajs/vue3'
 import SchoolLayout from '@/Layouts/SchoolLayout.vue'
 import Button from '@/Components/ui/Button.vue'
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import Table from '@/Components/ui/Table.vue';
 import axios from 'axios'
 import { useConfirm } from '@/Composables/useConfirm'
 import { useSchoolStore } from '@/stores/useSchoolStore';
@@ -368,7 +369,7 @@ const classLabel = (c) => c.numeric_value !== null && c.numeric_value !== undefi
         <!-- Per-batch history (this session only) -->
         <div v-if="batches.length" class="batches">
             <h3 class="batches-title">This session</h3>
-            <table class="batch-table">
+            <Table class="batch-table">
                 <thead>
                     <tr>
                         <th>Time</th><th>Target</th>
@@ -387,7 +388,7 @@ const classLabel = (c) => c.numeric_value !== null && c.numeric_value !== undefi
                         <td class="num">₹{{ b.fees_total }}</td>
                     </tr>
                 </tbody>
-            </table>
+            </Table>
         </div>
     </SchoolLayout>
 </template>

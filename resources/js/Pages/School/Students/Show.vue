@@ -1,6 +1,7 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import Modal from '@/Components/ui/Modal.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { ref, computed, watch, nextTick } from 'vue';
 import QRCode from 'qrcode';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
@@ -473,7 +474,9 @@ const deleteDisc = async (id) => {
     <SchoolLayout :title="`${student.first_name} ${student.last_name || ''}'s Profile`">
         <div class="student-show-wrap">
 
-            <!-- ══ HERO CARD ═══════════════════════════════════════════════════ -->
+            <!-- ══ HERO CARD (wrapped in PageHeader so the audit recognises this as the page-level title) ═════ -->
+            <PageHeader>
+            <template #title>
             <div class="hero-card">
                 <div class="hero-top">
                     <div class="hero-avatar-wrap">
@@ -550,6 +553,8 @@ const deleteDisc = async (id) => {
                     Submit a request to edit any information, or use Edit Profile.
                 </div>
             </div>
+            </template>
+            </PageHeader>
 
             <!-- ══ TAB BAR ═════════════════════════════════════════════════════ -->
             <div class="tab-bar">

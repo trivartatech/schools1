@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { useForm, usePage, Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { useConfirm } from '@/Composables/useConfirm';
 
 const confirm = useConfirm();
@@ -174,10 +175,10 @@ const removeAsset = async (type) => {
 
             <!-- —— Main Content ————————————————————————————————————— -->
             <section class="gc-content">
-                <div class="gc-page-header">
-                    <h1 class="gc-page-title">Asset Configuration</h1>
-                    <p class="gc-page-subtitle">Manage your school's visual identity assets.</p>
-                </div>
+                <PageHeader
+                    title="Asset Configuration"
+                    subtitle="Manage your school's visual identity assets."
+                />
 
                 <form @submit.prevent="submit" novalidate>
                     <div class="asset-grid">

@@ -1,6 +1,8 @@
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
+import Button from '@/Components/ui/Button.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
 import { useConfirm } from '@/Composables/useConfirm';
 
@@ -42,17 +44,14 @@ const formatDate = (d) => school.fmtDate(d);
     <Head title="ID Card Templates" />
     <SchoolLayout title="ID Card Templates">
 
-        <!-- Header -->
-        <div class="flex items-center justify-between mb-6">
-            <div>
-                <h1 class="text-xl font-bold text-slate-800">ID Card Templates</h1>
-                <p class="text-sm text-slate-500 mt-0.5">Design, manage, and print student ID cards</p>
-            </div>
-            <Link href="/school/utility/id-cards/create"
-                  class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
-                + New Template
-            </Link>
-        </div>
+        <PageHeader
+            title="ID Card Templates"
+            subtitle="Design, manage, and print student ID cards"
+        >
+            <template #actions>
+                <Button as="link" href="/school/utility/id-cards/create">+ New Template</Button>
+            </template>
+        </PageHeader>
 
         <!-- Empty state -->
         <div v-if="!templates.length" class="flex flex-col items-center justify-center py-24 text-center">

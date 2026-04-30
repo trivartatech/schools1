@@ -1,6 +1,7 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 import { ref, computed } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import axios from 'axios';
@@ -113,36 +114,33 @@ function openPrintView() {
         <PageHeader title="Admit Cards" subtitle="Generate and print admit cards for exams." />
 
         <!-- ── Filters ── -->
-        <div class="card mb-6">
-            <div class="form-row form-row-4">
-                <div class="form-field">
-                    <label>Class</label>
-                    <select v-model="filters.course_class_id" @change="filters.exam_schedule_id = ''; filters.section_id = ''; students = []">
-                        <option value="">Select Class</option>
-                        <option v-for="c in availableClasses" :key="c.id" :value="c.id">{{ c.name }}</option>
-                    </select>
-                </div>
-                <div class="form-field">
-                    <label>Exam Schedule</label>
-                    <select v-model="filters.exam_schedule_id" @change="filters.section_id = ''; students = []" :disabled="!filters.course_class_id">
-                        <option value="">Select Exam</option>
-                        <option v-for="s in availableSchedulesForClass" :key="s.id" :value="s.id">{{ s.exam_type?.name }}</option>
-                    </select>
-                </div>
-                <div class="form-field">
-                    <label>Section</label>
-                    <select v-model="filters.section_id" :disabled="!filters.exam_schedule_id" @change="students = []">
-                        <option value="">Select Section</option>
-                        <option v-for="sec in availableSections" :key="sec.id" :value="sec.id">{{ sec.name }}</option>
-                    </select>
-                </div>
-                <div class="form-field flex items-end">
-                    <Button type="button" @click="fetchStudents" :disabled="loading || !filters.section_id" class="w-full h-10">
-                        {{ loading ? 'Loading...' : 'Fetch Students' }}
-                    </Button>
-                </div>
+        <FilterBar :active="!!(filters.course_class_id || filters.exam_schedule_id || filters.section_id)"
+                   @clear="filters.course_class_id=''; filters.exam_schedule_id=''; filters.section_id=''; students=[]">
+            <div class="form-field">
+                <label>Class</label>
+                <select v-model="filters.course_class_id" @change="filters.exam_schedule_id = ''; filters.section_id = ''; students = []" style="width:160px;">
+                    <option value="">Select Class</option>
+                    <option v-for="c in availableClasses" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </select>
             </div>
-        </div>
+            <div class="form-field">
+                <label>Exam Schedule</label>
+                <select v-model="filters.exam_schedule_id" @change="filters.section_id = ''; students = []" :disabled="!filters.course_class_id" style="width:200px;">
+                    <option value="">Select Exam</option>
+                    <option v-for="s in availableSchedulesForClass" :key="s.id" :value="s.id">{{ s.exam_type?.name }}</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label>Section</label>
+                <select v-model="filters.section_id" :disabled="!filters.exam_schedule_id" @change="students = []" style="width:160px;">
+                    <option value="">Select Section</option>
+                    <option v-for="sec in availableSections" :key="sec.id" :value="sec.id">{{ sec.name }}</option>
+                </select>
+            </div>
+            <Button type="button" @click="fetchStudents" :disabled="loading || !filters.section_id" :loading="loading">
+                {{ loading ? 'Loading...' : 'Fetch Students' }}
+            </Button>
+        </FilterBar>
 
         <!-- ── Student List ── -->
         <div class="card" v-if="students.length > 0">

@@ -8,6 +8,7 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
 import StatementsTabNav from '@/Components/finance/StatementsTabNav.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
+import DateRangeFilter from '@/Components/ui/DateRangeFilter.vue';
 
 const props = defineProps({
     income        : Array,
@@ -61,15 +62,11 @@ const fmtCur = (n) => '₹' + fmt(n);
 
         <!-- Date filter -->
         <FilterBar :active="false">
-            <div class="form-field">
-                <label>From</label>
-                <input type="date" v-model="from" style="width:160px;" />
-            </div>
-            <div class="form-field">
-                <label>To</label>
-                <input type="date" v-model="to" style="width:160px;" />
-            </div>
-            <Button size="sm" @click="apply">Apply</Button>
+            <DateRangeFilter
+                :from="from"
+                :to="to"
+                @change="(v) => { from = v.from; to = v.to; apply(); }"
+            />
         </FilterBar>
 
         <!-- Net result banner -->

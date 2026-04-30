@@ -1,6 +1,7 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 import Table from '@/Components/ui/Table.vue';
 import SortableTh from '@/Components/ui/SortableTh.vue';
 import { useTableSort } from '@/Composables/useTableSort';
@@ -152,42 +153,33 @@ const sortedRows = computed(() => {
         </PageHeader>
 
         <!-- Filters -->
-        <div class="card mb-6">
-            <div class="card-body">
-                <div class="form-row" style="grid-template-columns:1fr 1fr 1fr auto;align-items:flex-end;gap:12px;">
-                    <div class="form-field">
-                        <label>Class</label>
-                        <select v-model="selectedClassId" @change="onClassChange">
-                            <option value="">-- Select Class --</option>
-                            <option v-for="cls in availableClasses" :key="cls.id" :value="cls.id">{{ cls.name }}</option>
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label>Section</label>
-                        <select v-model="selectedSectionId" @change="onSectionChange" :disabled="!selectedClassId">
-                            <option value="">-- Select Section --</option>
-                            <option v-for="sec in availableSections" :key="sec.id" :value="sec.id">{{ sec.name }}</option>
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label>Exam</label>
-                        <select v-model="selectedScheduleId" :disabled="!selectedSectionId">
-                            <option value="">-- Select Exam --</option>
-                            <option v-for="sc in availableExams" :key="sc.id" :value="sc.id">{{ sc.exam_type?.name }}</option>
-                        </select>
-                    </div>
-                    <div>
-                        <Button @click="load" :disabled="!selectedScheduleId || !selectedSectionId || loading">
-                            <svg v-if="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke-width="4"/>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-                            </svg>
-                            {{ loading ? 'Loading…' : 'Load Summary' }}
-                        </Button>
-                    </div>
-                </div>
+        <FilterBar :active="!!(selectedClassId || selectedSectionId || selectedScheduleId)"
+                   @clear="selectedClassId=''; selectedSectionId=''; selectedScheduleId=''; result=null">
+            <div class="form-field">
+                <label>Class</label>
+                <select v-model="selectedClassId" @change="onClassChange" style="width:160px;">
+                    <option value="">-- Select Class --</option>
+                    <option v-for="cls in availableClasses" :key="cls.id" :value="cls.id">{{ cls.name }}</option>
+                </select>
             </div>
-        </div>
+            <div class="form-field">
+                <label>Section</label>
+                <select v-model="selectedSectionId" @change="onSectionChange" :disabled="!selectedClassId" style="width:160px;">
+                    <option value="">-- Select Section --</option>
+                    <option v-for="sec in availableSections" :key="sec.id" :value="sec.id">{{ sec.name }}</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label>Exam</label>
+                <select v-model="selectedScheduleId" :disabled="!selectedSectionId" style="width:200px;">
+                    <option value="">-- Select Exam --</option>
+                    <option v-for="sc in availableExams" :key="sc.id" :value="sc.id">{{ sc.exam_type?.name }}</option>
+                </select>
+            </div>
+            <Button @click="load" :disabled="!selectedScheduleId || !selectedSectionId || loading" :loading="loading">
+                {{ loading ? 'Loading…' : 'Load Summary' }}
+            </Button>
+        </FilterBar>
 
         <!-- Error -->
         <div v-if="errorMsg" class="ms-error">{{ errorMsg }}</div>

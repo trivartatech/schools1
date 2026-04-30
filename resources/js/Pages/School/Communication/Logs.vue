@@ -2,7 +2,9 @@
 import { ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
+import DateRangeFilter from '@/Components/ui/DateRangeFilter.vue';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
 
@@ -73,12 +75,10 @@ const statusBadgeClass = (status) => {
         <div class="cl-page">
 
             <!-- ── Page Header ─────────────────────────────────────────── -->
-            <div class="cl-header">
-                <div>
-                    <h1 class="cl-title">Communication Logs</h1>
-                    <p class="cl-subtitle">View all sent messages across all channels</p>
-                </div>
-            </div>
+            <PageHeader
+                title="Communication Logs"
+                subtitle="View all sent messages across all channels"
+            />
 
             <!-- ── Filter Bar ──────────────────────────────────────────── -->
             <FilterBar :active="hasActive()" @clear="resetFilters">
@@ -101,8 +101,11 @@ const statusBadgeClass = (status) => {
                     </svg>
                     <input v-model="filterForm.search" type="text" placeholder="Recipient or message...">
                 </div>
-                <input v-model="filterForm.from" type="date" style="width:150px;">
-                <input v-model="filterForm.to_date" type="date" style="width:150px;">
+                <DateRangeFilter
+                    :from="filterForm.from"
+                    :to="filterForm.to_date"
+                    @change="(v) => { filterForm.from = v.from; filterForm.to_date = v.to; applyFilters(); }"
+                />
                 <button class="cl-btn-apply" @click="applyFilters">
                     <svg class="cl-btn-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>

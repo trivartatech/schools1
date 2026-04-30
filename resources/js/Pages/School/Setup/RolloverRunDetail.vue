@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import Table from '@/Components/ui/Table.vue';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue'
 
 const props = defineProps({
@@ -58,7 +59,7 @@ const statusClass = (s) => ({
 
         <div class="items-wrap">
             <h3>Items ({{ items.total }})</h3>
-            <table class="items-table">
+            <Table class="items-table">
                 <thead>
                     <tr>
                         <th>#</th><th>Phase</th><th>Type</th><th>Source</th><th>Target</th><th>Status</th><th>Note</th>
@@ -75,7 +76,7 @@ const statusClass = (s) => ({
                         <td>{{ item.note || '—' }}</td>
                     </tr>
                 </tbody>
-            </table>
+            </Table>
 
             <div class="pagination" v-if="items.last_page > 1">
                 <a v-for="link in items.links" :key="link.label"

@@ -2,6 +2,7 @@
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
+import DateRangeFilter from '@/Components/ui/DateRangeFilter.vue';
 import Table from '@/Components/ui/Table.vue';
 import { reactive, ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
@@ -91,14 +92,11 @@ const STATUS_COLOR = { present: '#22c55e', absent: '#ef4444', late: '#eab308', h
                     <option v-for="s in sections" :key="s.id" :value="s.id">{{ s.name }}</option>
                 </select>
             </div>
-            <div class="form-field">
-                <label>From</label>
-                <input v-model="filter.from" type="date" @change="apply">
-            </div>
-            <div class="form-field">
-                <label>To</label>
-                <input v-model="filter.to" type="date" @change="apply">
-            </div>
+            <DateRangeFilter
+                :from="filter.from"
+                :to="filter.to"
+                @change="(v) => { filter.from = v.from; filter.to = v.to; apply(); }"
+            />
         </FilterBar>
 
         <!-- Summary cards -->

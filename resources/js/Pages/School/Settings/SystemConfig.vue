@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { useForm, usePage, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 
 const props = defineProps({
     school:   { type: Object, default: () => ({}) },
@@ -64,10 +65,10 @@ const reset = () => form.reset();
 
             <!-- —— Main Content ————————————————————————————————————— -->
             <section class="gc-content">
-                <div class="gc-page-header">
-                    <h1 class="gc-page-title">System Configuration</h1>
-                    <p class="gc-page-subtitle">Configure core platform preferences, formats, and regional settings.</p>
-                </div>
+                <PageHeader
+                    title="System Configuration"
+                    subtitle="Configure core platform preferences, formats, and regional settings."
+                />
 
                 <form @submit.prevent="submit" novalidate>
                     <div class="gc-card">

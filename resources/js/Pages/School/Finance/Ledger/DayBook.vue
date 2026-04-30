@@ -9,6 +9,7 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
 import FilterBar from '@/Components/ui/FilterBar.vue';
+import DateRangeFilter from '@/Components/ui/DateRangeFilter.vue';
 
 const school = useSchoolStore();
 
@@ -89,14 +90,11 @@ const formatCurrency = (amount) => {
 
         <!-- Filters -->
         <FilterBar class="print:hidden" :active="!!(filterForm.start_date || filterForm.end_date || filterForm.class_id || filterForm.section_id)" @clear="resetFilter">
-            <div class="form-field">
-                <label>From Date</label>
-                <input type="date" v-model="filterForm.start_date" style="width:160px;" />
-            </div>
-            <div class="form-field">
-                <label>To Date</label>
-                <input type="date" v-model="filterForm.end_date" style="width:160px;" />
-            </div>
+            <DateRangeFilter
+                :from="filterForm.start_date"
+                :to="filterForm.end_date"
+                @change="(v) => { filterForm.start_date = v.from; filterForm.end_date = v.to; fetchDayBook(); }"
+            />
             <div class="form-field">
                 <label>Class</label>
                 <select v-model="filterForm.class_id" @change="fetchSections" style="width:160px;">

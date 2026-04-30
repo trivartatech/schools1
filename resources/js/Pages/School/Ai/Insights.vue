@@ -34,7 +34,7 @@
                     📌 Views
                 </button>
                 <div v-if="viewsOpen" class="views-menu" @click.stop>
-                    <button class="views-action" @click="saveCurrentView">+ Save current view</button>
+                    <button class="views-action" @click="openSaveView">+ Save current view</button>
                     <div class="views-divider" v-if="savedViews.length"></div>
                     <div v-for="v in savedViews" :key="v.id" class="views-row">
                         <button class="views-load" @click="loadView(v)">{{ v.name }}</button>
@@ -303,6 +303,25 @@
             <div class="explain-body" v-else>{{ explainText }}</div>
         </SlidePanel>
 
+        <!-- ── Save view modal (replaces native prompt) ── -->
+        <Modal v-model:open="saveViewOpen" title="Save current view" size="sm">
+            <div class="form-field">
+                <label>View name</label>
+                <input
+                    type="text"
+                    v-model="saveViewName"
+                    placeholder="e.g. Q1 enrolment trend"
+                    class="form-input"
+                    style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:0.85rem;"
+                    @keyup.enter="saveCurrentView"
+                />
+            </div>
+            <template #footer>
+                <Button variant="secondary" @click="saveViewOpen = false">Cancel</Button>
+                <Button :disabled="!saveViewName.trim()" @click="saveCurrentView">Save</Button>
+            </template>
+        </Modal>
+
     </SchoolLayout>
 </template>
 
@@ -312,10 +331,17 @@ import PageHeader from '@/Components/ui/PageHeader.vue';
 import { Head, usePage, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import DateRangeFilter from '@/Components/ui/DateRangeFilter.vue';
+import Modal from '@/Components/ui/Modal.vue';
+import Button from '@/Components/ui/Button.vue';
 import TrendChart from '@/Components/dashboard/TrendChart.vue';
 import DonutChart from '@/Components/dashboard/DonutChart.vue';
 import SlidePanel from '@/Components/SlidePanel.vue';
+import { useToast } from '@/Composables/useToast';
+import { useConfirm } from '@/Composables/useConfirm';
 import axios from 'axios';
+
+const toast   = useToast();
+const confirm = useConfirm();
 
 const props = defineProps({
     initialInsights:    { type: Array,  default: () => [] },
@@ -526,17 +552,26 @@ function toggleViewsMenu() {
     if (viewsOpen.value) loadSavedViews();
 }
 
+// View-name modal (replaces native prompt)
+const saveViewOpen = ref(false);
+const saveViewName = ref('');
+function openSaveView() {
+    saveViewName.value = '';
+    saveViewOpen.value = true;
+}
 async function saveCurrentView() {
-    const name = prompt('View name:');
-    if (!name?.trim()) return;
+    const name = saveViewName.value.trim();
+    if (!name) return;
     try {
         await axios.post('/school/ai/insights/views', {
-            name: name.trim(),
+            name,
             filters: { from: filters.from, to: filters.to, compare: filters.compare },
         });
+        saveViewOpen.value = false;
+        toast.success('View saved');
         await loadSavedViews();
     } catch (e) {
-        alert('Failed to save view.');
+        toast.error('Failed to save view');
     }
 }
 
@@ -550,12 +585,19 @@ function loadView(v) {
 }
 
 async function deleteView(v) {
-    if (!confirm(`Delete view "${v.name}"?`)) return;
+    const ok = await confirm({
+        title: 'Delete view',
+        message: `Delete view "${v.name}"?`,
+        confirmLabel: 'Delete',
+        danger: true,
+    });
+    if (!ok) return;
     try {
         await axios.delete(`/school/ai/insights/views/${v.id}`);
+        toast.success('View deleted');
         await loadSavedViews();
     } catch (e) {
-        alert('Failed to delete.');
+        toast.error('Failed to delete');
     }
 }
 
@@ -606,7 +648,7 @@ async function exportPdf() {
         a.click();
         URL.revokeObjectURL(url);
     } catch {
-        alert('PDF export failed.');
+        toast.error('PDF export failed');
     } finally {
         exportBusy.value = false;
     }

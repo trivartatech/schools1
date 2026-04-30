@@ -4,6 +4,7 @@ import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
 import PrintButton from '@/Components/ui/PrintButton.vue';
+import Table from '@/Components/ui/Table.vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import { useConfirm } from '@/Composables/useConfirm';
 import { useSchoolStore } from '@/stores/useSchoolStore';
@@ -255,7 +256,7 @@ const STATUS_COLOURS = {
                 <h3 class="text-base font-bold text-gray-800">📜 Receipts ({{ allocation.payments?.length ?? 0 }})</h3>
             </div>
             <div class="overflow-x-auto">
-                <table class="w-full text-sm">
+                <Table class="w-full text-sm">
                     <thead class="bg-gray-50 text-xs uppercase tracking-wider text-gray-500">
                         <tr>
                             <th class="px-4 py-2 text-left">Receipt No.</th>
@@ -286,7 +287,7 @@ const STATUS_COLOURS = {
                             </td>
                         </tr>
                     </tbody>
-                </table>
+                </Table>
             </div>
         </div>
 

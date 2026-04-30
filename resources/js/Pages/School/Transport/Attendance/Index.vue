@@ -1,6 +1,7 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 import { ref, reactive, computed, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -156,31 +157,33 @@ async function submit() {
         <!-- Header -->
         <PageHeader title="Bus Roll Call" subtitle="Mark student attendance for bus pickup and drop" />
 
-        <!-- Filter card -->
+        <!-- Filter -->
+        <FilterBar :active="!!(filter.route_id || filter.trip_type !== 'pickup' || filter.date !== school.today())"
+                   @clear="filter.route_id=''; filter.trip_type='pickup'; filter.date=school.today()">
+            <div class="form-field">
+                <label>Route</label>
+                <select v-model="filter.route_id" style="width:220px;">
+                    <option value="">Select Route</option>
+                    <option v-for="r in routes" :key="r.id" :value="r.id">
+                        {{ r.route_name }} ({{ r.route_code }})
+                    </option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label>Trip Type</label>
+                <select v-model="filter.trip_type" style="width:140px;">
+                    <option value="pickup">Pickup</option>
+                    <option value="drop">Drop</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label>Date</label>
+                <input v-model="filter.date" type="date" style="width:160px;" />
+            </div>
+        </FilterBar>
+
         <div class="card" style="margin-bottom:20px;">
             <div class="card-body">
-                <div class="rc-filters">
-                    <div class="form-field">
-                        <label>Route</label>
-                        <select v-model="filter.route_id">
-                            <option value="">Select Route</option>
-                            <option v-for="r in routes" :key="r.id" :value="r.id">
-                                {{ r.route_name }} ({{ r.route_code }})
-                            </option>
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label>Trip Type</label>
-                        <select v-model="filter.trip_type">
-                            <option value="pickup">Pickup</option>
-                            <option value="drop">Drop</option>
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label>Date</label>
-                        <input v-model="filter.date" type="date" />
-                    </div>
-                </div>
 
                 <!-- Vehicle info -->
                 <div v-if="selectedRoute && selectedRoute.vehicles && selectedRoute.vehicles.length" class="rc-vehicle-info">

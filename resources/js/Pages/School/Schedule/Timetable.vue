@@ -2,6 +2,7 @@
 import Button from '@/Components/ui/Button.vue';
 import Modal from '@/Components/ui/Modal.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 import EmptyState from '@/Components/ui/EmptyState.vue';
 import { ref, computed, watch, onMounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
@@ -229,31 +230,23 @@ const resetTimetable = async () => {
         </PageHeader>
 
         <!-- Class + Section Filter -->
-        <div class="card filter-card">
-            <div class="card-body filter-body">
-                <div class="filter-step">
-                    <span class="filter-step-num">1</span>
-                    <div class="filter-field">
-                        <label>Select Class</label>
-                        <select v-model="selectedClassId" @change="selectedSectionId = ''; gridInitialized = false">
-                            <option value="">— Choose Class —</option>
-                            <option v-for="cls in classes" :key="cls.id" :value="cls.id">{{ cls.name }}</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="filter-divider">→</div>
-                <div class="filter-step">
-                    <span class="filter-step-num" :class="!selectedClassId ? 'filter-step-num--dim' : ''">2</span>
-                    <div class="filter-field">
-                        <label>Select Section</label>
-                        <select v-model="selectedSectionId" @change="fetchTimetable" :disabled="!selectedClassId">
-                            <option value="">— Choose Section —</option>
-                            <option v-for="sec in availableSections" :key="sec.id" :value="sec.id">{{ sec.name }}</option>
-                        </select>
-                    </div>
-                </div>
+        <FilterBar :active="!!(selectedClassId || selectedSectionId)"
+                   @clear="selectedClassId=''; selectedSectionId=''; gridInitialized=false">
+            <div class="form-field">
+                <label>Class</label>
+                <select v-model="selectedClassId" @change="selectedSectionId = ''; gridInitialized = false" style="width:200px;">
+                    <option value="">— Choose Class —</option>
+                    <option v-for="cls in classes" :key="cls.id" :value="cls.id">{{ cls.name }}</option>
+                </select>
             </div>
-        </div>
+            <div class="form-field">
+                <label>Section</label>
+                <select v-model="selectedSectionId" @change="fetchTimetable" :disabled="!selectedClassId" style="width:200px;">
+                    <option value="">— Choose Section —</option>
+                    <option v-for="sec in availableSections" :key="sec.id" :value="sec.id">{{ sec.name }}</option>
+                </select>
+            </div>
+        </FilterBar>
 
         <!-- Empty state: no section selected -->
         <EmptyState

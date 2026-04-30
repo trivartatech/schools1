@@ -82,7 +82,7 @@ const studentName = (s) => s ? `${s.first_name} ${s.last_name}` : '';
 <SchoolLayout title="Student Houses">
     <PageHeader title="Student Houses" subtitle="Manage school houses, assign students, and track points.">
         <template #actions>
-            <Link href="/school/houses/leaderboard" class="btn btn-secondary">Leaderboard</Link>
+            <Button as="link" variant="secondary" href="/school/houses/leaderboard">Leaderboard</Button>
             <Button v-if="canDo('create','houses')" @click="openCreate">+ New House</Button>
         </template>
     </PageHeader>
@@ -118,7 +118,7 @@ const studentName = (s) => s ? `${s.first_name} ${s.last_name}` : '';
                 </div>
             </div>
             <div class="house-card-footer">
-                <Link :href="`/school/houses/${house.id}`" class="btn btn-secondary btn-xs">View</Link>
+                <Button as="link" variant="secondary" size="xs" :href="`/school/houses/${house.id}`">View</Button>
                 <Button v-if="canDo('edit','houses')" variant="secondary" size="xs" @click="openEdit(house)">Edit</Button>
                 <Button v-if="canDo('delete','houses')" variant="danger" size="xs" @click="destroy(house)">Delete</Button>
             </div>

@@ -1,7 +1,8 @@
 <script setup>
 import { computed } from 'vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
-import { Link } from '@inertiajs/vue3';
+import Button from '@/Components/ui/Button.vue';
+import Table from '@/Components/ui/Table.vue';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 
 const props = defineProps({
@@ -36,7 +37,7 @@ const medals = ['🥇', '🥈', '🥉'];
 <SchoolLayout title="House Leaderboard">
     <PageHeader title="House Leaderboard" subtitle="Points tally for the current academic year">
         <template #actions>
-            <Link href="/school/houses" class="btn btn-secondary">← Back to Houses</Link>
+            <Button as="link" variant="secondary" href="/school/houses">← Back to Houses</Button>
         </template>
     </PageHeader>
 
@@ -67,7 +68,7 @@ const medals = ['🥇', '🥈', '🥉'];
         <div class="card" style="margin-top:20px;">
             <div class="card-header"><h3 class="card-title">Full Standings</h3></div>
             <div style="overflow-x:auto;">
-                <table class="lb-table">
+                <Table class="lb-table">
                     <thead>
                         <tr>
                             <th>#</th>
@@ -118,7 +119,7 @@ const medals = ['🥇', '🥈', '🥉'];
                             </td>
                         </tr>
                     </tbody>
-                </table>
+                </Table>
             </div>
         </div>
     </div>

@@ -3,6 +3,8 @@ import { ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
+import Table from '@/Components/ui/Table.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const school = useSchoolStore();
@@ -48,25 +50,12 @@ const modeBadge = (mode) => ({
         <div class="max-w-4xl mx-auto p-4 sm:p-6 space-y-5">
 
             <!-- Header -->
-            <div class="flex items-start justify-between flex-wrap gap-3">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                        <svg class="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <h1 class="text-xl font-bold text-gray-900 leading-tight">Payment History</h1>
-                        <p class="text-sm text-gray-500">All fee receipts and online payment transactions</p>
-                    </div>
-                </div>
-                <Button as="link" variant="secondary" href="/portal/fees">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                    </svg>
-                    Back to Fees
-                </Button>
-            </div>
+            <PageHeader
+                title="Payment History"
+                subtitle="All fee receipts and online payment transactions"
+                back-href="/portal/fees"
+                back-label="← Back to Fees"
+            />
 
             <!-- Tab Switcher -->
             <div class="flex gap-1 bg-gray-100 rounded-xl p-1">
@@ -136,7 +125,7 @@ const modeBadge = (mode) => ({
             <!-- Fee Receipts -->
             <div v-if="activeTab === 'receipts'" class="bg-white rounded-2xl border shadow-sm overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
+                    <Table class="w-full text-sm">
                         <thead>
                             <tr class="border-b bg-gray-50">
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Receipt #</th>
@@ -181,7 +170,7 @@ const modeBadge = (mode) => ({
                                 </td>
                             </tr>
                         </tbody>
-                    </table>
+                    </Table>
                 </div>
                 <div v-if="payments.last_page > 1" class="px-4 py-3 border-t bg-gray-50 flex items-center justify-between text-xs text-gray-500">
                     <span>Showing {{ payments.from }}–{{ payments.to }} of {{ payments.total }}</span>
@@ -199,7 +188,7 @@ const modeBadge = (mode) => ({
             <!-- Transport Receipts -->
             <div v-if="activeTab === 'transport'" class="bg-white rounded-2xl border shadow-sm overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
+                    <Table class="w-full text-sm">
                         <thead>
                             <tr class="border-b bg-gray-50">
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Receipt #</th>
@@ -236,7 +225,7 @@ const modeBadge = (mode) => ({
                                 </td>
                             </tr>
                         </tbody>
-                    </table>
+                    </Table>
                 </div>
                 <div v-if="transportPayments.last_page > 1" class="px-4 py-3 border-t bg-gray-50 flex items-center justify-between text-xs text-gray-500">
                     <span>Showing {{ transportPayments.from }}–{{ transportPayments.to }} of {{ transportPayments.total }}</span>
@@ -254,7 +243,7 @@ const modeBadge = (mode) => ({
             <!-- Hostel Receipts -->
             <div v-if="activeTab === 'hostel'" class="bg-white rounded-2xl border shadow-sm overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
+                    <Table class="w-full text-sm">
                         <thead>
                             <tr class="border-b bg-gray-50">
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Receipt #</th>
@@ -292,7 +281,7 @@ const modeBadge = (mode) => ({
                                 </td>
                             </tr>
                         </tbody>
-                    </table>
+                    </Table>
                 </div>
                 <div v-if="hostelPayments.last_page > 1" class="px-4 py-3 border-t bg-gray-50 flex items-center justify-between text-xs text-gray-500">
                     <span>Showing {{ hostelPayments.from }}–{{ hostelPayments.to }} of {{ hostelPayments.total }}</span>
@@ -310,7 +299,7 @@ const modeBadge = (mode) => ({
             <!-- Stationary Receipts -->
             <div v-if="activeTab === 'stationary'" class="bg-white rounded-2xl border shadow-sm overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
+                    <Table class="w-full text-sm">
                         <thead>
                             <tr class="border-b bg-gray-50">
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Receipt #</th>
@@ -349,7 +338,7 @@ const modeBadge = (mode) => ({
                                 </td>
                             </tr>
                         </tbody>
-                    </table>
+                    </Table>
                 </div>
                 <div v-if="stationaryPayments.last_page > 1" class="px-4 py-3 border-t bg-gray-50 flex items-center justify-between text-xs text-gray-500">
                     <span>Showing {{ stationaryPayments.from }}–{{ stationaryPayments.to }} of {{ stationaryPayments.total }}</span>
@@ -367,7 +356,7 @@ const modeBadge = (mode) => ({
             <!-- Online Transactions -->
             <div v-if="activeTab === 'orders'" class="bg-white rounded-2xl border shadow-sm overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
+                    <Table class="w-full text-sm">
                         <thead>
                             <tr class="border-b bg-gray-50">
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Order ID</th>
@@ -406,7 +395,7 @@ const modeBadge = (mode) => ({
                                 </td>
                             </tr>
                         </tbody>
-                    </table>
+                    </Table>
                 </div>
                 <div v-if="orders.last_page > 1" class="px-4 py-3 border-t bg-gray-50 flex items-center justify-between text-xs text-gray-500">
                     <span>Showing {{ orders.from }}–{{ orders.to }} of {{ orders.total }}</span>

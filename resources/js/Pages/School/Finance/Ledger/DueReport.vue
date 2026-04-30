@@ -6,6 +6,7 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import Table from '@/Components/ui/Table.vue';
+import SortableTh from '@/Components/ui/SortableTh.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
 import ExportDropdown from '@/Components/ExportDropdown.vue';
 import { useConfirm } from '@/Composables/useConfirm';
@@ -409,60 +410,26 @@ async function bulkFlagListed(flag) {
         <!-- Table -->
         <div class="card overflow-hidden">
             <div class="overflow-x-auto">
-                <Table class="due-table">
+                <Table class="due-table" :sort-key="sortKey" :sort-dir="sortDir" @sort="setSort">
                     <thead>
                         <tr>
-                            <th class="sortable" @click="setSort('name')">
-                                Student Name <span class="sort-arrow" :class="sortIndicator('name')"></span>
-                            </th>
-                            <th class="sortable" @click="setSort('class')">
-                                Class &amp; Section <span class="sort-arrow" :class="sortIndicator('class')"></span>
-                            </th>
-                            <th class="sortable" @click="setSort('father_contact')">
-                                Father Contact <span class="sort-arrow" :class="sortIndicator('father_contact')"></span>
-                            </th>
-                            <th class="sortable" @click="setSort('mother_contact')">
-                                Mother Contact <span class="sort-arrow" :class="sortIndicator('mother_contact')"></span>
-                            </th>
-                            <th class="sortable text-right" @click="setSort('total_fee')">
-                                Total Fee <span class="sort-arrow" :class="sortIndicator('total_fee')"></span>
-                            </th>
-                            <th class="sortable text-right" @click="setSort('paid_fee')">
-                                Paid Fee <span class="sort-arrow" :class="sortIndicator('paid_fee')"></span>
-                            </th>
-                            <th class="sortable text-right" @click="setSort('fee_due')">
-                                Fee Due <span class="sort-arrow" :class="sortIndicator('fee_due')"></span>
-                            </th>
-                            <th class="sortable text-right" @click="setSort('transport_fee')">
-                                Transport Fee <span class="sort-arrow" :class="sortIndicator('transport_fee')"></span>
-                            </th>
-                            <th class="sortable text-right" @click="setSort('transport_paid')">
-                                Transport Paid <span class="sort-arrow" :class="sortIndicator('transport_paid')"></span>
-                            </th>
-                            <th class="sortable text-right" @click="setSort('transport_due')">
-                                Transport Due <span class="sort-arrow" :class="sortIndicator('transport_due')"></span>
-                            </th>
-                            <th class="sortable text-right" @click="setSort('hostel_fee')">
-                                Hostel Fee <span class="sort-arrow" :class="sortIndicator('hostel_fee')"></span>
-                            </th>
-                            <th class="sortable text-right" @click="setSort('hostel_paid')">
-                                Hostel Paid <span class="sort-arrow" :class="sortIndicator('hostel_paid')"></span>
-                            </th>
-                            <th class="sortable text-right" @click="setSort('hostel_due')">
-                                Hostel Due <span class="sort-arrow" :class="sortIndicator('hostel_due')"></span>
-                            </th>
-                            <th class="sortable text-right" @click="setSort('stationary_fee')">
-                                Stationary Fee <span class="sort-arrow" :class="sortIndicator('stationary_fee')"></span>
-                            </th>
-                            <th class="sortable text-right" @click="setSort('stationary_paid')">
-                                Stationary Paid <span class="sort-arrow" :class="sortIndicator('stationary_paid')"></span>
-                            </th>
-                            <th class="sortable text-right" @click="setSort('stationary_due')">
-                                Stationary Due <span class="sort-arrow" :class="sortIndicator('stationary_due')"></span>
-                            </th>
-                            <th class="sortable text-right balance-col" @click="setSort('total_balance')">
-                                Total Balance <span class="sort-arrow" :class="sortIndicator('total_balance')"></span>
-                            </th>
+                            <SortableTh sort-key="name">Student Name</SortableTh>
+                            <SortableTh sort-key="class">Class &amp; Section</SortableTh>
+                            <SortableTh sort-key="father_contact">Father Contact</SortableTh>
+                            <SortableTh sort-key="mother_contact">Mother Contact</SortableTh>
+                            <SortableTh sort-key="total_fee" align="right">Total Fee</SortableTh>
+                            <SortableTh sort-key="paid_fee" align="right">Paid Fee</SortableTh>
+                            <SortableTh sort-key="fee_due" align="right">Fee Due</SortableTh>
+                            <SortableTh sort-key="transport_fee" align="right">Transport Fee</SortableTh>
+                            <SortableTh sort-key="transport_paid" align="right">Transport Paid</SortableTh>
+                            <SortableTh sort-key="transport_due" align="right">Transport Due</SortableTh>
+                            <SortableTh sort-key="hostel_fee" align="right">Hostel Fee</SortableTh>
+                            <SortableTh sort-key="hostel_paid" align="right">Hostel Paid</SortableTh>
+                            <SortableTh sort-key="hostel_due" align="right">Hostel Due</SortableTh>
+                            <SortableTh sort-key="stationary_fee" align="right">Stationary Fee</SortableTh>
+                            <SortableTh sort-key="stationary_paid" align="right">Stationary Paid</SortableTh>
+                            <SortableTh sort-key="stationary_due" align="right">Stationary Due</SortableTh>
+                            <SortableTh sort-key="total_balance" align="right" class="balance-col">Total Balance</SortableTh>
                             <th class="text-center">Action</th>
                         </tr>
                     </thead>

@@ -1,6 +1,7 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import Table from '@/Components/ui/Table.vue';
 import { ref, computed } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import SchoolLayout from '@/Layouts/SchoolLayout.vue'
@@ -338,7 +339,7 @@ const nextPhaseActionFor = (state) => {
         <!-- ─────────────── RECENT RUNS ─────────────── -->
         <div v-if="runs && runs.length" class="runs-list">
             <h3 class="runs-list-title">Recent Runs</h3>
-            <table class="runs-table">
+            <Table class="runs-table">
                 <thead>
                     <tr><th>#</th><th>Source → Target</th><th>State</th><th>Started</th><th>By</th><th></th></tr>
                 </thead>
@@ -352,7 +353,7 @@ const nextPhaseActionFor = (state) => {
                         <td><a :href="`/school/settings/rollover/runs/${r.id}`" class="run-link">View</a></td>
                     </tr>
                 </tbody>
-            </table>
+            </Table>
         </div>
     </SchoolLayout>
 </template>

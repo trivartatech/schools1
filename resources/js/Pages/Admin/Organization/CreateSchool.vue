@@ -2,6 +2,7 @@
 import { Head, useForm, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 
 const props = defineProps({
     timezones: Array,
@@ -35,12 +36,10 @@ const submit = () => {
 
     <AdminLayout>
         <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-            <div class="mb-8 flex justify-between items-center">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Register New School</h1>
-                    <p class="mt-2 text-sm text-gray-600">Create a new school campus and assign its primary administrator.</p>
-                </div>
-            </div>
+            <PageHeader
+                title="Register New School"
+                subtitle="Create a new school campus and assign its primary administrator."
+            />
 
             <form @submit.prevent="submit" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <!-- Main Configuration -->

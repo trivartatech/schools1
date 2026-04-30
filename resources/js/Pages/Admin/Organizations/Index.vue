@@ -3,6 +3,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
 import Table from '@/Components/ui/Table.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import SortableTh from '@/Components/ui/SortableTh.vue';
 import { useTableSort } from '@/Composables/useTableSort';
 import { computed } from 'vue';
@@ -24,19 +25,19 @@ const sortedOrgs = computed(() => sortRows(props.organizations || []));
 
     <AdminLayout>
         <div class="max-w-7xl mx-auto py-8">
-            <div class="mb-8 flex justify-between items-center">
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900">Organizations</h1>
-                    <p class="text-gray-500">Manage all organizations registered on the platform.</p>
-                </div>
-                <Button as="link" 
-                    :href="route('admin.organizations.create')" 
-                   
-                >
-                    <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                    Add Organization
-                </Button>
-            </div>
+            <PageHeader
+                title="Organizations"
+                subtitle="Manage all organizations registered on the platform."
+            >
+                <template #actions>
+                    <Button as="link" :href="route('admin.organizations.create')">
+                        <template #icon>
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                        </template>
+                        Add Organization
+                    </Button>
+                </template>
+            </PageHeader>
 
             <div class="bg-white shadow-sm rounded-xl border border-gray-100 overflow-hidden">
                 <Table :sort-key="sortKey" :sort-dir="sortDir" @sort="toggleSort">

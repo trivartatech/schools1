@@ -1,6 +1,7 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import Modal from '@/Components/ui/Modal.vue';
 import { ref, computed } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -41,11 +42,27 @@ const filteredComplaints = computed(() => {
     return props.complaints.filter(c => c.status === activeTab.value);
 });
 
+// Resolution-notes modal (replaces native prompt)
+const notesOpen = ref(false);
+const notesValue = ref('');
+const notesContext = ref({ complaintId: null, status: '' });
+function askNotes(complaint, newStatus) {
+    notesContext.value = { complaintId: complaint.id, status: newStatus };
+    notesValue.value = complaint.resolution_notes || '';
+    notesOpen.value = true;
+}
+function submitNotes() {
+    const { complaintId, status } = notesContext.value;
+    router.put(`/school/front-office/complaints/${complaintId}`, {
+        status,
+        resolution_notes: notesValue.value,
+    }, { preserveScroll: true });
+    notesOpen.value = false;
+}
+
 const updateStatus = (complaint, newStatus) => {
     if (newStatus === 'Resolved' || newStatus === 'Closed') {
-        const notes = prompt(`Enter resolution notes for ${newStatus}:`, complaint.resolution_notes || '');
-        if (notes === null) return;
-        router.put(`/school/front-office/complaints/${complaint.id}`, { status: newStatus, resolution_notes: notes }, { preserveScroll: true });
+        askNotes(complaint, newStatus);
     } else {
         router.put(`/school/front-office/complaints/${complaint.id}`, { status: newStatus }, { preserveScroll: true });
     }
@@ -199,6 +216,20 @@ const updateStatus = (complaint, newStatus) => {
                 </div>
             </div>
         </div>
+
+        <!-- Resolution-notes modal (replaces native prompt) -->
+        <Modal v-model:open="notesOpen" :title="`${notesContext.status} — resolution notes`" size="md">
+            <div class="form-field">
+                <label>Notes</label>
+                <textarea v-model="notesValue" rows="4" placeholder="Describe what was done…"
+                          class="form-input"
+                          style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:0.85rem;"></textarea>
+            </div>
+            <template #footer>
+                <Button variant="secondary" @click="notesOpen = false">Cancel</Button>
+                <Button @click="submitNotes">Save &amp; mark {{ notesContext.status }}</Button>
+            </template>
+        </Modal>
 
     </SchoolLayout>
 </template>

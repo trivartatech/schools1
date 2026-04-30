@@ -4,6 +4,8 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import debounce from 'lodash/debounce';
 import Button from '@/Components/ui/Button.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import Table from '@/Components/ui/Table.vue';
 import SortableTh from '@/Components/ui/SortableTh.vue';
 import { useTableSort } from '@/Composables/useTableSort';
@@ -301,59 +303,36 @@ const sortedBulkRows = computed(() => bulkSortRows(bulkRows.value || []));
             </div>
 
             <!-- Filters -->
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap gap-4 items-end">
-                <div class="flex-1 min-w-[240px]">
-                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Search Users</label>
-                    <div class="relative group">
-                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400 group-focus-within:text-indigo-500 transition-colors">
-                            <svg class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                        </div>
-                        <input v-model="search" type="text" placeholder="Name, Username, or Phone..."
-                               class="pl-10.5 w-full rounded-xl border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-sm transition-all h-11 py-2">
-                    </div>
+            <FilterBar :active="!!(search || userType || status || classId || sectionId)"
+                       @clear="search=''; userType=''; status=''; classId=''; sectionId=''">
+                <div class="fb-search">
+                    <svg class="fb-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    <input v-model="search" type="search" placeholder="Name, username, or phone…">
                 </div>
-
-                <div class="w-48">
-                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">User Type</label>
-                    <select v-model="userType" class="w-full rounded-xl border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-sm h-11 py-2">
-                        <option value="">All Staff</option>
-                        <option value="teacher">Teachers Only</option>
-                        <option value="student">Students</option>
-                        <option value="parent">Parents</option>
-                        <option value="accountant">Accountant</option>
-                        <option value="driver">Drivers</option>
-                    </select>
-                </div>
-
-                <div v-if="showClassFilter" class="w-48">
-                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Class</label>
-                    <select v-model="classId" class="w-full rounded-xl border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-sm h-11 py-2">
-                        <option value="">All Classes</option>
-                        <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
-                    </select>
-                </div>
-
-                <div v-if="showClassFilter" class="w-48">
-                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Section</label>
-                    <select v-model="sectionId" :disabled="!classId" class="w-full rounded-xl border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-sm h-11 py-2 disabled:bg-gray-100 disabled:text-gray-400">
-                        <option value="">{{ classId ? 'All Sections' : 'Pick a class first' }}</option>
-                        <option v-for="s in sectionsForClass" :key="s.id" :value="s.id">{{ s.name }}</option>
-                    </select>
-                </div>
-
-                <div class="w-40">
-                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Status</label>
-                    <select v-model="status" class="w-full rounded-xl border-gray-200 shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-sm h-11 py-2">
-                        <option value="">All Status</option>
-                        <option value="active">Active</option>
-                        <option value="inactive">Locked</option>
-                    </select>
-                </div>
-
-                <Button variant="secondary" @click="search=''; userType=''; status=''; classId=''; sectionId=''" class="h-11">
-                    Reset Filters
-                </Button>
-            </div>
+                <select v-model="userType" style="width:160px;">
+                    <option value="">All Staff</option>
+                    <option value="teacher">Teachers Only</option>
+                    <option value="student">Students</option>
+                    <option value="parent">Parents</option>
+                    <option value="accountant">Accountant</option>
+                    <option value="driver">Drivers</option>
+                </select>
+                <select v-if="showClassFilter" v-model="classId" style="width:160px;">
+                    <option value="">All Classes</option>
+                    <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </select>
+                <select v-if="showClassFilter" v-model="sectionId" :disabled="!classId" style="width:160px;">
+                    <option value="">{{ classId ? 'All Sections' : 'Pick a class first' }}</option>
+                    <option v-for="s in sectionsForClass" :key="s.id" :value="s.id">{{ s.name }}</option>
+                </select>
+                <select v-model="status" style="width:140px;">
+                    <option value="">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Locked</option>
+                </select>
+            </FilterBar>
 
             <!-- Bulk action bar (sticky-ish, shown when something is selected) -->
             <div v-if="selectedIds.size > 0"

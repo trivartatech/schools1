@@ -3,6 +3,9 @@ import { ref, computed, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
+import PrintButton from '@/Components/ui/PrintButton.vue';
+import Table from '@/Components/ui/Table.vue';
 import { useConfirm } from '@/Composables/useConfirm';
 import FilterBar from '@/Components/ui/FilterBar.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
@@ -110,23 +113,18 @@ const channelBadge = (channel) => ({
 <template>
     <SchoolLayout :title="isWeekly ? 'Weekly Digest' : 'Daily Master Report'">
         <!-- Page header -->
-        <div class="dmr-header">
-            <div>
-                <h1 class="dmr-title">{{ isWeekly ? 'Weekly Digest' : 'Daily Master Report' }}</h1>
-                <p class="dmr-sub">{{ report.meta.date_label }}</p>
-            </div>
-            <div class="dmr-actions">
-                <Button variant="secondary" type="button" as="link" href="/school/settings/daily-report">
-                    Settings
-                </Button>
-                <Button variant="secondary" type="button" @click="downloadPdf">
-                    Download PDF
-                </Button>
-                <Button type="button" :disabled="admin_contacts.length === 0" :loading="sendForm.processing" @click="sendNow">
+        <PageHeader
+            :title="isWeekly ? 'Weekly Digest' : 'Daily Master Report'"
+            :subtitle="report.meta.date_label"
+        >
+            <template #actions>
+                <Button variant="secondary" as="link" href="/school/settings/daily-report">Settings</Button>
+                <PrintButton label="Download PDF" :href="`/school/reports/daily-master/pdf?date=${selectedDate}&mode=${selectedMode}`" />
+                <Button :disabled="admin_contacts.length === 0" :loading="sendForm.processing" @click="sendNow">
                     Send to admins now
                 </Button>
-            </div>
-        </div>
+            </template>
+        </PageHeader>
 
         <!-- Date + mode picker -->
         <FilterBar :active="false">
@@ -274,7 +272,7 @@ const channelBadge = (channel) => ({
         <div v-if="showSection('attendance') && attendance.class_section_table" class="card mb-3">
             <div class="card-header"><h2 class="card-title">Attendance — Class &amp; Section</h2></div>
             <div class="card-body" style="padding:0;">
-                <table class="dmr-table" v-if="attendance.class_section_table.length">
+                <Table class="dmr-table" v-if="attendance.class_section_table.length">
                     <thead>
                         <tr>
                             <th>Class</th>
@@ -303,7 +301,7 @@ const channelBadge = (channel) => ({
                             </td>
                         </tr>
                     </tbody>
-                </table>
+                </Table>
                 <div v-else style="padding:20px;text-align:center;color:#64748b;">
                     No attendance recorded for this date yet.
                 </div>
@@ -314,7 +312,7 @@ const channelBadge = (channel) => ({
         <div v-if="showSection('attendance') && attendance.unmarked_classes?.length" class="card mb-3">
             <div class="card-header"><h2 class="card-title">Classes still pending attendance</h2></div>
             <div class="card-body" style="padding:0;">
-                <table class="dmr-table">
+                <Table class="dmr-table">
                     <thead><tr><th>Class</th><th>Section</th><th class="num">Enrolled</th><th>Class Teacher</th></tr></thead>
                     <tbody>
                         <tr v-for="(u, i) in attendance.unmarked_classes" :key="i">
@@ -324,7 +322,7 @@ const channelBadge = (channel) => ({
                             <td>{{ u.teacher || '—' }}</td>
                         </tr>
                     </tbody>
-                </table>
+                </Table>
             </div>
         </div>
 
@@ -382,7 +380,7 @@ const channelBadge = (channel) => ({
 
                 <div v-if="fees.by_payment_mode?.length" style="margin-top:14px;">
                     <h3 class="card-subtitle">By Payment Mode</h3>
-                    <table class="dmr-table">
+                    <Table class="dmr-table">
                         <thead><tr><th>Mode</th><th class="num">Receipts</th><th class="num">Amount</th></tr></thead>
                         <tbody>
                             <tr v-for="(m, i) in fees.by_payment_mode" :key="i">
@@ -391,12 +389,12 @@ const channelBadge = (channel) => ({
                                 <td class="num">{{ fmtMoneyFull(m.amount) }}</td>
                             </tr>
                         </tbody>
-                    </table>
+                    </Table>
                 </div>
 
                 <div v-if="fees.by_class?.length" style="margin-top:14px;">
                     <h3 class="card-subtitle">Top Classes</h3>
-                    <table class="dmr-table">
+                    <Table class="dmr-table">
                         <thead><tr><th>Class</th><th class="num">Receipts</th><th class="num">Amount</th></tr></thead>
                         <tbody>
                             <tr v-for="(c, i) in fees.by_class" :key="i">
@@ -405,12 +403,12 @@ const channelBadge = (channel) => ({
                                 <td class="num">{{ fmtMoneyFull(c.amount) }}</td>
                             </tr>
                         </tbody>
-                    </table>
+                    </Table>
                 </div>
 
                 <div v-if="fees.top_collectors?.length" style="margin-top:14px;">
                     <h3 class="card-subtitle">Top Collectors</h3>
-                    <table class="dmr-table">
+                    <Table class="dmr-table">
                         <thead><tr><th>Staff</th><th class="num">Receipts</th><th class="num">Amount</th></tr></thead>
                         <tbody>
                             <tr v-for="(t, i) in fees.top_collectors" :key="i">
@@ -419,7 +417,7 @@ const channelBadge = (channel) => ({
                                 <td class="num">{{ fmtMoneyFull(t.amount) }}</td>
                             </tr>
                         </tbody>
-                    </table>
+                    </Table>
                 </div>
 
                 <p v-if="fees.pending_dues?.amount" class="muted" style="margin-top:14px;">
@@ -438,7 +436,7 @@ const channelBadge = (channel) => ({
             <div class="card-body">
                 <div v-if="expenses.by_category.length">
                     <h3 class="card-subtitle">By Category</h3>
-                    <table class="dmr-table">
+                    <Table class="dmr-table">
                         <thead><tr><th>Category</th><th class="num">Vouchers</th><th class="num">Amount</th></tr></thead>
                         <tbody>
                             <tr v-for="(c, i) in expenses.by_category" :key="i">
@@ -447,13 +445,13 @@ const channelBadge = (channel) => ({
                                 <td class="num">{{ fmtMoneyFull(c.amount) }}</td>
                             </tr>
                         </tbody>
-                    </table>
+                    </Table>
                 </div>
                 <div v-else class="muted" style="padding:8px 0;">No expenses recorded for this date.</div>
 
                 <div v-if="expenses.top_vouchers?.length" style="margin-top:14px;">
                     <h3 class="card-subtitle">Top Vouchers</h3>
-                    <table class="dmr-table">
+                    <Table class="dmr-table">
                         <thead><tr><th>Title</th><th>Category</th><th>Mode</th><th class="num">Amount</th><th>Recorded By</th></tr></thead>
                         <tbody>
                             <tr v-for="(v, i) in expenses.top_vouchers" :key="i">
@@ -464,7 +462,7 @@ const channelBadge = (channel) => ({
                                 <td>{{ v.recorded_by }}</td>
                             </tr>
                         </tbody>
-                    </table>
+                    </Table>
                 </div>
             </div>
         </div>
@@ -506,7 +504,7 @@ const channelBadge = (channel) => ({
                                 <td>{{ s.section || '—' }}</td>
                             </tr>
                         </tbody>
-                    </table>
+                    </Table>
                 </div>
             </div>
             <div v-if="showSection('events')" class="card" style="flex:1;">
@@ -541,7 +539,7 @@ const channelBadge = (channel) => ({
         <div v-if="deliveries.length" class="card mb-3">
             <div class="card-header"><h2 class="card-title">Delivery Log</h2></div>
             <div class="card-body" style="padding:0;">
-                <table class="dmr-table">
+                <Table class="dmr-table">
                     <thead><tr><th>Recipient</th><th>Number</th><th>Channel</th><th>Sent At</th><th>Error</th></tr></thead>
                     <tbody>
                         <tr v-for="(d, i) in deliveries" :key="i">
@@ -552,7 +550,7 @@ const channelBadge = (channel) => ({
                             <td class="muted">{{ d.error || '' }}</td>
                         </tr>
                     </tbody>
-                </table>
+                </Table>
             </div>
         </div>
     </SchoolLayout>
