@@ -97,6 +97,19 @@
                                 Login with Mobile OTP
                             </Button>
                         </div>
+
+                        <div class="mt-3">
+                            <button type="button" @click="quickDemoLogin" :disabled="emailForm.processing"
+                                class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 border border-dashed border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 text-sm font-medium rounded-lg transition disabled:opacity-60 disabled:cursor-not-allowed">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                </svg>
+                                Quick Demo Login
+                            </button>
+                            <p class="mt-1.5 text-center text-xs text-gray-400">
+                                For demo only — signs in as principal@trivarta.in
+                            </p>
+                        </div>
                     </div>
                 </div>
 
@@ -211,6 +224,13 @@ const submitEmail = () => {
     emailForm.post('/login', {
         onFinish: () => emailForm.reset('password'),
     })
+}
+
+const quickDemoLogin = () => {
+    emailForm.email = 'principal@trivarta.in'
+    emailForm.password = 'password'
+    emailForm.remember = false
+    submitEmail()
 }
 
 // OTP Request Form
