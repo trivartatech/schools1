@@ -349,12 +349,22 @@ onBeforeUnmount(() => {
 .cw-wrap {
     position: fixed;
     bottom: 24px;
-    right: 24px;
+    /* Sits to the left of the AiChatbot bubble (which holds the right: 24px slot)
+       so both floating actions are visible without overlap. 92px = 24 (gutter)
+       + 54 (AI bubble width) + 14 (gap). */
+    right: 92px;
     z-index: 9999;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
     gap: 12px;
+}
+@media (max-width: 440px) {
+    /* Track the AiChatbot's mobile breakpoint (right: 16px, bottom: 16px). */
+    .cw-wrap {
+        right: 80px;   /* 16 + 54 + 10 */
+        bottom: 16px;
+    }
 }
 
 /* ── FAB button ───────────────────────────────────────────────────────────── */
