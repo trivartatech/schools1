@@ -15,6 +15,14 @@ class ExpenseGLObserver
 {
     public function created(Expense $expense): void
     {
-        app(GlPostingService::class)->postExpense($expense);
+        try {
+            app(GlPostingService::class)->postExpense($expense);
+        } catch (\Throwable $e) {
+            // GL posting failure should not block expense recording.
+            // The expense can be synced later via "Post All to GL".
+            \Illuminate\Support\Facades\Log::warning(
+                'GL auto-post failed for Expense #' . $expense->id . ': ' . $e->getMessage()
+            );
+        }
     }
 }

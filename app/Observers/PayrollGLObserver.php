@@ -19,6 +19,14 @@ class PayrollGLObserver
             return;
         }
 
-        app(GlPostingService::class)->postPayroll($payroll);
+        try {
+            app(GlPostingService::class)->postPayroll($payroll);
+        } catch (\Throwable $e) {
+            // GL posting failure should not block marking payroll as paid.
+            // The payroll can be synced later via "Post to GL".
+            \Illuminate\Support\Facades\Log::warning(
+                'GL auto-post failed for Payroll #' . $payroll->id . ': ' . $e->getMessage()
+            );
+        }
     }
 }
