@@ -186,10 +186,14 @@ class ExamMarkController extends Controller
                     $max = $maxMarksMap[$itemId] ?? 0;
                     $obtained = (float)($data['marks_obtained'] ?? 0);
                     if ($max > 0 && $obtained > $max) {
-                        return redirect()->back()->withErrors(['marks' => "Marks entered exceed the maximum marks allowed ({$max}) for an assessment item."]);
+                        return redirect()->back()
+                            ->withErrors(['marks' => "Marks entered exceed the maximum marks allowed ({$max}) for an assessment item."])
+                            ->with('error', "Marks entered exceed the maximum marks allowed ({$max}) for an assessment item.");
                     }
                     if ($obtained < 0) {
-                        return redirect()->back()->withErrors(['marks' => "Marks cannot be negative."]);
+                        return redirect()->back()
+                            ->withErrors(['marks' => "Marks cannot be negative."])
+                            ->with('error', 'Marks cannot be negative.');
                     }
                 }
             }

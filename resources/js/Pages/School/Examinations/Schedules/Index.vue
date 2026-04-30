@@ -2,7 +2,7 @@
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import axios from 'axios';
@@ -136,12 +136,20 @@ const coScholasticSubjects = computed(() =>
 );
 
 // ─── Watchers ────────────────────────────────────────────
+// Suppressed during programmatic populate (openEdit) so we don't wipe
+// fields the edit handler just set (section_ids, subjects with their
+// marks/dates). The watcher's reset behaviour is correct for *user*
+// class changes — just not for the initial form population.
+let suppressClassWatcher = false;
+
 watch(() => form.value.course_class_id, () => {
+    if (suppressClassWatcher) return;
     form.value.section_ids = [];
     loadSubjects();
 });
 
 watch(() => form.value.has_co_scholastic, () => {
+    if (suppressClassWatcher) return;
     if (form.value.course_class_id) loadSubjects();
 });
 
@@ -221,6 +229,13 @@ function openCreate() {
 }
 
 function openEdit(schedule) {
+    // Suppress watchers while we populate the form, then re-enable on the
+    // next tick. Without this the course_class_id watcher would fire
+    // (because it changed from '' to the schedule's class) and immediately
+    // wipe section_ids + replace `subjects` with the API's class-level
+    // list, losing the per-subject marks / dates / durations the user set
+    // on the schedule.
+    suppressClassWatcher = true;
     editingSchedule.value = schedule;
     form.value = {
         exam_type_id: schedule.exam_type_id,
@@ -249,6 +264,9 @@ function openEdit(schedule) {
     };
     errors.value = {};
     view.value = 'edit';
+    // Re-enable watchers on the next microtask so any FUTURE user-driven
+    // class change (uncommon on edit, but possible) still resets sections.
+    nextTick(() => { suppressClassWatcher = false; });
 }
 
 function handleAssessmentChange(sub) {
@@ -273,19 +291,28 @@ function handleAssessmentChange(sub) {
 }
 
 function submit() {
+    if (processing.value) return; // prevent double-submit while a request is in flight
     const payload = JSON.parse(JSON.stringify(form.value));
     processing.value = true;
     errors.value = {};
+    const onError = (e) => {
+        errors.value = e;
+        if (e?.subjects && typeof e.subjects === 'string') {
+            toast.error(e.subjects);
+        } else if (Object.keys(e || {}).length) {
+            toast.error('Please fix the highlighted fields and try again.');
+        }
+    };
     if (view.value === 'edit') {
         router.put(`/school/exam-schedules/${editingSchedule.value.id}`, payload, {
             onSuccess: () => { view.value = 'list'; },
-            onError:   (e) => { errors.value = e; },
+            onError,
             onFinish:  () => { processing.value = false; },
         });
     } else {
         router.post('/school/exam-schedules', payload, {
             onSuccess: () => { view.value = 'list'; },
-            onError:   (e) => { errors.value = e; },
+            onError,
             onFinish:  () => { processing.value = false; },
         });
     }
@@ -299,7 +326,13 @@ async function deleteSchedule(id) {
         danger: true,
     });
     if (!ok) return;
-    router.delete(`/school/exam-schedules/${id}`, { preserveScroll: true });
+    router.delete(`/school/exam-schedules/${id}`, {
+        preserveScroll: true,
+        onError: (errs) => {
+            const msg = errs.error || 'Could not delete exam schedule.';
+            toast.error(typeof msg === 'string' ? msg : 'Could not delete exam schedule.');
+        },
+    });
 }
 
 async function togglePublish(id, currentStatus) {
@@ -310,7 +343,10 @@ async function togglePublish(id, currentStatus) {
         confirmLabel: action,
     });
     if (!ok) return;
-    router.post(`/school/exam-schedules/${id}/toggle-publish`, {}, { preserveScroll: true });
+    router.post(`/school/exam-schedules/${id}/toggle-publish`, {}, {
+        preserveScroll: true,
+        onError: () => toast.error(`Could not ${action.toLowerCase()} the schedule.`),
+    });
 }
 </script>
 

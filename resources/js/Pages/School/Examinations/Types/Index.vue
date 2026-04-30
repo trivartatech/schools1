@@ -6,8 +6,10 @@ import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
 import { useConfirm } from '@/Composables/useConfirm';
+import { useToast } from '@/Composables/useToast';
 
 const confirm = useConfirm();
+const toast = useToast();
 
 const props = defineProps({
     types: Array,
@@ -49,13 +51,16 @@ const closeForm = () => {
 };
 
 const submit = () => {
+    if (form.processing) return; // guard against double-submit
     if (isEditing.value) {
         form.put(`/school/exam-types/${form.id}`, {
-            onSuccess: () => closeForm()
+            onSuccess: () => closeForm(),
+            onError: () => toast.error('Please fix the highlighted fields and try again.'),
         });
     } else {
         form.post('/school/exam-types', {
-            onSuccess: () => closeForm()
+            onSuccess: () => closeForm(),
+            onError: () => toast.error('Please fix the highlighted fields and try again.'),
         });
     }
 };
@@ -68,7 +73,10 @@ const deleteType = async (id) => {
         danger: true,
     });
     if (!ok) return;
-    router.delete(`/school/exam-types/${id}`);
+    router.delete(`/school/exam-types/${id}`, {
+        preserveScroll: true,
+        onError: () => toast.error('Could not delete exam type.'),
+    });
 };
 
 const getClassificationBadge = (val) => {

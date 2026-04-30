@@ -179,11 +179,15 @@ const fetchStudents = async () => {
 };
 
 const saveMarks = () => {
+    if (form.processing) return; // guard against double-submit
     form.post('/school/exam-marks', {
         preserveScroll: true,
-        onSuccess: () => {
-            // Optional success notification logic here
-        }
+        // Success toast is emitted by the controller's flash message and
+        // surfaced automatically by SchoolLayout — no client toast needed here.
+        onError: (errs) => {
+            const msg = errs.marks || errs.error || 'Could not save marks. Check the entered values and try again.';
+            toast.error(typeof msg === 'string' ? msg : 'Could not save marks.');
+        },
     });
 };
 </script>

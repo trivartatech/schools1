@@ -8,6 +8,9 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import axios from 'axios';
 import Table from '@/Components/ui/Table.vue';
 import SortableTh from '@/Components/ui/SortableTh.vue';
+import { useToast } from '@/Composables/useToast';
+
+const toast = useToast();
 
 const props = defineProps({ schedules: Array });
 
@@ -51,6 +54,7 @@ function onSectionChange() { selectedScheduleId.value = ''; result.value = null;
 
 async function load() {
     if (!selectedScheduleId.value || !selectedSectionId.value) return;
+    if (loading.value) return; // guard against double-fetch while in flight
     loading.value = true;
     errorMsg.value = '';
     result.value = null;
@@ -63,7 +67,9 @@ async function load() {
         });
         result.value = data;
     } catch (e) {
-        errorMsg.value = e.response?.data?.message || 'Failed to load results.';
+        const msg = e.response?.data?.message || 'Failed to load results.';
+        errorMsg.value = msg;
+        toast.error(msg);
     } finally {
         loading.value = false;
     }
@@ -104,12 +110,20 @@ function pctClass(pct) {
 }
 
 function openPrint() {
+    if (!result.value || !result.value.rows.length) {
+        toast.warning('No students to print.');
+        return;
+    }
     const ids = result.value.rows.map(r => r.id).join(',');
     const url = `/school/report-cards/print?report_type=exam&exam_schedule_id=${selectedScheduleId.value}&section_id=${selectedSectionId.value}&student_ids=${ids}&apply_weightage=0`;
     window.open(url, '_blank');
 }
 
 function openResultsPrint() {
+    if (!result.value) {
+        toast.warning('Load results first.');
+        return;
+    }
     const url = route('school.exam-results.print') +
         `?exam_schedule_id=${selectedScheduleId.value}&section_id=${selectedSectionId.value}`;
     window.open(url, '_blank');

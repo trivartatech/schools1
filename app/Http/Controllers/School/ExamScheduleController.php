@@ -126,8 +126,8 @@ class ExamScheduleController extends Controller
             'course_class_id'  => $validated['course_class_id'],
             'weightage'        => $validated['weightage'],
             'has_co_scholastic'=> $validated['has_co_scholastic'] ?? false,
-            'scholastic_grading_system_id'    => $validated['scholastic_grading_system_id'] ?? null,
-            'co_scholastic_grading_system_id' => $validated['co_scholastic_grading_system_id'] ?? null,
+            'scholastic_grading_system_id'    => ($validated['scholastic_grading_system_id']    ?? null) ?: null,
+            'co_scholastic_grading_system_id' => ($validated['co_scholastic_grading_system_id'] ?? null) ?: null,
             'status'           => 'draft',
         ]);
 
@@ -189,17 +189,27 @@ class ExamScheduleController extends Controller
 
         // Safety check first — before any writes — so we don't leave a partial state.
         if ($examSchedule->scheduleSubjects()->whereHas('examMarks')->exists()) {
-            return back()->withErrors(['subjects' => 'Cannot update subjects because student marks have already been recorded for this exam.']);
+            return back()
+                ->withErrors(['subjects' => 'Cannot update subjects because student marks have already been recorded for this exam.'])
+                ->with('error', 'Cannot update subjects because student marks have already been recorded for this exam.');
         }
 
         DB::transaction(function () use ($examSchedule, $validated) {
+            // Cast empty strings to null for nullable FKs so MySQL doesn't
+            // silently coerce '' → 0 if Laravel's ConvertEmptyStringsToNull
+            // middleware is disabled in some environment.
+            $scholasticId    = $validated['scholastic_grading_system_id']    ?? null;
+            $coScholasticId  = $validated['co_scholastic_grading_system_id'] ?? null;
+            if ($scholasticId    === '') $scholasticId    = null;
+            if ($coScholasticId  === '') $coScholasticId  = null;
+
             $examSchedule->update([
                 'exam_type_id'     => $validated['exam_type_id'],
                 'course_class_id'  => $validated['course_class_id'],
                 'weightage'        => $validated['weightage'],
                 'has_co_scholastic'=> $validated['has_co_scholastic'] ?? false,
-                'scholastic_grading_system_id'    => $validated['scholastic_grading_system_id'] ?? null,
-                'co_scholastic_grading_system_id' => $validated['co_scholastic_grading_system_id'] ?? null,
+                'scholastic_grading_system_id'    => $scholasticId,
+                'co_scholastic_grading_system_id' => $coScholasticId,
             ]);
 
             $examSchedule->sections()->sync($validated['section_ids']);
@@ -238,7 +248,7 @@ class ExamScheduleController extends Controller
         abort_if($examSchedule->school_id !== app('current_school_id'), 403);
 
         if ($examSchedule->scheduleSubjects()->whereHas('examMarks')->exists()) {
-            return back()->withErrors(['error' => 'Cannot delete this schedule because student marks have already been recorded.']);
+            return back()->with('error', 'Cannot delete this schedule because student marks have already been recorded.');
         }
 
         $examSchedule->scheduleSubjects()->delete();

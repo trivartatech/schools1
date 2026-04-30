@@ -6,8 +6,10 @@ import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
 import { useConfirm } from '@/Composables/useConfirm';
+import { useToast } from '@/Composables/useToast';
 
 const confirm = useConfirm();
+const toast = useToast();
 
 const props = defineProps({
     assessments: Array,
@@ -40,22 +42,34 @@ const openEdit = (a) => {
     view.value = 'edit';
 };
 
+const submitting = ref(false);
+
 const submit = () => {
+    if (submitting.value) return; // guard against double-submit while in flight
+    submitting.value = true;
     const payload = JSON.parse(JSON.stringify({
         name: form.name,
         description: form.description,
         items: items.value,
     }));
 
+    const onError = (e) => {
+        Object.assign(form.errors, e);
+        toast.error('Please fix the highlighted fields and try again.');
+    };
+    const onFinish = () => { submitting.value = false; };
+
     if (view.value === 'edit') {
         router.put(`/school/exam-assessments/${editingAssessment.value.id}`, payload, {
             onSuccess: () => { view.value = 'list'; form.reset(); },
-            onError: (e) => { Object.assign(form.errors, e); },
+            onError,
+            onFinish,
         });
     } else {
         router.post('/school/exam-assessments', payload, {
             onSuccess: () => { view.value = 'list'; form.reset(); },
-            onError: (e) => { Object.assign(form.errors, e); },
+            onError,
+            onFinish,
         });
     }
 };
@@ -68,7 +82,10 @@ const deleteAssessment = async (id) => {
         danger: true,
     });
     if (!ok) return;
-    router.delete(`/school/exam-assessments/${id}`, { preserveScroll: true });
+    router.delete(`/school/exam-assessments/${id}`, {
+        preserveScroll: true,
+        onError: () => toast.error('Could not delete exam assessment.'),
+    });
 };
 </script>
 

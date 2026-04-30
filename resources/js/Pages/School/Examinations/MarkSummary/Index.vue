@@ -9,6 +9,9 @@ import { ref, computed } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import axios from 'axios';
+import { useToast } from '@/Composables/useToast';
+
+const toast = useToast();
 
 const props = defineProps({ schedules: Array });
 
@@ -51,6 +54,7 @@ function onSectionChange() { selectedScheduleId.value = ''; result.value = null;
 // ── Data loading ──────────────────────────────────────────────────────────────
 async function load() {
     if (!selectedScheduleId.value || !selectedSectionId.value) return;
+    if (loading.value) return; // guard against double-fetch while in flight
     loading.value = true;
     errorMsg.value = '';
     result.value = null;
@@ -63,7 +67,9 @@ async function load() {
         });
         result.value = data;
     } catch (e) {
-        errorMsg.value = e.response?.data?.message || 'Failed to load mark summary.';
+        const msg = e.response?.data?.message || 'Failed to load mark summary.';
+        errorMsg.value = msg;
+        toast.error(msg);
     } finally {
         loading.value = false;
     }
@@ -109,6 +115,10 @@ function failClass(cell, col) {
 
 // ── Print ─────────────────────────────────────────────────────────────────────
 function openPrint() {
+    if (!result.value) {
+        toast.warning('Load summary first.');
+        return;
+    }
     const url = route('school.exam-mark-summary.print') +
         `?exam_schedule_id=${selectedScheduleId.value}&section_id=${selectedSectionId.value}`;
     window.open(url, '_blank');

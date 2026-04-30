@@ -8,8 +8,10 @@ import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
 import { useConfirm } from '@/Composables/useConfirm';
+import { useToast } from '@/Composables/useToast';
 
 const confirm = useConfirm();
+const toast = useToast();
 
 const props = defineProps({
     gradingSystems: Array
@@ -57,19 +59,24 @@ const removeGradeRow = (index) => {
 };
 
 const submit = () => {
+    if (processingForm.value) return; // prevent double-submit
     const payload = JSON.parse(JSON.stringify(form.value));
     processingForm.value = true;
     formErrors.value = {};
+    const onError = (e) => {
+        formErrors.value = e;
+        toast.error('Please fix the highlighted fields and try again.');
+    };
     if (editingSystem.value) {
         router.put(`/school/grading-systems/${editingSystem.value.id}`, payload, {
             onSuccess: () => closeModal(),
-            onError: (e) => { formErrors.value = e; },
+            onError,
             onFinish: () => { processingForm.value = false; },
         });
     } else {
         router.post('/school/grading-systems', payload, {
             onSuccess: () => closeModal(),
-            onError: (e) => { formErrors.value = e; },
+            onError,
             onFinish: () => { processingForm.value = false; },
         });
     }
@@ -88,7 +95,10 @@ const deleteSystem = async (id) => {
         danger: true,
     });
     if (!ok) return;
-    router.delete(`/school/grading-systems/${id}`, { preserveScroll: true });
+    router.delete(`/school/grading-systems/${id}`, {
+        preserveScroll: true,
+        onError: () => toast.error('Could not delete grading system.'),
+    });
 };
 </script>
 

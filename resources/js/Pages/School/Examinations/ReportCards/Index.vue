@@ -8,6 +8,9 @@ import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import axios from 'axios';
 import Table from '@/Components/ui/Table.vue';
 import { useClassSections } from '@/Composables/useClassSections.js';
+import { useToast } from '@/Composables/useToast';
+
+const toast = useToast();
 
 // ── AI Comments ──
 const aiComments     = ref({}); // { [student_id]: comment string }
@@ -16,7 +19,11 @@ const aiError        = ref('');
 const showComments   = ref(false);
 
 async function generateAiComments() {
-    if (!students.value.length) return;
+    if (!students.value.length) {
+        toast.warning('Load students before generating AI comments.');
+        return;
+    }
+    if (aiLoading.value) return; // prevent double-fetch
     aiLoading.value = true;
     aiError.value   = '';
     try {
@@ -29,8 +36,11 @@ async function generateAiComments() {
         (data.comments ?? []).forEach(c => { map[c.id] = c.comment; });
         aiComments.value = map;
         showComments.value = true;
+        toast.success(`AI comments generated for ${Object.keys(map).length} students.`);
     } catch (e) {
-        aiError.value = e.response?.data?.error ?? 'Failed to generate AI comments. Try again.';
+        const msg = e.response?.data?.error ?? 'Failed to generate AI comments. Try again.';
+        aiError.value = msg;
+        toast.error(msg);
     } finally {
         aiLoading.value = false;
     }
@@ -174,6 +184,7 @@ function onToggle() {
 // ── Load students + report data ──
 async function loadPreview() {
     if (!canLoad.value) return;
+    if (loading.value) return; // guard against double-fetch while in flight
 
     loading.value = true;
     errorMsg.value = '';
@@ -197,8 +208,13 @@ async function loadPreview() {
         respReportType.value   = res.data.report_type;
         respApplyWeightage.value = res.data.apply_weightage;
         selectedIds.value      = students.value.map(s => s.id);
+        if (!students.value.length) {
+            toast.info('No students found for the selected class & section.');
+        }
     } catch (e) {
-        errorMsg.value = e.response?.data?.message || e.response?.data?.error || 'Failed to load student data.';
+        const msg = e.response?.data?.message || e.response?.data?.error || 'Failed to load student data.';
+        errorMsg.value = msg;
+        toast.error(msg);
     } finally {
         loading.value = false;
     }
@@ -259,7 +275,10 @@ function toggleOne(id) {
 
 // ── Print ──
 function openPrint() {
-    if (!selectedIds.value.length) return;
+    if (!selectedIds.value.length) {
+        toast.warning('Select at least one student to print.');
+        return;
+    }
     saveCommentsToStorage();
 
     const params = new URLSearchParams({
