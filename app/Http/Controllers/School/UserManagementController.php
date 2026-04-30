@@ -32,7 +32,13 @@ class UserManagementController extends Controller
         if ($request->filled('user_type')) {
             $query->where('user_type', $request->user_type);
         } else {
-            $query->whereIn('user_type', ['teacher', 'student', 'parent', 'principal', 'accountant', 'driver']);
+            // Default whitelist — every user_type that can have a login.
+            // school_admin was previously omitted, so admins were silently
+            // hidden from the default list.
+            $query->whereIn('user_type', [
+                'teacher', 'student', 'parent', 'principal',
+                'school_admin', 'accountant', 'driver',
+            ]);
         }
 
         if ($request->filled('search')) {
@@ -47,6 +53,19 @@ class UserManagementController extends Controller
 
         if ($request->filled('status')) {
             $query->where('is_active', $request->status === 'active');
+        }
+
+        // ── Sort — allowlist prevents arbitrary column ordering ──────────────
+        $sortMap = [
+            'name'     => 'name',
+            'role'     => 'user_type',
+            'username' => 'username',
+            'access'   => 'is_active',
+        ];
+        $sortKey = $request->input('sort');
+        $sortDir = strtolower($request->input('dir', 'asc')) === 'desc' ? 'desc' : 'asc';
+        if ($sortKey && isset($sortMap[$sortKey])) {
+            $query->orderBy($sortMap[$sortKey], $sortDir)->orderBy('id', 'asc');
         }
 
         // Class / Section filter — applies to students AND parents (via children)
@@ -76,7 +95,12 @@ class UserManagementController extends Controller
 
         // Page size honours the school's System Config "Page Length" setting.
         $perPage = app('current_school')?->pageLength() ?? 20;
-        $users = $query->latest()->paginate($perPage)->withQueryString();
+        // When no explicit sort is applied, fall back to the previous "latest first"
+        // ordering. Otherwise the orderBy above already drives the order.
+        if (! ($sortKey && isset($sortMap[$sortKey]))) {
+            $query->latest();
+        }
+        $users = $query->paginate($perPage)->withQueryString();
 
         // Decorate each user with class_name / section_name so the Vue page
         // doesn't have to traverse three levels of relations to render them.
@@ -106,7 +130,7 @@ class UserManagementController extends Controller
 
         return Inertia::render('School/Users/Index', [
             'users'     => $users,
-            'filters'   => $request->only(['user_type', 'search', 'status', 'class_id', 'section_id']),
+            'filters'   => $request->only(['user_type', 'search', 'status', 'class_id', 'section_id', 'sort', 'dir']),
             'classes'   => CourseClass::where('school_id', $schoolId)->orderBy('sort_order')->get(['id', 'name']),
             'sections'  => Section::where('school_id', $schoolId)->orderBy('sort_order')->get(['id', 'course_class_id', 'name']),
             'missing_counts' => [

@@ -41,9 +41,31 @@ const userType  = ref(props.filters.user_type || '');
 const status    = ref(props.filters.status    || '');
 const classId   = ref(props.filters.class_id  || '');
 const sectionId = ref(props.filters.section_id|| '');
+const sortBy    = ref(props.filters.sort      || '');
+const sortDir   = ref(props.filters.dir       || 'asc');
 
 // Reset section when class changes (sections are class-scoped)
 watch(classId, () => { sectionId.value = ''; });
+
+// Class/Section filter is only meaningful for students & parents. Switching
+// to any other user-type (or "All Users") leaves stale class_id / section_id
+// in the URL, so clear them when the dropdowns disappear.
+watch(userType, (newType) => {
+    if (newType !== 'student' && newType !== 'parent') {
+        classId.value   = '';
+        sectionId.value = '';
+    }
+});
+
+// ── Server-side sort (mirrors Staff Directory pattern) ──────────────────────
+function toggleSort(key) {
+    if (sortBy.value === key) {
+        sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortBy.value  = key;
+        sortDir.value = 'asc';
+    }
+}
 
 // Sections filtered to the chosen class (or all if no class)
 const sectionsForClass = computed(() => {
@@ -74,9 +96,10 @@ const exportList = (format) => {
     window.location.href = `/school/users/export-list?${params.toString()}`;
 };
 
-watch([search, userType, status, classId, sectionId], debounce(([v1, v2, v3, v4, v5]) => {
+watch([search, userType, status, classId, sectionId, sortBy, sortDir], debounce(([v1, v2, v3, v4, v5, v6, v7]) => {
     router.get('/school/users', {
         search: v1, user_type: v2, status: v3, class_id: v4, section_id: v5,
+        sort: v6, dir: v7,
     }, { preserveState: true, replace: true });
 }, 300));
 
@@ -254,16 +277,7 @@ const getStatusBadgeClass = (active) => active
     ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
     : 'bg-rose-100 text-rose-700 border-rose-200';
 
-// ── Table sorts ─────────────────────────────────────────────────────────────
-const { sortKey: usersSortKey, sortDir: usersSortDir, toggleSort: usersToggleSort, sortRows: usersSortRows } = useTableSort('name', 'asc');
-const sortedUsers = computed(() => usersSortRows(props.users.data || [], {
-    getValue: (row, key) => {
-        if (key === 'role') return row.user_type;
-        if (key === 'access') return row.is_active ? 1 : 0;
-        return row[key];
-    },
-}));
-
+// ── Bulk modal sort (client-side; the bulk list is short and fully in memory) ──
 const { sortKey: bulkSortKey, sortDir: bulkSortDir, toggleSort: bulkToggleSort, sortRows: bulkSortRows } = useTableSort('name', 'asc');
 const sortedBulkRows = computed(() => bulkSortRows(bulkRows.value || []));
 </script>
@@ -305,15 +319,17 @@ const sortedBulkRows = computed(() => bulkSortRows(bulkRows.value || []));
             <!-- Filters -->
             <FilterBar :active="!!(search || userType || status || classId || sectionId)"
                        @clear="search=''; userType=''; status=''; classId=''; sectionId=''">
-                <div class="fb-search">
+                <div class="fb-search fb-grow">
                     <svg class="fb-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                     </svg>
                     <input v-model="search" type="search" placeholder="Name, username, or phone…">
                 </div>
                 <select v-model="userType" style="width:160px;">
-                    <option value="">All Staff</option>
-                    <option value="teacher">Teachers Only</option>
+                    <option value="">All Users</option>
+                    <option value="principal">Principal</option>
+                    <option value="school_admin">Admin</option>
+                    <option value="teacher">Teachers</option>
                     <option value="student">Students</option>
                     <option value="parent">Parents</option>
                     <option value="accountant">Accountant</option>
@@ -353,7 +369,7 @@ const sortedBulkRows = computed(() => bulkSortRows(bulkRows.value || []));
 
             <!-- Users Table -->
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <Table :sort-key="usersSortKey" :sort-dir="usersSortDir" @sort="usersToggleSort">
+                <Table :sort-key="sortBy" :sort-dir="sortDir" @sort="toggleSort">
                     <thead>
                         <tr>
                             <th style="width:40px;">
@@ -369,7 +385,7 @@ const sortedBulkRows = computed(() => bulkSortRows(bulkRows.value || []));
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="user in sortedUsers" :key="user.id"
+                        <tr v-for="user in users.data" :key="user.id"
                             :class="{ 'bg-indigo-50/40': isSelected(user.id) }">
                             <td>
                                 <input type="checkbox" :checked="isSelected(user.id)" @change="toggleOne(user.id)"
@@ -425,7 +441,7 @@ const sortedBulkRows = computed(() => bulkSortRows(bulkRows.value || []));
                                 </Button>
                             </td>
                         </tr>
-                        <tr v-if="sortedUsers.length === 0">
+                        <tr v-if="users.data.length === 0">
                             <td colspan="7" class="px-6 py-20 text-center">
                                 <div class="flex flex-col items-center">
                                     <div class="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4 text-gray-300">
