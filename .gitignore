@@ -34,3 +34,7 @@ Thumbs.db
 
 # Mobile app lives in its own git repo at github.com/trivartatech/schools1-mobile
 /mobile app/
+
+# Mobile UI Sandbox web preview — built locally from `mobile app/` via
+# `npx expo export --platform web`; not shipped with the Laravel app.
+/public/_ui-sandbox-mobile/
