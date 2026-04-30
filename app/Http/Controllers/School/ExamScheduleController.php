@@ -187,14 +187,15 @@ class ExamScheduleController extends Controller
             'subjects.*.marks.*.passing_marks' => 'required|numeric|min:0',
         ]);
 
-        // Safety check first — before any writes — so we don't leave a partial state.
-        if ($examSchedule->scheduleSubjects()->whereHas('examMarks')->exists()) {
-            return back()
-                ->withErrors(['subjects' => 'Cannot update subjects because student marks have already been recorded for this exam.'])
-                ->with('error', 'Cannot update subjects because student marks have already been recorded for this exam.');
-        }
+        // Header fields (grading scale, weightage, exam type, sections, etc.)
+        // can ALWAYS be updated — they don't touch student marks. Only the
+        // subjects-level update is conditional on whether marks exist.
+        $protectedSubjectIds = $examSchedule->scheduleSubjects()
+            ->whereHas('examMarks')
+            ->pluck('subject_id')
+            ->all();
 
-        DB::transaction(function () use ($examSchedule, $validated) {
+        DB::transaction(function () use ($examSchedule, $validated, $protectedSubjectIds) {
             // Cast empty strings to null for nullable FKs so MySQL doesn't
             // silently coerce '' → 0 if Laravel's ConvertEmptyStringsToNull
             // middleware is disabled in some environment.
@@ -203,6 +204,7 @@ class ExamScheduleController extends Controller
             if ($scholasticId    === '') $scholasticId    = null;
             if ($coScholasticId  === '') $coScholasticId  = null;
 
+            // 1. Header — always safe to update.
             $examSchedule->update([
                 'exam_type_id'     => $validated['exam_type_id'],
                 'course_class_id'  => $validated['course_class_id'],
@@ -214,22 +216,57 @@ class ExamScheduleController extends Controller
 
             $examSchedule->sections()->sync($validated['section_ids']);
 
-            // Recreate subjects & mark configs atomically.
-            $examSchedule->scheduleSubjects()->delete();
-            foreach ($validated['subjects'] ?? [] as $sub) {
-                $scheduleSubject = $examSchedule->scheduleSubjects()->create([
-                    'subject_id'         => $sub['subject_id'],
-                    'exam_assessment_id' => $sub['exam_assessment_id'] ?? null,
-                    'is_co_scholastic'   => $sub['is_co_scholastic'] ?? false,
-                    'is_enabled'         => $sub['is_enabled'] ?? true,
-                    'exam_date'          => $sub['exam_date'] ?? null,
-                    'exam_time'          => $sub['exam_time'] ?? null,
-                    'duration_minutes'   => $sub['duration_minutes'] ?? null,
-                ]);
+            // 2. Subjects — smart upsert by subject_id so we don't blow away
+            //    rows that have marks recorded against them.
+            $existing  = $examSchedule->scheduleSubjects()->get()->keyBy('subject_id');
+            $newBySubj = collect($validated['subjects'] ?? [])->keyBy('subject_id');
 
-                if (!empty($sub['marks'])) {
-                    foreach ($sub['marks'] as $mark) {
-                        $scheduleSubject->markConfigs()->create([
+            // Delete only old subjects that are no longer in the new list AND
+            // have no marks recorded. Subjects with marks stay even if absent
+            // from the form (silent — saves what we can).
+            foreach ($existing as $subjectId => $oldSub) {
+                if (!$newBySubj->has($subjectId) && !in_array($subjectId, $protectedSubjectIds)) {
+                    $oldSub->markConfigs()->delete();
+                    $oldSub->delete();
+                }
+            }
+
+            // Upsert from the new list.
+            foreach ($newBySubj as $subjectId => $sub) {
+                $row = $existing->get($subjectId);
+                $isProtected = in_array($subjectId, $protectedSubjectIds);
+
+                $payload = [
+                    'is_co_scholastic' => $sub['is_co_scholastic'] ?? false,
+                    'is_enabled'       => $sub['is_enabled'] ?? true,
+                    'exam_date'        => $sub['exam_date'] ?? null,
+                    'exam_time'        => $sub['exam_time'] ?? null,
+                    'duration_minutes' => $sub['duration_minutes'] ?? null,
+                ];
+                // exam_assessment_id + mark configs only change when no marks
+                // exist for this subject yet (otherwise the mark schema would
+                // be inconsistent with the recorded values).
+                if (!$isProtected) {
+                    $payload['exam_assessment_id'] = $sub['exam_assessment_id'] ?? null;
+                }
+
+                if ($row) {
+                    $row->update($payload);
+                } else {
+                    $row = $examSchedule->scheduleSubjects()->create(array_merge(
+                        ['subject_id' => $sub['subject_id']],
+                        $payload,
+                        // For new rows we always set assessment_id; protection
+                        // doesn't apply because there can't be marks yet.
+                        ['exam_assessment_id' => $sub['exam_assessment_id'] ?? null]
+                    ));
+                }
+
+                // Mark configs — replace only if not protected.
+                if (!$isProtected) {
+                    $row->markConfigs()->delete();
+                    foreach ($sub['marks'] ?? [] as $mark) {
+                        $row->markConfigs()->create([
                             'exam_assessment_item_id' => $mark['exam_assessment_item_id'],
                             'max_marks'               => $mark['max_marks'],
                             'passing_marks'           => $mark['passing_marks'],
@@ -239,7 +276,11 @@ class ExamScheduleController extends Controller
             }
         });
 
-        return redirect('/school/exam-schedules')->with('success', 'Exam Schedule updated.');
+        $msg = 'Exam Schedule updated.';
+        if (!empty($protectedSubjectIds)) {
+            $msg .= ' Note: subjects with recorded marks kept their existing assessment + mark configuration.';
+        }
+        return redirect('/school/exam-schedules')->with('success', $msg);
     }
 
     public function destroy(Request $request, ExamSchedule $examSchedule)
