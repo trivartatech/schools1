@@ -368,7 +368,10 @@ class AuthController extends Controller
         elseif (preg_match('~^staff:(.+)$~i', $raw, $m))   $code = trim($m[1]);
         else                                               $code = $raw;
 
-        $staff = \App\Models\Staff::with(['user', 'school'])
+        // NB: Staff model has no `school()` relation defined — eager-loading
+        // 'school' here throws RelationNotFoundException → 500. Look up the
+        // school directly via school_id column instead.
+        $staff = \App\Models\Staff::with(['user'])
             ->where('employee_id', $code)
             ->where('status', 'active')
             ->first();
@@ -387,8 +390,8 @@ class AuthController extends Controller
             ], 403);
         }
 
-        $school = $staff->school
-            ?? ($staffUser->school_id ? \App\Models\School::find($staffUser->school_id) : null);
+        $schoolId = $staff->school_id ?? $staffUser->school_id;
+        $school   = $schoolId ? \App\Models\School::find($schoolId) : null;
 
         $token = $this->issueQrLoginToken($staffUser, $request);
 
