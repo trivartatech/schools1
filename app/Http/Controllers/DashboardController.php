@@ -29,8 +29,8 @@ class DashboardController extends Controller
             ];
         }
 
-        // School Admin / Accountant / Driver / Teacher fallback — they need the school object on the page
-        if ($user->isAdmin() || $user->isAccountant() || $user->isDriver() || $user->isTeacher() || (!$user->isSuperAdmin() && !$user->isStudent() && !$user->isParent())) {
+        // School Admin / Accountant / Driver / Conductor / Teacher fallback — they need the school object on the page
+        if ($user->isAdmin() || $user->isAccountant() || $user->isDriver() || $user->isConductor() || $user->isTeacher() || (!$user->isSuperAdmin() && !$user->isStudent() && !$user->isParent())) {
             $props['school'] = app()->bound('current_school') ? app('current_school') : null;
         }
 

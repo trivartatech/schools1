@@ -115,6 +115,17 @@ class User extends Authenticatable
         return $this->user_type === UserType::Driver;
     }
 
+    public function isConductor(): bool
+    {
+        return $this->user_type === UserType::Conductor;
+    }
+
+    /** Driver or Conductor — both share the same on-bus mobile flow. */
+    public function isBusStaff(): bool
+    {
+        return in_array($this->user_type, [UserType::Driver, UserType::Conductor]);
+    }
+
     /** School-management level: Admin or Super Admin */
     public function isSchoolManagement(): bool
     {

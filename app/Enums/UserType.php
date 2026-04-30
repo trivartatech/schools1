@@ -13,6 +13,7 @@ enum UserType: string
     case Parent     = 'parent';
     case Accountant = 'accountant';
     case Driver          = 'driver';
+    case Conductor       = 'conductor';
     case FrontGateKeeper = 'front_gate_keeper';
     case ItSupport       = 'it_support';
 
@@ -28,6 +29,7 @@ enum UserType: string
             self::Parent           => 'Parent',
             self::Accountant       => 'Accountant',
             self::Driver           => 'Driver',
+            self::Conductor        => 'Conductor',
             self::FrontGateKeeper  => 'Front Gate Keeper',
             self::ItSupport        => 'IT Support',
         };
@@ -85,6 +87,7 @@ enum UserType: string
             self::Parent      => 'parent',
             self::Accountant  => 'accountant',
             self::Driver           => 'driver',
+            self::Conductor        => 'conductor',
             self::FrontGateKeeper  => 'front_gate_keeper',
             self::ItSupport        => 'it_support',
         };
