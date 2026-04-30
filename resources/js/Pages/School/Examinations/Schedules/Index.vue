@@ -34,17 +34,30 @@ const loadingSubjects = ref(false);
 const search           = ref('');
 const filterExamTypeId = ref('');
 const filterClassId    = ref('');
+const filterSectionId  = ref('');
 const filterStatus     = ref('');
 
 const filtersActive = computed(() =>
-    !!(search.value || filterExamTypeId.value || filterClassId.value || filterStatus.value)
+    !!(search.value || filterExamTypeId.value || filterClassId.value
+        || filterSectionId.value || filterStatus.value)
 );
 function clearFilters() {
     search.value = '';
     filterExamTypeId.value = '';
     filterClassId.value = '';
+    filterSectionId.value = '';
     filterStatus.value = '';
 }
+
+// Reset section whenever the class changes — sections are class-scoped.
+watch(filterClassId, () => { filterSectionId.value = ''; });
+
+// Sections available in the dropdown for the currently picked class.
+const filterSections = computed(() => {
+    if (!filterClassId.value) return [];
+    const cls = props.classes.find(c => String(c.id) === String(filterClassId.value));
+    return cls?.sections || [];
+});
 
 const { sortKey, sortDir, toggleSort, sortRows } = useTableSort('', 'asc');
 
@@ -56,6 +69,13 @@ const filteredSchedules = computed(() => {
     }
     if (filterClassId.value) {
         out = out.filter(s => String(s.course_class_id) === String(filterClassId.value));
+    }
+    if (filterSectionId.value) {
+        // Each schedule can target multiple sections (many-to-many) — match
+        // when the picked section appears in that list.
+        out = out.filter(s =>
+            (s.sections || []).some(sec => String(sec.id) === String(filterSectionId.value))
+        );
     }
     if (filterStatus.value) {
         out = out.filter(s => s.status === filterStatus.value);
@@ -323,6 +343,10 @@ async function togglePublish(id, currentStatus) {
                 <select v-model="filterClassId" style="width:160px;">
                     <option value="">All Classes</option>
                     <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </select>
+                <select v-model="filterSectionId" :disabled="!filterClassId" style="width:160px;">
+                    <option value="">{{ filterClassId ? 'All Sections' : 'Pick a class first' }}</option>
+                    <option v-for="sec in filterSections" :key="sec.id" :value="sec.id">{{ sec.name }}</option>
                 </select>
                 <select v-model="filterStatus" style="width:140px;">
                     <option value="">All Status</option>
