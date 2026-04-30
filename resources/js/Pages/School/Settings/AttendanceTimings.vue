@@ -1,5 +1,6 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
+import PageHeader from '@/Components/ui/PageHeader.vue';
 import { computed } from 'vue';
 import { useForm, usePage, Link } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
@@ -13,13 +14,13 @@ const page = usePage();
 
 // ── Settings sidebar nav items ────────────────────────────────────────────
 const settingsNav = [
-    { id: 'general-config',       label: 'General Config',              route: '/school/settings/general-config',     icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
-    { id: 'asset-config',         label: 'Asset Config',                route: '/school/settings/asset-config',       icon: 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' },
-    { id: 'system-config',        label: 'System Config',               route: '/school/settings/system-config',      icon: 'M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18' },
-    { id: 'geofence-config',      label: 'Geofence Config',             route: '/school/settings/geofence-config',    icon: 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z' },
-    { id: 'attendance-timings',   label: 'Attendance Timings',          route: '/school/settings/attendance-timings', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
-    { id: 'admin-contacts',       label: 'Admin Numbers',               route: '/school/settings/admin-contacts',     icon: 'M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z' },
-    { id: 'receipt-print',        label: 'Receipt Print',               route: '/school/settings/receipt-print',      icon: 'M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z' },
+    { id: 'general-config',     label: 'General Config',              route: '/school/settings/general-config',     icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
+    { id: 'asset-config',       label: 'Asset Config',                route: '/school/settings/asset-config',       icon: 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' },
+    { id: 'system-config',      label: 'System Config',               route: '/school/settings/system-config',      icon: 'M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18' },
+    { id: 'geofence-config',    label: 'Geofence Config',             route: '/school/settings/geofence-config',    icon: 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z' },
+    { id: 'attendance-timings', label: 'Attendance Timings',          route: '/school/settings/attendance-timings', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+    { id: 'admin-contacts',     label: 'Admin Numbers',               route: '/school/settings/admin-contacts',     icon: 'M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z' },
+    { id: 'receipt-print',      label: 'Receipt Print',               route: '/school/settings/receipt-print',      icon: 'M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z' },
 ];
 
 const currentPath = computed(() => page.url);
@@ -74,24 +75,22 @@ const submit = () => form.post('/school/settings/attendance-timings', { preserve
                 </nav>
             </aside>
 
-            <!-- ── Form ─────────────────────────────────────────────── -->
-            <main class="settings-main">
-                <header class="settings-header">
-                    <h1 class="settings-title">Attendance Timings</h1>
-                    <p class="settings-sub">
-                        Configure when staff and student attendance is marked late, and which days count
-                        as weekend. The staff Weekday late time is also written to the legacy
-                        <code>late_threshold</code> key, so older mobile clients keep working unchanged.
-                    </p>
-                </header>
+            <!-- ── Main Content ─────────────────────────────────────── -->
+            <section class="settings-content">
+                <PageHeader
+                    title="Attendance Timings"
+                    subtitle="Configure when staff and student attendance is marked late, separately for weekday and weekend."
+                />
 
-                <form @submit.prevent="submit" class="space-y-6">
+                <form @submit.prevent="submit" novalidate>
 
-                    <!-- Weekend day picker -->
-                    <section class="card">
+                    <!-- ── Weekend Days ─────────────────────────────── -->
+                    <div class="card" style="margin-bottom:16px;">
                         <div class="card-header">
-                            <span class="card-title">Weekend Days</span>
-                            <span class="card-sub">Days marked here use the <em>Weekend</em> thresholds below.</span>
+                            <h2 class="card-title">Weekend Days</h2>
+                            <p style="font-size:.775rem;color:#64748b;margin:2px 0 0;">
+                                Days marked here use the <strong>Weekend</strong> thresholds below. Default: Sunday only — many Indian schools also include Saturday.
+                            </p>
                         </div>
                         <div class="card-body">
                             <div class="day-pills">
@@ -101,136 +100,217 @@ const submit = () => form.post('/school/settings/attendance-timings', { preserve
                                     {{ d.label }}
                                 </button>
                             </div>
-                            <p class="hint">Default: Sunday only. Many Indian schools also include Saturday.</p>
                         </div>
-                    </section>
-
-                    <!-- Two-column grid: Staff vs Student × Weekday vs Weekend -->
-                    <div class="bucket-grid">
-
-                        <!-- Staff · Weekday -->
-                        <section class="card">
-                            <div class="card-header">
-                                <span class="card-title">Staff · Weekday</span>
-                            </div>
-                            <div class="card-body bucket-body">
-                                <label class="check-row">
-                                    <input type="checkbox" v-model="form.staff_weekday.working" />
-                                    <span>Working day for staff</span>
-                                </label>
-                                <label class="time-row">
-                                    <span>Mark late after</span>
-                                    <input type="time" v-model="form.staff_weekday.late_after"
-                                           :disabled="!form.staff_weekday.working" required />
-                                </label>
-                            </div>
-                        </section>
-
-                        <!-- Staff · Weekend -->
-                        <section class="card">
-                            <div class="card-header">
-                                <span class="card-title">Staff · Weekend</span>
-                            </div>
-                            <div class="card-body bucket-body">
-                                <label class="check-row">
-                                    <input type="checkbox" v-model="form.staff_weekend.working" />
-                                    <span>Working day for staff</span>
-                                </label>
-                                <label class="time-row">
-                                    <span>Mark late after</span>
-                                    <input type="time" v-model="form.staff_weekend.late_after"
-                                           :disabled="!form.staff_weekend.working" required />
-                                </label>
-                            </div>
-                        </section>
-
-                        <!-- Student · Weekday -->
-                        <section class="card">
-                            <div class="card-header">
-                                <span class="card-title">Student · Weekday</span>
-                            </div>
-                            <div class="card-body bucket-body">
-                                <label class="check-row">
-                                    <input type="checkbox" v-model="form.student_weekday.working" />
-                                    <span>Working day for students</span>
-                                </label>
-                                <label class="time-row">
-                                    <span>Mark late after</span>
-                                    <input type="time" v-model="form.student_weekday.late_after"
-                                           :disabled="!form.student_weekday.working" required />
-                                </label>
-                            </div>
-                        </section>
-
-                        <!-- Student · Weekend -->
-                        <section class="card">
-                            <div class="card-header">
-                                <span class="card-title">Student · Weekend</span>
-                            </div>
-                            <div class="card-body bucket-body">
-                                <label class="check-row">
-                                    <input type="checkbox" v-model="form.student_weekend.working" />
-                                    <span>Working day for students</span>
-                                </label>
-                                <label class="time-row">
-                                    <span>Mark late after</span>
-                                    <input type="time" v-model="form.student_weekend.late_after"
-                                           :disabled="!form.student_weekend.working" required />
-                                </label>
-                            </div>
-                        </section>
-
                     </div>
 
-                    <div class="form-footer">
+                    <!-- ── Staff Timings ─────────────────────────────── -->
+                    <div class="card" style="margin-bottom:16px;">
+                        <div class="card-header">
+                            <h2 class="card-title">Staff Timings</h2>
+                            <p style="font-size:.775rem;color:#64748b;margin:2px 0 0;">
+                                Used by every staff QR / app punch (web + mobile). Disabled days reject the punch outright.
+                            </p>
+                        </div>
+                        <div class="card-body" style="display:flex;flex-direction:column;gap:16px;">
+                            <div class="form-row form-row-2">
+                                <!-- Staff · Weekday -->
+                                <div class="bucket">
+                                    <div class="bucket-title">Weekday</div>
+                                    <label class="bucket-toggle">
+                                        <input type="checkbox" v-model="form.staff_weekday.working" />
+                                        <span>Working day for staff</span>
+                                    </label>
+                                    <div class="form-field">
+                                        <label>Mark late after</label>
+                                        <input type="time" v-model="form.staff_weekday.late_after"
+                                               :disabled="!form.staff_weekday.working" required />
+                                    </div>
+                                </div>
+                                <!-- Staff · Weekend -->
+                                <div class="bucket">
+                                    <div class="bucket-title">Weekend</div>
+                                    <label class="bucket-toggle">
+                                        <input type="checkbox" v-model="form.staff_weekend.working" />
+                                        <span>Working day for staff</span>
+                                    </label>
+                                    <div class="form-field">
+                                        <label>Mark late after</label>
+                                        <input type="time" v-model="form.staff_weekend.late_after"
+                                               :disabled="!form.staff_weekend.working" required />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ── Student Timings ───────────────────────────── -->
+                    <div class="card" style="margin-bottom:16px;">
+                        <div class="card-header">
+                            <h2 class="card-title">Student Timings</h2>
+                            <p style="font-size:.775rem;color:#64748b;margin:2px 0 0;">
+                                Used by the QR-scan attendance flow — tapping <em>Present</em> after the threshold auto-records as <em>Late</em>.
+                            </p>
+                        </div>
+                        <div class="card-body" style="display:flex;flex-direction:column;gap:16px;">
+                            <div class="form-row form-row-2">
+                                <!-- Student · Weekday -->
+                                <div class="bucket">
+                                    <div class="bucket-title">Weekday</div>
+                                    <label class="bucket-toggle">
+                                        <input type="checkbox" v-model="form.student_weekday.working" />
+                                        <span>Working day for students</span>
+                                    </label>
+                                    <div class="form-field">
+                                        <label>Mark late after</label>
+                                        <input type="time" v-model="form.student_weekday.late_after"
+                                               :disabled="!form.student_weekday.working" required />
+                                    </div>
+                                </div>
+                                <!-- Student · Weekend -->
+                                <div class="bucket">
+                                    <div class="bucket-title">Weekend</div>
+                                    <label class="bucket-toggle">
+                                        <input type="checkbox" v-model="form.student_weekend.working" />
+                                        <span>Working day for students</span>
+                                    </label>
+                                    <div class="form-field">
+                                        <label>Mark late after</label>
+                                        <input type="time" v-model="form.student_weekend.late_after"
+                                               :disabled="!form.student_weekend.working" required />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ── Actions ──────────────────────────────────── -->
+                    <div style="display:flex;align-items:center;gap:10px;padding:16px 0 8px;">
                         <Button type="submit" :loading="form.processing">Save Timings</Button>
                     </div>
+
                 </form>
-            </main>
+            </section>
         </div>
     </SchoolLayout>
 </template>
 
 <style scoped>
+/* ── Shell (mirrors GeneralConfig.vue / SystemConfig.vue) ───────────── */
+.settings-shell {
+    display: flex;
+    gap: 0;
+    min-height: calc(100vh - 56px);
+    margin: -24px -28px;
+    background: #f8fafc;
+}
+
+/* ── Settings Sidebar ── */
+.settings-sidebar {
+    width: 220px;
+    min-width: 220px;
+    background: #fff;
+    border-right: 1px solid #e2e8f0;
+    padding: 16px 0;
+    flex-shrink: 0;
+    overflow-y: auto;
+}
+
+.settings-sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 0 8px;
+}
+
+.settings-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 10px;
+    border-radius: 7px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #64748b;
+    text-decoration: none;
+    transition: background 0.13s, color 0.13s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+.settings-nav-item:hover { background: #f1f5f9; color: #1e293b; }
+.settings-nav-item--active {
+    background: #eff6ff !important;
+    color: #1169cd !important;
+    font-weight: 600;
+}
+.settings-nav-icon { width: 15px; height: 15px; flex-shrink: 0; opacity: 0.75; }
+.settings-nav-item--active .settings-nav-icon { opacity: 1; }
+
+/* ── Content ── */
+.settings-content {
+    flex: 1;
+    padding: 28px 32px;
+    overflow-y: auto;
+}
+
+/* ── Day pill picker (matches ExamSchedule's section-chip pattern) ── */
 .day-pills { display: flex; flex-wrap: wrap; gap: 6px; }
 .day-pill {
-    padding: 6px 14px; border-radius: 999px; font-size: 0.8125rem; font-weight: 600;
-    border: 1.5px solid #cbd5e1; background: #f8fafc; color: #475569;
-    cursor: pointer; transition: all 0.15s;
+    padding: 5px 14px;
+    border-radius: 999px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border: 1.5px solid #cbd5e1;
+    background: #f8fafc;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.15s;
 }
-.day-pill--on { background: #1169cd; color: #fff; border-color: #1169cd; }
-.hint { font-size: 0.75rem; color: #94a3b8; margin: 8px 0 0; }
-
-.bucket-grid {
-    display: grid; gap: 16px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-@media (max-width: 720px) { .bucket-grid { grid-template-columns: 1fr; } }
-
-.bucket-body { display: flex; flex-direction: column; gap: 12px; }
-
-.check-row {
-    display: flex; align-items: center; gap: 8px; cursor: pointer;
-    font-size: 0.875rem; color: #334155;
-}
-.check-row input[type="checkbox"] {
-    width: 18px; height: 18px; accent-color: #4f46e5; cursor: pointer;
+.day-pill:hover { border-color: #94a3b8; }
+.day-pill--on {
+    background: #1169cd;
+    color: #fff;
+    border-color: #1169cd;
 }
 
-.time-row {
-    display: flex; align-items: center; gap: 12px;
-    font-size: 0.8125rem; color: #475569;
+/* ── Bucket (Weekday / Weekend column inside a card) ── */
+.bucket {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
 }
-.time-row input[type="time"] {
-    height: 38px; padding: 0 10px; font-size: 0.875rem;
-    border: 1.5px solid #cbd5e1; border-radius: 8px; background: #fff;
-    outline: none; transition: border-color 0.15s;
-    margin-left: auto;
+.bucket-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #6366f1;
 }
-.time-row input[type="time"]:focus { border-color: #4f46e5; }
-.time-row input[type="time"]:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+.bucket-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    color: #334155;
+}
+.bucket-toggle input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #4f46e5;
+    cursor: pointer;
+}
 
-.form-footer { display: flex; justify-content: flex-end; padding-top: 8px; }
-
-.card-sub { font-size: 0.75rem; color: #94a3b8; font-weight: 500; margin-left: 8px; }
+/* Time input — keep it compact next to the label */
+.bucket .form-field input[type="time"] { max-width: 180px; }
+.bucket .form-field input[type="time"]:disabled {
+    background: #f1f5f9;
+    color: #94a3b8;
+    cursor: not-allowed;
+}
 </style>
