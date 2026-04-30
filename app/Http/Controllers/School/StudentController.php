@@ -767,7 +767,18 @@ class StudentController extends Controller
                 $oldParent->delete();
             }
         } elseif ($student->studentParent) {
-            $student->studentParent->update($parentData);
+            $oldParent = $student->studentParent;
+
+            // If the parent record is shared with siblings, mutating it would
+            // propagate this edit to every linked student. Fork a new parent
+            // row for the student being edited and leave siblings untouched.
+            if ($oldParent->students()->where('id', '!=', $student->id)->exists()) {
+                $parentData['school_id'] = $schoolId;
+                $newParent = StudentParent::create($parentData);
+                $student->update(['parent_id' => $newParent->id]);
+            } else {
+                $oldParent->update($parentData);
+            }
         }
 
         // Persist student_type override on the current academic-history row.
