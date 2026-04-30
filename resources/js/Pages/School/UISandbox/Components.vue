@@ -14,8 +14,10 @@ import StatsRow from '@/Components/ui/StatsRow.vue';
 import EmptyState from '@/Components/ui/EmptyState.vue';
 import PrintButton from '@/Components/ui/PrintButton.vue';
 import ExportDropdown from '@/Components/ExportDropdown.vue';
-import PermissionGate from '@/Components/PermissionGate.vue';
-import IdCardQR from '@/Components/IdCardQR.vue';
+// PermissionGate + IdCardQR live demos disabled here while bisecting a prod
+// render-effect recursion. Both still ship and are used in real pages.
+// import PermissionGate from '@/Components/PermissionGate.vue';
+// import IdCardQR from '@/Components/IdCardQR.vue';
 import { useToast } from '@/Composables/useToast';
 
 const toast = useToast();
@@ -228,46 +230,39 @@ const sampleVisitor = {
             <PrintButton label="Disabled" disabled />
         </div>
 
-        <!-- ── PermissionGate ──────────────────────────────────────── -->
-        <h2 class="section-heading">PermissionGate — declarative permission gating</h2>
+        <!-- ── PermissionGate (code reference — live demo disabled while bisecting recursion) ── -->
+        <h2 class="section-heading">PermissionGate — declarative permission gating (code reference)</h2>
         <p style="font-size:0.8rem;color:var(--text-muted);margin:-6px 0 8px;">
-            Three modes: exact <code>permission</code>, any-match <code>:any</code>, all-match <code>:all</code>.
-            Provide <code>#fallback</code> for the denied state.
+            Live demo disabled here while we bisect a prod-bundle render-effect
+            recursion. The primitive itself is in active use across many pages.
         </p>
-        <div class="card" style="padding:16px;margin-bottom:20px;display:grid;grid-template-columns:repeat(3, 1fr);gap:14px;">
-            <div>
-                <p style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">permission="…"</p>
-                <PermissionGate permission="view_students">
-                    <span class="badge badge-green">Allowed branch</span>
-                    <template #fallback><span class="badge badge-gray">No view_students</span></template>
-                </PermissionGate>
-            </div>
-            <div>
-                <p style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">:any="['edit_fee','delete_fee']"</p>
-                <PermissionGate :any="['edit_fee', 'delete_fee']">
-                    <span class="badge badge-green">Allowed (has at least one)</span>
-                    <template #fallback><span class="badge badge-gray">Has neither</span></template>
-                </PermissionGate>
-            </div>
-            <div>
-                <p style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">:all="['create_payroll','edit_payroll']"</p>
-                <PermissionGate :all="['create_payroll', 'edit_payroll']">
-                    <span class="badge badge-green">Allowed (has all)</span>
-                    <template #fallback><span class="badge badge-gray">Missing one or more</span></template>
-                </PermissionGate>
-            </div>
+        <div class="card" style="padding:16px;margin-bottom:20px;">
+            <pre style="margin:0;background:#0f172a;color:#e2e8f0;padding:14px;border-radius:10px;font-size:0.72rem;line-height:1.55;overflow:auto;" v-pre>// Three modes: exact permission, any-match, all-match.
+&lt;PermissionGate permission="view_students"&gt;
+    &lt;ViewLink /&gt;
+    &lt;template #fallback&gt;&lt;span&gt;No access&lt;/span&gt;&lt;/template&gt;
+&lt;/PermissionGate&gt;
+
+&lt;PermissionGate :any="['edit_fee', 'delete_fee']"&gt;
+    &lt;FeeActions /&gt;
+&lt;/PermissionGate&gt;
+
+&lt;PermissionGate :all="['create_payroll', 'edit_payroll']"&gt;
+    &lt;PayrollForm /&gt;
+&lt;/PermissionGate&gt;</pre>
         </div>
 
-        <!-- ── Pass cards / IdCardQR ──────────────────────────────── -->
-        <h2 class="section-heading">IdCardQR — live QR canvas</h2>
-        <div class="card" style="padding:16px;margin-bottom:20px;display:flex;align-items:center;gap:18px;">
-            <IdCardQR value="DEMO-STU-2025-001" :size="80" />
-            <div>
-                <p style="font-size:0.8rem;color:var(--text-secondary);margin:0;">
-                    Lightweight wrapper around the <code>qrcode</code> npm lib. Renders a canvas of arbitrary <code>:size</code>.
-                    Used in ID-card print templates and gate pass cards.
-                </p>
-            </div>
+        <!-- ── Pass cards / IdCardQR (code reference — live demo disabled) ── -->
+        <h2 class="section-heading">IdCardQR — QR canvas (code reference)</h2>
+        <div class="card" style="padding:16px;margin-bottom:20px;">
+            <p style="font-size:0.8rem;color:var(--text-muted);margin:0 0 10px;">
+                Lightweight wrapper around the <code>qrcode</code> npm lib. Used in
+                ID-card print templates and gate-pass cards. Live demo disabled here
+                while we bisect a prod-bundle render-effect recursion.
+            </p>
+            <pre style="margin:0;background:#0f172a;color:#e2e8f0;padding:14px;border-radius:10px;font-size:0.72rem;line-height:1.55;overflow:auto;" v-pre>import IdCardQR from '@/Components/IdCardQR.vue';
+
+&lt;IdCardQR value="STU-2025-001" :size="80" /&gt;</pre>
         </div>
 
         <h2 class="section-heading">GatePassCard / VisitorPassCard — fixture reference</h2>
