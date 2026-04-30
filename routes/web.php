@@ -109,10 +109,24 @@ Route::middleware('auth')->group(function () {
     Route::group(['prefix' => 'school', 'as' => 'school.'], function () {
         Route::get('/', [DashboardController::class, 'index'])->name('index');
 
-        // UI Sandbox — manual visual QA for shared layout primitives (Phase 1
-        // of the layout-standardization migration). No controller — pure render.
+        // UI Sandbox — multi-page visual catalogue of every shared UI primitive.
+        // No controllers — pure Inertia renders. Each subpage covers one
+        // primitive group; the landing page links them all and keeps a Phase-1
+        // quick-reference of the most-used components.
         Route::get('/_ui-sandbox', fn () => \Inertia\Inertia::render('School/UISandbox'))
             ->name('ui-sandbox');
+        Route::get('/_ui-sandbox/buttons', fn () => \Inertia\Inertia::render('School/UISandbox/Buttons'))
+            ->name('ui-sandbox.buttons');
+        Route::get('/_ui-sandbox/forms', fn () => \Inertia\Inertia::render('School/UISandbox/Forms'))
+            ->name('ui-sandbox.forms');
+        Route::get('/_ui-sandbox/tables', fn () => \Inertia\Inertia::render('School/UISandbox/Tables'))
+            ->name('ui-sandbox.tables');
+        Route::get('/_ui-sandbox/modals', fn () => \Inertia\Inertia::render('School/UISandbox/Modals'))
+            ->name('ui-sandbox.modals');
+        Route::get('/_ui-sandbox/components', fn () => \Inertia\Inertia::render('School/UISandbox/Components'))
+            ->name('ui-sandbox.components');
+        Route::get('/_ui-sandbox/composables', fn () => \Inertia\Inertia::render('School/UISandbox/Composables'))
+            ->name('ui-sandbox.composables');
 
         // Staff Self-Service Punch Attendance (topbar panel — any logged-in staff)
         $SPC = \App\Http\Controllers\School\StaffPunchController::class;

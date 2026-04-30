@@ -65,10 +65,13 @@ const SKIP_HEURISTICS  = args.has('--no-heuristics');
 const STRICT           = args.has('--strict');
 const GROUP_BY_MODULE  = args.has('--by-module');
 
-const SANDBOX_PATH = join(ROOT, 'resources/js/Pages/School/UISandbox.vue');
-const UI_DIR       = join(ROOT, 'resources/js/Components/ui');
-const SHARED_DIR   = join(ROOT, 'resources/js/Components');
-const PAGES_DIR    = join(ROOT, 'resources/js/Pages');
+// The sandbox is now multi-page: a landing file plus subpages under
+// `Pages/School/UISandbox/`. The audit treats them as one collective sandbox.
+const SANDBOX_PATH    = join(ROOT, 'resources/js/Pages/School/UISandbox.vue');
+const SANDBOX_DIR     = join(ROOT, 'resources/js/Pages/School/UISandbox');
+const UI_DIR          = join(ROOT, 'resources/js/Components/ui');
+const SHARED_DIR      = join(ROOT, 'resources/js/Components');
+const PAGES_DIR       = join(ROOT, 'resources/js/Pages');
 
 // Cross-cutting (top-level Components/*.vue) that count as primitives
 const SHARED_PRIMITIVES = [
@@ -146,13 +149,9 @@ const PAGE_RULES = [
     },
 ];
 
-// Primitives intentionally NOT live-mounted in the sandbox.
-// The sandbox was reverted to its pre-refactor "Phase 1" form because the
-// expanded version triggered a Vue 3.5.29 render-time recursion in the
-// production minified build (RangeError: Maximum call stack size exceeded
-// inside the patch effect — not reproducible in dev or local vite preview).
-// Each primitive listed here is a real, working sandbox-kit component used
-// elsewhere in the app; it just isn't exercised inside UISandbox.vue.
+// Primitives intentionally NOT live-mounted in any sandbox file.
+// All other primitives are demoed across the sandbox subpages
+// (Buttons / Forms / Tables / Modals / Components / Composables).
 const SANDBOX_EXEMPT = new Set([
     // Layout-mounted via SchoolLayout (don't re-mount in pages — would stack
     // duplicate global instances or i18n providers).
@@ -167,19 +166,22 @@ const SANDBOX_EXEMPT = new Set([
     'GatePassCard.vue',
     'VisitorPassCard.vue',
     'WebcamCapture.vue',
-    // Cross-cutting primitives present in the kit but not currently demoed
-    // in the production sandbox. Coverage tracked separately.
-    'IdCardQR.vue',
-    'LedgerCombobox.vue',
-    'SlidePanel.vue',
-    'PermissionGate.vue',
+    // ErrorBoundary is documented in the layout-mounted note (Components page)
+    // but not live-mounted because its earlier live demo (a defineComponent
+    // throwing from a render fn) triggered a Vue 3.5.29 + Vite 7 prod-build
+    // render-effect recursion. The primitive itself is fine in real pages.
     'ErrorBoundary.vue',
-    'DateRangeFilter.vue',
 ]);
 
 const PAGE_EXEMPT = new Set([
-    // Sandbox itself MUST contain demos of legacy patterns when illustrating tokens.
+    // Sandbox files MUST contain demos of legacy patterns when illustrating tokens.
     'School/UISandbox.vue',
+    'School/UISandbox/Buttons.vue',
+    'School/UISandbox/Forms.vue',
+    'School/UISandbox/Tables.vue',
+    'School/UISandbox/Modals.vue',
+    'School/UISandbox/Components.vue',
+    'School/UISandbox/Composables.vue',
     // Specialized real-time UI explicitly excluded from the migration (see commit c3ef067).
     'School/Chat/Index.vue',
     // Tailwind-utility modal pattern, documented exclusion.
@@ -197,6 +199,7 @@ const HEURISTIC_EXEMPT_RE = [
     /^Public\//,
     /\/Print\.vue$/,
     /^School\/UISandbox\.vue$/,
+    /^School\/UISandbox\//,
     /^School\/Chat\/Index\.vue$/,
     /^Admin\/Roles\/Matrix\.vue$/,
     // Pure print/PDF views
@@ -474,12 +477,29 @@ function loadPrimitives() {
 // ─── Sandbox coverage scan ──────────────────────────────────────
 
 function scanSandbox(primitives) {
-    const src = readFileSafe(SANDBOX_PATH);
-    if (src === null) {
-        return { ok: false, error: `Sandbox not found at ${SANDBOX_PATH}` };
+    // Collect every sandbox file: the landing UISandbox.vue plus every
+    // subpage in Pages/School/UISandbox/. Merge their script and template
+    // sections so coverage is evaluated across the whole multi-page sandbox.
+    const sandboxFiles = [];
+    if (existsSync(SANDBOX_PATH)) sandboxFiles.push(SANDBOX_PATH);
+    if (existsSync(SANDBOX_DIR)) {
+        for (const name of readdirSync(SANDBOX_DIR)) {
+            const p = join(SANDBOX_DIR, name);
+            if (statSync(p).isFile() && p.endsWith('.vue')) sandboxFiles.push(p);
+        }
     }
-    const script = extractScript(src);
-    const template = extractTemplate(src);
+    if (sandboxFiles.length === 0) {
+        return { ok: false, error: `No sandbox files found at ${SANDBOX_PATH} or ${SANDBOX_DIR}` };
+    }
+
+    let script = '';
+    let template = '';
+    for (const f of sandboxFiles) {
+        const s = readFileSafe(f);
+        if (s === null) continue;
+        script   += '\n' + extractScript(s);
+        template += '\n' + extractTemplate(s);
+    }
 
     const importedPrimitives = new Set();
     const importRe = /import\s+(\w+)\s+from\s+['"]@\/Components\/(?:ui\/)?(\w+)\.vue['"]/g;

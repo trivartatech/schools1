@@ -94,6 +94,16 @@ const sampleStudents = ref([
 
 const { sortKey, sortDir, toggleSort, sortRows } = useTableSort('name', 'asc');
 const sortedStudents = computed(() => sortRows(sampleStudents.value));
+
+// ── Sub-page navigation ─────────────────────────────────────────
+const subPages = [
+    { href: '/school/_ui-sandbox/buttons',     icon: '◉', title: 'Buttons',          sub: 'every variant × size × state × slot' },
+    { href: '/school/_ui-sandbox/forms',       icon: '⚭', title: 'Forms & Filters',  sub: 'FilterBar, DateRangeFilter, LedgerCombobox, SlidePanel, tokens' },
+    { href: '/school/_ui-sandbox/tables',      icon: '☷', title: 'Tables',           sub: 'density, striped, loading, empty + SortableTh' },
+    { href: '/school/_ui-sandbox/modals',      icon: '◫', title: 'Modals & Toasts',  sub: 'sizes, slots, persistent, useConfirm, useToast' },
+    { href: '/school/_ui-sandbox/components',  icon: '◇', title: 'Components',       sub: 'StatsRow, Tabs, EmptyState, PageHeader, IdCardQR, PermissionGate, pass cards' },
+    { href: '/school/_ui-sandbox/composables', icon: '⌥', title: 'Composables',      sub: 'useFormat, useDelete, useTableFilters, usePermissions, useClassSections' },
+];
 </script>
 
 <template>
@@ -102,13 +112,25 @@ const sortedStudents = computed(() => sortRows(sampleStudents.value));
         <!-- ─── PageHeader variants ─────────────────────────────────────── -->
         <PageHeader
             title="UI Sandbox"
-            subtitle="Visual QA for shared layout primitives — Phase 1 of the standardization migration."
+            subtitle="Canonical visual catalogue of every shared UI primitive. Browse a category below for the full coverage of each primitive."
         >
             <template #actions>
                 <Button variant="secondary" size="sm" as="link" href="/school">Back to dashboard</Button>
                 <Button size="sm" @click="toast.success('Hello from the sandbox')">Trigger toast</Button>
             </template>
         </PageHeader>
+
+        <!-- ─── Sub-page navigation ─────────────────────────────────────── -->
+        <h2 class="section-heading">Browse by category</h2>
+        <div class="ui-sandbox-nav">
+            <a v-for="link in subPages" :key="link.href" :href="link.href" class="ui-sandbox-nav__card">
+                <span class="ui-sandbox-nav__icon" aria-hidden="true">{{ link.icon }}</span>
+                <span class="ui-sandbox-nav__title">{{ link.title }}</span>
+                <span class="ui-sandbox-nav__sub">{{ link.sub }}</span>
+            </a>
+        </div>
+
+        <h2 class="section-heading">Quick reference (a small subset of each primitive — full coverage in the sub-pages)</h2>
 
         <h2 class="section-heading">PageHeader variants</h2>
 
@@ -516,4 +538,44 @@ const sortedStudents = computed(() => sortRows(sampleStudents.value));
     font-family: inherit;
 }
 .form-input:focus { border-color: var(--accent); outline: none; }
+
+/* ── Sub-page navigation cards ────────────────────────────────── */
+.ui-sandbox-nav {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+}
+.ui-sandbox-nav__card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 16px 18px;
+    background: var(--surface, #fff);
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 14px;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.ui-sandbox-nav__card:hover {
+    border-color: var(--accent, #6366f1);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+    transform: translateY(-1px);
+}
+.ui-sandbox-nav__icon {
+    font-size: 1.4rem;
+    color: var(--accent, #6366f1);
+    line-height: 1;
+}
+.ui-sandbox-nav__title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary, #0f172a);
+}
+.ui-sandbox-nav__sub {
+    font-size: 0.75rem;
+    color: var(--text-muted, #94a3b8);
+    line-height: 1.4;
+}
 </style>
