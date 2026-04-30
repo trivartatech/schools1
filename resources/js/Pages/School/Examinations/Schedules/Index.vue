@@ -1,11 +1,14 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
+import FilterBar from '@/Components/ui/FilterBar.vue';
 import { ref, computed, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import axios from 'axios';
 import Table from '@/Components/ui/Table.vue';
+import SortableTh from '@/Components/ui/SortableTh.vue';
+import { useTableSort } from '@/Composables/useTableSort';
 import { useConfirm } from '@/Composables/useConfirm';
 import { useToast } from '@/Composables/useToast';
 
@@ -26,6 +29,54 @@ const editingSchedule = ref(null);
 const processing = ref(false);
 const errors = ref({});
 const loadingSubjects = ref(false);
+
+// ─── List filters + sort (client-side; data isn't paginated) ───────────
+const search           = ref('');
+const filterExamTypeId = ref('');
+const filterClassId    = ref('');
+const filterStatus     = ref('');
+
+const filtersActive = computed(() =>
+    !!(search.value || filterExamTypeId.value || filterClassId.value || filterStatus.value)
+);
+function clearFilters() {
+    search.value = '';
+    filterExamTypeId.value = '';
+    filterClassId.value = '';
+    filterStatus.value = '';
+}
+
+const { sortKey, sortDir, toggleSort, sortRows } = useTableSort('', 'asc');
+
+const filteredSchedules = computed(() => {
+    let out = props.schedules || [];
+
+    if (filterExamTypeId.value) {
+        out = out.filter(s => String(s.exam_type_id) === String(filterExamTypeId.value));
+    }
+    if (filterClassId.value) {
+        out = out.filter(s => String(s.course_class_id) === String(filterClassId.value));
+    }
+    if (filterStatus.value) {
+        out = out.filter(s => s.status === filterStatus.value);
+    }
+    if (search.value) {
+        const q = search.value.toLowerCase();
+        out = out.filter(s =>
+            (s.exam_type?.name    || '').toLowerCase().includes(q) ||
+            (s.course_class?.name || '').toLowerCase().includes(q)
+        );
+    }
+
+    return sortRows(out, {
+        getValue: (row, key) => {
+            if (key === 'exam_type')    return row.exam_type?.name;
+            if (key === 'course_class') return row.course_class?.name;
+            if (key === 'weightage')    return Number(row.weightage ?? 0);
+            return row[key];
+        },
+    });
+});
 
 // ─── Form state ─────────────────────────────────────────
 const form = ref({
@@ -257,22 +308,45 @@ async function togglePublish(id, currentStatus) {
                 </template>
             </PageHeader>
 
+            <!-- Filters -->
+            <FilterBar :active="filtersActive" @clear="clearFilters">
+                <div class="fb-search fb-grow">
+                    <svg class="fb-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    <input v-model="search" type="search" placeholder="Search by exam type or class…">
+                </div>
+                <select v-model="filterExamTypeId" style="width:170px;">
+                    <option value="">All Exam Types</option>
+                    <option v-for="t in examTypes" :key="t.id" :value="t.id">{{ t.name }}</option>
+                </select>
+                <select v-model="filterClassId" style="width:160px;">
+                    <option value="">All Classes</option>
+                    <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </select>
+                <select v-model="filterStatus" style="width:140px;">
+                    <option value="">All Status</option>
+                    <option value="draft">Draft</option>
+                    <option value="published">Published</option>
+                </select>
+            </FilterBar>
+
             <div class="card">
                 <div class="card-body" style="padding:0; overflow-x:auto;">
-                    <Table>
+                    <Table :sort-key="sortKey" :sort-dir="sortDir" @sort="toggleSort">
                         <thead>
                             <tr>
-                                <th>Exam Type</th>
-                                <th>Class</th>
+                                <SortableTh sort-key="exam_type">Exam Type</SortableTh>
+                                <SortableTh sort-key="course_class">Class</SortableTh>
                                 <th>Sections</th>
-                                <th style="text-align:center;">Weightage</th>
+                                <SortableTh sort-key="weightage" align="center">Weightage</SortableTh>
                                 <th>Subjects</th>
-                                <th>Status</th>
+                                <SortableTh sort-key="status">Status</SortableTh>
                                 <th style="text-align:right">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="s in schedules" :key="s.id">
+                            <tr v-for="s in filteredSchedules" :key="s.id">
                                 <td><strong>{{ s.exam_type?.name }}</strong></td>
                                 <td>{{ s.course_class?.name }}</td>
                                 <td>
@@ -295,8 +369,10 @@ async function togglePublish(id, currentStatus) {
                                     <Button variant="danger" size="sm" @click="deleteSchedule(s.id)" class="ml-1.5">Delete</Button>
                                 </td>
                             </tr>
-                            <tr v-if="!schedules.length">
-                                <td colspan="7" style="text-align:center;padding:32px;color:#94a3b8;">No exam schedules yet.</td>
+                            <tr v-if="!filteredSchedules.length">
+                                <td colspan="7" style="text-align:center;padding:32px;color:#94a3b8;">
+                                    {{ filtersActive ? 'No exam schedules match the filters.' : 'No exam schedules yet.' }}
+                                </td>
                             </tr>
                         </tbody>
                     </Table>
