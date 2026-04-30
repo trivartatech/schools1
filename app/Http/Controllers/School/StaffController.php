@@ -29,39 +29,55 @@ class StaffController extends Controller
                 $q->whereHas('user', function($uq) use ($search) {
                     $uq->where('name', 'like', "%{$search}%")
                        ->orWhere('phone', 'like', "%{$search}%");
-                })->orWhere('employee_id', 'like', "%{$search}%");
+                })->orWhere('staff.employee_id', 'like', "%{$search}%");
             });
         }
 
         if ($statusFilter === 'current') {
-            $query->whereIn('status', ['active', 'on_leave']);
+            $query->whereIn('staff.status', ['active', 'on_leave']);
         } else {
-            $query->whereIn('status', ['inactive', 'resigned', 'terminated']);
+            $query->whereIn('staff.status', ['inactive', 'resigned', 'terminated']);
         }
 
         // ── Sort — allowlist prevents arbitrary column ordering ─────────────
-        $sortMap = [
-            'name'         => 'users.name',
-            'employee_id'  => 'staff.employee_id',
-            'department'   => 'departments.name',
-            'joining_date' => 'staff.joining_date',
-            'status'       => 'staff.status',
-        ];
+        // Relation-backed sorts use correlated subqueries instead of leftJoin
+        // to avoid `school_id` ambiguity with the Staff::tenant() scope (which
+        // adds an unqualified where('school_id', X)). Direct staff columns are
+        // ordered by qualified name.
         $sortKey = $request->input('sort');
         $sortDir = strtolower($request->input('dir', 'asc')) === 'desc' ? 'desc' : 'asc';
 
-        if ($sortKey && isset($sortMap[$sortKey])) {
-            if ($sortKey === 'name') {
-                $query->leftJoin('users', 'staff.user_id', '=', 'users.id')
-                      ->select('staff.*');
-            } elseif ($sortKey === 'department') {
-                $query->leftJoin('departments', 'staff.department_id', '=', 'departments.id')
-                      ->select('staff.*');
-            }
-            $query->orderBy($sortMap[$sortKey], $sortDir)
-                  ->orderBy('staff.id', 'asc');
-        } else {
-            $query->latest('staff.created_at');
+        $applied = true;
+        switch ($sortKey) {
+            case 'name':
+                $query->orderBy(
+                    DB::table('users')->select('name')->whereColumn('id', 'staff.user_id'),
+                    $sortDir
+                );
+                break;
+            case 'department':
+                $query->orderBy(
+                    DB::table('departments')->select('name')->whereColumn('id', 'staff.department_id'),
+                    $sortDir
+                );
+                break;
+            case 'employee_id':
+                $query->orderBy('staff.employee_id', $sortDir);
+                break;
+            case 'joining_date':
+                $query->orderBy('staff.joining_date', $sortDir);
+                break;
+            case 'status':
+                $query->orderBy('staff.status', $sortDir);
+                break;
+            default:
+                $applied = false;
+                $sortKey = null;
+                $query->latest('staff.created_at');
+                break;
+        }
+        if ($applied) {
+            $query->orderBy('staff.id', 'asc'); // stable secondary
         }
 
         $staff = $query->paginate(15)->withQueryString();
