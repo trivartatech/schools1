@@ -89,6 +89,9 @@ defineEmits(['clear'])
     padding: 0 12px;
     outline: none;
     box-shadow: none;
+    /* Override SchoolLayout's global `select, input[type="text"] { width: 100% }` —
+       FilterBar items should auto-size or use explicit inline width. */
+    width: auto;
     transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
 .fb-row :deep(input:not([type="checkbox"]):not([type="radio"]):focus),
@@ -125,7 +128,9 @@ defineEmits(['clear'])
     display: flex;
     align-items: center;
 }
-.fb-row :deep(.fb-search input) {
+/* Selector matches specificity of the normalize rule above so its
+   width:260px wins over the width:auto reset. */
+.fb-row :deep(.fb-search input:not([type="checkbox"]):not([type="radio"])) {
     padding-left: 34px;
     width: 260px;
 }
