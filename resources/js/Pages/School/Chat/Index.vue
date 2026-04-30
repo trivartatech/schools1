@@ -12,6 +12,7 @@ const confirm = useConfirm();
 const props = defineProps({
     conversations:   { type: Array, default: () => [] },
     available_users: { type: Array, default: () => [] },
+    classes:         { type: Array, default: () => [] },
     sections:        { type: Array, default: () => [] },
     active_id:       { type: Number, default: 0 },
 });
@@ -56,6 +57,51 @@ const groupName  = ref('');
 const groupUsers = ref([]);
 const bcastName  = ref('');
 const bcastUsers = ref([]);
+
+// ── Filters for the Create-Group / Create-Broadcast user pickers ─────────
+// Same shape, separate state so the two panels don't clobber each other.
+const groupFilters = ref({ type: '', classId: '', sectionId: '', search: '' });
+const bcastFilters = ref({ type: '', classId: '', sectionId: '', search: '' });
+
+// Reset section when class is cleared/changed (sections are class-scoped)
+watch(() => groupFilters.value.classId, () => { groupFilters.value.sectionId = ''; });
+watch(() => bcastFilters.value.classId, () => { bcastFilters.value.sectionId = ''; });
+
+// Build a filtered user list given the active filter set.
+// `staff` matches anything that's not student/parent (teacher, principal, admin, etc.)
+function applyUserFilters(users, f) {
+    let out = users;
+    if (f.type === 'staff') {
+        out = out.filter(u => !['student', 'parent'].includes(u.user_type));
+    } else if (f.type) {
+        out = out.filter(u => u.user_type === f.type);
+    }
+    if (f.classId) {
+        out = out.filter(u => String(u.class_id) === String(f.classId));
+    }
+    if (f.sectionId) {
+        out = out.filter(u => String(u.section_id) === String(f.sectionId));
+    }
+    if (f.search) {
+        const q = f.search.toLowerCase();
+        out = out.filter(u => u.name.toLowerCase().includes(q));
+    }
+    return out;
+}
+const filteredGroupUsers = computed(() => applyUserFilters(props.available_users, groupFilters.value));
+const filteredBcastUsers = computed(() => applyUserFilters(props.available_users, bcastFilters.value));
+
+// Sections scoped to the currently-picked class in each filter set
+const groupSections = computed(() => groupFilters.value.classId
+    ? props.sections.filter(s => String(s.class_id) === String(groupFilters.value.classId))
+    : props.sections);
+const bcastSections = computed(() => bcastFilters.value.classId
+    ? props.sections.filter(s => String(s.class_id) === String(bcastFilters.value.classId))
+    : props.sections);
+
+// Class/section dropdowns are only meaningful for student/parent picks (or "all").
+const groupShowClassFilter = computed(() => ['', 'student', 'parent'].includes(groupFilters.value.type));
+const bcastShowClassFilter = computed(() => ['', 'student', 'parent'].includes(bcastFilters.value.type));
 
 let pollTimer    = null;
 let convPollTimer = null;
@@ -435,11 +481,39 @@ onBeforeUnmount(() => {
                 <div v-if="showGroupForm" class="cs-new-panel">
                     <p class="cs-panel-label">Create Group</p>
                     <input v-model="groupName" placeholder="Group name..." class="cs-input" />
+
+                    <!-- Filters -->
+                    <div class="cs-filter-row">
+                        <select v-model="groupFilters.type" class="cs-filter-select">
+                            <option value="">All types</option>
+                            <option value="staff">Staff</option>
+                            <option value="student">Students</option>
+                            <option value="parent">Parents</option>
+                        </select>
+                        <select v-if="groupShowClassFilter" v-model="groupFilters.classId" class="cs-filter-select">
+                            <option value="">All classes</option>
+                            <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+                        </select>
+                        <select v-if="groupShowClassFilter" v-model="groupFilters.sectionId"
+                                :disabled="!groupFilters.classId" class="cs-filter-select">
+                            <option value="">{{ groupFilters.classId ? 'All sections' : 'Pick a class' }}</option>
+                            <option v-for="s in groupSections" :key="s.id" :value="s.id">{{ s.name }}</option>
+                        </select>
+                        <input v-model="groupFilters.search" placeholder="Search by name…" class="cs-filter-input" />
+                    </div>
+
+                    <p class="cs-selected-count">
+                        {{ groupUsers.length }} selected
+                        <button v-if="groupUsers.length" @click="groupUsers = []" class="cs-clear-link" type="button">clear</button>
+                    </p>
+
                     <div class="cs-user-check-list">
-                        <label v-for="u in available_users" :key="u.id" class="cs-check-item">
+                        <label v-for="u in filteredGroupUsers" :key="u.id" class="cs-check-item">
                             <input type="checkbox" :value="u.id" v-model="groupUsers" />
-                            <span>{{ u.name }}</span>
+                            <span class="cs-check-name">{{ u.name }}</span>
+                            <span class="cs-check-tag">{{ u.user_type }}</span>
                         </label>
+                        <p v-if="filteredGroupUsers.length === 0" class="cs-empty-mini">No users match these filters.</p>
                     </div>
                     <button @click="createGroup" class="cs-create-btn">Create Group</button>
                 </div>
@@ -448,11 +522,39 @@ onBeforeUnmount(() => {
                 <div v-if="showBroadcast" class="cs-new-panel">
                     <p class="cs-panel-label">Create Broadcast Channel</p>
                     <input v-model="bcastName" placeholder="Channel name..." class="cs-input" />
+
+                    <!-- Filters (same shape as Create Group) -->
+                    <div class="cs-filter-row">
+                        <select v-model="bcastFilters.type" class="cs-filter-select">
+                            <option value="">All types</option>
+                            <option value="staff">Staff</option>
+                            <option value="student">Students</option>
+                            <option value="parent">Parents</option>
+                        </select>
+                        <select v-if="bcastShowClassFilter" v-model="bcastFilters.classId" class="cs-filter-select">
+                            <option value="">All classes</option>
+                            <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+                        </select>
+                        <select v-if="bcastShowClassFilter" v-model="bcastFilters.sectionId"
+                                :disabled="!bcastFilters.classId" class="cs-filter-select">
+                            <option value="">{{ bcastFilters.classId ? 'All sections' : 'Pick a class' }}</option>
+                            <option v-for="s in bcastSections" :key="s.id" :value="s.id">{{ s.name }}</option>
+                        </select>
+                        <input v-model="bcastFilters.search" placeholder="Search by name…" class="cs-filter-input" />
+                    </div>
+
+                    <p class="cs-selected-count">
+                        {{ bcastUsers.length }} selected
+                        <button v-if="bcastUsers.length" @click="bcastUsers = []" class="cs-clear-link" type="button">clear</button>
+                    </p>
+
                     <div class="cs-user-check-list">
-                        <label v-for="u in available_users" :key="u.id" class="cs-check-item">
+                        <label v-for="u in filteredBcastUsers" :key="u.id" class="cs-check-item">
                             <input type="checkbox" :value="u.id" v-model="bcastUsers" />
-                            <span>{{ u.name }}</span>
+                            <span class="cs-check-name">{{ u.name }}</span>
+                            <span class="cs-check-tag">{{ u.user_type }}</span>
                         </label>
+                        <p v-if="filteredBcastUsers.length === 0" class="cs-empty-mini">No users match these filters.</p>
                     </div>
                     <button @click="createBroadcast" class="cs-create-btn">Create Broadcast</button>
                 </div>
@@ -820,7 +922,7 @@ onBeforeUnmount(() => {
     padding: 12px 14px;
     border-bottom: 1px solid #f1f5f9;
     background: #f8faff;
-    max-height: 280px;
+    max-height: 420px;
     overflow-y: auto;
 }
 
@@ -875,8 +977,38 @@ onBeforeUnmount(() => {
 .cs-user-name { font-size: 0.8rem; font-weight: 600; color: #1e293b; line-height: 1.2; }
 .cs-user-type { font-size: 0.7rem; color: #94a3b8; text-transform: capitalize; }
 
-.cs-user-check-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; max-height: 140px; overflow-y: auto; }
+.cs-user-check-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; max-height: 200px; overflow-y: auto; }
 .cs-check-item { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #374151; cursor: pointer; padding: 3px 0; }
+.cs-check-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-check-tag {
+    font-size: 0.625rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; color: #6366f1; background: #eef2ff;
+    padding: 2px 6px; border-radius: 6px; flex-shrink: 0;
+}
+
+/* ── Create Group / Broadcast filters ─────────────────────────────────── */
+.cs-filter-row {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;
+}
+.cs-filter-select, .cs-filter-input {
+    flex: 1 1 110px; min-width: 0; height: 30px;
+    padding: 0 8px; font-size: 0.75rem;
+    border: 1.5px solid #e2e8f0; border-radius: 7px;
+    background: #fff; color: #334155; outline: none;
+}
+.cs-filter-select:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+.cs-filter-select:focus, .cs-filter-input:focus { border-color: #6366f1; }
+
+.cs-selected-count {
+    font-size: 0.7rem; font-weight: 600; color: #64748b;
+    margin: 0 0 6px; display: flex; align-items: center; gap: 8px;
+}
+.cs-clear-link {
+    font-size: 0.7rem; color: #ef4444; background: none; border: none;
+    cursor: pointer; padding: 0; text-decoration: underline;
+}
+
+.cs-empty-mini { font-size: 0.75rem; color: #94a3b8; text-align: center; padding: 16px 8px; margin: 0; }
 
 .cs-create-btn {
     width: 100%;

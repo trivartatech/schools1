@@ -30,30 +30,77 @@ class ChatController extends Controller
         // Load all conversations this user participates in
         $conversations = $this->chatService->getConversationsForUser($user, $schoolId);
 
-        // Users available to start a DM or add to group (same school)
+        // Users available to start a DM or add to group (same school).
+        // Includes class_id / section_id (current academic year) for students
+        // and parents — drives the Create Group filters in the Vue page.
         $availableUsers = User::where('school_id', $schoolId)
             ->where('id', '!=', $user->id)
             ->where('is_active', true)
+            ->with([
+                'student.currentAcademicHistory:id,student_id,class_id,section_id',
+                'studentParent.students.currentAcademicHistory:id,student_id,class_id,section_id',
+            ])
             ->select('id', 'name', 'user_type', 'avatar')
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->map(function ($u) {
+                $type = $u->user_type instanceof \BackedEnum
+                    ? $u->user_type->value
+                    : (string) $u->user_type;
 
-        // Sections for group creation (admin/teacher)
+                $classId   = null;
+                $sectionId = null;
+
+                if ($type === 'student' && $u->student?->currentAcademicHistory) {
+                    $classId   = $u->student->currentAcademicHistory->class_id;
+                    $sectionId = $u->student->currentAcademicHistory->section_id;
+                } elseif ($type === 'parent' && $u->studentParent) {
+                    // Use the first child's class/section as a representative
+                    // tag — covers the common single-child case and gives the
+                    // class filter something to match against for multi-child.
+                    $firstChild = $u->studentParent->students->first();
+                    if ($firstChild?->currentAcademicHistory) {
+                        $classId   = $firstChild->currentAcademicHistory->class_id;
+                        $sectionId = $firstChild->currentAcademicHistory->section_id;
+                    }
+                }
+
+                return [
+                    'id'         => $u->id,
+                    'name'       => $u->name,
+                    'user_type'  => $type,
+                    'avatar'     => $u->avatar,
+                    'class_id'   => $classId,
+                    'section_id' => $sectionId,
+                ];
+            });
+
+        // Classes + sections for the group filters (admin/teacher only).
+        $classes  = [];
         $sections = [];
         if ($user->isSuperAdmin() || $user->isAdmin() || $user->isTeacher()) {
+            $classes = \App\Models\CourseClass::where('school_id', $schoolId)
+                ->orderBy('numeric_value')->orderBy('name')
+                ->get(['id', 'name']);
+
             $sections = Section::where('school_id', $schoolId)
                 ->forCurrentYear()
-                ->with('courseClass')
+                ->with('courseClass:id,name')
                 ->get()
                 ->map(fn($s) => [
-                    'id'   => $s->id,
-                    'name' => ($s->courseClass->name ?? '') . ' - ' . $s->name,
+                    'id'         => $s->id,
+                    'name'       => $s->name,
+                    'class_id'   => $s->course_class_id,
+                    'class_name' => $s->courseClass?->name,
+                    // Pre-formatted label for legacy callers
+                    'label'      => ($s->courseClass->name ?? '') . ' - ' . $s->name,
                 ]);
         }
 
         return Inertia::render('School/Chat/Index', [
             'conversations'   => $conversations,
             'available_users' => $availableUsers,
+            'classes'         => $classes,
             'sections'        => $sections,
             'active_id'       => $request->integer('conv'),
         ]);

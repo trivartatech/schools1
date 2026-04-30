@@ -6,7 +6,9 @@ use App\Models\ChatConversation;
 use App\Models\ChatMessage;
 use App\Models\ChatMessageRead;
 use App\Models\ChatParticipant;
+use App\Models\ClassSubject;
 use App\Models\Section;
+use App\Models\StudentAcademicHistory;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -162,53 +164,144 @@ class ChatService
         });
     }
 
-    // ── Create or update the section group for a Section ──────────────────
+    // ── Create or fetch the section group for a Section ──────────────────
+    // Thin wrapper around syncSection() — kept for backwards compatibility
+    // with existing callers (e.g. BackfillChatGroups command).
     public function ensureSectionGroup(Section $section, int $schoolId): ChatConversation
     {
-        $existing = ChatConversation::where('section_id', $section->id)
-            ->where('type', 'group')
+        return $this->syncSection($section);
+    }
+
+    // ── Single source of truth: ensure the section group exists AND its
+    // members match the current expected roster (class incharge, section
+    // incharge, subject teachers, all students in this section + their parents).
+    // Idempotent — call any time relevant assignments change. Manually-added
+    // admins are preserved; only auto-managed 'member' rows are pruned.
+    public function syncSection(Section $section): ChatConversation
+    {
+        $section->loadMissing('courseClass.inchargeStaff', 'inchargeStaff');
+
+        $conv = ChatConversation::where('section_id', $section->id)
             ->where('group_type', 'section_group')
             ->first();
 
-        if ($existing) return $existing;
-
-        return DB::transaction(function () use ($section, $schoolId) {
+        if (!$conv) {
             $className = $section->courseClass->name ?? 'Class';
             $conv = ChatConversation::create([
-                'school_id'         => $schoolId,
+                'school_id'         => $section->school_id,
                 'type'              => 'group',
                 'group_type'        => 'section_group',
                 'name'              => $className . ' - ' . $section->name,
                 'section_id'        => $section->id,
                 'is_system_managed' => true,
-                'created_by'        => 1, // System user ID – admin
+                'created_by'        => optional(User::where('school_id', $section->school_id)
+                    ->whereIn('user_type', ['school_admin', 'principal', 'super_admin'])->first())->id ?? 1,
             ]);
+        }
 
-            // Add incharge teacher if present
-            if ($section->incharge_staff_id) {
-                $teacherStaff = $section->inchargeStaff;
-                if ($teacherStaff?->user_id) {
-                    ChatParticipant::firstOrCreate([
-                        'conversation_id' => $conv->id,
-                        'user_id'         => $teacherStaff->user_id,
-                    ], ['role' => 'admin', 'joined_at' => now()]);
+        $expectedAdmins  = $this->expectedSectionAdmins($section);
+        $expectedMembers = $this->expectedSectionMembers($section); // includes admins
+        $allExpected     = array_values(array_unique(array_merge($expectedAdmins, $expectedMembers)));
+
+        // Add or promote each expected user
+        foreach ($allExpected as $uid) {
+            $shouldBeAdmin = in_array($uid, $expectedAdmins, true);
+            $existing = ChatParticipant::where('conversation_id', $conv->id)
+                ->where('user_id', $uid)
+                ->first();
+
+            if ($existing) {
+                // Promote to admin if expected — never auto-demote (a manual
+                // admin promotion should survive auto-sync).
+                if ($shouldBeAdmin && $existing->role !== 'admin') {
+                    $existing->update(['role' => 'admin']);
                 }
+            } else {
+                ChatParticipant::create([
+                    'conversation_id' => $conv->id,
+                    'user_id'         => $uid,
+                    'role'            => $shouldBeAdmin ? 'admin' : 'member',
+                    'joined_at'       => now(),
+                ]);
             }
+        }
 
-            return $conv;
-        });
+        // Prune auto-managed members no longer in the expected roster.
+        // Admins (manual or otherwise) stay — protects against accidental
+        // removal of staff who were promoted by hand.
+        if ($conv->is_system_managed) {
+            ChatParticipant::where('conversation_id', $conv->id)
+                ->where('role', 'member')
+                ->whereNotIn('user_id', $allExpected ?: [0])
+                ->delete();
+        }
+
+        return $conv;
     }
 
-    // ── Sync section group members when section assignments change ─────────
+    /** User IDs that should be admins of the section group. */
+    private function expectedSectionAdmins(Section $section): array
+    {
+        $ids = collect();
+
+        if ($section->inchargeStaff?->user_id) {
+            $ids->push($section->inchargeStaff->user_id);
+        }
+        if ($section->courseClass?->inchargeStaff?->user_id) {
+            $ids->push($section->courseClass->inchargeStaff->user_id);
+        }
+
+        // Subject teachers — for class-level rows (section_id null) or this section.
+        $subjectTeacherIds = ClassSubject::where('course_class_id', $section->course_class_id)
+            ->where(function ($q) use ($section) {
+                $q->where('section_id', $section->id)->orWhereNull('section_id');
+            })
+            ->whereNotNull('incharge_staff_id')
+            ->with('inchargeStaff:id,user_id')
+            ->get()
+            ->pluck('inchargeStaff.user_id');
+
+        return $ids->merge($subjectTeacherIds)->filter()->unique()->values()->all();
+    }
+
+    /** Full user-id roster for the section group (admins + students + parents). */
+    private function expectedSectionMembers(Section $section): array
+    {
+        $admins = $this->expectedSectionAdmins($section);
+
+        $ayId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
+
+        $studentUserIds = StudentAcademicHistory::where('section_id', $section->id)
+            ->when($ayId, fn ($q) => $q->where('academic_year_id', $ayId))
+            ->join('students', 'students.id', '=', 'student_academic_histories.student_id')
+            ->whereNotNull('students.user_id')
+            ->pluck('students.user_id');
+
+        $parentUserIds = StudentAcademicHistory::where('section_id', $section->id)
+            ->when($ayId, fn ($q) => $q->where('academic_year_id', $ayId))
+            ->join('students', 'students.id', '=', 'student_academic_histories.student_id')
+            ->join('parents', 'parents.id', '=', 'students.parent_id')
+            ->whereNotNull('parents.user_id')
+            ->pluck('parents.user_id');
+
+        return collect($admins)
+            ->merge($studentUserIds)
+            ->merge($parentUserIds)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    // ── Legacy helper kept for any external caller ─────────────────────────
+    // Prefer syncSection() — it computes the expected roster itself.
     public function syncSectionGroupMembers(Section $section, array $userIds): void
     {
         $conv = ChatConversation::where('section_id', $section->id)
             ->where('group_type', 'section_group')
             ->first();
-
         if (!$conv) return;
 
-        // Add new members
         foreach ($userIds as $uid) {
             ChatParticipant::firstOrCreate(
                 ['conversation_id' => $conv->id, 'user_id' => $uid],
@@ -216,10 +309,9 @@ class ChatService
             );
         }
 
-        // Remove members not in the list (except admins)
         ChatParticipant::where('conversation_id', $conv->id)
             ->where('role', 'member')
-            ->whereNotIn('user_id', $userIds)
+            ->whereNotIn('user_id', $userIds ?: [0])
             ->delete();
     }
 

@@ -116,21 +116,8 @@ class InchargeController extends Controller
         $previousStaffId = $section->incharge_staff_id;
         $section->update(['incharge_staff_id' => $request->staff_id]);
 
-        // Sync new section incharge to the section's group chat
-        if ($request->staff_id) {
-            $staff = Staff::with('user')->find($request->staff_id);
-            if ($staff?->user_id) {
-                $conv = \App\Models\ChatConversation::where('section_id', $section->id)
-                    ->where('group_type', 'section_group')
-                    ->first();
-                if ($conv) {
-                    \App\Models\ChatParticipant::updateOrCreate(
-                        ['conversation_id' => $conv->id, 'user_id' => $staff->user_id],
-                        ['role' => 'admin', 'joined_at' => now()]
-                    );
-                }
-            }
-        }
+        // Section chat-group membership is auto-synced by SectionObserver
+        // when `incharge_staff_id` changes — no manual sync needed here.
 
         $this->clearScopeCaches($previousStaffId, $request->staff_id);
 

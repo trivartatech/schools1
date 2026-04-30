@@ -112,6 +112,14 @@ class AppServiceProvider extends ServiceProvider
         Expense::observe(ExpenseGLObserver::class);
         Payroll::observe(PayrollGLObserver::class);
 
+        // Section chat-group auto-sync — keeps the section_group conversation
+        // membership in step with current incharge / subject-teacher / student
+        // assignments. Each observer delegates to ChatService::syncSection().
+        \App\Models\Section::observe(\App\Observers\SectionObserver::class);
+        \App\Models\CourseClass::observe(\App\Observers\CourseClassObserver::class);
+        \App\Models\ClassSubject::observe(\App\Observers\ClassSubjectObserver::class);
+        \App\Models\StudentAcademicHistory::observe(\App\Observers\StudentAcademicHistoryObserver::class);
+
         // Log Viewer — token-based auth independent of ERP login.
         // Access: /log-viewer?token=<LOG_VIEWER_SECRET>
         // Once the token is verified it's stored in the session for the duration of the session.
