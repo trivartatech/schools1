@@ -96,6 +96,8 @@ class ExamScheduleController extends Controller
         if (!$request->user()->can('manage_exam_schedules')) abort(403);
 
         $schoolId = app('current_school_id');
+        $this->normalizeScheduleInput($request);
+
         $validated = $request->validate([
             'exam_type_id'      => ['required', Rule::exists('exam_types', 'id')->where('school_id', $schoolId)],
             'course_class_id'   => ['required', Rule::exists('course_classes', 'id')->where('school_id', $schoolId)],
@@ -164,6 +166,8 @@ class ExamScheduleController extends Controller
         abort_if($examSchedule->school_id !== app('current_school_id'), 403);
 
         $schoolId = app('current_school_id');
+        $this->normalizeScheduleInput($request);
+
         $validated = $request->validate([
             'exam_type_id'      => ['required', Rule::exists('exam_types', 'id')->where('school_id', $schoolId)],
             'course_class_id'   => ['required', Rule::exists('course_classes', 'id')->where('school_id', $schoolId)],
@@ -311,5 +315,41 @@ class ExamScheduleController extends Controller
         }
         
         return redirect('/school/exam-schedules')->with('success', "Exam Schedule status changed to {$newStatus}.");
+    }
+
+    /**
+     * Coerce '' → null on nullable fields and drop blank mark rows so the
+     * validator doesn't reject the request just because the form sent
+     * empty-strings instead of absent values. Mutates the request in place.
+     */
+    private function normalizeScheduleInput(Request $request): void
+    {
+        $payload = $request->all();
+
+        foreach (['scholastic_grading_system_id', 'co_scholastic_grading_system_id'] as $k) {
+            if (isset($payload[$k]) && $payload[$k] === '') $payload[$k] = null;
+        }
+
+        if (is_array($payload['subjects'] ?? null)) {
+            foreach ($payload['subjects'] as &$s) {
+                foreach (['exam_assessment_id', 'exam_date', 'exam_time', 'duration_minutes'] as $k) {
+                    if (isset($s[$k]) && $s[$k] === '') $s[$k] = null;
+                }
+                // Drop empty mark rows — keep a row only if all three required
+                // fields have a non-empty value. This stops a half-filled form
+                // line from tripping `required` validation.
+                if (is_array($s['marks'] ?? null)) {
+                    $s['marks'] = array_values(array_filter($s['marks'], function ($m) {
+                        return isset($m['exam_assessment_item_id'], $m['max_marks'], $m['passing_marks'])
+                            && $m['exam_assessment_item_id'] !== ''
+                            && $m['max_marks'] !== ''
+                            && $m['passing_marks'] !== '';
+                    }));
+                }
+            }
+            unset($s);
+        }
+
+        $request->merge($payload);
     }
 }

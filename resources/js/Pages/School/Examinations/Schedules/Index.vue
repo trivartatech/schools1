@@ -290,6 +290,47 @@ function handleAssessmentChange(sub) {
     }
 }
 
+// Friendly labels for the most common nested validation paths so the
+// toast shows the user *which* row is bad, not the raw Laravel key.
+function humanizeErrorKey(key, payload) {
+    // Match: subjects.<i>.marks.<j>.<field>
+    const subMark = key.match(/^subjects\.(\d+)\.marks\.(\d+)\.(\w+)/);
+    if (subMark) {
+        const [, subIdx, markIdx, field] = subMark;
+        const subj = payload?.subjects?.[+subIdx];
+        const subName = subj?.subject_name || subj?.subject_code || `subject #${+subIdx + 1}`;
+        const fieldNice = ({
+            max_marks: 'max marks',
+            passing_marks: 'passing marks',
+            exam_assessment_item_id: 'assessment item',
+        })[field] || field;
+        return `${subName} → assessment item #${+markIdx + 1}: ${fieldNice} is required or invalid`;
+    }
+    // Match: subjects.<i>.<field>
+    const subFld = key.match(/^subjects\.(\d+)\.(\w+)/);
+    if (subFld) {
+        const [, subIdx, field] = subFld;
+        const subj = payload?.subjects?.[+subIdx];
+        const subName = subj?.subject_name || subj?.subject_code || `subject #${+subIdx + 1}`;
+        const fieldNice = ({
+            exam_assessment_id: 'assessment / mark scheme',
+            exam_date: 'exam date',
+            exam_time: 'exam time (must be HH:MM)',
+            duration_minutes: 'duration (minutes)',
+        })[field] || field;
+        return `${subName}: ${fieldNice} is invalid`;
+    }
+    // Top-level
+    return ({
+        exam_type_id:    'Exam Type is required',
+        course_class_id: 'Class is required',
+        section_ids:     'Pick at least one section',
+        weightage:       'Weightage must be 0–100',
+        scholastic_grading_system_id:    'Scholastic Grading Scale is invalid',
+        co_scholastic_grading_system_id: 'Co-Scholastic Grading Scale is invalid',
+    })[key] || `${key} is invalid`;
+}
+
 function submit() {
     if (processing.value) return; // prevent double-submit while a request is in flight
     const payload = JSON.parse(JSON.stringify(form.value));
@@ -299,9 +340,17 @@ function submit() {
         errors.value = e;
         if (e?.subjects && typeof e.subjects === 'string') {
             toast.error(e.subjects);
-        } else if (Object.keys(e || {}).length) {
-            toast.error('Please fix the highlighted fields and try again.');
+            return;
         }
+        const keys = Object.keys(e || {});
+        if (!keys.length) return;
+        // Show up to 3 specific messages so user knows what to fix without
+        // being buried in error spam from a 20-row form.
+        const messages = keys.slice(0, 3).map(k => humanizeErrorKey(k, payload));
+        if (keys.length > 3) {
+            messages.push(`…and ${keys.length - 3} more`);
+        }
+        toast.error(messages.join('\n'));
     };
     if (view.value === 'edit') {
         router.put(`/school/exam-schedules/${editingSchedule.value.id}`, payload, {
