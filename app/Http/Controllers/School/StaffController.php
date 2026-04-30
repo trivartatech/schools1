@@ -146,11 +146,15 @@ class StaffController extends Controller
     {
         abort_if($staff->school_id !== app('current_school_id'), 403);
 
-        $staff->load(['user', 'department', 'designation.parent']);
+        $staff->load([
+            'user.roles:id,name',
+            'department',
+            'designation.parent',
+        ]);
 
         $schoolId = app('current_school_id');
 
-        // Load leave counts (tenant-scoped)
+        // ── Leave counts (tenant-scoped) ────────────────────────────────────
         $leaveStats = \App\Models\Leave::where('school_id', $schoolId)
             ->where('user_id', $staff->user_id)
             ->selectRaw('status, count(*) as total')
@@ -158,16 +162,124 @@ class StaffController extends Controller
             ->pluck('total', 'status')
             ->toArray();
 
-        // Load recent payrolls (tenant-scoped)
+        // ── Recent leaves with type relation (last 10) ──────────────────────
+        // Note: the `leave_type` column collides with the `leaveType` relation
+        // accessor key (both serialize as `leave_type`), so we eager-load the
+        // relation, then project a flat shape with a separate `type_name` field.
+        $recentLeaves = \App\Models\Leave::where('school_id', $schoolId)
+            ->where('user_id', $staff->user_id)
+            ->with(['leaveType:id,name'])
+            ->orderByDesc('start_date')
+            ->take(10)
+            ->get()
+            ->map(fn ($lv) => [
+                'id'         => $lv->id,
+                'type_name'  => $lv->leaveType?->name ?: $lv->leave_type,
+                'start_date' => $lv->start_date,
+                'end_date'   => $lv->end_date,
+                'reason'     => $lv->reason,
+                'status'     => $lv->status,
+            ]);
+
+        // ── Recent payrolls (last 6 months, tenant-scoped) ──────────────────
+        // `allowances` and `deductions` are JSON arrays of {name, amount}
+        // objects, so totals must be computed server-side for the table.
         $payrolls = \App\Models\Payroll::where('school_id', $schoolId)
             ->where('staff_id', $staff->id)
             ->orderByDesc('year')->orderByDesc('month')
-            ->take(6)->get();
+            ->take(6)->get()
+            ->map(function ($p) {
+                $allowancesTotal = collect($p->allowances ?? [])->sum('amount');
+                $deductionsTotal = collect($p->deductions ?? [])->sum('amount');
+                return [
+                    'id'                => $p->id,
+                    'month'             => $p->month,
+                    'year'              => $p->year,
+                    'basic_pay'         => $p->basic_pay,
+                    'allowances_total'  => round((float) $allowancesTotal, 2),
+                    'deductions_total'  => round((float) $deductionsTotal, 2),
+                    'net_salary'        => $p->net_salary,
+                    'status'            => $p->status,
+                    'payment_date'      => $p->payment_date,
+                ];
+            });
+
+        // ── Career history (joining/promotion/transfer/etc.) ────────────────
+        $careerHistory = \App\Models\StaffHistory::where('staff_id', $staff->id)
+            ->with([
+                'fromDesignation:id,name',
+                'toDesignation:id,name',
+                'fromDepartment:id,name',
+                'toDepartment:id,name',
+                'recordedBy:id,name',
+            ])
+            ->orderByDesc('effective_date')
+            ->take(15)
+            ->get();
+
+        // ── Attendance summary for current academic year ────────────────────
+        $currentAy = \App\Models\AcademicYear::where('school_id', $schoolId)
+            ->where('is_current', true)->first();
+
+        $ayStart = $currentAy?->start_date ?? now()->startOfYear();
+        $ayEnd   = $currentAy?->end_date   ?? now()->endOfYear();
+
+        $attRows = \App\Models\StaffAttendance::where('school_id', $schoolId)
+            ->where('staff_id', $staff->id)
+            ->whereBetween('date', [$ayStart, $ayEnd])
+            ->selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status')
+            ->toArray();
+
+        $attendanceSummary = [
+            'total'    => array_sum($attRows),
+            'present'  => (int) ($attRows['present']  ?? 0),
+            'absent'   => (int) ($attRows['absent']   ?? 0),
+            'late'     => (int) ($attRows['late']     ?? 0),
+            'half_day' => (int) ($attRows['half_day'] ?? 0),
+            'leave'    => (int) ($attRows['leave']    ?? 0),
+            'holiday'  => (int) ($attRows['holiday']  ?? 0),
+        ];
+
+        // ── Monthly attendance breakdown (current AY) ───────────────────────
+        $monthlyRows = \App\Models\StaffAttendance::where('school_id', $schoolId)
+            ->where('staff_id', $staff->id)
+            ->whereBetween('date', [$ayStart, $ayEnd])
+            ->selectRaw("DATE_FORMAT(date, '%Y-%m') as ym, status, count(*) as total")
+            ->groupBy('ym', 'status')
+            ->orderBy('ym')
+            ->get();
+
+        $monthlyAttendance = [];
+        foreach ($monthlyRows as $row) {
+            $label = \Carbon\Carbon::createFromFormat('Y-m', $row->ym)->format('F Y');
+            if (!isset($monthlyAttendance[$label])) {
+                $monthlyAttendance[$label] = [
+                    'total' => 0, 'present' => 0, 'absent' => 0,
+                    'late' => 0, 'half_day' => 0, 'leave' => 0,
+                ];
+            }
+            $monthlyAttendance[$label][$row->status] = (int) $row->total;
+            $monthlyAttendance[$label]['total']     += (int) $row->total;
+        }
+
+        // ── Roles assigned as Incharge (informational) ──────────────────────
+        $inchargeStats = [
+            'classes'  => \App\Models\CourseClass::where('incharge_staff_id', $staff->id)->where('school_id', $schoolId)->count(),
+            'sections' => \App\Models\Section::where('incharge_staff_id', $staff->id)->where('school_id', $schoolId)->count(),
+            'subjects' => \App\Models\ClassSubject::where('incharge_staff_id', $staff->id)->where('school_id', $schoolId)->count(),
+        ];
 
         return Inertia::render('School/Staff/Show', [
-            'staff'      => $staff,
-            'leaveStats' => $leaveStats,
-            'payrolls'   => $payrolls,
+            'staff'             => $staff,
+            'leaveStats'        => $leaveStats,
+            'recentLeaves'      => $recentLeaves,
+            'payrolls'          => $payrolls,
+            'careerHistory'     => $careerHistory,
+            'attendanceSummary' => $attendanceSummary,
+            'monthlyAttendance' => $monthlyAttendance,
+            'inchargeStats'     => $inchargeStats,
         ]);
     }
 
