@@ -31,3 +31,6 @@ Thumbs.db
 # Legacy-ERP source Excel dumps (contain PII — never commit)
 /importent file/
 /storage/app/migrations/
+
+# Mobile app lives in its own git repo at github.com/trivartatech/schools1-mobile
+/mobile app/
