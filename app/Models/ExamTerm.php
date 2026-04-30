@@ -14,6 +14,7 @@ class ExamTerm extends Model
         'academic_year_id',
         'name',
         'display_name',
+        'sort_order',
     ];
 
     public function school()

@@ -21,11 +21,13 @@ class ExamTypeController extends Controller
             ->where('school_id', app('current_school_id'))
             ->where('academic_year_id', app('current_academic_year_id'))
             ->orderBy('exam_term_id')
+            ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
 
         $terms = ExamTerm::where('school_id', app('current_school_id'))
             ->where('academic_year_id', app('current_academic_year_id'))
+            ->orderBy('sort_order')->orderBy('id')
             ->get(['id', 'name', 'display_name']);
 
         return Inertia::render('School/Examinations/Types/Index', [
@@ -46,7 +48,16 @@ class ExamTypeController extends Controller
             'code'           => 'nullable|string|max:50',
             'display_name'   => 'nullable|string|max:255',
             'classification' => 'required|in:main,periodic,unit_test',
+            'sort_order'     => 'nullable|integer|min:0|max:65535',
         ]);
+
+        // Auto-assign next available rank within the chosen term.
+        if (! isset($validated['sort_order'])) {
+            $validated['sort_order'] = (int) ExamType::where('school_id', app('current_school_id'))
+                ->where('academic_year_id', app('current_academic_year_id'))
+                ->where('exam_term_id', $validated['exam_term_id'])
+                ->max('sort_order') + 1;
+        }
 
         ExamType::create(array_merge($validated, [
             'school_id'        => app('current_school_id'),
@@ -69,6 +80,7 @@ class ExamTypeController extends Controller
             'code'           => 'nullable|string|max:50',
             'display_name'   => 'nullable|string|max:255',
             'classification' => 'required|in:main,periodic,unit_test',
+            'sort_order'     => 'nullable|integer|min:0|max:65535',
         ]);
 
         $examType->update($validated);

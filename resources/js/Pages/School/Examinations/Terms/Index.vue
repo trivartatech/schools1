@@ -21,7 +21,8 @@ const isEditing = ref(false);
 const form = useForm({
     id: null,
     name: '',
-    display_name: ''
+    display_name: '',
+    sort_order: null,
 });
 
 const openCreateForm = () => {
@@ -35,6 +36,7 @@ const editTerm = (t) => {
     form.id = t.id;
     form.name = t.name;
     form.display_name = t.display_name;
+    form.sort_order = t.sort_order;
     isFormOpen.value = true;
 };
 
@@ -89,7 +91,7 @@ const deleteTerm = async (id) => {
                 <Table>
                     <thead>
                         <tr>
-                            <th class="w-16">ID</th>
+                            <th class="w-16">Order</th>
                             <th>Term Name</th>
                             <th>Display Name</th>
                             <th class="w-24 text-right">Actions</th>
@@ -100,7 +102,10 @@ const deleteTerm = async (id) => {
                             <td colspan="4" class="text-center py-8 text-gray-500">No exam terms created yet.</td>
                         </tr>
                         <tr v-for="t in terms" :key="t.id">
-                            <td class="text-gray-500 font-mono text-xs">#{{ t.id }}</td>
+                            <td>
+                                <span class="badge badge-blue">{{ t.sort_order ?? 0 }}</span>
+                                <span class="text-gray-400 font-mono text-[10px] ml-1.5">#{{ t.id }}</span>
+                            </td>
                             <td class="font-medium text-gray-900">{{ t.name }}</td>
                             <td class="text-gray-600">{{ t.display_name || '-' }}</td>
                             <td class="text-right">
@@ -152,6 +157,15 @@ const deleteTerm = async (id) => {
                             <input v-model="form.display_name" type="text" placeholder="e.g., First Term Examination" />
                             <span v-if="form.errors.display_name" class="form-error">{{ form.errors.display_name }}</span>
                             <div class="text-xs text-gray-500 mt-1">How it should appear on report cards.</div>
+                        </div>
+
+                        <div class="form-field">
+                            <label>Order</label>
+                            <input v-model.number="form.sort_order" type="number" min="0" placeholder="Auto-assigned if blank" />
+                            <span v-if="form.errors.sort_order" class="form-error">{{ form.errors.sort_order }}</span>
+                            <div class="text-xs text-gray-500 mt-1">
+                                Rank used to sort terms in lists (lowest first). Leave blank when adding to append at the end.
+                            </div>
                         </div>
 
                         <div class="mt-6">

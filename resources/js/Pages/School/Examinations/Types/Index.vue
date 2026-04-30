@@ -25,7 +25,8 @@ const form = useForm({
     name: '',
     code: '',
     display_name: '',
-    classification: 'main'
+    classification: 'main',
+    sort_order: null,
 });
 
 const openCreateForm = () => {
@@ -42,6 +43,7 @@ const editType = (t) => {
     form.code = t.code;
     form.display_name = t.display_name;
     form.classification = t.classification;
+    form.sort_order = t.sort_order;
     isFormOpen.value = true;
 };
 
@@ -110,7 +112,7 @@ const getClassificationBadge = (val) => {
                 <Table>
                     <thead>
                         <tr>
-                            <th class="w-16">ID</th>
+                            <th class="w-20">Order</th>
                             <th>Term</th>
                             <th>Exam Name</th>
                             <th>Code</th>
@@ -123,7 +125,10 @@ const getClassificationBadge = (val) => {
                             <td colspan="6" class="text-center py-8 text-gray-500">No exam types created yet.</td>
                         </tr>
                         <tr v-for="t in types" :key="t.id">
-                            <td class="text-gray-500 font-mono text-xs">#{{ t.id }}</td>
+                            <td>
+                                <span class="badge badge-blue">{{ t.sort_order ?? 0 }}</span>
+                                <span class="text-gray-400 font-mono text-[10px] ml-1.5">#{{ t.id }}</span>
+                            </td>
                             <td>
                                 <span class="badge badge-gray">{{ t.exam_term?.name || 'Unknown' }}</span>
                             </td>
@@ -214,6 +219,15 @@ const getClassificationBadge = (val) => {
                             <div class="text-xs text-gray-500 mt-1">
                                 Weightage is now set per exam schedule (per class) under
                                 <strong>Exam Schedules</strong>, so different classes can weight the same exam type differently.
+                            </div>
+                        </div>
+
+                        <div class="form-field">
+                            <label>Order</label>
+                            <input v-model.number="form.sort_order" type="number" min="0" placeholder="Auto-assigned if blank" />
+                            <span v-if="form.errors.sort_order" class="form-error">{{ form.errors.sort_order }}</span>
+                            <div class="text-xs text-gray-500 mt-1">
+                                Rank within the chosen term (lowest first). Leave blank when adding to append at the end.
                             </div>
                         </div>
 

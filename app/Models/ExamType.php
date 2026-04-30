@@ -17,6 +17,7 @@ class ExamType extends Model
         'code',
         'display_name',
         'classification',
+        'sort_order',
     ];
 
     public function school()

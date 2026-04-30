@@ -18,6 +18,7 @@ class ExamTermController extends Controller
 
         $terms = ExamTerm::where('school_id', app('current_school_id'))
             ->where('academic_year_id', app('current_academic_year_id'))
+            ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
 
@@ -35,13 +36,22 @@ class ExamTermController extends Controller
         $validated = $request->validate([
             'name'         => 'required|string|max:255',
             'display_name' => 'nullable|string|max:255',
+            'sort_order'   => 'nullable|integer|min:0|max:65535',
         ]);
+
+        // Auto-assign next available rank when the admin leaves it blank.
+        if (! isset($validated['sort_order'])) {
+            $validated['sort_order'] = (int) ExamTerm::where('school_id', app('current_school_id'))
+                ->where('academic_year_id', app('current_academic_year_id'))
+                ->max('sort_order') + 1;
+        }
 
         ExamTerm::create([
             'school_id'        => app('current_school_id'),
             'academic_year_id' => app('current_academic_year_id'),
             'name'             => $validated['name'],
-            'display_name'     => $validated['display_name'],
+            'display_name'     => $validated['display_name'] ?? null,
+            'sort_order'       => $validated['sort_order'],
         ]);
 
         return back()->with('success', 'Exam Term created successfully.');
@@ -57,6 +67,7 @@ class ExamTermController extends Controller
         $validated = $request->validate([
             'name'         => 'required|string|max:255',
             'display_name' => 'nullable|string|max:255',
+            'sort_order'   => 'nullable|integer|min:0|max:65535',
         ]);
 
         $examTerm->update($validated);
