@@ -21,6 +21,39 @@ const props = defineProps({
 const page = usePage();
 const { can, canAccess, isTeacher, isStudent, isParent, isAdmin, isAccountant, isDriver, isSchoolManagement, userType, filteredSidebarMenu } = usePermissions();
 
+// ── Floating widgets auto-hide on scroll ────────────────────────────
+// ChatWidget + AiChatbot live at the bottom-right and were covering
+// buttons that sit in the same zone (especially on the dashboard).
+// Hide them while the user scrolls down, bring them back at the top
+// of the page or on scroll-up. Pointer-events are released too, so
+// hidden widgets never block clicks on underlying content.
+// NOTE: only opacity + pointer-events change — no transform — because
+// transforming the parent would re-anchor the fixed-position children
+// and shift the bubbles off their corners.
+const widgetsVisible = ref(true);
+let lastWidgetScrollY = 0;
+let widgetScrollTicking = false;
+function _updateWidgetsVisibility() {
+    const y = window.scrollY || window.pageYOffset || 0;
+    if (y < 60) {
+        widgetsVisible.value = true;                  // at the top: always show
+    } else if (y > lastWidgetScrollY + 8) {
+        widgetsVisible.value = false;                 // scrolling down
+    } else if (y < lastWidgetScrollY - 8) {
+        widgetsVisible.value = true;                  // scrolling up
+    }
+    lastWidgetScrollY = y;
+    widgetScrollTicking = false;
+}
+function _onWidgetsScroll() {
+    if (!widgetScrollTicking) {
+        widgetScrollTicking = true;
+        requestAnimationFrame(_updateWidgetsVisibility);
+    }
+}
+onMounted(() => window.addEventListener('scroll', _onWidgetsScroll, { passive: true }));
+onUnmounted(() => window.removeEventListener('scroll', _onWidgetsScroll));
+
 // User Profile Modal
 const showProfileModal = ref(false);
 const profileForm = useForm({
@@ -852,11 +885,12 @@ const canSeeUserManagement = computed(() => {
         </div>
     </div>
 
-    <!-- ── Floating Chat Widget ── -->
-    <ChatWidget />
-
-    <!-- ── AI Assistant Chatbot ── -->
-    <AiChatbot />
+    <!-- ── Floating widgets — auto-hidden when scrolling down so they
+         never block underlying buttons ─────────────────────────── -->
+    <div :class="['floating-widgets', { 'floating-widgets--hidden': !widgetsVisible }]">
+        <ChatWidget />
+        <AiChatbot />
+    </div>
 </template>
 
 <style>
@@ -1991,4 +2025,16 @@ label {
 .stat-icon-red    { background: #fee2e2; color: var(--danger); }
 .stat-icon-blue   { background: #dbeafe; color: #2563eb; }
 .stat-icon-purple { background: #ede9fe; color: #7c3aed; }
+
+/* ── Floating widgets auto-hide wrapper ─────────────────────────── */
+/* Wraps ChatWidget + AiChatbot. We toggle opacity + pointer-events
+   only — never transform — so the fixed-position children inside
+   keep their bottom: 24px / right: 24px anchors. */
+.floating-widgets {
+    transition: opacity 0.22s ease-out;
+}
+.floating-widgets--hidden {
+    opacity: 0;
+    pointer-events: none;
+}
 </style>
