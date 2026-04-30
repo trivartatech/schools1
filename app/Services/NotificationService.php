@@ -641,7 +641,7 @@ class NotificationService
         foreach ($students as $student) {
             $data = [
                 'name'        => $student->name,
-                'subject'     => $diary->subject ?? 'General',
+                'subject'     => $diary->subject?->name ?? 'General',
                 'date'        => Format::date($diary->entry_date ?? $diary->created_at),
                 'course_name' => $student->currentAcademicHistory?->courseClass?->name ?? '',
                 'batch_name'  => $student->currentAcademicHistory?->section?->name ?? '',
@@ -683,7 +683,7 @@ class NotificationService
             $data = [
                 'name'        => $student->name,
                 'title'       => $assignment->title ?? 'New Assignment',
-                'subject'     => $assignment->subject ?? 'General',
+                'subject'     => $assignment->subject?->name ?? 'General',
                 'due_date'    => $dueDate,
                 'course_name' => $student->currentAcademicHistory?->courseClass?->name ?? '',
                 'batch_name'  => $student->currentAcademicHistory?->section?->name ?? '',
