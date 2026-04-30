@@ -84,6 +84,14 @@ Route::post('/login',   [\App\Http\Controllers\AuthController::class, 'apiLogin'
     ->middleware('throttle:10,1')
     ->name('api.login');
 
+// QR-only login — parent scans their child's printed/digital ID card,
+// the student UUID resolves to the primary parent account, token issued.
+// SECURITY NOTE: anyone holding the card can log in. Throttled the same
+// as /login to slow brute-forcing UUIDs.
+Route::post('/scan-id-card-login', [\App\Http\Controllers\AuthController::class, 'apiScanIdCardLogin'])
+    ->middleware('throttle:10,1')
+    ->name('api.scan-id-card-login');
+
 // Bus status — auth'd but outside the /mobile prefix because the mobile app
 // polls /api/bus/status directly. Returns the live state of the parent's
 // active child's bus (or own bus for students).

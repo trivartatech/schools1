@@ -254,6 +254,118 @@ class AuthController extends Controller
     }
 
     /**
+     * POST /api/scan-id-card-login
+     *
+     * Public endpoint — scan a student's printed/digital ID card QR and
+     * sign in as their primary parent. No password, no OTP.
+     *
+     * Body: { payload, device_token?, device_type? }
+     *   - payload: raw QR contents (either bare UUID or "/q/<uuid>" URL)
+     *
+     * SECURITY: anyone holding the ID card can log in. The card UUID is
+     * a pure bearer credential; treat lost cards like lost passwords.
+     * Throttled to 10/min by route middleware to slow UUID enumeration.
+     *
+     * Response shape mirrors apiLogin() so the mobile AuthContext can
+     * reuse the same login pipeline (token + user + school).
+     */
+    public function apiScanIdCardLogin(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
+    {
+        $request->validate([
+            'payload'      => 'required|string|max:512',
+            'device_token' => 'nullable|string',
+            'device_type'  => 'nullable|string',
+        ]);
+
+        // Accept either bare UUID or "/q/<uuid>" URL — same shape the web
+        // QRScanner.vue and the mobile rapidScanAttendance accept.
+        $raw  = trim($request->input('payload'));
+        $uuid = preg_match('~/q/([^/?#]+)~', $raw, $m) ? $m[1] : $raw;
+
+        $student = \App\Models\Student::with(['studentParent.user', 'school'])
+            ->where('uuid', $uuid)
+            ->first();
+
+        if (!$student) {
+            return response()->json(['message' => 'QR code not recognised.'], 404);
+        }
+
+        $parentUser = $student->studentParent?->user;
+        if (!$parentUser) {
+            return response()->json([
+                'message' => 'This student has no parent account linked. Please ask the school office to add one.',
+            ], 422);
+        }
+        if (!$parentUser->is_active) {
+            return response()->json([
+                'message' => 'Parent account is deactivated. Please contact the school office.',
+            ], 403);
+        }
+
+        if ($request->filled('device_token')) {
+            $parentUser->update(['fcm_token' => $request->device_token]);
+        }
+        $parentUser->update([
+            'last_login_at' => now(),
+            'last_login_ip' => $request->ip(),
+        ]);
+
+        // Same multi-device token pattern as apiLogin so the parent can stay
+        // signed in on multiple devices and a same-device re-scan revokes
+        // only that device's previous token.
+        $deviceName = trim((string) ($request->input('device_type') ?: $request->input('device_token') ?: ''));
+        if ($deviceName === '') {
+            $deviceName = 'mobile-' . substr(sha1((string) $request->userAgent() . $request->ip()), 0, 10);
+        }
+        $tokenName = 'mobile:' . substr($deviceName, 0, 120);
+
+        $parentUser->tokens()->where('name', $tokenName)->delete();
+        $token = $parentUser->createToken($tokenName, ['*'], now()->addDays(30));
+
+        $school = $student->school
+            ?? ($parentUser->school_id ? \App\Models\School::find($parentUser->school_id) : null);
+
+        $safeSchool = $school ? [
+            'id'          => $school->id,
+            'name'        => $school->name,
+            'logo'        => $school->logo,
+            'currency'    => $school->currency ?? '₹',
+            'timezone'    => $school->timezone ?? 'Asia/Kolkata',
+            'date_format' => $school->settings['date_format'] ?? 'DD/MM/YYYY',
+            'time_format' => $school->settings['time_format'] ?? 'h:mm A',
+        ] : null;
+
+        // Audit log — write a row so security review can spot abuse.
+        \Illuminate\Support\Facades\Log::info('qr-login', [
+            'student_id'      => $student->id,
+            'student_uuid'    => $uuid,
+            'parent_user_id'  => $parentUser->id,
+            'school_id'       => $school?->id,
+            'ip'              => $request->ip(),
+            'user_agent'      => substr((string) $request->userAgent(), 0, 200),
+        ]);
+
+        return response()->json([
+            'token'   => $token->plainTextToken,
+            'expires' => $token->accessToken->expires_at?->toIso8601String(),
+            'user'    => [
+                'id'        => $parentUser->id,
+                'name'      => $parentUser->name,
+                'email'     => $parentUser->email,
+                'phone'     => $parentUser->phone,
+                'user_type' => $parentUser->user_type,
+                'avatar'    => $parentUser->avatar,
+                'school_id' => $parentUser->school_id,
+            ],
+            'school'  => $safeSchool,
+            'student' => [
+                'id'   => $student->id,
+                'name' => $student->name,
+            ],
+        ]);
+    }
+
+    /**
      * POST /api/mobile/refresh — revoke current token and issue a fresh one.
      * Preserves the device-specific token name so multi-device sessions
      * remain independent.
