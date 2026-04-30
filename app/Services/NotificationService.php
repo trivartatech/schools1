@@ -845,12 +845,13 @@ class NotificationService
             $parent  = $student->studentParent;
             if (!$parent || !$parent->primary_phone) continue;
 
+            $examTypeName = $examSchedule->examType?->name ?? 'Exam';
             $data = [
                 'name'       => $student->name,
-                'title'      => $examSchedule->examType->name,
+                'title'      => $examTypeName,
                 'datetime'   => now()->format('d-M-y H:i'),
-                'class_name' => $class->name,
-                'type'       => $examSchedule->examType->name
+                'class_name' => $class?->name ?? '',
+                'type'       => $examTypeName,
             ];
 
             if ($smsTemplate) {
