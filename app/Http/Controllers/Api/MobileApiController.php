@@ -4739,6 +4739,10 @@ class MobileApiController extends Controller
             }
         }
 
+        // Auto-promote 'present' → 'late' when scanned past the student late
+        // threshold (configurable at /school/settings/attendance-timings).
+        $status = $school->resolveStudentAttendanceStatus('present');
+
         \App\Models\Attendance::updateOrCreate(
             [
                 'school_id'  => $school->id,
@@ -4749,14 +4753,16 @@ class MobileApiController extends Controller
                 'academic_year_id' => $yearId,
                 'class_id'         => $history->class_id,
                 'section_id'       => $history->section_id,
-                'status'           => 'present',
+                'status'           => $status,
                 'marked_by'        => $user->id,
             ]
         );
 
         return response()->json([
             'success'   => true,
-            'message'   => 'Attendance marked Present.',
+            'message'   => $status === 'late'
+                ? 'Marked late (after ' . $school->lateThresholdFor('student') . ').'
+                : 'Attendance marked Present.',
             'student'   => [
                 'id'           => $student->id,
                 'name'         => $student->name,
@@ -4993,6 +4999,10 @@ class MobileApiController extends Controller
             }
         }
 
+        // Auto-promote 'present' → 'late' when scanned past the student late
+        // threshold (configurable at /school/settings/attendance-timings).
+        $status = $school->resolveStudentAttendanceStatus('present');
+
         \App\Models\Attendance::updateOrCreate(
             [
                 'school_id'  => $school->id,
@@ -5003,7 +5013,7 @@ class MobileApiController extends Controller
                 'academic_year_id' => $yearId,
                 'class_id'         => $history->class_id,
                 'section_id'       => $history->section_id,
-                'status'           => 'present',
+                'status'           => $status,
                 'marked_by'        => $user->id,
             ]
         );
@@ -5011,7 +5021,9 @@ class MobileApiController extends Controller
         return [
             'kind'      => 'student',
             'success'   => true,
-            'message'   => 'Attendance marked Present.',
+            'message'   => $status === 'late'
+                ? 'Marked late (after ' . $school->lateThresholdFor('student') . ').'
+                : 'Attendance marked Present.',
             'student'   => [
                 'id'           => $student->id,
                 'name'         => $student->name,

@@ -137,4 +137,24 @@ class School extends Model
         }
         return (bool) $val;
     }
+
+    /**
+     * Apply the student late threshold to a requested status. Used by the QR
+     * scan paths (web + mobile) so that hitting "Present" past the cutoff
+     * silently records 'late' instead.
+     *
+     * Only auto-promotes 'present' → 'late'. Explicit picks ('absent', 'late',
+     * 'half_day', 'leave') pass through unchanged so a staffer's deliberate
+     * choice always wins.
+     */
+    public function resolveStudentAttendanceStatus(string $requested, ?\Carbon\Carbon $when = null): string
+    {
+        if ($requested !== 'present') return $requested;
+
+        $when = $when ?? now();
+        $threshold = $this->lateThresholdFor('student', $when);
+        $time = \Carbon\Carbon::parse($when->format('H:i:s'));
+
+        return $time->gt(\Carbon\Carbon::parse($threshold)) ? 'late' : 'present';
+    }
 }

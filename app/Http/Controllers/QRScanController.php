@@ -74,6 +74,12 @@ class QRScanController extends Controller
             }
         }
 
+        // Auto-promote a "Present" tap to "Late" once the configured student
+        // late threshold has passed. Configured at /school/settings/attendance-timings.
+        // Other explicit picks (absent / late / half_day / leave) pass through.
+        $school = \App\Models\School::find($schoolId);
+        $status = $school?->resolveStudentAttendanceStatus($request->status) ?? $request->status;
+
         \App\Models\Attendance::updateOrCreate(
             [
                 'school_id'  => $schoolId,
@@ -84,11 +90,16 @@ class QRScanController extends Controller
                 'academic_year_id' => $academicYearId,
                 'class_id'         => $history->class_id,
                 'section_id'       => $history->section_id,
-                'status'           => $request->status,
+                'status'           => $status,
                 'marked_by'        => auth()->id(),
             ]
         );
 
-        return back()->with('success', 'Attendance marked successfully.');
+        $promoted = $request->status === 'present' && $status === 'late';
+        $message = $promoted
+            ? 'Marked late (after ' . $school->lateThresholdFor('student') . ').'
+            : 'Attendance marked successfully.';
+
+        return back()->with('success', $message);
     }
 }
