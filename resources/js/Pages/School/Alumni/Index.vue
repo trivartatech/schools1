@@ -222,11 +222,11 @@ const sortedAlumni = computed(() => sortRows(props.alumni.data || [], {
                 <svg class="fb-search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
                 <input v-model="search" placeholder="Search by name or admission no..." />
             </div>
-            <select v-model="passoutYear">
+            <select v-model="passoutYear" style="width:160px;">
                 <option value="">All Batches</option>
                 <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
             </select>
-            <select v-model="finalClass">
+            <select v-model="finalClass" style="width:160px;">
                 <option value="">All Classes</option>
                 <option v-for="c in classes" :key="c" :value="c">{{ c }}</option>
             </select>

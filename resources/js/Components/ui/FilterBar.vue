@@ -65,8 +65,11 @@ defineEmits(['clear'])
     gap: 10px;
     flex-wrap: nowrap;          /* enforce single row */
     min-height: 38px;
-    width: max-content;          /* let the row size to its contents so overflow-x scrolls cleanly */
-    min-width: 100%;             /* but always fill the container */
+    /* Default flex container width (100% of .fb) is enough — children
+       have flex-shrink:0, so when they sum past the visible width they
+       overflow naturally and .fb's overflow-x:auto shows the scrollbar.
+       Setting width:max-content here caused short rows to render with
+       unexpected stretching in some browsers. */
 }
 
 /* Inputs and selects must not shrink below their natural width */
