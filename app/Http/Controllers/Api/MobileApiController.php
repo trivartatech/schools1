@@ -3151,27 +3151,33 @@ class MobileApiController extends Controller
     {
         $user      = $request->user();
         $school    = app('current_school');
-        $yearId    = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
         $studentId = $this->resolveStudentId($user, $request);
 
-        if (!$studentId || !$yearId) {
+        if (!$studentId) {
             return response()->json(['schedules' => []]);
         }
 
-        $history = StudentAcademicHistory::where('student_id', $studentId)
-            ->where('academic_year_id', $yearId)
-            ->first();
+        // Same loosening as reportCards(): surface every class the student
+        // has been enrolled in across years, not just the current-year row.
+        // Older code returned empty if the student wasn't yet rolled over
+        // into the new academic year — even though previous-year results
+        // should still be visible.
+        $enrolledClassIds = StudentAcademicHistory::where('student_id', $studentId)
+            ->pluck('class_id')
+            ->unique()
+            ->values();
 
-        if (!$history) {
+        if ($enrolledClassIds->isEmpty()) {
             return response()->json(['schedules' => []]);
         }
 
-        // Published exam schedules for this student's class
+        // Published exam schedules for any class the student has been in.
         $schedules = \App\Models\ExamSchedule::where('school_id', $school->id)
-            ->where('academic_year_id', $yearId)
-            ->where('course_class_id', $history->class_id)
+            ->whereIn('course_class_id', $enrolledClassIds)
             ->where('status', 'published')
             ->with(['examType:id,name,code'])
+            ->orderByDesc('academic_year_id')
+            ->orderByDesc('id')
             ->get();
 
         // For each schedule, attach the student's marks
@@ -3662,30 +3668,33 @@ class MobileApiController extends Controller
     {
         $user      = $request->user();
         $school    = app('current_school');
-        $yearId    = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
         $studentId = $this->resolveStudentId($user, $request);
 
         if (!$studentId) {
             return response()->json(['data' => []]);
         }
 
-        $history = StudentAcademicHistory::where('student_id', $studentId)
-            ->when($yearId, fn($q) => $q->where('academic_year_id', $yearId))
-            ->latest()
-            ->first();
+        // Collect every class the student has been enrolled in across all
+        // academic years. Older code filtered the history by current_year_id
+        // and returned empty if the student wasn't yet rolled over for the
+        // new year — even though previous-year report cards should still be
+        // visible to parents. Now we surface all published schedules for any
+        // class the student has been enrolled in (sorted newest first).
+        $enrolledClassIds = StudentAcademicHistory::where('student_id', $studentId)
+            ->pluck('class_id')
+            ->unique()
+            ->values();
 
-        if (!$history) {
+        if ($enrolledClassIds->isEmpty()) {
             return response()->json(['data' => []]);
         }
 
-        // Get published exam schedules for this class. Eager-load markConfigs
-        // so the per-schedule max_marks is computed from the same source the
-        // mark-entry screen wrote them to (web ExamResultController already
-        // uses this; the mobile endpoint was the lone hold-out — same bug
-        // we just fixed in /mobile/results).
+        // Get all PUBLISHED exam schedules for any class the student has
+        // been enrolled in. Eager-load markConfigs so the per-schedule
+        // max_marks is computed from the same source the mark-entry screen
+        // wrote them to.
         $schedules = ExamSchedule::where('school_id', $school->id)
-            ->when($yearId, fn($q) => $q->where('academic_year_id', $yearId))
-            ->where('course_class_id', $history->class_id)
+            ->whereIn('course_class_id', $enrolledClassIds)
             ->where('status', 'published')
             ->with([
                 'examType:id,name,code',
@@ -3694,7 +3703,8 @@ class MobileApiController extends Controller
                 'scheduleSubjects.markConfigs:id,exam_schedule_subject_id,max_marks,passing_marks',
                 'scheduleSubjects.examAssessment.items:id,exam_assessment_id,max_marks',
             ])
-            ->latest()
+            ->orderByDesc('academic_year_id')
+            ->orderByDesc('id')
             ->get();
 
         $reportCards = $schedules->map(function ($schedule) use ($studentId) {
