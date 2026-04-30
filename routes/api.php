@@ -140,6 +140,7 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     Route::get('/students/{id}',              [$MA, 'studentDetail'])->whereNumber('id')->name('api.mobile.students.detail');
     Route::get('/class-options',              [$MA, 'classOptions'])->name('api.mobile.class-options');
     Route::get('/teachers',                   [$MA, 'teacherList'])->name('api.mobile.teachers');
+    Route::get('/staff',                      [$MA, 'staffList'])->name('api.mobile.staff');
 
     // Profile
     Route::get('/profile',                    [$MA, 'profile'])->name('api.mobile.profile');

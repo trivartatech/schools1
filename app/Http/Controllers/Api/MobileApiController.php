@@ -660,6 +660,63 @@ class MobileApiController extends Controller
         ]);
     }
 
+    /**
+     * GET /mobile/staff — full staff directory.
+     *
+     * Returns all active staff members (teachers, drivers, gatekeepers,
+     * office, admin, etc.) — not just teachers like /mobile/teachers does.
+     * Includes contact info + role + department for the mobile staff
+     * directory screen, mirroring the web's /school/staff page.
+     */
+    public function staffList(Request $request): JsonResponse
+    {
+        $school = app('current_school');
+        $search = $request->input('search', '');
+        $roleFilter = $request->input('role'); // optional: 'teacher', 'driver', etc.
+
+        $query = \App\Models\Staff::where('school_id', $school->id)
+            ->whereIn('status', ['active', 'on_leave'])
+            ->with(['user:id,name,email,phone,user_type,avatar', 'department', 'designation']);
+
+        if ($search) {
+            $needle = trim($search);
+            $query->where(function ($q) use ($needle) {
+                $q->whereHas('user', fn($uq) => $uq
+                    ->where('name', 'like', "%{$needle}%")
+                    ->orWhere('phone', 'like', "%{$needle}%")
+                    ->orWhere('email', 'like', "%{$needle}%"))
+                  ->orWhere('staff.employee_id', 'like', "%{$needle}%");
+            });
+        }
+
+        if ($roleFilter) {
+            $query->whereHas('user', fn($q) => $q->where('user_type', $roleFilter));
+        }
+
+        $staff = $query->orderBy('id')->paginate(50);
+
+        return response()->json([
+            'data' => $staff->map(function ($s) {
+                return [
+                    'id'            => $s->id,
+                    'name'          => $s->user?->name,
+                    'email'         => $s->user?->email,
+                    'phone'         => $s->user?->phone,
+                    'role'          => $s->user?->user_type,
+                    'employee_id'   => $s->employee_id ?? null,
+                    'employee_code' => $s->employee_code ?? null,
+                    'designation'   => is_object($s->designation) ? ($s->designation->name ?? null) : $s->designation,
+                    'department'    => is_object($s->department)  ? ($s->department->name  ?? null) : $s->department,
+                ];
+            }),
+            'meta' => [
+                'current_page' => $staff->currentPage(),
+                'last_page'    => $staff->lastPage(),
+                'total'        => $staff->total(),
+            ],
+        ]);
+    }
+
     // ── Child List (parent multi-child) ───────────────────────────────────────
 
     public function children(Request $request): JsonResponse
