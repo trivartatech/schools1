@@ -3678,12 +3678,22 @@ class MobileApiController extends Controller
             return response()->json(['data' => []]);
         }
 
-        // Get published exam schedules for this class
+        // Get published exam schedules for this class. Eager-load markConfigs
+        // so the per-schedule max_marks is computed from the same source the
+        // mark-entry screen wrote them to (web ExamResultController already
+        // uses this; the mobile endpoint was the lone hold-out — same bug
+        // we just fixed in /mobile/results).
         $schedules = ExamSchedule::where('school_id', $school->id)
             ->when($yearId, fn($q) => $q->where('academic_year_id', $yearId))
             ->where('course_class_id', $history->class_id)
             ->where('status', 'published')
-            ->with(['examType:id,name,code', 'academicYear:id,name', 'scheduleSubjects.subject:id,name'])
+            ->with([
+                'examType:id,name,code',
+                'academicYear:id,name',
+                'scheduleSubjects.subject:id,name',
+                'scheduleSubjects.markConfigs:id,exam_schedule_subject_id,max_marks,passing_marks',
+                'scheduleSubjects.examAssessment.items:id,exam_assessment_id,max_marks',
+            ])
             ->latest()
             ->get();
 
@@ -3698,7 +3708,14 @@ class MobileApiController extends Controller
                     ->get();
 
                 $obtained = $marks->sum('marks_obtained');
-                $maxMarks = $ss->max_marks ?? $marks->count() * 100;
+
+                // max_marks lives on markConfigs (per-schedule override). Fall
+                // back to the master assessment template only when no per-
+                // schedule override exists. Never silently assume "n × 100".
+                $maxMarks = (int) $ss->markConfigs->sum('max_marks');
+                if ($maxMarks === 0) {
+                    $maxMarks = (int) ($ss->examAssessment?->items?->sum('max_marks') ?? 0);
+                }
 
                 $totalObtained += $obtained;
                 $totalMax += $maxMarks;
@@ -3708,7 +3725,7 @@ class MobileApiController extends Controller
                     'marks_obtained' => round($obtained, 1),
                     'max_marks'      => $maxMarks,
                     'grade'          => $this->calculateGrade($obtained, $maxMarks),
-                    'is_absent'      => $marks->contains('is_absent', true),
+                    'is_absent'      => $marks->isNotEmpty() && $marks->contains('is_absent', true),
                 ];
             }
 
