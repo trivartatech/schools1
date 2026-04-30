@@ -4891,6 +4891,184 @@ class MobileApiController extends Controller
     }
 
     /**
+     * POST /mobile/attendance/scan
+     * Unified rapid-scan — accepts either a student QR or a staff QR and
+     * routes to the appropriate side. Used by the single combined scanner
+     * shown to admin + gate keeper roles.
+     *
+     * Payload: { "payload": "<raw-qr-data>" }
+     *
+     * Detection heuristic:
+     *   1. Pattern hints first: `/q/<uuid>` → student, `/staff/<code>` or
+     *      `staff:<code>` → staff.
+     *   2. Bare UUID format → student.
+     *   3. Else: try student lookup first, then staff. If neither matches,
+     *      404 "QR not recognised".
+     *
+     * Returns `{ kind: 'student'|'staff', success, ... }`.
+     */
+    public function unifiedRapidScan(Request $request): JsonResponse
+    {
+        $user   = $request->user();
+        $school = app('current_school');
+        $yearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
+
+        $userType = $user->user_type instanceof \BackedEnum ? $user->user_type->value : (string) $user->user_type;
+        // Allow management roles (full marker) + gate keeper / front office.
+        // Teachers can mark students but not staff — handled below.
+        $allowedRoles = ['admin', 'school_admin', 'principal', 'super_admin', 'teacher', 'staff', 'front_gate_keeper', 'front_office'];
+        if (!in_array($userType, $allowedRoles)) {
+            return response()->json(['error' => 'Unauthorized.'], 403);
+        }
+        if (!$yearId) {
+            return response()->json(['error' => 'No active academic year found.'], 422);
+        }
+
+        $request->validate(['payload' => 'required|string|max:512']);
+        $raw = trim($request->payload);
+
+        $isStudentUrl  = (bool) preg_match('~/q/([^/?#]+)~', $raw);
+        $isStaffUrl    = (bool) preg_match('~/staff/([^/?#]+)~', $raw);
+        $isStaffPrefix = (bool) preg_match('~^staff:~i', $raw);
+        $isUuidFormat  = (bool) preg_match('~^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$~i', $raw);
+
+        if ($isStudentUrl || ($isUuidFormat && !$isStaffPrefix && !$isStaffUrl)) {
+            $tryOrder = ['student', 'staff'];
+        } elseif ($isStaffUrl || $isStaffPrefix) {
+            $tryOrder = ['staff', 'student'];
+        } else {
+            $tryOrder = ['student', 'staff'];
+        }
+
+        $canMarkStaff = in_array($userType, ['admin', 'school_admin', 'principal', 'super_admin', 'front_gate_keeper']);
+
+        foreach ($tryOrder as $kind) {
+            if ($kind === 'student') {
+                $resp = $this->scanMarkStudent($raw, $user, $school, $yearId);
+                if ($resp !== null) return response()->json($resp);
+            } elseif ($canMarkStaff) {
+                $resp = $this->scanMarkStaff($raw, $user, $school);
+                if ($resp !== null) return response()->json($resp);
+            }
+        }
+
+        return response()->json([
+            'error' => 'QR not recognised — neither a student nor an active staff record matched.',
+        ], 404);
+    }
+
+    /** Helper for unifiedRapidScan — returns response array on match, null on no-match. */
+    private function scanMarkStudent(string $raw, $user, $school, ?int $yearId): ?array
+    {
+        $uuid = preg_match('~/q/([^/?#]+)~', $raw, $m) ? $m[1] : $raw;
+
+        $student = \App\Models\Student::with(['currentAcademicHistory.courseClass', 'currentAcademicHistory.section'])
+            ->where('school_id', $school->id)
+            ->where('uuid', $uuid)
+            ->first();
+
+        if (!$student) return null;
+
+        $history = $student->currentAcademicHistory;
+        if (!$history) {
+            return [
+                'kind'    => 'student',
+                'success' => false,
+                'message' => "{$student->name} has no active academic record.",
+            ];
+        }
+
+        if ($user->isTeacher()) {
+            $scope = app(TeacherScopeService::class)->for($user);
+            if ($scope->restricted && ! $scope->sectionIds->contains($history->section_id)) {
+                return [
+                    'kind'    => 'student',
+                    'success' => false,
+                    'message' => 'You are not authorized to mark this student.',
+                ];
+            }
+        }
+
+        \App\Models\Attendance::updateOrCreate(
+            [
+                'school_id'  => $school->id,
+                'student_id' => $student->id,
+                'date'       => now()->toDateString(),
+            ],
+            [
+                'academic_year_id' => $yearId,
+                'class_id'         => $history->class_id,
+                'section_id'       => $history->section_id,
+                'status'           => 'present',
+                'marked_by'        => $user->id,
+            ]
+        );
+
+        return [
+            'kind'      => 'student',
+            'success'   => true,
+            'message'   => 'Attendance marked Present.',
+            'student'   => [
+                'id'           => $student->id,
+                'name'         => $student->name,
+                'admission_no' => $student->admission_no,
+                'class_name'   => $history->courseClass->name ?? 'N/A',
+                'section_name' => $history->section->name ?? '',
+                'photo_url'    => $this->publicFileUrl($student->photo),
+            ],
+            'timestamp' => now()->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    /** Helper for unifiedRapidScan — returns response array on match, null on no-match. */
+    private function scanMarkStaff(string $raw, $user, $school): ?array
+    {
+        if (preg_match('~/staff/([^/?#]+)~', $raw, $m))      $code = $m[1];
+        elseif (preg_match('~^staff:(.+)$~i', $raw, $m))     $code = trim($m[1]);
+        else                                                 $code = $raw;
+
+        $staff = \App\Models\Staff::with(['user:id,name', 'designation:id,name'])
+            ->where('school_id', $school->id)
+            ->where('employee_id', $code)
+            ->where('status', 'active')
+            ->first();
+
+        if (!$staff) return null;
+
+        $lateThreshold = $school->settings['late_threshold'] ?? '09:30';
+        $now           = now()->format('H:i:s');
+        $status        = Carbon::parse($now)->gt(Carbon::parse($lateThreshold)) ? 'late' : 'present';
+
+        StaffAttendance::updateOrCreate(
+            [
+                'school_id' => $school->id,
+                'staff_id'  => $staff->id,
+                'date'      => now()->toDateString(),
+            ],
+            [
+                'status'    => $status,
+                'check_in'  => $now,
+                'marked_by' => $user->id,
+            ]
+        );
+
+        return [
+            'kind'      => 'staff',
+            'success'   => true,
+            'message'   => $status === 'late' ? 'Marked Late.' : 'Marked Present.',
+            'staff'     => [
+                'id'          => $staff->id,
+                'employee_id' => $staff->employee_id,
+                'name'        => $staff->user?->name ?? 'Unknown',
+                'designation' => $staff->designation?->name ?? '',
+                'photo_url'   => $this->publicFileUrl($staff->photo ?? null),
+            ],
+            'status'    => $status,
+            'timestamp' => now()->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    /**
      * POST /mobile/students/lookup-by-uuid
      * Resolves a scanned student QR (raw uuid or "/q/<uuid>" url) to the
      * minimum info the app needs to navigate into StudentDetailScreen.

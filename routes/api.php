@@ -316,6 +316,9 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     Route::get('/attendance/admin/forecast',  [$MA, 'attendanceForecast'])->name('api.mobile.attendance.admin.forecast');
     Route::post('/attendance/rapid-scan',       [$MA, 'rapidScanAttendance'])->name('api.mobile.attendance.rapid-scan');
     Route::post('/staff-attendance/rapid-scan', [$MA, 'rapidScanStaffAttendance'])->name('api.mobile.staff-attendance.rapid-scan');
+    // Unified scan — auto-detects student vs staff from the QR payload.
+    // Used by the single combined scanner shown to admin + gate keeper.
+    Route::post('/attendance/scan',             [$MA, 'unifiedRapidScan'])->name('api.mobile.attendance.scan');
     Route::get('/staff-qr/me',                  [$MA, 'staffQrSelf'])->name('api.mobile.staff-qr.me');
 
     // AI Insights (admin-only; delegates to AiInsightsController)
