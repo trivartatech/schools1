@@ -20,6 +20,10 @@
  * Helper classes (use inside the slot):
  *   .fb-search        — wraps a search input + icon (relative container)
  *   .fb-search-icon   — the SVG icon inside .fb-search
+ *   .fb-grow          — opt-in modifier on any direct child to flex-grow and
+ *                       fill remaining row space (e.g. on a .fb-search wrapper
+ *                       when the page has only a few filters and you want the
+ *                       search field to span the row).
  */
 defineProps({
     active: { type: Boolean, default: false },
@@ -154,5 +158,14 @@ defineEmits(['clear'])
     background: #fef2f2;
     border-color: #fca5a5;
     color: #ef4444;
+}
+
+/* ── Grow modifier — opt-in: makes a child fill remaining row space ── */
+.fb-row :deep(.fb-grow) {
+    flex: 1 1 auto;
+    min-width: 220px;
+}
+.fb-row :deep(.fb-search.fb-grow input) {
+    width: 100%;
 }
 </style>

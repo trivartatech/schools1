@@ -39,11 +39,41 @@ class StaffController extends Controller
             $query->whereIn('status', ['inactive', 'resigned', 'terminated']);
         }
 
-        $staff = $query->latest()->paginate(15)->withQueryString();
-            
+        // ── Sort — allowlist prevents arbitrary column ordering ─────────────
+        $sortMap = [
+            'name'         => 'users.name',
+            'employee_id'  => 'staff.employee_id',
+            'department'   => 'departments.name',
+            'joining_date' => 'staff.joining_date',
+            'status'       => 'staff.status',
+        ];
+        $sortKey = $request->input('sort');
+        $sortDir = strtolower($request->input('dir', 'asc')) === 'desc' ? 'desc' : 'asc';
+
+        if ($sortKey && isset($sortMap[$sortKey])) {
+            if ($sortKey === 'name') {
+                $query->leftJoin('users', 'staff.user_id', '=', 'users.id')
+                      ->select('staff.*');
+            } elseif ($sortKey === 'department') {
+                $query->leftJoin('departments', 'staff.department_id', '=', 'departments.id')
+                      ->select('staff.*');
+            }
+            $query->orderBy($sortMap[$sortKey], $sortDir)
+                  ->orderBy('staff.id', 'asc');
+        } else {
+            $query->latest('staff.created_at');
+        }
+
+        $staff = $query->paginate(15)->withQueryString();
+
         return Inertia::render('School/Staff/Index', [
             'staff' => $staff,
-            'filters' => ['status' => $statusFilter, 'search' => $search]
+            'filters' => [
+                'status' => $statusFilter,
+                'search' => $search,
+                'sort'   => $sortKey,
+                'dir'    => $sortDir,
+            ],
         ]);
     }
 

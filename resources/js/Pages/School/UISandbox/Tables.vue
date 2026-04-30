@@ -24,6 +24,28 @@ const sampleStudents = ref([
 const { sortKey, sortDir, toggleSort, sortRows } = useTableSort('name', 'asc');
 const sortedStudents = computed(() => sortRows(sampleStudents.value));
 
+// Server-side sort demo — same component contract, but the click handler in
+// real usage calls `router.get('?sort=&dir=')` instead of mutating local state.
+const ssSortKey = ref('name');
+const ssSortDir = ref('asc');
+const ssRows = ref([
+    { id: 1, name: 'Aanya Sharma',  employee_id: 'EMP-0001', department: 'Mathematics', joining_date: '2022-06-15', status: 'Active' },
+    { id: 2, name: 'Rohan Mehta',   employee_id: 'EMP-0002', department: 'Science',     joining_date: '2021-04-08', status: 'Active' },
+    { id: 3, name: 'Diya Iyer',     employee_id: 'EMP-0003', department: 'Languages',   joining_date: '2023-01-12', status: 'On Leave' },
+]);
+function ssOnSort(key) {
+    // Production code:
+    //   router.get(window.location.pathname, { sort: key, dir: nextDir, page: 1 },
+    //              { preserveState: true, replace: true });
+    // Sandbox keeps it client-only so the arrows toggle visibly without navigation.
+    if (ssSortKey.value === key) {
+        ssSortDir.value = ssSortDir.value === 'asc' ? 'desc' : 'asc';
+    } else {
+        ssSortKey.value = key;
+        ssSortDir.value = 'asc';
+    }
+}
+
 // Loading toggle
 const tblLoading = ref(false);
 function flashTblLoading() { tblLoading.value = true; setTimeout(() => tblLoading.value = false, 1500); }
@@ -85,6 +107,42 @@ function standaloneSort(key) {
                     </tr>
                 </tbody>
             </Table>
+        </div>
+
+        <h2 class="section-heading">Sortable columns — server-side (Inertia router.get)</h2>
+        <p style="font-size:0.8rem;color:var(--text-muted);margin:-6px 0 8px;">
+            Used by paginated index pages (Students Directory, Staff Directory). Sort state lives in
+            URL query params; clicking a header debounces a <code>router.get('?sort=&amp;dir=')</code>
+            that re-renders the page from the server. The component contract is identical to
+            client-side sort — only the click handler differs.
+        </p>
+        <div class="card" style="margin-bottom:20px;">
+            <Table :sort-key="ssSortKey" :sort-dir="ssSortDir" @sort="ssOnSort">
+                <thead>
+                    <tr>
+                        <SortableTh sort-key="name">Staff Member</SortableTh>
+                        <SortableTh sort-key="employee_id">Employee ID</SortableTh>
+                        <SortableTh sort-key="department">Department</SortableTh>
+                        <SortableTh sort-key="joining_date">Joined</SortableTh>
+                        <SortableTh sort-key="status">Status</SortableTh>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="row in ssRows" :key="row.id">
+                        <td style="font-weight:600;color:var(--text-primary);">{{ row.name }}</td>
+                        <td><span style="font-family:monospace;font-size:0.78rem;color:#4f46e5;background:#ede9fe;padding:2px 8px;border-radius:5px;">{{ row.employee_id }}</span></td>
+                        <td>{{ row.department }}</td>
+                        <td style="color:#475569;font-size:0.825rem;">{{ row.joining_date }}</td>
+                        <td>
+                            <span class="badge" :class="row.status === 'Active' ? 'badge-green' : 'badge-amber'">{{ row.status }}</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </Table>
+            <p style="font-size:0.75rem;color:var(--text-muted);padding:10px 14px;border-top:1px solid var(--border-light);margin:0;">
+                Active sort (URL): <code>?sort={{ ssSortKey || '—' }}&amp;dir={{ ssSortDir }}</code>
+                &nbsp;·&nbsp; rows are not reordered in the sandbox — the demo is about the click → URL-state contract.
+            </p>
         </div>
 
         <h2 class="section-heading">Basic (size=&quot;md&quot; default, no sort)</h2>

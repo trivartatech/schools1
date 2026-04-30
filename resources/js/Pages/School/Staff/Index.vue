@@ -10,6 +10,7 @@ import { useDelete } from '@/Composables/useDelete';
 import { usePermissions } from '@/Composables/usePermissions';
 import { useTableFilters } from '@/Composables/useTableFilters';
 import Table from '@/Components/ui/Table.vue';
+import SortableTh from '@/Components/ui/SortableTh.vue';
 import { useSchoolStore } from '@/stores/useSchoolStore';
 
 const school = useSchoolStore();
@@ -24,12 +25,23 @@ const props = defineProps({
 const filters = reactive({
     search: props.filters?.search || '',
     status: props.filters?.status || 'current',
+    sort:   props.filters?.sort   || '',
+    dir:    props.filters?.dir    || 'asc',
 });
 
 const { navigate } = useTableFilters('/school/staff', filters);
 watch(filters, navigate);
 
 const setStatus = (s) => { filters.status = s; };
+
+function toggleSort(key) {
+    if (filters.sort === key) {
+        filters.dir = filters.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+        filters.sort = key;
+        filters.dir  = 'asc';
+    }
+}
 
 const { del } = useDelete();
 const deleteStaff = (id, name) => del(`/school/staff/${id}`, `Delete staff member "${name}"? This action cannot be undone.`);
@@ -108,7 +120,7 @@ const deleteStaff = (id, name) => del(`/school/staff/${id}`, `Delete staff membe
 
         <!-- Filters -->
         <FilterBar :active="!!filters.search" @clear="filters.search = ''">
-            <div class="fb-search">
+            <div class="fb-search fb-grow">
                 <svg class="fb-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/></svg>
                 <input v-model="filters.search" type="text" placeholder="Search by name, employee ID, phone...">
             </div>
@@ -130,14 +142,14 @@ const deleteStaff = (id, name) => del(`/school/staff/${id}`, `Delete staff membe
 
         <!-- Staff Table -->
         <div v-else class="card" style="overflow:hidden;">
-            <Table>
+            <Table :sort-key="filters.sort" :sort-dir="filters.dir" @sort="toggleSort">
                 <thead>
                     <tr>
-                        <th>Staff Member</th>
-                        <th>Employee ID</th>
-                        <th>Department / Designation</th>
-                        <th>Joined</th>
-                        <th>Status</th>
+                        <SortableTh sort-key="name">Staff Member</SortableTh>
+                        <SortableTh sort-key="employee_id">Employee ID</SortableTh>
+                        <SortableTh sort-key="department">Department / Designation</SortableTh>
+                        <SortableTh sort-key="joining_date">Joined</SortableTh>
+                        <SortableTh sort-key="status">Status</SortableTh>
                         <th>Actions</th>
                     </tr>
                 </thead>
