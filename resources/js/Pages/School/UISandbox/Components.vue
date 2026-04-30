@@ -20,7 +20,6 @@ import { useToast } from '@/Composables/useToast';
 
 const toast = useToast();
 
-const activeTabIcons = ref('home');
 const activeTabPlain = ref('one');
 
 const sampleGatePass = {
@@ -142,18 +141,24 @@ const sampleVisitor = {
             { label: 'Trend down', value: 7,   color: 'danger', trend: -6 },
         ]" />
 
-        <!-- ── Tabs — icons + plain ────────────────────────────────── -->
-        <h2 class="section-heading">Tabs — with icons (tab.icon as HTML string)</h2>
+        <!-- ── Tabs — code reference + plain live demo ─────────────── -->
+        <h2 class="section-heading">Tabs — with icons (tab.icon API reference)</h2>
+        <p style="font-size:0.8rem;color:var(--text-muted);margin:-6px 0 8px;">
+            Live demo of `tab.icon` (HTML string rendered via `v-html`) is intentionally
+            omitted — that pattern combined with the array-literal `:tabs` prop has
+            triggered a Vue 3.5.29 prod-bundle render-effect recursion in the past.
+            The prop itself works correctly when used in real pages (e.g., Examinations).
+        </p>
         <div class="card" style="padding:16px;margin-bottom:20px;">
-            <Tabs v-model="activeTabIcons" :tabs="[
-                { key: 'home',     label: 'Home',     icon: '&lt;svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot;&gt;&lt;path d=&quot;M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z&quot;/&gt;&lt;/svg&gt;' },
-                { key: 'profile',  label: 'Profile',  icon: '&lt;svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot;&gt;&lt;path d=&quot;M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2&quot;/&gt;&lt;circle cx=&quot;12&quot; cy=&quot;7&quot; r=&quot;4&quot;/&gt;&lt;/svg&gt;' },
-                { key: 'settings', label: 'Settings', icon: '&lt;svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot;&gt;&lt;circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;3&quot;/&gt;&lt;/svg&gt;' },
-            ]">
-                <template #tab-home><p style="color:var(--text-muted);font-size:0.85rem;">Home content.</p></template>
-                <template #tab-profile><p style="color:var(--text-muted);font-size:0.85rem;">Profile content.</p></template>
-                <template #tab-settings><p style="color:var(--text-muted);font-size:0.85rem;">Settings content.</p></template>
-            </Tabs>
+            <pre style="margin:0;background:#0f172a;color:#e2e8f0;padding:14px;border-radius:10px;font-size:0.72rem;line-height:1.55;overflow:auto;" v-pre>&lt;Tabs v-model="active" :tabs="[
+    { key: 'home',     label: 'Home',     icon: '&lt;svg ...&gt;...&lt;/svg&gt;' },
+    { key: 'profile',  label: 'Profile',  icon: '&lt;svg ...&gt;...&lt;/svg&gt;' },
+    { key: 'settings', label: 'Settings', icon: '&lt;svg ...&gt;...&lt;/svg&gt;' },
+]"&gt;
+    &lt;template #tab-home&gt;...&lt;/template&gt;
+    &lt;template #tab-profile&gt;...&lt;/template&gt;
+    &lt;template #tab-settings&gt;...&lt;/template&gt;
+&lt;/Tabs&gt;</pre>
         </div>
 
         <h2 class="section-heading">Tabs — plain (no counts, no icons)</h2>
