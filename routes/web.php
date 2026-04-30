@@ -669,6 +669,11 @@ Route::middleware('auth')->group(function () {
 
         // Examination Module
         Route::middleware(['module:exam'])->group(function () {
+            // Drag-to-reorder endpoints — must come BEFORE the resource
+            // declarations so /exam-types/reorder isn't swallowed as a {param}.
+            Route::post('exam-types/reorder', [\App\Http\Controllers\School\ExamTypeController::class, 'reorder'])->name('exam-types.reorder');
+            Route::post('exam-terms/reorder', [\App\Http\Controllers\School\ExamTermController::class, 'reorder'])->name('exam-terms.reorder');
+
             Route::resource('exam-types', \App\Http\Controllers\School\ExamTypeController::class)->except(['create', 'show', 'edit']);
             Route::resource('exam-terms', \App\Http\Controllers\School\ExamTermController::class)->except(['create', 'show', 'edit']);
             Route::resource('grading-systems', \App\Http\Controllers\School\GradingSystemController::class)->except(['create', 'show', 'edit']);

@@ -1,7 +1,7 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
@@ -89,6 +89,66 @@ const getClassificationBadge = (val) => {
     };
     return map[val] || { label: val, class: 'badge-gray' };
 };
+
+// ── Drag-to-reorder ──────────────────────────────────────────────────────
+// Drags only re-rank within the same exam term (the server numbers each
+// term's run independently). Cross-term drops are blocked at the UI layer.
+const localTypes = ref([...props.types]);
+watch(() => props.types, (val) => { localTypes.value = [...val]; });
+
+const dragSrcId = ref(null);
+const dragOverId = ref(null);
+const dragSrcTermId = ref(null);
+
+const onDragStart = (row, e) => {
+    dragSrcId.value = row.id;
+    dragSrcTermId.value = row.exam_term_id;
+    e.dataTransfer.effectAllowed = 'move';
+};
+const onDragOver = (row, e) => {
+    // Only allow drops onto rows in the same term — keeps each term's
+    // sort sequence intact.
+    if (row.exam_term_id !== dragSrcTermId.value) return;
+    e.preventDefault();
+    dragOverId.value = row.id;
+};
+const onDragLeave = () => { dragOverId.value = null; };
+const onDragEnd   = () => { dragSrcId.value = null; dragOverId.value = null; dragSrcTermId.value = null; };
+
+const onDrop = (target, e) => {
+    e.preventDefault();
+    const fromId = dragSrcId.value;
+    const fromTermId = dragSrcTermId.value;
+    dragSrcId.value = null;
+    dragOverId.value = null;
+    dragSrcTermId.value = null;
+
+    if (!fromId || fromId === target.id) return;
+    if (target.exam_term_id !== fromTermId) {
+        toast.warning('Drag-to-reorder works within the same term only.');
+        return;
+    }
+
+    const list = [...localTypes.value];
+    const fromIdx = list.findIndex(t => t.id === fromId);
+    const toIdx   = list.findIndex(t => t.id === target.id);
+    if (fromIdx === -1 || toIdx === -1) return;
+
+    const [moved] = list.splice(fromIdx, 1);
+    list.splice(toIdx, 0, moved);
+    localTypes.value = list;
+
+    router.post('/school/exam-types/reorder', {
+        order: list.map(t => t.id),
+    }, {
+        preserveScroll: true,
+        preserveState: true,
+        onError: () => {
+            toast.error('Could not save the new order.');
+            localTypes.value = [...props.types];
+        },
+    });
+};
 </script>
 
 <template>
@@ -112,6 +172,7 @@ const getClassificationBadge = (val) => {
                 <Table>
                     <thead>
                         <tr>
+                            <th class="w-8"></th>
                             <th class="w-20">Order</th>
                             <th>Term</th>
                             <th>Exam Name</th>
@@ -121,10 +182,25 @@ const getClassificationBadge = (val) => {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-if="types.length === 0">
-                            <td colspan="6" class="text-center py-8 text-gray-500">No exam types created yet.</td>
+                        <tr v-if="localTypes.length === 0">
+                            <td colspan="7" class="text-center py-8 text-gray-500">No exam types created yet.</td>
                         </tr>
-                        <tr v-for="t in types" :key="t.id">
+                        <tr v-for="t in localTypes" :key="t.id"
+                            draggable="true"
+                            @dragstart="onDragStart(t, $event)"
+                            @dragover="onDragOver(t, $event)"
+                            @dragleave="onDragLeave"
+                            @drop="onDrop(t, $event)"
+                            @dragend="onDragEnd"
+                            :class="{
+                                'row-dragging': dragSrcId === t.id,
+                                'row-drop-target': dragOverId === t.id && dragSrcId !== t.id,
+                            }">
+                            <td class="drag-handle" title="Drag to reorder within the same term">
+                                <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/>
+                                </svg>
+                            </td>
                             <td>
                                 <span class="badge badge-blue">{{ t.sort_order ?? 0 }}</span>
                                 <span class="text-gray-400 font-mono text-[10px] ml-1.5">#{{ t.id }}</span>
@@ -254,3 +330,16 @@ const getClassificationBadge = (val) => {
         </Transition>
     </SchoolLayout>
 </template>
+
+<style scoped>
+.drag-handle {
+    cursor: grab;
+    user-select: none;
+    text-align: center;
+}
+.drag-handle:active { cursor: grabbing; }
+
+/* Visual cues during a drag */
+.row-dragging    { opacity: 0.4; background: #f1f5f9 !important; }
+.row-drop-target { background: #eef2ff !important; box-shadow: inset 0 -2px 0 #6366f1; }
+</style>

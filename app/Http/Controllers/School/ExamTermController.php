@@ -5,6 +5,7 @@ namespace App\Http\Controllers\School;
 use App\Http\Controllers\Controller;
 use App\Models\ExamTerm;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
@@ -89,5 +90,38 @@ class ExamTermController extends Controller
         $examTerm->delete();
 
         return back()->with('success', 'Exam Term deleted successfully.');
+    }
+
+    /**
+     * Bulk re-rank exam terms based on the order in which their ids are
+     * supplied. Position in the array becomes the new sort_order (1-based).
+     * Used by the drag-and-drop reordering on the Terms list page.
+     */
+    public function reorder(Request $request)
+    {
+        if (! $request->user()->can('manage_exam_terms')) {
+            abort(403, 'You do not have permission to manage exam terms.');
+        }
+
+        $validated = $request->validate([
+            'order'   => 'required|array|min:1',
+            'order.*' => ['integer', \Illuminate\Validation\Rule::exists('exam_terms', 'id')
+                ->where('school_id', app('current_school_id'))
+                ->where('academic_year_id', app('current_academic_year_id'))],
+        ]);
+
+        $schoolId = app('current_school_id');
+        $yearId   = app('current_academic_year_id');
+
+        DB::transaction(function () use ($validated, $schoolId, $yearId) {
+            foreach ($validated['order'] as $position => $id) {
+                ExamTerm::where('id', $id)
+                    ->where('school_id', $schoolId)
+                    ->where('academic_year_id', $yearId)
+                    ->update(['sort_order' => $position + 1]);
+            }
+        });
+
+        return back()->with('success', 'Term order updated.');
     }
 }

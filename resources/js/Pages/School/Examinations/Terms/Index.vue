@@ -1,7 +1,7 @@
 <script setup>
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
@@ -73,6 +73,52 @@ const deleteTerm = async (id) => {
         onError: () => toast.error('Could not delete exam term.'),
     });
 };
+
+// ── Drag-to-reorder ──────────────────────────────────────────────────────
+// Local mirror of the prop so the table updates instantly while the POST
+// is in flight. Re-syncs whenever the parent prop changes (e.g. after the
+// server reload that follows the reorder POST).
+const localTerms = ref([...props.terms]);
+watch(() => props.terms, (val) => { localTerms.value = [...val]; });
+
+const dragSrcId = ref(null);
+const dragOverId = ref(null);
+
+const onDragStart = (id, e) => {
+    dragSrcId.value = id;
+    e.dataTransfer.effectAllowed = 'move';
+};
+const onDragOver  = (id, e) => { e.preventDefault(); dragOverId.value = id; };
+const onDragLeave = ()        => { dragOverId.value = null; };
+const onDragEnd   = ()        => { dragSrcId.value = null; dragOverId.value = null; };
+
+const onDrop = (targetId, e) => {
+    e.preventDefault();
+    const fromId = dragSrcId.value;
+    dragSrcId.value = null;
+    dragOverId.value = null;
+    if (!fromId || fromId === targetId) return;
+
+    const list = [...localTerms.value];
+    const fromIdx = list.findIndex(t => t.id === fromId);
+    const toIdx   = list.findIndex(t => t.id === targetId);
+    if (fromIdx === -1 || toIdx === -1) return;
+
+    const [moved] = list.splice(fromIdx, 1);
+    list.splice(toIdx, 0, moved);
+    localTerms.value = list;
+
+    router.post('/school/exam-terms/reorder', {
+        order: list.map(t => t.id),
+    }, {
+        preserveScroll: true,
+        preserveState: true,
+        onError: () => {
+            toast.error('Could not save the new order.');
+            localTerms.value = [...props.terms]; // roll back on failure
+        },
+    });
+};
 </script>
 
 <template>
@@ -91,6 +137,7 @@ const deleteTerm = async (id) => {
                 <Table>
                     <thead>
                         <tr>
+                            <th class="w-8"></th>
                             <th class="w-16">Order</th>
                             <th>Term Name</th>
                             <th>Display Name</th>
@@ -98,10 +145,25 @@ const deleteTerm = async (id) => {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-if="terms.length === 0">
-                            <td colspan="4" class="text-center py-8 text-gray-500">No exam terms created yet.</td>
+                        <tr v-if="localTerms.length === 0">
+                            <td colspan="5" class="text-center py-8 text-gray-500">No exam terms created yet.</td>
                         </tr>
-                        <tr v-for="t in terms" :key="t.id">
+                        <tr v-for="t in localTerms" :key="t.id"
+                            draggable="true"
+                            @dragstart="onDragStart(t.id, $event)"
+                            @dragover="onDragOver(t.id, $event)"
+                            @dragleave="onDragLeave"
+                            @drop="onDrop(t.id, $event)"
+                            @dragend="onDragEnd"
+                            :class="{
+                                'row-dragging': dragSrcId === t.id,
+                                'row-drop-target': dragOverId === t.id && dragSrcId !== t.id,
+                            }">
+                            <td class="drag-handle" title="Drag to reorder">
+                                <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/>
+                                </svg>
+                            </td>
                             <td>
                                 <span class="badge badge-blue">{{ t.sort_order ?? 0 }}</span>
                                 <span class="text-gray-400 font-mono text-[10px] ml-1.5">#{{ t.id }}</span>
@@ -191,3 +253,16 @@ const deleteTerm = async (id) => {
         </Transition>
     </SchoolLayout>
 </template>
+
+<style scoped>
+.drag-handle {
+    cursor: grab;
+    user-select: none;
+    text-align: center;
+}
+.drag-handle:active { cursor: grabbing; }
+
+/* Visual cues during a drag */
+.row-dragging    { opacity: 0.4; background: #f1f5f9 !important; }
+.row-drop-target { background: #eef2ff !important; box-shadow: inset 0 -2px 0 #6366f1; }
+</style>
