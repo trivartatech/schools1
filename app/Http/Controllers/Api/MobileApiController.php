@@ -3178,7 +3178,7 @@ class MobileApiController extends Controller
         $result = $schedules->map(function ($schedule) use ($studentId) {
             $subjects = \App\Models\ExamScheduleSubject::where('exam_schedule_id', $schedule->id)
                 ->where('is_enabled', true)
-                ->with(['subject:id,name', 'examAssessment.items'])
+                ->with(['subject:id,name', 'examAssessment.items', 'markConfigs:id,exam_schedule_subject_id,max_marks,passing_marks'])
                 ->get();
 
             $subjectResults = $subjects->map(function ($ss) use ($studentId) {
@@ -3187,8 +3187,21 @@ class MobileApiController extends Controller
                     ->get(['marks_obtained', 'is_absent', 'exam_assessment_item_id']);
 
                 $totalObtained = $marks->where('is_absent', false)->sum('marks_obtained');
-                $isAbsent      = $marks->every(fn($m) => $m->is_absent);
-                $maxMarks      = $ss->examAssessment?->items->sum('max_marks') ?? $ss->max_marks ?? 0;
+                $isAbsent      = $marks->isNotEmpty() && $marks->every(fn($m) => $m->is_absent);
+
+                // max_marks lives on markConfigs (per-schedule override) — NOT on
+                // examAssessment.items (master template). Older code read the
+                // master template's max which is irrelevant once a schedule
+                // customises it, and missing entirely if no items relation
+                // is set up — leading to "n / 0" on the parent results screen.
+                $maxMarks = (int) $ss->markConfigs->sum('max_marks');
+                if ($maxMarks === 0) {
+                    // Fallback: still try the master template, then any direct
+                    // column the schema might add later.
+                    $maxMarks = (int) ($ss->examAssessment?->items?->sum('max_marks')
+                        ?? $ss->max_marks
+                        ?? 0);
+                }
 
                 return [
                     'subject_name'   => $ss->subject->name ?? 'Unknown',
