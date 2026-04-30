@@ -160,6 +160,14 @@ const SANDBOX_EXEMPT = new Set([
     // Mounting them here would create duplicate global stacks.
     'Toast.vue',
     'ConfirmDialog.vue',
+    // Documented in sandbox sections 18 & 19 as static reference (code snippet
+    // + explanation). Not live-mounted because:
+    //   - LanguageSwitcher: already mounted in SchoolLayout topbar; a second
+    //     live mount stacks i18n providers.
+    //   - ErrorBoundary: live demo (BoundaryDemo throwing from render fn)
+    //     triggered a Vue 3.5.29 render-time recursion in the prod build.
+    'LanguageSwitcher.vue',
+    'ErrorBoundary.vue',
 ]);
 
 const PAGE_EXEMPT = new Set([

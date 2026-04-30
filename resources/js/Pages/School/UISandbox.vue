@@ -35,7 +35,7 @@
  *   22. Layout-mounted — AiChatbot, ChatWidget
  *   23. Composables   — useFormat, useDelete, useTableFilters, usePermissions, useClassSections
  */
-import { ref, computed, shallowRef, defineComponent, h } from 'vue';
+import { ref, computed, shallowRef } from 'vue';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import Modal from '@/Components/ui/Modal.vue';
@@ -48,12 +48,15 @@ import SortableTh from '@/Components/ui/SortableTh.vue';
 import FilterBar from '@/Components/ui/FilterBar.vue';
 import PrintButton from '@/Components/ui/PrintButton.vue';
 import DateRangeFilter from '@/Components/ui/DateRangeFilter.vue';
-import LanguageSwitcher from '@/Components/ui/LanguageSwitcher.vue';
+// import LanguageSwitcher from '@/Components/ui/LanguageSwitcher.vue';  // see note below
 import ExportDropdown from '@/Components/ExportDropdown.vue';
 import SlidePanel from '@/Components/SlidePanel.vue';
 import LedgerCombobox from '@/Components/LedgerCombobox.vue';
 import PermissionGate from '@/Components/PermissionGate.vue';
-import ErrorBoundary from '@/Components/ErrorBoundary.vue';
+// ErrorBoundary + LanguageSwitcher live demos disabled in production sandbox —
+// they triggered a render-time recursion in the prod build (Vue 3.5.29 + Vite 7).
+// They remain available as primitives; only the live-render demos are gated.
+// import ErrorBoundary from '@/Components/ErrorBoundary.vue';
 import IdCardQR from '@/Components/IdCardQR.vue';
 import { useConfirm } from '@/Composables/useConfirm';
 import { useToast } from '@/Composables/useToast';
@@ -104,25 +107,10 @@ const sampleLedgers = [
 ];
 const selectedLedgerId = ref('');
 
-// ── ErrorBoundary state ─────────────────────────────────────────
-const errorBoundaryNonce = ref(0);
-function triggerErrorBoundary() {
-    errorBoundaryNonce.value++;
-}
-// Tiny child that throws when its `nonce` prop is non-zero.
-const BoundaryDemo = defineComponent({
-    name: 'BoundaryDemo',
-    props: { nonce: { type: Number, default: 0 } },
-    setup(props) {
-        return () => {
-            if (props.nonce > 0) {
-                throw new Error(`Demo error #${props.nonce} — caught by ErrorBoundary`);
-            }
-            return h('p', { style: 'margin:0;font-size:0.85rem;color:var(--text-muted);' },
-                'Boundary is healthy. Click "Throw inside boundary" below to trigger the fallback.');
-        };
-    },
-});
+// ErrorBoundary live demo (BoundaryDemo + onErrorCaptured) was disabled here
+// after it triggered a Vue 3.5.29 render-time recursion in the production
+// minified build. The primitive itself still works — see the section below for
+// the canonical call-site reference.
 
 // ── Pass-card fixtures (visual demo only — never persisted) ─────
 const sampleGatePass = {
@@ -1208,10 +1196,12 @@ const sortedStudents = computed(() => sortRows(sampleStudents.value));
             </div>
         </div>
 
-        <h2 class="section-heading">18 · LanguageSwitcher — locale dropdown (also mounted in topbar)</h2>
-        <div class="card" style="padding:16px;margin-bottom:20px;display:flex;align-items:center;gap:14px;">
-            <LanguageSwitcher />
-            <span style="font-size:0.8rem;color:var(--text-muted);">Click to swap locale — uses <code>vue-i18n</code> + <code>plugins/i18n.js</code>.</span>
+        <h2 class="section-heading">18 · LanguageSwitcher — locale dropdown (mounted in topbar)</h2>
+        <div class="card" style="padding:16px;margin-bottom:20px;font-size:0.85rem;color:var(--text-secondary);">
+            Already mounted in <code>SchoolLayout.vue</code> top bar — use the locale picker
+            in the page header to change locales. Don't re-mount in pages (avoids duplicate
+            i18n provider stacks). Component file:
+            <code>resources/js/Components/ui/LanguageSwitcher.vue</code>.
         </div>
 
         <h2 class="section-heading">19 · ErrorBoundary — onErrorCaptured + #fallback</h2>
@@ -1221,16 +1211,20 @@ const sortedStudents = computed(() => sortRows(sampleStudents.value));
             crash doesn't take down the page.
         </p>
         <div class="card" style="padding:16px;margin-bottom:20px;">
-            <ErrorBoundary>
-                <BoundaryDemo :nonce="errorBoundaryNonce" />
-                <template #fallback="{ error, reset }">
-                    <div style="padding:14px;background:#fee2e2;border-radius:10px;color:#991b1b;font-size:0.85rem;">
-                        Caught: <strong>{{ error?.message || 'Unknown error' }}</strong>.
-                        <Button size="xs" variant="secondary" style="margin-left:10px;" @click="errorBoundaryNonce = 0; reset()">Retry</Button>
-                    </div>
-                </template>
-            </ErrorBoundary>
-            <Button size="sm" variant="danger" style="margin-top:12px;" @click="triggerErrorBoundary">Throw inside boundary</Button>
+            <pre style="margin:0;background:#0f172a;color:#e2e8f0;padding:14px;border-radius:10px;font-size:0.72rem;line-height:1.55;overflow:auto;" v-pre>import ErrorBoundary from '@/Components/ErrorBoundary.vue';
+
+&lt;ErrorBoundary&gt;
+    &lt;SomeRiskyComponent /&gt;
+    &lt;template #fallback="{ error, reset }"&gt;
+        &lt;p&gt;Something went wrong: {{ error.message }}&lt;/p&gt;
+        &lt;button @click="reset"&gt;Try again&lt;/button&gt;
+    &lt;/template&gt;
+&lt;/ErrorBoundary&gt;</pre>
+            <p style="margin:10px 0 0;font-size:0.78rem;color:var(--text-muted);">
+                Live demo intentionally omitted — Vue 3.5.29 prod build re-enters the boundary's
+                effect when the child throws synchronously from a render fn defined in the same
+                <code>&lt;script setup&gt;</code>. The primitive itself works correctly when used in real pages.
+            </p>
         </div>
 
         <h2 class="section-heading">20 · Pass cards — IdCardQR (live QR canvas)</h2>
