@@ -3184,7 +3184,7 @@ class MobileApiController extends Controller
         $result = $schedules->map(function ($schedule) use ($studentId) {
             $subjects = \App\Models\ExamScheduleSubject::where('exam_schedule_id', $schedule->id)
                 ->where('is_enabled', true)
-                ->with(['subject:id,name', 'examAssessment.items', 'markConfigs:id,exam_schedule_subject_id,max_marks,passing_marks'])
+                ->with(['subject:id,name', 'markConfigs:id,exam_schedule_subject_id,max_marks,passing_marks'])
                 ->get();
 
             $subjectResults = $subjects->map(function ($ss) use ($studentId) {
@@ -3195,19 +3195,12 @@ class MobileApiController extends Controller
                 $totalObtained = $marks->where('is_absent', false)->sum('marks_obtained');
                 $isAbsent      = $marks->isNotEmpty() && $marks->every(fn($m) => $m->is_absent);
 
-                // max_marks lives on markConfigs (per-schedule override) — NOT on
-                // examAssessment.items (master template). Older code read the
-                // master template's max which is irrelevant once a schedule
-                // customises it, and missing entirely if no items relation
-                // is set up — leading to "n / 0" on the parent results screen.
+                // max_marks lives only on markConfigs (per-schedule override).
+                // exam_assessment_items has no max column — that table is just
+                // the master list of assessment names. So if markConfigs is
+                // empty, max stays 0 (means the schedule subject hasn't had
+                // its mark scheme configured yet).
                 $maxMarks = (int) $ss->markConfigs->sum('max_marks');
-                if ($maxMarks === 0) {
-                    // Fallback: still try the master template, then any direct
-                    // column the schema might add later.
-                    $maxMarks = (int) ($ss->examAssessment?->items?->sum('max_marks')
-                        ?? $ss->max_marks
-                        ?? 0);
-                }
 
                 return [
                     'subject_name'   => $ss->subject->name ?? 'Unknown',
@@ -3701,7 +3694,6 @@ class MobileApiController extends Controller
                 'academicYear:id,name',
                 'scheduleSubjects.subject:id,name',
                 'scheduleSubjects.markConfigs:id,exam_schedule_subject_id,max_marks,passing_marks',
-                'scheduleSubjects.examAssessment.items:id,exam_assessment_id,max_marks',
             ])
             ->orderByDesc('academic_year_id')
             ->orderByDesc('id')
@@ -3719,13 +3711,12 @@ class MobileApiController extends Controller
 
                 $obtained = $marks->sum('marks_obtained');
 
-                // max_marks lives on markConfigs (per-schedule override). Fall
-                // back to the master assessment template only when no per-
-                // schedule override exists. Never silently assume "n × 100".
+                // max_marks lives only on markConfigs (per-schedule override).
+                // exam_assessment_items has no max column — that table is
+                // just the master list of assessment names. So if a subject's
+                // markConfigs is empty, max stays 0 (means the schedule
+                // subject hasn't had its mark scheme configured yet).
                 $maxMarks = (int) $ss->markConfigs->sum('max_marks');
-                if ($maxMarks === 0) {
-                    $maxMarks = (int) ($ss->examAssessment?->items?->sum('max_marks') ?? 0);
-                }
 
                 $totalObtained += $obtained;
                 $totalMax += $maxMarks;
