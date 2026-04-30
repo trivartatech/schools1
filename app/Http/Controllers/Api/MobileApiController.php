@@ -591,11 +591,14 @@ class MobileApiController extends Controller
         $user   = $request->user();
         $school = app('current_school');
 
-        // Order by id so the class list appears in the same order across all
-        // mobile filters (matches the natural order ExamMarks shows, since
-        // schedules are returned with implicit id ordering inside a year).
+        // Order by numeric_value (with name as tiebreaker) — matches the
+        // canonical CourseClass ordering used everywhere on the web side
+        // (AlumniController, AttendanceController, etc.). This is what
+        // every mobile filter dropdown should use so Class 1 → Class 12
+        // appears in natural order, not by insertion id.
         $classQuery = \App\Models\CourseClass::where('school_id', $school->id)
-            ->orderBy('id');
+            ->orderBy('numeric_value')
+            ->orderBy('name');
 
         // Teachers only see their assigned classes/sections
         $teacherSectionIds = null;
@@ -5379,8 +5382,9 @@ class MobileApiController extends Controller
         $defaulterCount   = count(array_filter($rows, fn($r) => $r['is_defaulter']));
 
         $classes = \App\Models\CourseClass::where('school_id', $school->id)
-            ->orderBy('id')
-            ->with(['sections' => fn($q) => $q->orderBy('id')])
+            ->orderBy('numeric_value')
+            ->orderBy('name')
+            ->with(['sections' => fn($q) => $q->orderBy('sort_order')->orderBy('name')])
             ->get()
             ->map(fn($c) => [
                 'id'       => $c->id,
@@ -5629,12 +5633,13 @@ class MobileApiController extends Controller
             ->get()
             ->groupBy(fn($r) => $normDate($r->date));
 
-        // Class names for breakdown labels — order by id to match the
-        // ordering used by /mobile/class-options. Scoped to the teacher's
-        // assigned classes when applicable so the filter dropdown only
-        // surfaces classes they actually teach or are incharge of.
+        // Class names for breakdown labels — canonical numeric_value order
+        // (matches /mobile/class-options + the web side). Scoped to the
+        // teacher's assigned classes when applicable so the filter dropdown
+        // only surfaces classes they actually teach or are incharge of.
         $classNamesQuery = \App\Models\CourseClass::where('school_id', $schoolId)
-            ->orderBy('id');
+            ->orderBy('numeric_value')
+            ->orderBy('name');
         if ($user->isTeacher()) {
             $teacherScope = app(TeacherScopeService::class)->for($user);
             if ($teacherScope->restricted && $teacherScope->classIds->isNotEmpty()) {
@@ -5871,10 +5876,12 @@ class MobileApiController extends Controller
             }
         }
 
-        // Class options for the filter UI — order by id (matches /mobile/class-options).
-        // Scoped to the teacher's assigned classes when applicable.
+        // Class options for the filter UI — canonical numeric_value order
+        // (matches /mobile/class-options + the web side). Scoped to the
+        // teacher's assigned classes when applicable.
         $classQuery = \App\Models\CourseClass::where('school_id', $schoolId)
-            ->orderBy('id');
+            ->orderBy('numeric_value')
+            ->orderBy('name');
         if ($user->isTeacher()) {
             $teacherScope = app(TeacherScopeService::class)->for($user);
             if ($teacherScope->restricted && $teacherScope->classIds->isNotEmpty()) {
