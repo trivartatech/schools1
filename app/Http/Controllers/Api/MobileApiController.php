@@ -741,10 +741,19 @@ class MobileApiController extends Controller
         $from = Carbon::createFromDate((int)$year, (int)$mon, 1)->startOfMonth();
         $to   = $from->copy()->endOfMonth();
 
-        // Teacher view: own staff_attendances records (populated by punch system / admin marking)
-        if ($user->isTeacher() && $user->staff) {
+        // Staff view — any user that has a Staff record (teacher, driver,
+        // principal, gatekeeper, office, etc.) sees their own
+        // staff_attendances data, populated by the punch system or by admin
+        // marking. Look up directly by user_id rather than via the
+        // $user->staff relation which has been seen as null when records
+        // exist but the relation is mis-cached.
+        $staff = Staff::where('user_id', $user->id)
+                      ->where('school_id', $school->id)
+                      ->first();
+
+        if ($staff) {
             $records = StaffAttendance::where('school_id', $school->id)
-                ->where('staff_id', $user->staff->id)
+                ->where('staff_id', $staff->id)
                 ->whereBetween('date', [$from, $to])
                 ->with('markedBy:id,name')
                 ->orderBy('date')
@@ -776,7 +785,7 @@ class MobileApiController extends Controller
             return response()->json([
                 'summary' => $summary,
                 'records' => $records->map(fn($r) => [
-                    'date'      => optional($r->date)->format($dateFmt),
+                    'date'      => $r->date ? Carbon::parse($r->date)->format($dateFmt) : null,
                     'status'    => $r->status,
                     'remarks'   => $r->remarks,
                     'marked_by' => $r->markedBy?->name,
