@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Hostel;
 use App\Models\HostelBed;
 use App\Models\HostelLeaveRequest;
+use App\Models\HostelMessMenu;
+use App\Models\HostelRollCall;
 use App\Models\HostelRoom;
 use App\Models\HostelStudent;
 use App\Models\HostelVisitor;
@@ -757,5 +759,240 @@ class HostelController extends Controller
         $v->load(['student:id,first_name,last_name,admission_no,school_id', 'staff.user:id,name']);
 
         return response()->json(['message' => 'Visitor checked out.', 'data' => $this->visitorPayload($v)]);
+    }
+
+    // ── Mess Menu ─────────────────────────────────────────────────────────────
+
+    private const DAYS  = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    private const MEALS = ['Breakfast', 'Lunch', 'Snacks', 'Dinner'];
+
+    /**
+     * GET /mobile/hostel/mess-menu
+     * Query: hostel_id (optional). Returns the full week × meal grid for the
+     * given hostel (or the school's first hostel by default), so the mobile
+     * UI can render a single overview without 28 separate fetches.
+     */
+    public function messMenu(Request $request): JsonResponse
+    {
+        $this->assertHostelAdmin($request);
+        $schoolId = app('current_school_id');
+
+        $hostels = Hostel::where('school_id', $schoolId)
+            ->orderBy('name')
+            ->get(['id', 'name', 'type']);
+
+        $hostelId = $request->input('hostel_id') ?: ($hostels->first()->id ?? null);
+        $menus    = collect();
+
+        if ($hostelId) {
+            $menus = HostelMessMenu::where('school_id', $schoolId)
+                ->where('hostel_id', $hostelId)
+                ->get(['id', 'day', 'meal_type', 'items'])
+                ->keyBy(fn ($m) => $m->day . '|' . $m->meal_type);
+        }
+
+        // Build grid: [day] => [meal] => { id, items }
+        $grid = [];
+        foreach (self::DAYS as $day) {
+            $row = ['day' => $day, 'meals' => []];
+            foreach (self::MEALS as $meal) {
+                $key = $day . '|' . $meal;
+                $row['meals'][$meal] = $menus->has($key) ? [
+                    'id'    => $menus[$key]->id,
+                    'items' => $menus[$key]->items,
+                ] : null;
+            }
+            $grid[] = $row;
+        }
+
+        return response()->json([
+            'hostels'      => $hostels,
+            'hostel_id'    => $hostelId,
+            'days'         => self::DAYS,
+            'meal_types'   => self::MEALS,
+            'grid'         => $grid,
+        ]);
+    }
+
+    /**
+     * POST /mobile/hostel/mess-menu  — upsert one (day, meal) cell.
+     */
+    public function saveMessMenu(Request $request): JsonResponse
+    {
+        $this->assertHostelAdmin($request);
+        $schoolId = app('current_school_id');
+
+        $validated = $request->validate([
+            'hostel_id' => ['required', Rule::exists('hostels', 'id')->where('school_id', $schoolId)],
+            'day'       => 'required|in:' . implode(',', self::DAYS),
+            'meal_type' => 'required|in:' . implode(',', self::MEALS),
+            'items'     => 'required|string|max:1000',
+        ]);
+
+        $menu = HostelMessMenu::updateOrCreate(
+            [
+                'school_id' => $schoolId,
+                'hostel_id' => $validated['hostel_id'],
+                'day'       => $validated['day'],
+                'meal_type' => $validated['meal_type'],
+            ],
+            ['items' => $validated['items']]
+        );
+
+        return response()->json([
+            'message' => 'Mess menu updated.',
+            'data'    => [
+                'id'        => $menu->id,
+                'hostel_id' => $menu->hostel_id,
+                'day'       => $menu->day,
+                'meal_type' => $menu->meal_type,
+                'items'     => $menu->items,
+            ],
+        ]);
+    }
+
+    /**
+     * DELETE /mobile/hostel/mess-menu/{id}  — clear one cell.
+     */
+    public function destroyMessMenu(Request $request, int $id): JsonResponse
+    {
+        $this->assertHostelAdmin($request);
+        $schoolId = app('current_school_id');
+
+        $menu = HostelMessMenu::where('school_id', $schoolId)->find($id);
+        if (!$menu) return response()->json(['error' => 'Menu entry not found.'], 404);
+
+        $menu->delete();
+        return response()->json(['message' => 'Menu cleared.', 'id' => $id]);
+    }
+
+    // ── Roll Call ─────────────────────────────────────────────────────────────
+
+    /**
+     * GET /mobile/hostel/roll-call
+     * Query: hostel_id (required), date (default today), slot (default night).
+     * Returns the active student roster + any existing roll-call rows for the
+     * given date/slot, so the mobile UI can render one row per student
+     * pre-filled with the saved status (or "unmarked").
+     */
+    public function rollCall(Request $request): JsonResponse
+    {
+        $this->assertHostelAdmin($request);
+        $schoolId = app('current_school_id');
+
+        $date     = $request->input('date', now()->toDateString());
+        $slot     = $request->input('slot', 'night');
+        $hostelId = (int) $request->input('hostel_id');
+
+        $hostels = Hostel::where('school_id', $schoolId)
+            ->orderBy('name')->get(['id', 'name', 'type']);
+
+        if (!$hostelId) {
+            $hostelId = $hostels->first()->id ?? 0;
+        }
+        if (!in_array($slot, ['night', 'morning'], true)) {
+            $slot = 'night';
+        }
+
+        // Active hostel students in this hostel (joined via bed → room)
+        $activeStudentIds = HostelStudent::where('school_id', $schoolId)
+            ->where('status', 'Active')
+            ->whereHas('bed.room', fn ($q) => $q->where('hostel_id', $hostelId))
+            ->pluck('student_id');
+
+        $students = Student::whereIn('id', $activeStudentIds)
+            ->orderBy('first_name')
+            ->get(['id', 'first_name', 'last_name', 'admission_no']);
+
+        $existing = HostelRollCall::where('school_id', $schoolId)
+            ->where('hostel_id', $hostelId)
+            ->where('date', $date)
+            ->where('slot', $slot)
+            ->get(['student_id', 'status', 'remarks'])
+            ->keyBy('student_id');
+
+        $rows = $students->map(function ($s) use ($existing) {
+            $rec = $existing->get($s->id);
+            return [
+                'student_id'   => $s->id,
+                'name'         => trim(($s->first_name ?? '') . ' ' . ($s->last_name ?? '')),
+                'admission_no' => $s->admission_no,
+                'status'       => $rec?->status ?? null,
+                'remarks'      => $rec?->remarks ?? null,
+            ];
+        })->values();
+
+        $stats = [
+            'total'    => $students->count(),
+            'present'  => $existing->where('status', 'present')->count(),
+            'absent'   => $existing->where('status', 'absent')->count(),
+            'leave'    => $existing->where('status', 'leave')->count(),
+            'medical'  => $existing->where('status', 'medical')->count(),
+            'unmarked' => $students->count() - $existing->count(),
+        ];
+
+        return response()->json([
+            'hostels'   => $hostels,
+            'hostel_id' => $hostelId,
+            'date'      => $date,
+            'slot'      => $slot,
+            'rows'      => $rows,
+            'stats'     => $stats,
+        ]);
+    }
+
+    /**
+     * POST /mobile/hostel/roll-call  — bulk save records for one date+slot.
+     */
+    public function saveRollCall(Request $request): JsonResponse
+    {
+        $this->assertHostelAdmin($request);
+        $schoolId = app('current_school_id');
+
+        $validated = $request->validate([
+            'hostel_id'           => ['required', Rule::exists('hostels', 'id')->where('school_id', $schoolId)],
+            'date'                => 'required|date',
+            'slot'                => 'required|in:night,morning',
+            'records'             => 'required|array|min:1',
+            'records.*.student_id'=> 'required|integer',
+            'records.*.status'    => 'required|in:present,absent,leave,medical',
+            'records.*.remarks'   => 'nullable|string|max:500',
+        ]);
+
+        $validIds = HostelStudent::where('school_id', $schoolId)
+            ->where('status', 'Active')
+            ->whereHas('bed.room', fn ($q) => $q->where('hostel_id', $validated['hostel_id']))
+            ->pluck('student_id')
+            ->toArray();
+
+        $userId = $request->user()->id;
+        $saved  = 0;
+
+        DB::transaction(function () use ($validated, $schoolId, $validIds, $userId, &$saved) {
+            foreach ($validated['records'] as $rec) {
+                if (!in_array((int) $rec['student_id'], $validIds, true)) continue;
+
+                HostelRollCall::updateOrCreate(
+                    [
+                        'school_id'  => $schoolId,
+                        'hostel_id'  => $validated['hostel_id'],
+                        'student_id' => $rec['student_id'],
+                        'date'       => $validated['date'],
+                        'slot'       => $validated['slot'],
+                    ],
+                    [
+                        'status'    => $rec['status'],
+                        'remarks'   => $rec['remarks'] ?? null,
+                        'marked_by' => $userId,
+                    ]
+                );
+                $saved++;
+            }
+        });
+
+        return response()->json([
+            'message' => "Roll call saved for {$saved} student(s).",
+            'saved'   => $saved,
+        ]);
     }
 }

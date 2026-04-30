@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Api\Mobile;
 
 use App\Http\Controllers\Controller;
+use App\Models\StationaryAllocationItem;
 use App\Models\StationaryFeePayment;
+use App\Models\StationaryIssuance;
 use App\Models\StationaryItem;
+use App\Models\StationaryReturn;
 use App\Models\StationaryStudentAllocation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -428,5 +431,373 @@ class StationaryController extends Controller
             'payment_id' => $payment?->id,
             'data'    => $this->allocationPayload($allocation),
         ], 201);
+    }
+
+    // ── Issuance ──────────────────────────────────────────────────────────────
+
+    private function issuancePayload(StationaryIssuance $iss): array
+    {
+        $iss->loadMissing(['issuedBy:id,name', 'items.item:id,name,code']);
+        return [
+            'id'         => $iss->id,
+            'issued_at'  => $iss->issued_at?->toIso8601String(),
+            'issued_by'  => $iss->issuedBy ? ['id' => $iss->issuedBy->id, 'name' => $iss->issuedBy->name] : null,
+            'remarks'    => $iss->remarks,
+            'lines'      => $iss->items->map(fn ($l) => [
+                'id'            => $l->id,
+                'item_id'       => $l->item_id,
+                'item_name'     => $l->item?->name ?? 'Unknown',
+                'item_code'     => $l->item?->code,
+                'qty_issued'    => (int) $l->qty_issued,
+            ])->values(),
+        ];
+    }
+
+    /**
+     * GET /mobile/stationary/allocations/{id}/issuances
+     */
+    public function issuances(Request $request, int $id): JsonResponse
+    {
+        $this->assertStationaryAdmin($request);
+        $schoolId = app('current_school_id');
+
+        $allocation = StationaryStudentAllocation::where('school_id', $schoolId)->find($id);
+        if (!$allocation) return response()->json(['error' => 'Allocation not found.'], 404);
+
+        $list = $allocation->issuances()
+            ->with(['issuedBy:id,name', 'items.item:id,name,code'])
+            ->orderByDesc('issued_at')
+            ->get();
+
+        return response()->json([
+            'data' => $list->map(fn ($i) => $this->issuancePayload($i))->values(),
+        ]);
+    }
+
+    /**
+     * POST /mobile/stationary/allocations/{id}/issuances
+     * Body: { lines: [{ allocation_item_id, qty_issued }], remarks? }
+     */
+    public function createIssuance(Request $request, int $id): JsonResponse
+    {
+        $this->assertStationaryAdmin($request);
+        $schoolId = app('current_school_id');
+
+        $allocation = StationaryStudentAllocation::where('school_id', $schoolId)->find($id);
+        if (!$allocation) return response()->json(['error' => 'Allocation not found.'], 404);
+
+        $validated = $request->validate([
+            'lines'                      => 'required|array|min:1',
+            'lines.*.allocation_item_id' => 'required|integer',
+            'lines.*.qty_issued'         => 'required|integer|min:1',
+            'remarks'                    => 'nullable|string|max:2000',
+        ]);
+
+        $allocItemIds = collect($validated['lines'])->pluck('allocation_item_id')->unique()->all();
+        $allocItems   = StationaryAllocationItem::whereIn('id', $allocItemIds)
+            ->where('allocation_id', $allocation->id)
+            ->with('item:id,name,code,unit_price')
+            ->get()->keyBy('id');
+
+        if ($allocItems->count() !== count($allocItemIds)) {
+            return response()->json(['error' => 'One or more lines do not belong to this allocation.'], 422);
+        }
+
+        // Check remaining
+        foreach ($validated['lines'] as $line) {
+            $ai        = $allocItems[$line['allocation_item_id']];
+            $remaining = (int) $ai->qty_entitled - (int) $ai->qty_collected;
+            if ((int) $line['qty_issued'] > $remaining) {
+                return response()->json([
+                    'error' => "Cannot issue {$line['qty_issued']} of '{$ai->item?->name}' — only {$remaining} remaining.",
+                ], 422);
+            }
+        }
+
+        $issuance = DB::transaction(function () use ($validated, $allocation, $allocItems, $request) {
+            // Lock affected stock rows to avoid concurrent over-issuance
+            $itemIds = collect($validated['lines'])
+                ->map(fn ($l) => $allocItems[$l['allocation_item_id']]->item_id)
+                ->unique()->values();
+            StationaryItem::whereIn('id', $itemIds)->lockForUpdate()->get();
+
+            $iss = StationaryIssuance::create([
+                'school_id'     => $allocation->school_id,
+                'allocation_id' => $allocation->id,
+                'student_id'    => $allocation->student_id,
+                'issued_by'     => $request->user()->id,
+                'issued_at'     => now(),
+                'remarks'       => $validated['remarks'] ?? null,
+            ]);
+
+            foreach ($validated['lines'] as $line) {
+                $ai  = $allocItems[$line['allocation_item_id']];
+                $qty = (int) $line['qty_issued'];
+
+                $iss->items()->create([
+                    'allocation_item_id' => $ai->id,
+                    'item_id'            => $ai->item_id,
+                    'qty_issued'         => $qty,
+                ]);
+                $ai->increment('qty_collected', $qty);
+                StationaryItem::where('id', $ai->item_id)->decrement('current_stock', $qty);
+            }
+
+            $allocation->update(['last_issued_date' => now()->toDateString()]);
+            $allocation->refresh()->recalculateCollectionStatus();
+
+            return $iss;
+        });
+
+        return response()->json([
+            'message' => 'Items issued.',
+            'data'    => $this->issuancePayload($issuance),
+        ], 201);
+    }
+
+    /**
+     * DELETE /mobile/stationary/issuances/{id}
+     * Voids the issuance — restores qty_collected and item stock.
+     */
+    public function voidIssuance(Request $request, int $id): JsonResponse
+    {
+        $this->assertStationaryAdmin($request);
+        $schoolId = app('current_school_id');
+
+        $iss = StationaryIssuance::where('school_id', $schoolId)->find($id);
+        if (!$iss) return response()->json(['error' => 'Issuance not found.'], 404);
+
+        DB::transaction(function () use ($iss) {
+            $iss->loadMissing('items');
+
+            $itemIds      = $iss->items->pluck('item_id')->unique()->values();
+            $allocItemIds = $iss->items->pluck('allocation_item_id')->unique()->values();
+            StationaryItem::whereIn('id', $itemIds)->lockForUpdate()->get();
+            StationaryAllocationItem::whereIn('id', $allocItemIds)->lockForUpdate()->get();
+
+            foreach ($iss->items as $line) {
+                StationaryAllocationItem::where('id', $line->allocation_item_id)
+                    ->decrement('qty_collected', $line->qty_issued);
+                StationaryItem::where('id', $line->item_id)
+                    ->increment('current_stock', $line->qty_issued);
+            }
+
+            $iss->delete();
+
+            $allocation = $iss->allocation()->withTrashed()->first();
+            if ($allocation) {
+                $allocation->recalculateCollectionStatus();
+            }
+        });
+
+        return response()->json(['message' => 'Issuance voided. Stock and balances restored.', 'id' => $id]);
+    }
+
+    // ── Returns ───────────────────────────────────────────────────────────────
+
+    private function returnPayload(StationaryReturn $r): array
+    {
+        $r->loadMissing(['acceptedBy:id,name', 'items.item:id,name,code']);
+        return [
+            'id'            => $r->id,
+            'returned_at'   => $r->returned_at?->toIso8601String(),
+            'accepted_by'   => $r->acceptedBy ? ['id' => $r->acceptedBy->id, 'name' => $r->acceptedBy->name] : null,
+            'refund_amount' => (float) $r->refund_amount,
+            'refund_mode'   => $r->refund_mode,
+            'remarks'       => $r->remarks,
+            'lines'         => $r->items->map(fn ($l) => [
+                'id'                => $l->id,
+                'item_id'           => $l->item_id,
+                'item_name'         => $l->item?->name ?? 'Unknown',
+                'item_code'         => $l->item?->code,
+                'qty_returned'      => (int) $l->qty_returned,
+                'condition'         => $l->condition,
+                'restock'           => (bool) $l->restock,
+                'refund_unit_price' => (float) $l->refund_unit_price,
+                'line_refund'       => (float) $l->line_refund,
+            ])->values(),
+        ];
+    }
+
+    /**
+     * GET /mobile/stationary/allocations/{id}/returns
+     */
+    public function returns(Request $request, int $id): JsonResponse
+    {
+        $this->assertStationaryAdmin($request);
+        $schoolId = app('current_school_id');
+
+        $allocation = StationaryStudentAllocation::where('school_id', $schoolId)->find($id);
+        if (!$allocation) return response()->json(['error' => 'Allocation not found.'], 404);
+
+        $list = $allocation->returns()
+            ->with(['acceptedBy:id,name', 'items.item:id,name,code'])
+            ->orderByDesc('returned_at')
+            ->get();
+
+        return response()->json([
+            'data' => $list->map(fn ($r) => $this->returnPayload($r))->values(),
+        ]);
+    }
+
+    /**
+     * POST /mobile/stationary/allocations/{id}/returns
+     * Body: { lines: [{ allocation_item_id, qty_returned, condition, restock }],
+     *         refund_amount?, refund_mode (none|adjust|<payment_method_code>), remarks? }
+     */
+    public function createReturn(Request $request, int $id): JsonResponse
+    {
+        $this->assertStationaryAdmin($request);
+        $schoolId = app('current_school_id');
+
+        $allocation = StationaryStudentAllocation::where('school_id', $schoolId)->find($id);
+        if (!$allocation) return response()->json(['error' => 'Allocation not found.'], 404);
+
+        $validated = $request->validate([
+            'lines'                      => 'required|array|min:1',
+            'lines.*.allocation_item_id' => 'required|integer',
+            'lines.*.qty_returned'       => 'required|integer|min:1',
+            'lines.*.condition'          => 'required|in:good,damaged',
+            'lines.*.restock'            => 'required|boolean',
+            'refund_amount'              => 'nullable|numeric|min:0',
+            'refund_mode'                => 'required|string|max:30',
+            'remarks'                    => 'nullable|string|max:2000',
+        ]);
+
+        $allocItemIds = collect($validated['lines'])->pluck('allocation_item_id')->unique()->all();
+        $allocItems   = StationaryAllocationItem::whereIn('id', $allocItemIds)
+            ->where('allocation_id', $allocation->id)
+            ->with('item:id,name,code,unit_price')
+            ->get()->keyBy('id');
+
+        if ($allocItems->count() !== count($allocItemIds)) {
+            return response()->json(['error' => 'One or more lines do not belong to this allocation.'], 422);
+        }
+
+        // Validate qty + compute line refunds
+        $totalLineRefund = 0;
+        $linesData       = [];
+        foreach ($validated['lines'] as $line) {
+            $ai = $allocItems[$line['allocation_item_id']];
+            if ((int) $line['qty_returned'] > (int) $ai->qty_collected) {
+                return response()->json([
+                    'error' => "Cannot return {$line['qty_returned']} of '{$ai->item?->name}' — only {$ai->qty_collected} were issued.",
+                ], 422);
+            }
+            $unit       = (float) $ai->unit_price;
+            $lineRefund = round($unit * (int) $line['qty_returned'], 2);
+            $totalLineRefund += $lineRefund;
+
+            $linesData[] = [
+                'allocation_item_id' => $ai->id,
+                'item_id'            => $ai->item_id,
+                'qty_returned'       => (int) $line['qty_returned'],
+                'condition'          => $line['condition'],
+                'restock'            => (bool) $line['restock'],
+                'refund_unit_price'  => $unit,
+                'line_refund'        => $lineRefund,
+            ];
+        }
+
+        $refundAmount = (float) ($validated['refund_amount'] ?? 0);
+        if ($validated['refund_mode'] === 'none') {
+            $refundAmount = 0;
+        }
+        if ($refundAmount > $totalLineRefund + 0.01) {
+            return response()->json([
+                'error' => "Refund amount ({$refundAmount}) cannot exceed sum of line refunds ({$totalLineRefund}).",
+            ], 422);
+        }
+
+        $return = DB::transaction(function () use ($validated, $linesData, $refundAmount, $allocation, $request) {
+            $itemIds = collect($linesData)->pluck('item_id')->unique()->values();
+            StationaryItem::whereIn('id', $itemIds)->lockForUpdate()->get();
+            StationaryAllocationItem::whereIn('id', collect($linesData)->pluck('allocation_item_id')->all())
+                ->lockForUpdate()->get();
+
+            $r = StationaryReturn::create([
+                'school_id'     => $allocation->school_id,
+                'allocation_id' => $allocation->id,
+                'student_id'    => $allocation->student_id,
+                'accepted_by'   => $request->user()->id,
+                'returned_at'   => now(),
+                'refund_amount' => $refundAmount,
+                'refund_mode'   => $validated['refund_mode'],
+                'remarks'       => $validated['remarks'] ?? null,
+            ]);
+
+            foreach ($linesData as $row) {
+                $r->items()->create($row);
+                StationaryAllocationItem::where('id', $row['allocation_item_id'])
+                    ->decrement('qty_collected', $row['qty_returned']);
+                if ($row['restock']) {
+                    StationaryItem::where('id', $row['item_id'])
+                        ->increment('current_stock', $row['qty_returned']);
+                }
+            }
+
+            if ($refundAmount > 0 && $validated['refund_mode'] !== 'none') {
+                $newPaid = max(0, (float) $allocation->amount_paid - $refundAmount);
+                $allocation->update(['amount_paid' => $newPaid]);
+            }
+
+            $allocation->refresh()->recalculateTotals();
+            $allocation->refresh()->recalculateCollectionStatus();
+
+            return $r;
+        });
+
+        return response()->json([
+            'message' => 'Items returned. Stock and balances updated.',
+            'data'    => $this->returnPayload($return),
+        ], 201);
+    }
+
+    /**
+     * DELETE /mobile/stationary/returns/{id}
+     * Reverses the return — re-collects qty, undoes restock, restores refund.
+     */
+    public function voidReturn(Request $request, int $id): JsonResponse
+    {
+        $this->assertStationaryAdmin($request);
+        $schoolId = app('current_school_id');
+
+        $r = StationaryReturn::where('school_id', $schoolId)->find($id);
+        if (!$r) return response()->json(['error' => 'Return not found.'], 404);
+
+        DB::transaction(function () use ($r) {
+            $r->loadMissing('items');
+
+            $itemIds      = $r->items->pluck('item_id')->unique()->values();
+            $allocItemIds = $r->items->pluck('allocation_item_id')->unique()->values();
+            StationaryItem::whereIn('id', $itemIds)->lockForUpdate()->get();
+            StationaryAllocationItem::whereIn('id', $allocItemIds)->lockForUpdate()->get();
+
+            foreach ($r->items as $line) {
+                StationaryAllocationItem::where('id', $line->allocation_item_id)
+                    ->increment('qty_collected', $line->qty_returned);
+                if ($line->restock) {
+                    StationaryItem::where('id', $line->item_id)
+                        ->decrement('current_stock', $line->qty_returned);
+                }
+            }
+
+            // Restore the refund onto the allocation
+            $allocation = $r->allocation()->withTrashed()->first();
+            if ($allocation && $r->refund_amount > 0 && $r->refund_mode !== 'none') {
+                $allocation->update([
+                    'amount_paid' => (float) $allocation->amount_paid + (float) $r->refund_amount,
+                ]);
+            }
+
+            $r->delete();
+
+            if ($allocation) {
+                $allocation->recalculateTotals();
+                $allocation->recalculateCollectionStatus();
+            }
+        });
+
+        return response()->json(['message' => 'Return voided. Stock and balances restored.', 'id' => $id]);
     }
 }

@@ -343,6 +343,13 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     Route::get  ('/hostel/visitors',                      [$HOST, 'visitors'])           ->name('api.mobile.hostel.visitors');
     Route::post ('/hostel/visitors',                      [$HOST, 'logVisitor'])         ->name('api.mobile.hostel.visitors.create');
     Route::patch('/hostel/visitors/{id}/checkout',        [$HOST, 'checkoutVisitor'])    ->whereNumber('id')->name('api.mobile.hostel.visitors.checkout');
+    // Hostel mess menu
+    Route::get   ('/hostel/mess-menu',                    [$HOST, 'messMenu'])           ->name('api.mobile.hostel.mess-menu');
+    Route::post  ('/hostel/mess-menu',                    [$HOST, 'saveMessMenu'])       ->name('api.mobile.hostel.mess-menu.save');
+    Route::delete('/hostel/mess-menu/{id}',               [$HOST, 'destroyMessMenu'])    ->whereNumber('id')->name('api.mobile.hostel.mess-menu.destroy');
+    // Hostel roll call
+    Route::get ('/hostel/roll-call',                      [$HOST, 'rollCall'])           ->name('api.mobile.hostel.roll-call');
+    Route::post('/hostel/roll-call',                      [$HOST, 'saveRollCall'])       ->name('api.mobile.hostel.roll-call.save');
 
     // Stationary items (admin)
     $STAT = \App\Http\Controllers\Api\Mobile\StationaryController::class;
@@ -354,6 +361,14 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     Route::get ('/stationary/allocations',                  [$STAT, 'allocations'])     ->name('api.mobile.stationary.allocations');
     Route::post('/stationary/allocations',                  [$STAT, 'createAllocation'])->name('api.mobile.stationary.allocations.create');
     Route::post('/stationary/allocations/{id}/collect',     [$STAT, 'collect'])         ->whereNumber('id')->name('api.mobile.stationary.allocations.collect');
+    // Stationary issuance
+    Route::get   ('/stationary/allocations/{id}/issuances', [$STAT, 'issuances'])      ->whereNumber('id')->name('api.mobile.stationary.allocations.issuances');
+    Route::post  ('/stationary/allocations/{id}/issuances', [$STAT, 'createIssuance']) ->whereNumber('id')->name('api.mobile.stationary.allocations.issuances.create');
+    Route::delete('/stationary/issuances/{id}',             [$STAT, 'voidIssuance'])   ->whereNumber('id')->name('api.mobile.stationary.issuances.void');
+    // Stationary returns
+    Route::get   ('/stationary/allocations/{id}/returns',   [$STAT, 'returns'])        ->whereNumber('id')->name('api.mobile.stationary.allocations.returns');
+    Route::post  ('/stationary/allocations/{id}/returns',   [$STAT, 'createReturn'])   ->whereNumber('id')->name('api.mobile.stationary.allocations.returns.create');
+    Route::delete('/stationary/returns/{id}',               [$STAT, 'voidReturn'])     ->whereNumber('id')->name('api.mobile.stationary.returns.void');
 
     // Inventory (admin)
     Route::get  ('/inventory',                 [$MA, 'inventoryAssets'])    ->name('api.mobile.inventory');
