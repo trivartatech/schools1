@@ -424,6 +424,12 @@ class NotificationService
         $parent = $student->studentParent;
         if (!$parent || !$parent->primary_phone) return;
 
+        // Per-channel matrix from settings: notify[absent|present] per channel.
+        // Default: absent=true (preserves current behaviour for new schools), present=false.
+        $channels = $this->school->settings['notifications_v2']['attendance_channels'] ?? [];
+        $bucket   = ($status === 'present') ? 'present' : 'absent';
+        $enabled  = fn($ch) => (bool) ($channels[$ch][$bucket] ?? ($bucket === 'absent'));
+
         $smsTemplate   = $this->getTemplate('sms', 'attendance_update');
         $waTemplate    = $this->getTemplate('whatsapp', 'attendance_update');
         $voiceTemplate = $this->getTemplate('voice', 'attendance_update');
@@ -438,23 +444,23 @@ class NotificationService
             'app_name'    => $this->school->name ?? config('app.name', 'School ERP')
         ];
 
-        if ($smsTemplate) {
+        if ($smsTemplate && $enabled('sms')) {
             $message = $this->replacePlaceholders($smsTemplate->content, $data);
             $this->sendSms($parent->primary_phone, $message, $smsTemplate->template_id, $parent->user_id, $data);
         }
 
-        if ($waTemplate) {
+        if ($waTemplate && $enabled('whatsapp')) {
             $orderedParams = $this->extractOrderedWhatsAppParams($waTemplate->content, $data);
             $this->sendWhatsApp($parent->primary_phone, $waTemplate->template_id, $orderedParams, $parent->user_id, $waTemplate->language_code ?? 'en');
         }
 
-        if ($voiceTemplate) {
+        if ($voiceTemplate && $enabled('voice')) {
             $message = $this->replacePlaceholders($voiceTemplate->content, $data);
             $this->sendVoiceCall($parent->primary_phone, $voiceTemplate->audio_url, $message, $parent->user_id);
         }
 
         $pushTemplate = $this->getTemplate('push', 'attendance_update');
-        if ($pushTemplate) {
+        if ($pushTemplate && $enabled('push')) {
             $message  = $this->replacePlaceholders($pushTemplate->content, $data);
             $notiData = [
                 'type'    => 'attendance',

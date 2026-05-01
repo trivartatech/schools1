@@ -128,23 +128,44 @@ class CommunicationConfigController extends Controller
 
     public function notificationConfig()
     {
+        $existing = app('current_school')->settings['notifications_v2'] ?? [];
+
+        // Seed the per-channel attendance matrix. Absent defaults ON (current behaviour).
+        // Present defaults match the legacy attendance_notify_all toggle so existing
+        // schools keep their effective configuration without a one-shot migration.
+        $legacyNotifyAll = (bool) ($existing['attendance_notify_all'] ?? false);
+        $defaultMatrix = [
+            'sms'      => ['absent' => true, 'present' => $legacyNotifyAll],
+            'whatsapp' => ['absent' => true, 'present' => $legacyNotifyAll],
+            'voice'    => ['absent' => true, 'present' => $legacyNotifyAll],
+            'push'     => ['absent' => true, 'present' => $legacyNotifyAll],
+        ];
+
         return Inertia::render('School/Communication/Config/Notification', [
-            'config' => app('current_school')->settings['notifications_v2'] ?? [
-                'in_portal' => true,
-                'push' => false,
-                'email' => false,
-                'attendance_notify_all' => false,
-            ]
+            'config' => [
+                'in_portal'           => $existing['in_portal'] ?? true,
+                'push'                => $existing['push'] ?? false,
+                'email'               => $existing['email'] ?? false,
+                'attendance_channels' => $existing['attendance_channels'] ?? $defaultMatrix,
+            ],
         ]);
     }
 
     public function updateNotificationConfig(Request $request)
     {
         $validated = $request->validate([
-            'in_portal'             => 'required|boolean',
-            'push'                  => 'required|boolean',
-            'email'                 => 'required|boolean',
-            'attendance_notify_all' => 'required|boolean',
+            'in_portal'                          => 'required|boolean',
+            'push'                               => 'required|boolean',
+            'email'                              => 'required|boolean',
+            'attendance_channels'                => 'required|array',
+            'attendance_channels.sms.absent'     => 'required|boolean',
+            'attendance_channels.sms.present'    => 'required|boolean',
+            'attendance_channels.whatsapp.absent'  => 'required|boolean',
+            'attendance_channels.whatsapp.present' => 'required|boolean',
+            'attendance_channels.voice.absent'   => 'required|boolean',
+            'attendance_channels.voice.present'  => 'required|boolean',
+            'attendance_channels.push.absent'    => 'required|boolean',
+            'attendance_channels.push.present'   => 'required|boolean',
         ]);
 
         $school = app('current_school');

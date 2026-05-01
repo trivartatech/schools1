@@ -155,7 +155,18 @@ class AttendanceController extends Controller
         if ($shouldSend) {
             try {
                 $notificationService = new NotificationService($school);
-                $notifyAll = $school->settings['notifications_v2']['attendance_notify_all'] ?? false;
+
+                // Skip rows whose status bucket has zero channels enabled in the matrix —
+                // saves a no-op service call. Default: absent=true, present=false.
+                $channels   = $school->settings['notifications_v2']['attendance_channels'] ?? [];
+                $bucketHasAnyChannel = function ($bucket) use ($channels) {
+                    foreach (['sms', 'whatsapp', 'voice', 'push'] as $ch) {
+                        if ($channels[$ch][$bucket] ?? ($bucket === 'absent')) return true;
+                    }
+                    return false;
+                };
+                $anyAbsent  = $bucketHasAnyChannel('absent');
+                $anyPresent = $bucketHasAnyChannel('present');
 
                 $studentIds = collect($request->attendance)->pluck('student_id');
                 $students = \App\Models\Student::whereIn('id', $studentIds)
@@ -164,8 +175,8 @@ class AttendanceController extends Controller
                     ->keyBy('id');
 
                 foreach ($request->attendance as $row) {
-                    // Skip present students unless "Notify All" is enabled in school settings
-                    if ($row['status'] === 'present' && !$notifyAll) continue;
+                    $rowAllowed = $row['status'] === 'present' ? $anyPresent : $anyAbsent;
+                    if (!$rowAllowed) continue;
 
                     $student = $students->get($row['student_id']);
                     if ($student) {

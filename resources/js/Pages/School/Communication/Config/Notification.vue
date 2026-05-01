@@ -8,11 +8,25 @@ const props = defineProps({
     config: Object
 });
 
+const ATTENDANCE_CHANNEL_ROWS = [
+    { key: 'sms',      label: 'SMS',       desc: 'Text message via MSG91' },
+    { key: 'whatsapp', label: 'WhatsApp',  desc: 'Template message via MSG91' },
+    { key: 'voice',    label: 'Voice Call',desc: 'Outbound call via Exotel' },
+    { key: 'push',     label: 'Push',      desc: 'Mobile / browser push' },
+];
+
+const defaultMatrix = () => ({
+    sms:      { absent: true, present: false },
+    whatsapp: { absent: true, present: false },
+    voice:    { absent: true, present: false },
+    push:     { absent: true, present: false },
+});
+
 const form = useForm({
     in_portal: props.config.in_portal ?? true,
     push: props.config.push ?? false,
     email: props.config.email ?? false,
-    attendance_notify_all: props.config.attendance_notify_all ?? false,
+    attendance_channels: props.config.attendance_channels ?? defaultMatrix(),
 });
 
 const submit = () => {
@@ -77,35 +91,48 @@ const submit = () => {
                 </div>
             </div>
 
-            <!-- Attendance Notification Settings -->
+            <!-- Attendance Notifications -->
             <div class="card" style="margin-bottom:16px;">
                 <div class="card-header">
                     <h3 class="card-title" style="display:flex;align-items:center;gap:10px;">
                         <div class="channel-icon" style="background:#fef3c7;color:#d97706;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                             <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                         </div>
-                        Attendance Notification Trigger
+                        Attendance Notifications
                     </h3>
+                    <p class="card-sub">
+                        Pick which channels notify parents for absent vs. present students.
+                        "Absent" applies to absent, late, half-day, and leave statuses.
+                    </p>
                 </div>
-                <div class="card-body" style="padding:0;">
-                    <div class="channel-row" style="border-bottom:none;">
-                        <div class="channel-info">
-                            <div>
-                                <div class="channel-name">Notify All Students (Including Present)</div>
-                                <div class="channel-desc">
-                                    <span v-if="form.attendance_notify_all" style="color:#059669;font-weight:600;">ON</span>
-                                    <span v-else style="color:#6366f1;font-weight:600;">OFF (Default)</span>
-                                    &mdash;
-                                    <span v-if="form.attendance_notify_all">Attendance notifications will be sent for ALL students, including those marked present.</span>
-                                    <span v-else>Attendance notifications will only be sent for absent, late, half-day, and leave statuses. Present students are skipped.</span>
-                                </div>
-                            </div>
-                        </div>
-                        <label class="toggle">
-                            <input type="checkbox" v-model="form.attendance_notify_all">
-                            <span class="toggle-track"></span>
-                        </label>
-                    </div>
+                <div class="card-body">
+                    <table class="matrix-table">
+                        <thead>
+                            <tr>
+                                <th>Channel</th>
+                                <th>Absent / Late / Leave</th>
+                                <th>Present</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="ch in ATTENDANCE_CHANNEL_ROWS" :key="ch.key">
+                                <td>
+                                    <div class="matrix-channel-name">{{ ch.label }}</div>
+                                    <div class="matrix-channel-desc">{{ ch.desc }}</div>
+                                </td>
+                                <td>
+                                    <label class="matrix-cell">
+                                        <input type="checkbox" v-model="form.attendance_channels[ch.key].absent">
+                                    </label>
+                                </td>
+                                <td>
+                                    <label class="matrix-cell">
+                                        <input type="checkbox" v-model="form.attendance_channels[ch.key].present">
+                                    </label>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -145,4 +172,48 @@ const submit = () => {
 }
 .toggle input:checked + .toggle-track { background: var(--accent); }
 .toggle input:checked + .toggle-track::after { transform: translateX(20px); }
+
+.card-sub {
+    margin: 6px 0 0;
+    font-size: .8125rem;
+    color: var(--text-muted);
+}
+
+.matrix-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.matrix-table th {
+    text-align: left;
+    font-size: .75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--text-muted);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: #f8fafc;
+}
+.matrix-table th:nth-child(2),
+.matrix-table th:nth-child(3) { text-align: center; width: 160px; }
+.matrix-table td {
+    padding: 12px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+}
+.matrix-table tr:last-child td { border-bottom: none; }
+.matrix-channel-name { font-weight: 600; font-size: .875rem; color: var(--text-primary); }
+.matrix-channel-desc { font-size: .75rem; color: var(--text-muted); margin-top: 2px; }
+.matrix-cell {
+    display: flex;
+    justify-content: center;
+    cursor: pointer;
+    padding: 4px;
+}
+.matrix-cell input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
 </style>
