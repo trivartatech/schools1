@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             FeeDummyDataSeeder::class,
             FeeConcessionTypeSeeder::class,
             HRStaffSeeder::class,
+            InchargeDummyDataSeeder::class,
             AttendanceSeeder::class,
             CBSEDataSeeder::class,
             GradingSystemSeeder::class,
