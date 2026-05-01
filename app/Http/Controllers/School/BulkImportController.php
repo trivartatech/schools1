@@ -97,6 +97,8 @@ class BulkImportController extends Controller
 
     public function importPhotos(Request $request)
     {
+        $this->authorize('bulkImport', Student::class);
+
         $request->validate([
             'photos' => 'required|array|min:1',
             'photos.*' => 'image|mimes:jpg,jpeg,png,webp|max:2048',
@@ -115,6 +117,10 @@ class BulkImportController extends Controller
             if (!$student) {
                 $notFound[] = $photo->getClientOriginalName();
                 continue;
+            }
+
+            if ($student->photo) {
+                Storage::disk('public')->delete($student->photo);
             }
 
             $path = $photo->store('students/photos', 'public');

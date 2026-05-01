@@ -5,9 +5,15 @@ import { ref, computed } from 'vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import { useToast } from '@/Composables/useToast';
 
 const page = usePage();
-const bulkResults = computed(() => page.props.bulk_results || null);
+const toast = useToast();
+const bulkResults = computed(() => page.props.flash?.bulk_results || null);
+
+const MAX_PHOTO_SIZE = 10 * 1024 * 1024; // 10MB — matches server validation
+const MAX_PHOTOS = 500;
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
 const form = useForm({
     photos: []
@@ -18,9 +24,33 @@ const previewImages = ref([]);
 
 const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
-    form.photos = files;
+    if (!files.length) return;
 
-    // Clear previous previews
+    if (files.length > MAX_PHOTOS) {
+        toast.error(`Too many files (${files.length}). Maximum is ${MAX_PHOTOS} per upload.`);
+        e.target.value = '';
+        return;
+    }
+
+    const invalidType = files.filter(f => !ALLOWED_TYPES.includes(f.type));
+    if (invalidType.length) {
+        const sample = invalidType.slice(0, 3).map(f => f.name).join(', ');
+        const more = invalidType.length > 3 ? ` (+${invalidType.length - 3} more)` : '';
+        toast.error(`${invalidType.length} file(s) are not valid images: ${sample}${more}. Only JPG/PNG/GIF/WebP allowed.`);
+        e.target.value = '';
+        return;
+    }
+
+    const oversized = files.filter(f => f.size > MAX_PHOTO_SIZE);
+    if (oversized.length) {
+        const sample = oversized.slice(0, 3).map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(1)}MB)`).join(', ');
+        const more = oversized.length > 3 ? ` (+${oversized.length - 3} more)` : '';
+        toast.error(`${oversized.length} file(s) exceed 10MB: ${sample}${more}`);
+        e.target.value = '';
+        return;
+    }
+
+    form.photos = files;
     previewImages.value = [];
 
     // Generate previews (limit to first 20 for performance)
@@ -34,13 +64,46 @@ const handleFileChange = (e) => {
         };
         reader.readAsDataURL(file);
     });
+
+    toast.info(`${files.length} photo(s) ready to upload.`);
+};
+
+const summarizeFailures = (failed) => {
+    const reasons = {};
+    failed.forEach(item => {
+        reasons[item.reason] = (reasons[item.reason] || 0) + 1;
+    });
+    return Object.entries(reasons)
+        .sort((a, b) => b[1] - a[1])
+        .map(([reason, count]) => `${count}× ${reason}`)
+        .join(' • ');
 };
 
 const submit = () => {
+    if (!form.photos.length) {
+        toast.error('Please select at least one photo before uploading.');
+        return;
+    }
+    toast.info(`Uploading ${form.photos.length} photo(s)…`);
     form.post(route('school.students.bulk-photo.store'), {
         preserveScroll: true,
-        onSuccess: () => {
-            // Success logic if needed
+        onError: (errors) => {
+            const first = Object.values(errors)[0];
+            toast.error(typeof first === 'string'
+                ? first
+                : 'Some photos were rejected. Each file must be JPG/PNG/GIF/WebP under 10MB.');
+        },
+        onSuccess: (resp) => {
+            const r = resp.props.flash?.bulk_results;
+            if (r && r.failed && r.failed.length) {
+                toast.warning(
+                    `${r.failed.length} photo(s) failed: ${summarizeFailures(r.failed)}`,
+                    9000,
+                );
+            }
+            form.photos = [];
+            previewImages.value = [];
+            if (fileInput.value) fileInput.value.value = '';
         }
     });
 };
@@ -128,7 +191,7 @@ const submit = () => {
                             type="file"
                             ref="fileInput"
                             multiple
-                            accept="image/*"
+                            accept="image/jpeg,image/png,image/gif,image/webp"
                             class="hidden-input"
                             @change="handleFileChange"
                         />

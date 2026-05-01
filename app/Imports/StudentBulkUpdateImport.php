@@ -22,6 +22,8 @@ class StudentBulkUpdateImport implements ToCollection, WithHeadingRow
     protected bool $validateOnly;
     protected int $updatedCount = 0;
 
+    protected array $requiredHeadings = ['erp_no'];
+
     public function __construct(int $schoolId, ?int $academicYearId, bool $validateOnly = false)
     {
         $this->schoolId = $schoolId;
@@ -34,10 +36,15 @@ class StudentBulkUpdateImport implements ToCollection, WithHeadingRow
         if (!$this->validateHeadings($rows)) {
             return;
         }
+        if (!$this->validateRequiredHeadings($rows)) {
+            return;
+        }
 
         $classes = CourseClass::where('school_id', $this->schoolId)->pluck('id', 'name')->mapWithKeys(fn($id, $name) => [strtolower(trim($name)) => $id]);
         $sectionsByClass = [];
         $studentsByErp = Student::where('school_id', $this->schoolId)->whereNotNull('erp_no')->pluck('id', 'erp_no')->mapWithKeys(fn($id, $erp) => [strtolower(trim($erp)) => $id]);
+        $admNoToStudentId = Student::where('school_id', $this->schoolId)->whereNotNull('admission_no')->pluck('id', 'admission_no')->mapWithKeys(fn($id, $adm) => [strtolower(trim($adm)) => $id]);
+        $newAdmNos = [];
 
         // Phase 1: Validate
         foreach ($rows as $index => $row) {
@@ -52,6 +59,23 @@ class StudentBulkUpdateImport implements ToCollection, WithHeadingRow
             if (!$studentsByErp->has($erpNo)) {
                 $this->setError($rowNum, 'erp_no', "Student with ERP number '{$row['erp_no']}' not found.");
                 continue;
+            }
+
+            $thisStudentId = $studentsByErp->get($erpNo);
+
+            // Admission number uniqueness — only checked when the cell is set;
+            // empty means "leave unchanged". Catch collisions in Phase 1 so we
+            // don't blow up mid-transaction with a raw SQLSTATE[23000].
+            if (!empty(trim($row['admission_no'] ?? ''))) {
+                $newAdm = strtolower(trim($row['admission_no']));
+                $owner = $admNoToStudentId->get($newAdm);
+                if ($owner && $owner !== $thisStudentId) {
+                    $this->setError($rowNum, 'admission_no', "Admission number '{$row['admission_no']}' already used by another student.");
+                } elseif (isset($newAdmNos[$newAdm]) && $newAdmNos[$newAdm] !== $thisStudentId) {
+                    $this->setError($rowNum, 'admission_no', "Duplicate admission number '{$row['admission_no']}' in file.");
+                } else {
+                    $newAdmNos[$newAdm] = $thisStudentId;
+                }
             }
 
             // Class & Section

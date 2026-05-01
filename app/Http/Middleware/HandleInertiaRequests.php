@@ -231,10 +231,17 @@ class HandleInertiaRequests extends Middleware
             // of this request; Laravel's StartSession middleware ages
             // the flash bag on the NEXT request as usual.
             'flash' => once(fn () => [
-                'success' => $request->session()->get('success'),
-                'error'   => $request->session()->get('error'),
-                'warning' => $request->session()->get('warning'),
-                'status'  => $request->session()->get('status'),
+                'success'         => $request->session()->get('success'),
+                'error'           => $request->session()->get('error'),
+                'warning'         => $request->session()->get('warning'),
+                'status'          => $request->session()->get('status'),
+                // Bulk-import / bulk-photo detail payloads — only present on
+                // the response that ran the import, then aged off by the
+                // session flash bag on the next request.
+                'import_errors'   => $request->session()->get('import_errors'),
+                'error_log_path'  => $request->session()->get('error_log_path'),
+                'photo_not_found' => $request->session()->get('photo_not_found'),
+                'bulk_results'    => $request->session()->get('bulk_results'),
             ]),
             'impersonation' => $impersonation,
         ]);

@@ -5,8 +5,10 @@ import { ref, computed } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import Table from '@/Components/ui/Table.vue';
+import { useToast } from '@/Composables/useToast';
 
 const page = usePage();
+const toast = useToast();
 
 const props = defineProps({
     importTypes: Object,
@@ -62,14 +64,17 @@ const validateFile = (f) => {
     const ext = f.name.split('.').pop().toLowerCase();
     if (!ALLOWED_EXTENSIONS.includes(ext)) {
         fileError.value = `Invalid file type ".${ext}". Only .xlsx, .xls, .csv allowed.`;
+        toast.error(fileError.value);
         return false;
     }
     if (f.size > MAX_FILE_SIZE) {
         fileError.value = `File is too large (${(f.size / 1024 / 1024).toFixed(1)}MB). Maximum is 5MB.`;
+        toast.error(fileError.value);
         return false;
     }
     if (f.size === 0) {
         fileError.value = 'File is empty.';
+        toast.error(fileError.value);
         return false;
     }
     return true;
@@ -88,6 +93,9 @@ const removeFile = () => { file.value = null; fileError.value = ''; if (fileInpu
 const submitImport = (dryRun = false) => {
     if (!file.value || uploading.value) return;
     uploading.value = true;
+    validateOnly.value = dryRun;
+    const label = props.importTypes[activeType.value]?.label || activeType.value;
+    toast.info(dryRun ? `Validating ${label} file…` : `Importing ${label}…`);
     const formData = new FormData();
     formData.append('type', activeType.value);
     formData.append('file', file.value);
@@ -95,7 +103,21 @@ const submitImport = (dryRun = false) => {
     router.post('/school/bulk-import', formData, {
         forceFormData: true,
         preserveScroll: true,
-        onFinish: () => { uploading.value = false; },
+        onError: (errors) => {
+            const first = Object.values(errors)[0];
+            toast.error(typeof first === 'string'
+                ? first
+                : 'Server rejected the upload. Check that the file is .xlsx/.xls/.csv and under 5MB.');
+        },
+        onSuccess: (resp) => {
+            const errs = resp.props.flash?.import_errors || [];
+            if (errs.length) {
+                const sample = errs[0];
+                const more = errs.length > 1 ? ` (+${errs.length - 1} more — see table below)` : '';
+                toast.warning(`Row ${sample.row} • ${sample.column}: ${sample.message}${more}`, 8000);
+            }
+        },
+        onFinish: () => { uploading.value = false; validateOnly.value = false; },
     });
 };
 
@@ -104,6 +126,7 @@ const validatePhotos = (files) => {
     photoError.value = '';
     if (files.length > MAX_PHOTOS) {
         photoError.value = `Too many files (${files.length}). Maximum is ${MAX_PHOTOS} photos per upload.`;
+        toast.error(photoError.value);
         return false;
     }
     const oversized = [];
@@ -114,10 +137,12 @@ const validatePhotos = (files) => {
     }
     if (invalidType.length) {
         photoError.value = `Invalid file type: ${invalidType.slice(0, 3).join(', ')}${invalidType.length > 3 ? '...' : ''}. Only JPG, PNG, WebP allowed.`;
+        toast.error(photoError.value);
         return false;
     }
     if (oversized.length) {
         photoError.value = `${oversized.length} file(s) exceed 2MB: ${oversized.slice(0, 3).join(', ')}${oversized.length > 3 ? '...' : ''}`;
+        toast.error(photoError.value);
         return false;
     }
     return true;
@@ -131,11 +156,29 @@ const removePhotos = () => { photoFiles.value = []; photoError.value = ''; if (p
 const submitPhotos = () => {
     if (!photoFiles.value.length || uploading.value) return;
     uploading.value = true;
+    toast.info(`Uploading ${photoFiles.value.length} photo(s)…`);
     const formData = new FormData();
     photoFiles.value.forEach(f => formData.append('photos[]', f));
     router.post('/school/bulk-import/photos', formData, {
         forceFormData: true,
         preserveScroll: true,
+        onError: (errors) => {
+            const first = Object.values(errors)[0];
+            toast.error(typeof first === 'string'
+                ? first
+                : 'Some photos were rejected. Each file must be JPG/PNG/WebP under 2MB.');
+        },
+        onSuccess: (resp) => {
+            const notFound = resp.props.flash?.photo_not_found || [];
+            if (notFound.length) {
+                const sample = notFound.slice(0, 3).join(', ');
+                const more = notFound.length > 3 ? ` (+${notFound.length - 3} more)` : '';
+                toast.warning(
+                    `${notFound.length} file(s) didn't match any admission number: ${sample}${more}`,
+                    8000,
+                );
+            }
+        },
         onFinish: () => { uploading.value = false; },
     });
 };
