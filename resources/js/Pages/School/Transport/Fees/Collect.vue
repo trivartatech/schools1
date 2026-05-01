@@ -117,6 +117,9 @@ const STATUS_COLOURS = {
                 <p class="text-[11px] uppercase tracking-wider text-gray-500">Student</p>
                 <p class="font-bold text-gray-900 mt-1">{{ studentName }}</p>
                 <p class="text-xs text-gray-500">Adm: {{ allocation.student?.admission_no ?? '—' }}</p>
+                <p v-if="allocation.student?.current_academic_history?.course_class?.name" class="text-xs text-gray-500">
+                    {{ allocation.student.current_academic_history.course_class.name }}<span v-if="allocation.student?.current_academic_history?.section?.name"> &mdash; {{ allocation.student.current_academic_history.section.name }}</span>
+                </p>
             </div>
             <div>
                 <p class="text-[11px] uppercase tracking-wider text-gray-500">Route / Stop</p>

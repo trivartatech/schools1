@@ -98,6 +98,9 @@ class TransportFeeCollectionController extends Controller
         $allocation->load([
             'student:id,admission_no,first_name,last_name',
             'student.user:id,name',
+            // Class + section for the student summary panel
+            'student.currentAcademicHistory.courseClass:id,name',
+            'student.currentAcademicHistory.section:id,name',
             'route:id,route_name,route_code',
             'stop:id,stop_name,fee',
             'vehicle:id,vehicle_number,vehicle_name',

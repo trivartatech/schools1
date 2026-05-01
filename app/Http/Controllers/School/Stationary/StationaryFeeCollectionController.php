@@ -90,6 +90,9 @@ class StationaryFeeCollectionController extends Controller
         $allocation->load([
             'student:id,admission_no,first_name,last_name,user_id',
             'student.user:id,name',
+            // Class + section for the student summary panel
+            'student.currentAcademicHistory.courseClass:id,name',
+            'student.currentAcademicHistory.section:id,name',
             'lineItems.item:id,name,code,unit_price',
             'payments' => fn ($q) => $q->orderByDesc('payment_date')->orderByDesc('id'),
             'payments.collectedBy:id,name',

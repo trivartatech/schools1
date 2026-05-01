@@ -100,6 +100,9 @@ class HostelFeeCollectionController extends Controller
         $allocation->load([
             'student:id,admission_no,first_name,last_name',
             'student.user:id,name',
+            // Class + section for the student summary panel
+            'student.currentAcademicHistory.courseClass:id,name',
+            'student.currentAcademicHistory.section:id,name',
             'bed:id,name,hostel_room_id,status',
             'bed.room:id,room_number,hostel_id,cost_per_month',
             'bed.room.hostel:id,name',
