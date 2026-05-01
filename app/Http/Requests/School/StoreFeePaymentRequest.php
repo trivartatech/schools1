@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\School;
 
-use App\Enums\PaymentMode;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -23,7 +22,17 @@ class StoreFeePaymentRequest extends FormRequest
             'academic_year_id'=> ['required', Rule::exists('academic_years', 'id')->where('school_id', $schoolId)],
             'amount_paid'     => 'required|numeric|min:0.01',
             'amount_due'      => 'required|numeric|min:0',
-            'payment_mode'    => ['required', Rule::enum(PaymentMode::class)],
+            // payment_mode is validated against the dynamic payment_methods
+            // table (admin-managed) so admins can register custom codes
+            // (phonepe, paytm, gpay, wallet, …) without a code change.
+            // Mirrors the validation already used by the Hostel / Transport
+            // / Stationary fee-collection controllers.
+            'payment_mode'    => [
+                'required', 'string',
+                Rule::exists('payment_methods', 'code')
+                    ->where('school_id', $schoolId)
+                    ->where('is_active', true),
+            ],
             'payment_date'    => 'required|date|before_or_equal:today',
             'term'            => 'nullable|string|max:50',
             'transaction_ref' => 'nullable|string|max:255',
