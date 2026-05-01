@@ -275,7 +275,6 @@ class HandleInertiaRequests extends Middleware
                 // session flash bag on the next request.
                 'import_errors'   => $request->session()->get('import_errors'),
                 'error_log_path'  => $request->session()->get('error_log_path'),
-                'photo_not_found' => $request->session()->get('photo_not_found'),
                 'bulk_results'    => $request->session()->get('bulk_results'),
             ]),
             'impersonation' => $impersonation,

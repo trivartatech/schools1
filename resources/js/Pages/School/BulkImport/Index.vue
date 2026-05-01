@@ -16,41 +16,31 @@ const props = defineProps({
 });
 
 const activeType = ref(props.selectedType || 'students');
-const isPhotoMode = computed(() => activeType.value === 'photos');
 
 const file = ref(null);
 const fileError = ref('');
-const photoFiles = ref([]);
-const photoError = ref('');
 const uploading = ref(false);
 const validateOnly = ref(false);
 const dragOver = ref(false);
 const fileInputRef = ref(null);
-const photoInputRef = ref(null);
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const MAX_PHOTO_SIZE = 2 * 1024 * 1024; // 2MB
-const MAX_PHOTOS = 200;
 const ALLOWED_EXTENSIONS = ['xlsx', 'xls', 'csv'];
 
 const flash = computed(() => page.props.flash || {});
 const importErrors = computed(() => flash.value.import_errors || []);
 const errorLogPath = computed(() => flash.value.error_log_path || null);
-const photoNotFound = computed(() => flash.value.photo_not_found || []);
 
 const typeIcons = {
     users: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
     pencil: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
     briefcase: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
-    image: 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z',
 };
 
 const switchType = (type) => {
     activeType.value = type;
     file.value = null;
     fileError.value = '';
-    photoFiles.value = [];
-    photoError.value = '';
     uploading.value = false;
     validateOnly.value = false;
 };
@@ -121,73 +111,12 @@ const submitImport = (dryRun = false) => {
     });
 };
 
-// ── Photo handling ──
-const validatePhotos = (files) => {
-    photoError.value = '';
-    if (files.length > MAX_PHOTOS) {
-        photoError.value = `Too many files (${files.length}). Maximum is ${MAX_PHOTOS} photos per upload.`;
-        toast.error(photoError.value);
-        return false;
-    }
-    const oversized = [];
-    const invalidType = [];
-    for (const f of files) {
-        if (f.size > MAX_PHOTO_SIZE) oversized.push(f.name);
-        if (!['image/jpeg', 'image/png', 'image/webp'].includes(f.type)) invalidType.push(f.name);
-    }
-    if (invalidType.length) {
-        photoError.value = `Invalid file type: ${invalidType.slice(0, 3).join(', ')}${invalidType.length > 3 ? '...' : ''}. Only JPG, PNG, WebP allowed.`;
-        toast.error(photoError.value);
-        return false;
-    }
-    if (oversized.length) {
-        photoError.value = `${oversized.length} file(s) exceed 2MB: ${oversized.slice(0, 3).join(', ')}${oversized.length > 3 ? '...' : ''}`;
-        toast.error(photoError.value);
-        return false;
-    }
-    return true;
-};
-const onPhotoSelect = (e) => {
-    const files = Array.from(e.target.files);
-    if (validatePhotos(files)) { photoFiles.value = files; } else { photoFiles.value = []; }
-};
-const removePhotos = () => { photoFiles.value = []; photoError.value = ''; if (photoInputRef.value) photoInputRef.value.value = ''; };
-
-const submitPhotos = () => {
-    if (!photoFiles.value.length || uploading.value) return;
-    uploading.value = true;
-    toast.info(`Uploading ${photoFiles.value.length} photo(s)…`);
-    const formData = new FormData();
-    photoFiles.value.forEach(f => formData.append('photos[]', f));
-    router.post('/school/bulk-import/photos', formData, {
-        forceFormData: true,
-        preserveScroll: true,
-        onError: (errors) => {
-            const first = Object.values(errors)[0];
-            toast.error(typeof first === 'string'
-                ? first
-                : 'Some photos were rejected. Each file must be JPG/PNG/WebP under 2MB.');
-        },
-        onSuccess: (resp) => {
-            const notFound = resp.props.flash?.photo_not_found || [];
-            if (notFound.length) {
-                const sample = notFound.slice(0, 3).join(', ');
-                const more = notFound.length > 3 ? ` (+${notFound.length - 3} more)` : '';
-                toast.warning(
-                    `${notFound.length} file(s) didn't match any admission number: ${sample}${more}`,
-                    8000,
-                );
-            }
-        },
-        onFinish: () => { uploading.value = false; },
-    });
-};
 </script>
 
 <template>
     <SchoolLayout title="Bulk Import">
 
-        <PageHeader title="Bulk Import" subtitle="Import students, staff, or photos in bulk using Excel files." />
+        <PageHeader title="Bulk Import" subtitle="Import students or staff in bulk using Excel files." />
 
         <div class="bi-layout">
             <!-- Sidebar -->
@@ -209,10 +138,7 @@ const submitPhotos = () => {
             <!-- Main content -->
             <div class="bi-main">
 
-                <!-- ═══ EXCEL MODE ═══ -->
-                <template v-if="!isPhotoMode">
-
-                    <!-- Step 1: Download Template -->
+                <!-- Step 1: Download Template -->
                     <div class="card bi-step">
                         <div class="bi-step-header">
                             <span class="bi-step-num">1</span>
@@ -294,101 +220,8 @@ const submitPhotos = () => {
                             <p class="bi-action-hint">Use "Validate Only" to check your file for errors without importing any data.</p>
                         </div>
                     </div>
-                </template>
 
-                <!-- ═══ PHOTO MODE ═══ -->
-                <template v-else>
-
-                    <!-- Step 1: Instructions -->
-                    <div class="card bi-step">
-                        <div class="bi-step-header">
-                            <span class="bi-step-num">1</span>
-                            <div>
-                                <h3 class="bi-step-title">Naming Convention</h3>
-                                <p class="bi-step-sub">Each photo file name must match a student's admission number.</p>
-                            </div>
-                        </div>
-                        <div class="bi-step-body">
-                            <div class="bi-naming-example">
-                                <code>STU001.jpg</code> <span style="color:#64748b;margin:0 6px;">&rarr;</span> matches student with admission no <strong>STU001</strong>
-                            </div>
-                            <p style="font-size:0.8rem;color:#64748b;margin-top:8px;">Supported formats: JPG, JPEG, PNG, WebP. Max 2MB per photo.</p>
-                        </div>
-                    </div>
-
-                    <!-- Step 2: Select Photos -->
-                    <div class="card bi-step">
-                        <div class="bi-step-header">
-                            <span class="bi-step-num">2</span>
-                            <div>
-                                <h3 class="bi-step-title">Select Photos</h3>
-                                <p class="bi-step-sub">Select multiple student photos to upload at once.</p>
-                            </div>
-                        </div>
-                        <div class="bi-step-body">
-                            <div class="bi-dropzone" :class="{ 'bi-dropzone--error': photoError }" @click="photoInputRef?.click()">
-                                <input ref="photoInputRef" type="file" multiple accept="image/jpeg,image/png,image/webp" @change="onPhotoSelect" style="display:none;" />
-                                <template v-if="photoError">
-                                    <div class="bi-file-error" @click.stop>
-                                        <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#ef4444"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                        <span>{{ photoError }}</span>
-                                    </div>
-                                </template>
-                                <template v-else-if="!photoFiles.length">
-                                    <svg width="36" height="36" fill="none" viewBox="0 0 24 24" stroke="#94a3b8"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                                    <p style="margin-top:8px;font-weight:600;color:#475569;">Click to select photos</p>
-                                    <p style="font-size:0.75rem;color:#94a3b8;margin-top:4px;">Select multiple JPG/PNG/WebP files (max 200 photos, 2MB each)</p>
-                                </template>
-                                <template v-else>
-                                    <div class="bi-file-info" @click.stop>
-                                        <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#10b981"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                        <div>
-                                            <div style="font-weight:600;color:#0f172a;">{{ photoFiles.length }} photo(s) selected</div>
-                                            <div style="font-size:0.75rem;color:#94a3b8;">{{ photoFiles.map(f => f.name).slice(0, 5).join(', ') }}{{ photoFiles.length > 5 ? '...' : '' }}</div>
-                                        </div>
-                                        <button @click.stop="removePhotos" class="bi-file-remove" title="Clear selection">&times;</button>
-                                    </div>
-                                </template>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Step 3: Upload -->
-                    <div class="card bi-step">
-                        <div class="bi-step-header">
-                            <span class="bi-step-num">3</span>
-                            <div>
-                                <h3 class="bi-step-title">Upload & Update</h3>
-                                <p class="bi-step-sub">Photos will be matched to students by admission number and saved.</p>
-                            </div>
-                        </div>
-                        <div class="bi-step-body">
-                            <Button @click="submitPhotos" :disabled="!photoFiles.length || uploading">
-                                <svg v-if="uploading" class="bi-spinner" width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="31.4" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.8s" repeatCount="indefinite"/></circle></svg>
-                                <svg v-else width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                                {{ uploading ? 'Uploading...' : 'Upload Photos' }}
-                            </Button>
-                        </div>
-                    </div>
-
-                    <!-- Unmatched photos -->
-                    <div v-if="photoNotFound.length" class="card bi-step">
-                        <div class="bi-step-header">
-                            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#f59e0b"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
-                            <div>
-                                <h3 class="bi-step-title">Unmatched Files</h3>
-                                <p class="bi-step-sub">These files did not match any student admission number.</p>
-                            </div>
-                        </div>
-                        <div class="bi-step-body">
-                            <div class="bi-unmatched-list">
-                                <span v-for="name in photoNotFound" :key="name" class="bi-unmatched-tag">{{ name }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </template>
-
-                <!-- ═══ ERROR TABLE (Excel modes) ═══ -->
+                <!-- ═══ ERROR TABLE ═══ -->
                 <div v-if="importErrors.length" class="card bi-step">
                     <div class="bi-step-header">
                         <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#ef4444"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -555,32 +388,6 @@ const submitPhotos = () => {
 /* Action row */
 .bi-action-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .bi-action-hint { font-size: 0.7rem; color: #94a3b8; margin-top: 8px; }
-
-/* Photo mode */
-.bi-naming-example {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-size: 0.8125rem;
-}
-.bi-naming-example code {
-    background: #e0e7ff;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: 600;
-    color: #4f46e5;
-}
-.bi-unmatched-list { display: flex; flex-wrap: wrap; gap: 6px; }
-.bi-unmatched-tag {
-    background: #fef3c7;
-    border: 1px solid #fde68a;
-    color: #92400e;
-    padding: 3px 10px;
-    border-radius: 6px;
-    font-size: 0.75rem;
-    font-weight: 500;
-}
 
 /* Spinner */
 .bi-spinner { animation: bi-spin 0.8s linear infinite; }

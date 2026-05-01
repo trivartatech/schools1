@@ -23,7 +23,9 @@ class BulkImportController extends Controller
             'students' => ['label' => 'New Students', 'icon' => 'users', 'description' => 'Import new student records from Excel'],
             'student_update' => ['label' => 'Update Students', 'icon' => 'pencil', 'description' => 'Bulk update existing student data'],
             'staff' => ['label' => 'New Staff', 'icon' => 'briefcase', 'description' => 'Import new staff members from Excel'],
-            'photos' => ['label' => 'Bulk Photos', 'icon' => 'image', 'description' => 'Upload student photos by admission number'],
+            // Bulk photo upload lives on its own page at /school/students/bulk-photo —
+            // 10MB per file with a detailed success/failed table. Don't add a photos
+            // tab here; we want a single entry point for that flow.
         ];
     }
 
@@ -93,50 +95,6 @@ class BulkImportController extends Controller
         $action = $type === 'student_update' ? 'updated' : 'imported';
 
         return back()->with('success', "Successfully {$action} {$count} record(s).");
-    }
-
-    public function importPhotos(Request $request)
-    {
-        $this->authorize('bulkImport', Student::class);
-
-        $request->validate([
-            'photos' => 'required|array|min:1',
-            'photos.*' => 'image|mimes:jpg,jpeg,png,webp|max:2048',
-        ]);
-
-        $schoolId = app('current_school_id');
-        $matched = 0;
-        $notFound = [];
-
-        foreach ($request->file('photos') as $photo) {
-            $filename = pathinfo($photo->getClientOriginalName(), PATHINFO_FILENAME);
-            $student = Student::where('school_id', $schoolId)
-                ->where('admission_no', $filename)
-                ->first();
-
-            if (!$student) {
-                $notFound[] = $photo->getClientOriginalName();
-                continue;
-            }
-
-            if ($student->photo) {
-                Storage::disk('public')->delete($student->photo);
-            }
-
-            $path = $photo->store('students/photos', 'public');
-            $student->update(['photo' => $path]);
-            $matched++;
-        }
-
-        $message = "Matched and updated {$matched} student photo(s).";
-        if (!empty($notFound)) {
-            $message .= ' ' . count($notFound) . ' file(s) did not match any admission number.';
-        }
-
-        return back()->with([
-            'success' => $message,
-            'photo_not_found' => $notFound,
-        ]);
     }
 
     public function downloadErrors(Request $request)
