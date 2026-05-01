@@ -36,7 +36,7 @@ class StudentUpdateTemplate implements FromArray, WithHeadings, WithStyles
         // Two example rows: address-only update + parent-only update
         return [
             [
-                '2025-26/0001', '', '', '', '', '', '',
+                'ERP_2025-26_0001', '', '', '', '', '', '',
                 '', '', '', '', '',
                 '', '', '456 New Address', 'Mumbai', 'Maharashtra',
                 '400001', 'Class 6', 'A', '5', '',

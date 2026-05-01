@@ -342,16 +342,21 @@ const submitPhotos = () => {
                             <span class="bi-step-num">1</span>
                             <div>
                                 <h3 class="bi-step-title">Naming Convention</h3>
-                                <p class="bi-step-sub">Each photo file name must match a student's admission number.</p>
+                                <p class="bi-step-sub">Each photo file name must match the student's Admission No or ERP No.</p>
                             </div>
                         </div>
                         <div class="bi-step-body">
                             <div class="bi-naming-example">
                                 <code>STU001.jpg</code>
                                 <span style="color:#64748b;margin:0 6px;">&rarr;</span>
-                                matches student with admission no <strong>STU001</strong>
+                                matches admission no <strong>STU001</strong>
                             </div>
-                            <p style="font-size:0.8rem;color:#64748b;margin-top:8px;">Supported: JPG, JPEG, PNG, GIF, WebP. Max 10 MB per photo, up to {{ MAX_PHOTOS }} photos per upload.</p>
+                            <div class="bi-naming-example" style="margin-top:6px;">
+                                <code>ERP_2026-27_0004.jpg</code>
+                                <span style="color:#64748b;margin:0 6px;">&rarr;</span>
+                                matches ERP no <strong>ERP_2026-27_0004</strong>
+                            </div>
+                            <p style="font-size:0.8rem;color:#64748b;margin-top:8px;">Supported: JPG, JPEG, PNG, GIF, WebP. Max 10 MB per photo, up to {{ MAX_PHOTOS }} photos per upload. If your admission numbers contain "/" or other special characters, use the ERP No instead — it's filename-safe.</p>
                         </div>
                     </div>
 

@@ -109,17 +109,24 @@ class BulkImportController extends Controller
 
         foreach ($request->file('photos') as $photo) {
             $originalName = $photo->getClientOriginalName();
-            $admissionNo  = pathinfo($originalName, PATHINFO_FILENAME);
+            // Filename without the .ext suffix is the lookup key.
+            $key = pathinfo($originalName, PATHINFO_FILENAME);
 
+            // Match either admission_no OR erp_no — schools can use whichever
+            // identifier is convenient. erp_no is now filename-safe (ERP_YYYY-YY_NNNN)
+            // so it's a viable filename too.
             $student = Student::where('school_id', $schoolId)
-                ->where('admission_no', $admissionNo)
+                ->where(function ($q) use ($key) {
+                    $q->where('admission_no', $key)
+                      ->orWhere('erp_no', $key);
+                })
                 ->first();
 
             if (!$student) {
                 $results['failed'][] = [
                     'file'         => $originalName,
-                    'admission_no' => $admissionNo,
-                    'reason'       => 'Student with this Admission No not found.',
+                    'admission_no' => $key,
+                    'reason'       => 'No student found with this Admission No or ERP No.',
                 ];
                 continue;
             }

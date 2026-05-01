@@ -40,7 +40,10 @@ class Student extends Model
 
     /**
      * Generate a unique, immutable ERP number prefixed with the academic year
-     * in which the student is first registered. Format: 2025-26/0001
+     * in which the student is first registered. Format: ERP_2025-26_0001
+     *
+     * The ERP_/_ wrapper keeps the value filename-safe so it can be used as
+     * a photo filename in bulk photo upload (slashes are forbidden by the OS).
      */
     public static function generateErpNo(int $schoolId): string
     {
@@ -53,7 +56,7 @@ class Student extends Model
             }
         }
 
-        $prefix = $ayName . '/';
+        $prefix = 'ERP_' . $ayName . '_';
 
         // Find the max existing ERP number with this prefix for this school
         $lastErp = static::withTrashed()

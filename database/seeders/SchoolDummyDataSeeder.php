@@ -351,7 +351,7 @@ class SchoolDummyDataSeeder extends Seeder
                         'school_id'               => $schoolId,
                         'parent_id'               => $pid,
                         'admission_no'            => 'ADM' . date('Y') . str_pad($studentCounter, 4, '0', STR_PAD_LEFT),
-                        'erp_no'                  => 'ERP' . str_pad($studentCounter, 5, '0', STR_PAD_LEFT),
+                        'erp_no'                  => sprintf('ERP_%s-%s_%04d', date('Y'), substr((string)(date('Y') + 1), -2), $studentCounter),
                         'roll_no'                 => $s,
                         'first_name'              => $firstName,
                         'last_name'               => $familyLastName,

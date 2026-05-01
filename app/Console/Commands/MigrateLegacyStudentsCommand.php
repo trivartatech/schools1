@@ -377,7 +377,7 @@ class MigrateLegacyStudentsCommand extends Command
 
             $firstYear = $rec['first_year'];
             $erpSeq[$firstYear] = ($erpSeq[$firstYear] ?? 0) + 1;
-            $erpNo = $firstYear . '/' . str_pad($erpSeq[$firstYear], 4, '0', STR_PAD_LEFT);
+            $erpNo = 'ERP_' . $firstYear . '_' . str_pad($erpSeq[$firstYear], 4, '0', STR_PAD_LEFT);
 
             $ayId = $this->ayMap[$firstYear] ?? null;
             if ($ayId) {
