@@ -91,7 +91,7 @@ class HandleInertiaRequests extends Middleware
             $schoolId = app()->bound('current_school_id') ? app('current_school_id') : $user->school_id;
             $registrar = app(\Spatie\Permission\PermissionRegistrar::class);
 
-            $permissions = once(function() use ($user, $registrar, $schoolId) {
+            $permissions = once(function() use ($user, $registrar, $schoolId, $school) {
                 $registrar->setPermissionsTeamId(null);
                 $global = $user->getAllPermissions()->pluck('name');
 
@@ -101,7 +101,42 @@ class HandleInertiaRequests extends Middleware
                     $registrar->setPermissionsTeamId($schoolId);
                     $scoped = $user->getAllPermissions()->pluck('name');
                 }
-                return $global->merge($scoped)->unique()->values();
+                $combined = $global->merge($scoped)->unique()->values();
+
+                // Edition strip: drop permissions for any module the school
+                // doesn't have enabled. The sidebar (filtered by perms) then
+                // hides those menu blocks automatically — no Vue changes
+                // needed for menu visibility. Routes are still guarded by
+                // CheckModuleAccess (404), so this is purely cosmetic.
+                $modulesOff = $school
+                    ? collect(config('features.modules', []))
+                        ->reject(fn ($m) => $school->isFeatureEnabled($m))
+                        ->values()
+                    : collect();
+                if ($modulesOff->isNotEmpty()) {
+                    $combined = $combined->reject(function ($perm) use ($modulesOff) {
+                        foreach ($modulesOff as $m) {
+                            // Matches: view_<m>, create_<m>, edit_<m>, delete_<m>,
+                            // approve_<m>, export_<m>, collect_<m>_fee, and any
+                            // granular perm prefixed with view_<m>_ / create_<m>_ /
+                            // edit_<m>_ / delete_<m>_ (e.g. view_transport_routes).
+                            if (in_array($perm, [
+                                "view_{$m}", "create_{$m}", "edit_{$m}",
+                                "delete_{$m}", "approve_{$m}", "export_{$m}",
+                                "collect_{$m}_fee",
+                            ], true)) {
+                                return true;
+                            }
+                            foreach (['view_', 'create_', 'edit_', 'delete_'] as $prefix) {
+                                if (str_starts_with($perm, "{$prefix}{$m}_")) {
+                                    return true;
+                                }
+                            }
+                        }
+                        return false;
+                    })->values();
+                }
+                return $combined;
             });
 
             $roles = once(function() use ($user, $registrar, $schoolId) {

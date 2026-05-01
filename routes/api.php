@@ -94,8 +94,8 @@ Route::post('/scan-id-card-login', [\App\Http\Controllers\AuthController::class,
 
 // Bus status — auth'd but outside the /mobile prefix because the mobile app
 // polls /api/bus/status directly. Returns the live state of the parent's
-// active child's bus (or own bus for students).
-Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
+// active child's bus (or own bus for students). Edition-gated (404 in Lite).
+Route::middleware(['auth:sanctum', 'tenant', 'module:transport'])->group(function () {
     Route::get('/bus/status', [\App\Http\Controllers\Api\MobileApiController::class, 'busStatus'])
         ->name('api.bus.status');
 });
@@ -117,17 +117,22 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     Route::post('/fees/collect',              [$MA, 'feeCollectStore'])->name('api.mobile.fees.collect.store');
     Route::get('/fees/{id}',                  [$MA, 'feeDetail'])->whereNumber('id')->name('api.mobile.fees.detail');
     Route::get('/exams',                      [$MA, 'exams'])->name('api.mobile.exams');
-    Route::get('/transport/live',             [$MA, 'transport'])->name('api.mobile.transport');
 
-    // Driver tracking (used by the mobile driver app)
-    $DT = \App\Http\Controllers\Api\Transport\DriverTrackingController::class;
-    Route::get ('/transport/driver/vehicles',         [$DT, 'assignedVehicles'])->name('api.mobile.driver.vehicles');
-    Route::post('/transport/driver-tracking/update',  [$DT, 'update'])->name('api.mobile.driver-tracking.update');
-    Route::post('/transport/driver-tracking/stop',    [$DT, 'stop'])->name('api.mobile.driver-tracking.stop');
+    // Transport endpoints — edition-gated (404 in Lite)
+    Route::middleware(['module:transport'])->group(function () use ($MA) {
+        Route::get('/transport/live',         [$MA, 'transport'])->name('api.mobile.transport');
 
-    // Transport attendance (driver marks students boarded / dropped)
-    Route::get ('/transport/attendance/students',     [$MA, 'transportAttendanceStudents'])->name('api.mobile.transport.attendance.students');
-    Route::post('/transport/attendance/mark',         [$MA, 'transportAttendanceMark'])->name('api.mobile.transport.attendance.mark');
+        // Driver tracking (used by the mobile driver app)
+        $DT = \App\Http\Controllers\Api\Transport\DriverTrackingController::class;
+        Route::get ('/transport/driver/vehicles',         [$DT, 'assignedVehicles'])->name('api.mobile.driver.vehicles');
+        Route::post('/transport/driver-tracking/update',  [$DT, 'update'])->name('api.mobile.driver-tracking.update');
+        Route::post('/transport/driver-tracking/stop',    [$DT, 'stop'])->name('api.mobile.driver-tracking.stop');
+
+        // Transport attendance (driver marks students boarded / dropped)
+        Route::get ('/transport/attendance/students',     [$MA, 'transportAttendanceStudents'])->name('api.mobile.transport.attendance.students');
+        Route::post('/transport/attendance/mark',         [$MA, 'transportAttendanceMark'])->name('api.mobile.transport.attendance.mark');
+    });
+
     Route::get('/announcements',              [$MA, 'announcements'])->name('api.mobile.announcements');
 
     // Front gate keeper — gate passes + visitor log
@@ -277,11 +282,13 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     Route::patch('/disciplinary/{id}',                  [$DR, 'update'])        ->whereNumber('id')->name('api.mobile.disciplinary.update');
     Route::get  ('/disciplinary/student/{studentId}',   [$DR, 'studentHistory'])->whereNumber('studentId')->name('api.mobile.disciplinary.student-history');
 
-    // Transport — Admin (read-only fleet/route/allocation views)
-    $TA = \App\Http\Controllers\Api\Mobile\TransportAdminController::class;
-    Route::get('/transport/admin/routes',          [$TA, 'routes'])      ->name('api.mobile.transport.admin.routes');
-    Route::get('/transport/admin/routes/{id}',     [$TA, 'routeDetail']) ->whereNumber('id')->name('api.mobile.transport.admin.routes.detail');
-    Route::get('/transport/admin/vehicles',        [$TA, 'vehicles'])    ->name('api.mobile.transport.admin.vehicles');
+    // Transport — Admin (read-only fleet/route/allocation views) — edition-gated
+    Route::middleware(['module:transport'])->group(function () {
+        $TA = \App\Http\Controllers\Api\Mobile\TransportAdminController::class;
+        Route::get('/transport/admin/routes',          [$TA, 'routes'])      ->name('api.mobile.transport.admin.routes');
+        Route::get('/transport/admin/routes/{id}',     [$TA, 'routeDetail']) ->whereNumber('id')->name('api.mobile.transport.admin.routes.detail');
+        Route::get('/transport/admin/vehicles',        [$TA, 'vehicles'])    ->name('api.mobile.transport.admin.vehicles');
+    });
 
     // Front Office — Call Logs + Follow-Ups
     $CL = \App\Http\Controllers\Api\Mobile\CallLogController::class;
@@ -339,29 +346,31 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     Route::get('/exam-marks/students',  [$EMC, 'students'])->name('api.mobile.exam-marks.students');
     Route::post('/exam-marks/save',     [$EMC, 'save'])->name('api.mobile.exam-marks.save');
 
-    // Hostel admin (lean v1: rooms / allocations)
-    $HOST = \App\Http\Controllers\Api\Mobile\HostelController::class;
-    Route::get  ('/hostel/hostels',                       [$HOST, 'hostels'])         ->name('api.mobile.hostel.hostels');
-    Route::get  ('/hostel/rooms',                         [$HOST, 'rooms'])           ->name('api.mobile.hostel.rooms');
-    Route::get  ('/hostel/available-beds',                [$HOST, 'availableBeds'])   ->name('api.mobile.hostel.available-beds');
-    Route::get  ('/hostel/allocations',                   [$HOST, 'allocations'])     ->name('api.mobile.hostel.allocations');
-    Route::post ('/hostel/allocations',                   [$HOST, 'createAllocation'])->name('api.mobile.hostel.allocations.create');
-    Route::patch('/hostel/allocations/{id}/vacate',       [$HOST, 'vacateAllocation'])->whereNumber('id')->name('api.mobile.hostel.allocations.vacate');
-    // Hostel gate passes (HostelLeaveRequest)
-    Route::get  ('/hostel/gate-passes',                   [$HOST, 'gatePasses'])         ->name('api.mobile.hostel.gate-passes');
-    Route::post ('/hostel/gate-passes',                   [$HOST, 'createGatePass'])     ->name('api.mobile.hostel.gate-passes.create');
-    Route::patch('/hostel/gate-passes/{id}/status',       [$HOST, 'updateGatePassStatus'])->whereNumber('id')->name('api.mobile.hostel.gate-passes.status');
-    // Hostel visitors
-    Route::get  ('/hostel/visitors',                      [$HOST, 'visitors'])           ->name('api.mobile.hostel.visitors');
-    Route::post ('/hostel/visitors',                      [$HOST, 'logVisitor'])         ->name('api.mobile.hostel.visitors.create');
-    Route::patch('/hostel/visitors/{id}/checkout',        [$HOST, 'checkoutVisitor'])    ->whereNumber('id')->name('api.mobile.hostel.visitors.checkout');
-    // Hostel mess menu
-    Route::get   ('/hostel/mess-menu',                    [$HOST, 'messMenu'])           ->name('api.mobile.hostel.mess-menu');
-    Route::post  ('/hostel/mess-menu',                    [$HOST, 'saveMessMenu'])       ->name('api.mobile.hostel.mess-menu.save');
-    Route::delete('/hostel/mess-menu/{id}',               [$HOST, 'destroyMessMenu'])    ->whereNumber('id')->name('api.mobile.hostel.mess-menu.destroy');
-    // Hostel roll call
-    Route::get ('/hostel/roll-call',                      [$HOST, 'rollCall'])           ->name('api.mobile.hostel.roll-call');
-    Route::post('/hostel/roll-call',                      [$HOST, 'saveRollCall'])       ->name('api.mobile.hostel.roll-call.save');
+    // Hostel admin (lean v1: rooms / allocations) — edition-gated (404 in Standard / Lite)
+    Route::middleware(['module:hostel'])->group(function () {
+        $HOST = \App\Http\Controllers\Api\Mobile\HostelController::class;
+        Route::get  ('/hostel/hostels',                       [$HOST, 'hostels'])         ->name('api.mobile.hostel.hostels');
+        Route::get  ('/hostel/rooms',                         [$HOST, 'rooms'])           ->name('api.mobile.hostel.rooms');
+        Route::get  ('/hostel/available-beds',                [$HOST, 'availableBeds'])   ->name('api.mobile.hostel.available-beds');
+        Route::get  ('/hostel/allocations',                   [$HOST, 'allocations'])     ->name('api.mobile.hostel.allocations');
+        Route::post ('/hostel/allocations',                   [$HOST, 'createAllocation'])->name('api.mobile.hostel.allocations.create');
+        Route::patch('/hostel/allocations/{id}/vacate',       [$HOST, 'vacateAllocation'])->whereNumber('id')->name('api.mobile.hostel.allocations.vacate');
+        // Hostel gate passes (HostelLeaveRequest)
+        Route::get  ('/hostel/gate-passes',                   [$HOST, 'gatePasses'])         ->name('api.mobile.hostel.gate-passes');
+        Route::post ('/hostel/gate-passes',                   [$HOST, 'createGatePass'])     ->name('api.mobile.hostel.gate-passes.create');
+        Route::patch('/hostel/gate-passes/{id}/status',       [$HOST, 'updateGatePassStatus'])->whereNumber('id')->name('api.mobile.hostel.gate-passes.status');
+        // Hostel visitors
+        Route::get  ('/hostel/visitors',                      [$HOST, 'visitors'])           ->name('api.mobile.hostel.visitors');
+        Route::post ('/hostel/visitors',                      [$HOST, 'logVisitor'])         ->name('api.mobile.hostel.visitors.create');
+        Route::patch('/hostel/visitors/{id}/checkout',        [$HOST, 'checkoutVisitor'])    ->whereNumber('id')->name('api.mobile.hostel.visitors.checkout');
+        // Hostel mess menu
+        Route::get   ('/hostel/mess-menu',                    [$HOST, 'messMenu'])           ->name('api.mobile.hostel.mess-menu');
+        Route::post  ('/hostel/mess-menu',                    [$HOST, 'saveMessMenu'])       ->name('api.mobile.hostel.mess-menu.save');
+        Route::delete('/hostel/mess-menu/{id}',               [$HOST, 'destroyMessMenu'])    ->whereNumber('id')->name('api.mobile.hostel.mess-menu.destroy');
+        // Hostel roll call
+        Route::get ('/hostel/roll-call',                      [$HOST, 'rollCall'])           ->name('api.mobile.hostel.roll-call');
+        Route::post('/hostel/roll-call',                      [$HOST, 'saveRollCall'])       ->name('api.mobile.hostel.roll-call.save');
+    });
 
     // Stationary items (admin)
     $STAT = \App\Http\Controllers\Api\Mobile\StationaryController::class;

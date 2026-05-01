@@ -67,22 +67,29 @@ watch(() => props.student?.id, () => { photoFailed.value = false; });
 // ── Active Tab ────────────────────────────────────────────────────────────────
 const activeTab = ref('basic');
 
-const tabs = [
-    { key: 'basic',       label: 'Basic',       icon: '👤' },
-    { key: 'contact',     label: 'Contact',     icon: '📞' },
-    { key: 'guardian',    label: 'Guardian',    icon: '👨‍👩‍👧' },
-    { key: 'sibling',     label: 'Sibling',     icon: '🧑‍🤝‍🧑' },
-    { key: 'record',      label: 'Record',      icon: '📋' },
-    { key: 'fee',         label: 'Fee',         icon: '💰' },
-    { key: 'attendance',  label: 'Attendance',  icon: '📊' },
-    { key: 'exam',        label: 'Exam Report', icon: '📝' },
-    { key: 'documents',   label: 'Document',    icon: '📄' },
-    { key: 'transport',   label: 'Transport',   icon: '🚌' },
-    { key: 'stationary',  label: 'Stationary',  icon: '📚' },
-    { key: 'hostel',      label: 'Hostel',      icon: '🏠' },
-    { key: 'disciplinary', label: 'Disciplinary', icon: '⚖️' },
-    { key: 'credentials', label: 'Credentials', icon: '🔐' },
-];
+const tabs = computed(() => {
+    const all = [
+        { key: 'basic',       label: 'Basic',       icon: '👤' },
+        { key: 'contact',     label: 'Contact',     icon: '📞' },
+        { key: 'guardian',    label: 'Guardian',    icon: '👨‍👩‍👧' },
+        { key: 'sibling',     label: 'Sibling',     icon: '🧑‍🤝‍🧑' },
+        { key: 'record',      label: 'Record',      icon: '📋' },
+        { key: 'fee',         label: 'Fee',         icon: '💰' },
+        { key: 'attendance',  label: 'Attendance',  icon: '📊' },
+        { key: 'exam',        label: 'Exam Report', icon: '📝' },
+        { key: 'documents',   label: 'Document',    icon: '📄' },
+        { key: 'transport',   label: 'Transport',   icon: '🚌' },
+        { key: 'stationary',  label: 'Stationary',  icon: '📚' },
+        { key: 'hostel',      label: 'Hostel',      icon: '🏠' },
+        { key: 'disciplinary', label: 'Disciplinary', icon: '⚖️' },
+        { key: 'credentials', label: 'Credentials', icon: '🔐' },
+    ];
+    return all.filter(t => {
+        if (t.key === 'transport' && !school.hasFeature('transport')) return false;
+        if (t.key === 'hostel'    && !school.hasFeature('hostel'))    return false;
+        return true;
+    });
+});
 
 // ── Inline Admission No Edit ──────────────────────────────────────────────────
 const editingAdmNo = ref(false);
@@ -922,7 +929,7 @@ const handleResetPassword = async (target) => {
                                                 <template v-if="sibling.current_academic_history.section"> &middot; {{ sibling.current_academic_history.section?.name }}</template>
                                             </span>
                                             <span class="badge"
-                                                  :class="sibling.gender === 'Male' ? 'badge-indigo' : 'badge-rose'">
+                                                  :class="sibling.gender === 'Male' ? 'badge-indigo' : 'badge-pink'">
                                                 {{ sibling.gender ?? '—' }}
                                             </span>
                                         </div>

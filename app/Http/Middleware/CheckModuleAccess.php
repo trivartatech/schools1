@@ -101,6 +101,16 @@ class CheckModuleAccess
 
     public function handle(Request $request, Closure $next, string $module): Response
     {
+        // 0. Edition gate: if the module is disabled for this school, the
+        //    feature should appear nonexistent — return 404, not 403.
+        $school = app()->bound('current_school') ? app('current_school') : null;
+        if ($school
+            && in_array($module, config('features.modules', []), true)
+            && ! $school->isFeatureEnabled($module)
+        ) {
+            abort(404);
+        }
+
         $action = $request->route()->getActionMethod();
         $user   = auth()->user();
         $verb   = $this->mapActionToVerb($action);

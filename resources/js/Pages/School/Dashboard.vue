@@ -92,12 +92,19 @@ const expenseSegments = computed(() => expense.value.map((row, i) => ({ label: r
 const incomeTotal     = computed(() => income.value.reduce((s, x)  => s + (+x.amount || 0), 0))
 const expenseTotal    = computed(() => expense.value.reduce((s, x) => s + (+x.amount || 0), 0))
 
-const feeMixSegments = computed(() => [
-    { label: 'Tuition',    value: feeMix.value.tuition    || 0, color: '#6366f1' },
-    { label: 'Transport',  value: feeMix.value.transport  || 0, color: '#10b981' },
-    { label: 'Hostel',     value: feeMix.value.hostel     || 0, color: '#f59e0b' },
-    { label: 'Stationary', value: feeMix.value.stationary || 0, color: '#3b82f6' },
-])
+const feeMixSegments = computed(() => {
+    const segments = [
+        { label: 'Tuition',    value: feeMix.value.tuition    || 0, color: '#6366f1' },
+    ]
+    if (school.hasFeature('transport')) {
+        segments.push({ label: 'Transport', value: feeMix.value.transport || 0, color: '#10b981' })
+    }
+    if (school.hasFeature('hostel')) {
+        segments.push({ label: 'Hostel', value: feeMix.value.hostel || 0, color: '#f59e0b' })
+    }
+    segments.push({ label: 'Stationary', value: feeMix.value.stationary || 0, color: '#3b82f6' })
+    return segments
+})
 const feeMixTotal   = computed(() => feeMixSegments.value.reduce((s, x) => s + x.value, 0))
 const feeMixHasData = computed(() => feeMixTotal.value > 0)
 

@@ -41,6 +41,9 @@ class PublicController extends Controller
             return response('Invalid or unrecognized receipt number.', 404);
         }
 
+        // Edition gate: feature off → page should appear nonexistent.
+        abort_unless($payment->school?->isFeatureEnabled('transport') ?? true, 404);
+
         return view('verify-transport-receipt', compact('payment'));
     }
 
@@ -53,6 +56,9 @@ class PublicController extends Controller
         if (!$payment) {
             return response('Invalid or unrecognized receipt number.', 404);
         }
+
+        // Edition gate: feature off → page should appear nonexistent.
+        abort_unless($payment->school?->isFeatureEnabled('hostel') ?? true, 404);
 
         return view('verify-hostel-receipt', compact('payment'));
     }
@@ -73,7 +79,7 @@ class PublicController extends Controller
     public function verifyGatePass(string $token)
     {
         $pass = HostelLeaveRequest::where('pass_token', $token)
-            ->with(['student', 'approver'])
+            ->with(['student.school', 'approver'])
             ->first();
 
         if (!$pass) {
@@ -81,6 +87,9 @@ class PublicController extends Controller
                 'pass' => null, 'error' => 'Invalid or expired gate pass token.',
             ]);
         }
+
+        // Edition gate: hostel off → page should appear nonexistent.
+        abort_unless($pass->student?->school?->isFeatureEnabled('hostel') ?? true, 404);
 
         return Inertia::render('School/Hostel/GatePasses/VerifyPublic', [
             'pass' => $pass, 'error' => null,
@@ -90,7 +99,7 @@ class PublicController extends Controller
     public function verifyVisitorPass(string $token)
     {
         $visitor = HostelVisitor::where('pass_token', $token)
-            ->with(['student', 'staff.user'])
+            ->with(['student.school', 'staff.user'])
             ->first();
 
         if (!$visitor) {
@@ -98,6 +107,9 @@ class PublicController extends Controller
                 'visitor' => null, 'error' => 'Invalid or unrecognized visitor pass.',
             ]);
         }
+
+        // Edition gate: hostel off → page should appear nonexistent.
+        abort_unless($visitor->student?->school?->isFeatureEnabled('hostel') ?? true, 404);
 
         return Inertia::render('School/Hostel/Visitors/VerifyPublic', [
             'visitor' => $visitor, 'error' => null,

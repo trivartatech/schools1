@@ -30,16 +30,24 @@ class BudgetSeeder extends Seeder
         // Look up expense categories created by HRStaffSeeder if any
         $expenseCategories = DB::table('expense_categories')->where('school_id', $schoolId)->pluck('id', 'name')->toArray();
 
+        $editionFeatures = config('features.editions.' . config('features.edition', 'full'), []);
+
         $budgets = [
             ['name' => 'Annual Operating Budget',     'amount' => 12500000, 'category' => null,                       'notes' => 'Top-line annual budget for FY school operations.'],
             ['name' => 'Salaries & Payroll',          'amount' => 6500000,  'category' => 'Salaries',                  'notes' => 'Annual budget for staff salaries and benefits.'],
             ['name' => 'Utilities & Maintenance',     'amount' => 850000,   'category' => 'Utilities',                 'notes' => 'Electricity, water, internet, repairs.'],
             ['name' => 'Academic Resources',          'amount' => 600000,   'category' => 'Academic',                  'notes' => 'Books, lab consumables, learning materials.'],
             ['name' => 'Sports & Co-curricular',      'amount' => 400000,   'category' => 'Sports',                    'notes' => 'Sports equipment, tournaments, cultural events.'],
-            ['name' => 'Transport Operations',        'amount' => 1200000,  'category' => 'Transport',                 'notes' => 'Bus fuel, driver salaries, vehicle maintenance.'],
-            ['name' => 'Hostel & Mess Operations',    'amount' => 950000,   'category' => 'Hostel',                    'notes' => 'Mess provisions, hostel maintenance.'],
-            ['name' => 'IT Infrastructure',           'amount' => 350000,   'category' => null,                       'notes' => 'Hardware refresh, software licenses.'],
         ];
+
+        if (($editionFeatures['transport'] ?? true) === true) {
+            $budgets[] = ['name' => 'Transport Operations',     'amount' => 1200000, 'category' => 'Transport', 'notes' => 'Bus fuel, driver salaries, vehicle maintenance.'];
+        }
+        if (($editionFeatures['hostel'] ?? true) === true) {
+            $budgets[] = ['name' => 'Hostel & Mess Operations', 'amount' => 950000,  'category' => 'Hostel',    'notes' => 'Mess provisions, hostel maintenance.'];
+        }
+
+        $budgets[] = ['name' => 'IT Infrastructure', 'amount' => 350000, 'category' => null, 'notes' => 'Hardware refresh, software licenses.'];
 
         foreach ($budgets as $b) {
             $catId = ($b['category'] && isset($expenseCategories[$b['category']]))

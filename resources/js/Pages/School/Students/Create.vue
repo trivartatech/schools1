@@ -5,6 +5,9 @@ import { computed } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 import { useClassSections } from '@/Composables/useClassSections';
+import { useSchoolStore } from '@/stores/useSchoolStore';
+
+const school = useSchoolStore();
 
 const props = defineProps({
     classes:        { type: Array,  required: true },
@@ -423,8 +426,8 @@ const submit = () => {
                 </div>
             </div>
 
-            <!-- Section 6: Transport -->
-            <div class="card">
+            <!-- Section 6: Transport — hidden when Transport feature is disabled for this edition -->
+            <div class="card" v-if="school.hasFeature('transport')">
                 <div class="card-header">
                     <div class="section-heading">
                         <span class="section-badge badge badge-indigo">6</span>

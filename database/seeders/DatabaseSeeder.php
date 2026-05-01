@@ -12,10 +12,18 @@ class DatabaseSeeder extends Seeder
 
     /**
      * Seed the application's database.
+     *
+     * Hostel and Transport seeders are gated on the install's edition
+     * (config/features.php → ERP_EDITION). Tables are still migrated for
+     * every edition; we just skip seeding sample data when the module
+     * is disabled. This keeps edition upgrades a single SQL flag flip.
      */
     public function run(): void
     {
-        $this->call([
+        $edition  = config('features.edition', 'full');
+        $features = config("features.editions.{$edition}", []);
+
+        $seeders = [
             RolePermissionSeeder::class,
             DemoDataSeeder::class,
             SchoolDummyDataSeeder::class,
@@ -30,8 +38,16 @@ class DatabaseSeeder extends Seeder
             StudentApplicationsSeeder::class,
             ExaminationModuleSeeder::class,
             DummyDataSeeder::class,
-            TransportSeeder::class,
-            HostelSeeder::class,
+        ];
+
+        if (($features['transport'] ?? true) === true) {
+            $seeders[] = TransportSeeder::class;
+        }
+        if (($features['hostel'] ?? true) === true) {
+            $seeders[] = HostelSeeder::class;
+        }
+
+        $seeders = array_merge($seeders, [
             AcademicResourcesSeeder::class,
             FrontOfficeSeeder::class,
             AnnouncementsSeeder::class,
@@ -40,5 +56,7 @@ class DatabaseSeeder extends Seeder
             ChatSeeder::class,
             LedgerSeeder::class,
         ]);
+
+        $this->call($seeders);
     }
 }

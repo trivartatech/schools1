@@ -63,13 +63,13 @@ class GenericSchoolSeeder extends Seeder
                 'currency'        => $cfg['currency'],
                 'language'        => $cfg['language'],
                 'status'          => 'active',
-                'features'        => [
+                // Hostel + Transport are edition-gated (config/features.php → ERP_EDITION).
+                // All other features stay on for every install.
+                'features'        => array_merge([
                     'attendance'     => true,
                     'fee'            => true,
                     'exam'           => true,
                     'communication'  => true,
-                    'transport'      => true,
-                    'hostel'         => true,
                     'chat'           => true,
                     'social_buzz'    => true,
                     'classes'        => true,
@@ -82,7 +82,10 @@ class GenericSchoolSeeder extends Seeder
                     'expense'        => true,
                     'reports'        => true,
                     'students'       => true,
-                ],
+                ], config(
+                    'features.editions.' . config('features.edition', 'full'),
+                    ['hostel' => true, 'transport' => true]
+                )),
                 'settings'        => [
                     'footer_credit' => '© ' . date('Y') . ' ' . $cfg['name'] . '. All rights reserved.',
                 ],

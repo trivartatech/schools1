@@ -39,6 +39,11 @@ class DemoDataSeeder extends Seeder
             'timezone'        => 'Asia/Kolkata',
             'currency'        => 'INR',
             'language'        => 'en',
+            // Edition gate — Hostel/Transport visibility for this install.
+            'features'        => config(
+                'features.editions.' . config('features.edition', 'full'),
+                ['hostel' => true, 'transport' => true]
+            ),
         ]);
 
         // 2. Super Admin

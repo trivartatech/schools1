@@ -149,6 +149,10 @@ class PublicApiController extends Controller
 
     /**
      * Get a list of modules enabled for the given school.
+     *
+     * Uses isFeatureEnabled() so a school predating the edition system (with
+     * an empty/null features array) still advertises every module — same
+     * backwards-compat rule as the runtime gates.
      */
     private function getEnabledModules($school)
     {
@@ -156,10 +160,11 @@ class PublicApiController extends Controller
         $modules = ['attendance', 'timetable', 'exams'];
 
         // Add additional modules based on school features/license
-        if ($school->hasFeature('fees')) $modules[] = 'fees';
-        if ($school->hasFeature('transport')) $modules[] = 'transport';
-        if ($school->hasFeature('library')) $modules[] = 'library';
-        if ($school->hasFeature('canteen')) $modules[] = 'canteen';
+        if ($school->isFeatureEnabled('fees'))      $modules[] = 'fees';
+        if ($school->isFeatureEnabled('transport')) $modules[] = 'transport';
+        if ($school->isFeatureEnabled('hostel'))    $modules[] = 'hostel';
+        if ($school->isFeatureEnabled('library'))   $modules[] = 'library';
+        if ($school->isFeatureEnabled('canteen'))   $modules[] = 'canteen';
 
         return $modules;
     }

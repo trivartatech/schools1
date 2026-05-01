@@ -57,6 +57,21 @@ class School extends Model
         return isset($this->features[$feature]) && $this->features[$feature] === true;
     }
 
+    /**
+     * Edition-aware feature gate. Use this for "should this be blocked?" checks.
+     *
+     * Backwards-compat: a null/empty `features` array means "all on" so live
+     * installs that predate the edition system keep every module visible.
+     * An explicit `false` disables; a missing key falls through as on.
+     */
+    public function isFeatureEnabled(string $feature): bool
+    {
+        if (empty($this->features) || ! is_array($this->features)) {
+            return true;
+        }
+        return ($this->features[$feature] ?? true) === true;
+    }
+
     /** PHP date() format string from the admin's system-config date_format setting. */
     public function dateFmt(): string
     {

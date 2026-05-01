@@ -36,6 +36,19 @@ export const useSchoolStore = defineStore('school', () => {
     /** Whether a GL/ledger module is active for this school */
     const glEnabled    = computed(() => !!settings.value?.gl_enabled);
 
+    /**
+     * Edition-aware feature check. Mirrors School::isFeatureEnabled() on the
+     * backend: a missing/empty `features` object means "all on" (backwards
+     * compat with installs that predate the edition system); a missing key
+     * defaults to on; an explicit `false` disables.
+     */
+    const features = computed(() => current.value?.features ?? {});
+    function hasFeature(name) {
+        const f = features.value;
+        if (!f || typeof f !== 'object' || Object.keys(f).length === 0) return true;
+        return f[name] !== false;
+    }
+
     // ── Localization settings ─────────────────────────────────────────────
     const dateFormat = computed(() => settings.value?.date_format ?? 'DD/MM/YYYY');
     const timeFormat = computed(() => settings.value?.time_format ?? 'h:mm A');
@@ -171,6 +184,8 @@ export const useSchoolStore = defineStore('school', () => {
         settings,
         currency,
         glEnabled,
+        features,
+        hasFeature,
         dateFormat,
         timeFormat,
         timezone,

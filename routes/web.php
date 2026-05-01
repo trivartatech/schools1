@@ -1090,8 +1090,8 @@ Route::middleware('auth')->group(function () {
             });
         });
 
-        // Transport Module — standard permission-based outer guard
-        Route::middleware(['school.management', 'permission:view_transport'])->group(function () {
+        // Transport Module — edition-gated (404 in Lite) + permission outer guard
+        Route::middleware(['school.management', 'module:transport', 'permission:view_transport'])->group(function () {
             Route::group(['prefix' => 'transport', 'as' => 'transport.'], function () {
                 
                 // Dashboard
