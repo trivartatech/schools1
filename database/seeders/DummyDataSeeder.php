@@ -2,207 +2,45 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
-use App\Models\School;
-use App\Models\AcademicYear;
-use App\Models\Student;
-use App\Models\StudentAcademicHistory;
-use App\Models\CourseClass;
-use App\Models\Attendance;
-use App\Models\FeeGroup;
-use App\Models\FeeHead;
-use App\Models\FeeStructure;
-use App\Models\FeePayment;
-use Carbon\Carbon;
-use Illuminate\Support\Str;
-
+/**
+ * DummyDataSeeder — DEPRECATED / NO-OP
+ * -----------------------------------------------------------------------------
+ * This seeder has been retired as of 2026-05-01.
+ *
+ * Why it was retired (8 issues found in audit):
+ *   1. Duplicate fee groups — created "Academic Fees" + "Transport Fees" on top
+ *      of FeeDummyDataSeeder's identical groups, producing double rows every run.
+ *   2. Duplicate fee heads — "Tuition Fee" and "Bus Fare" clash with
+ *      FeeDummyDataSeeder's "Tuition Fee" and "Bus Fee".
+ *   3. Duplicate fee structures — one record per class per head, created again
+ *      on top of FeeDummyDataSeeder's three-installment structures.
+ *   4. Only 10 of 351 students received payment records (->take(10)).
+ *   5. Attendance overwrite — used updateOrCreate for the last 7 days with
+ *      random statuses, destroying AttendanceSeeder's carefully-profiled data.
+ *   6. Hard-coded $adminId = 1 (super-admin on a multi-tenant install).
+ *   7. No cleanup before insert → duplicates accumulate on every re-run.
+ *   8. Legacy SQLite date format comment ("Y-m-d 00:00:00") left in MySQL code.
+ *
+ * What replaced it:
+ *   • FeeDummyDataSeeder  — realistic fee groups, heads, structures, and
+ *     payments for ALL students with good/partial/late/defaulter scenarios,
+ *     15 % concession coverage, and proper receipt numbers.
+ *   • AttendanceSeeder    — 90-day profiled attendance per student (present /
+ *     absent / late / half_day) with realistic percentages.
+ *   • PaymentMethodSeeder — seeds payment_methods for all schools so the
+ *     payment-mode dropdown is always populated.
+ *
+ * The class is kept as a no-op so DatabaseSeeder::run() doesn't need touching.
+ */
 class DummyDataSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        $school = School::first();
-        if (!$school) {
-            $this->command->info('No school found. Please seed basic setup first.');
-            return;
-        }
-
-        $academicYear = AcademicYear::where('school_id', $school->id)->where('status', 'active')->first() 
-            ?? AcademicYear::where('school_id', $school->id)->first();
-            
-        if (!$academicYear) {
-            $this->command->info('No academic year found.');
-            return;
-        }
-        $adminId = 1; // Assuming user ID 1 is the admin
-
-        $students = Student::where('school_id', $school->id)->get();
-        if ($students->isEmpty()) {
-            $this->command->info('No students found. Please create some students first.');
-            return;
-        }
-
-        // 1. Attendance Data (Past 7 days)
-        $this->command->info('Seeding Attendance for past 7 days...');
-        $statuses = ['present', 'absent', 'late', 'half_day'];
-        foreach ($students as $student) {
-            $history = StudentAcademicHistory::where('student_id', $student->id)
-                ->where('academic_year_id', $academicYear->id)
-                ->first();
-            
-            if (!$history) continue;
-
-            for ($i = 0; $i < 7; $i++) {
-                $date = Carbon::now()->subDays($i)->format('Y-m-d 00:00:00');
-                // Only seed weekdays
-                if (Carbon::parse($date)->isWeekend()) continue;
-
-                Attendance::updateOrCreate(
-                    [
-                        'school_id' => $school->id,
-                        'academic_year_id' => $academicYear->id,
-                        'student_id' => $student->id,
-                        'date' => $date, // Already in valid sqlite string formats
-                    ],
-                    [
-                        'class_id' => $history->class_id,
-                        'section_id' => $history->section_id,
-                        'status' => $statuses[array_rand($statuses)],
-                        'marked_by' => $adminId,
-                    ]
-                );
-            }
-        }
-
-        // 2. Fee Setup
-        $this->command->info('Seeding Fee Groups & Heads...');
-        $tuitionGroup = FeeGroup::firstOrCreate(['school_id' => $school->id, 'name' => 'Academic Fees']);
-        $transportGroup = FeeGroup::firstOrCreate(['school_id' => $school->id, 'name' => 'Transport Fees']);
-
-        $tuitionHead = FeeHead::firstOrCreate([
-            'school_id' => $school->id, 
-            'fee_group_id' => $tuitionGroup->id,
-            'name' => 'Tuition Fee'
-        ], ['short_code' => 'TFEE']);
-
-        $examHead = FeeHead::firstOrCreate([
-            'school_id' => $school->id, 
-            'fee_group_id' => $tuitionGroup->id,
-            'name' => 'Examination Fee'
-        ], ['short_code' => 'EXFEE']);
-
-        $busHead = FeeHead::firstOrCreate([
-            'school_id' => $school->id, 
-            'fee_group_id' => $transportGroup->id,
-            'name' => 'Bus Fare'
-        ], ['short_code' => 'BUS']);
-
-        // 3. Fee Structures
-        $this->command->info('Seeding Fee Structures...');
-        $classes = CourseClass::where('school_id', $school->id)->get();
-        foreach ($classes as $courseClass) {
-            // Annual Tuition
-            FeeStructure::firstOrCreate([
-                'school_id' => $school->id,
-                'academic_year_id' => $academicYear->id,
-                'class_id' => $courseClass->id,
-                'fee_head_id' => $tuitionHead->id,
-                'term' => 'annual'
-            ], [
-                'amount' => 50000,
-                'due_date' => Carbon::now()->addDays(30)->format('Y-m-d'),
-                'is_optional' => false,
-                'student_type' => 'all',
-                'gender' => 'all'
-            ]);
-
-            // Optional Exam Fee for Term 1
-            FeeStructure::firstOrCreate([
-                'school_id' => $school->id,
-                'academic_year_id' => $academicYear->id,
-                'class_id' => $courseClass->id,
-                'fee_head_id' => $examHead->id,
-                'term' => 'term1'
-            ], [
-                'amount' => 2500,
-                'due_date' => Carbon::now()->addDays(15)->format('Y-m-d'),
-                'is_optional' => true,
-                'student_type' => 'all',
-                'gender' => 'all'
-            ]);
-            
-            // Installment 1 Bus
-            FeeStructure::firstOrCreate([
-                'school_id' => $school->id,
-                'academic_year_id' => $academicYear->id,
-                'class_id' => $courseClass->id,
-                'fee_head_id' => $busHead->id,
-                'term' => 'Installment 1'
-            ], [
-                'amount' => 1000,
-                'due_date' => Carbon::now()->subDays(5)->format('Y-m-d'), // Overdue
-                'late_fee_per_day' => 10,
-                'is_optional' => false,
-                'student_type' => 'all',
-                'gender' => 'all'
-            ]);
-        }
-
-        // 4. Fee Payments
-        $this->command->info('Seeding Fee Payments...');
-        // Match the fee_payments.payment_mode ENUM: cash, cheque, online, upi, dd, card
-        $modes = ['cash', 'online', 'upi', 'card', 'cheque'];
-        foreach ($students->take(10) as $student) { // Only do first 10 students
-            
-            // Partial payment for Tuition
-            $receiptNo = 'REC-' . strtoupper(Str::random(6));
-            FeePayment::firstOrCreate([
-                'school_id' => $school->id,
-                'academic_year_id' => $academicYear->id,
-                'student_id' => $student->id,
-                'fee_head_id' => $tuitionHead->id,
-                'term' => 'annual'
-            ], [
-                'amount_due' => 50000,
-                'amount_paid' => 20000,
-                'discount' => 0,
-                'fine' => 0,
-                'balance' => 30000,
-                'status' => 'partial',
-                'payment_date' => Carbon::now()->subDays(rand(1, 10))->format('Y-m-d'),
-                'payment_mode' => $modes[array_rand($modes)],
-                'transaction_ref' => 'TXN' . rand(1000, 9999),
-                'receipt_no' => $receiptNo,
-                'collected_by' => $adminId
-            ]);
-
-            // Full payment for Installment 1 bus
-            $receiptNo = 'REC-' . strtoupper(Str::random(6));
-            FeePayment::firstOrCreate([
-                'school_id' => $school->id,
-                'academic_year_id' => $academicYear->id,
-                'student_id' => $student->id,
-                'fee_head_id' => $busHead->id,
-                'term' => 'Installment 1'
-            ], [
-                'amount_due' => 1000,
-                'amount_paid' => 1000,
-                'discount' => 0,
-                'fine' => 0,
-                'balance' => 0,
-                'status' => 'paid',
-                'payment_date' => Carbon::now()->subDays(rand(1, 5))->format('Y-m-d'),
-                'payment_mode' => $modes[array_rand($modes)],
-                'transaction_ref' => 'TXN' . rand(1000, 9999),
-                'receipt_no' => $receiptNo,
-                'collected_by' => $adminId
-            ]);
-        }
-
-        $this->command->info('Dummy data seeded successfully!');
+        $this->command->warn('⚠  DummyDataSeeder is deprecated and does nothing.');
+        $this->command->line('   Fee data  → FeeDummyDataSeeder');
+        $this->command->line('   Attendance → AttendanceSeeder');
+        $this->command->line('   See the docblock in this file for full details.');
     }
 }
