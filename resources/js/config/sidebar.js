@@ -90,6 +90,7 @@ export const SIDEBAR_MENU = [
             { title: 'Student Leaves',        route: '/school/student-leaves',         permission: 'view_student_leaves' },
             { title: 'Student Leave Types',   route: '/school/student-leave-types',    permission: 'view_students' },
             { title: 'Roll Numbers',          route: '/school/roll-numbers',           permission: 'view_students' },
+            { title: 'Photo Numbers',         route: '/school/photo-numbers',          permission: 'view_students' },
             { title: 'Transfer Certificates', route: '/school/transfer-certificates',  permission: 'view_students' },
             { title: 'Disciplinary Records',  route: '/school/disciplinary',           permission: 'view_students' },
         ],

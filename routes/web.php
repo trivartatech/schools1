@@ -419,6 +419,17 @@ Route::middleware('auth')->group(function () {
             Route::post('roll-numbers/save', [$RNC, 'save']) ->name('roll-numbers.save');
         });
 
+        // Photo Number Management — record ID-card photo numbers per student.
+        // Profile edits made via the inline modal go through the existing
+        // EditRequest approval queue (NOT a direct write).
+        Route::middleware(['school.management', 'module:students'])->group(function () {
+            $PNC = \App\Http\Controllers\School\PhotoNumberController::class;
+            Route::get ('photo-numbers',                            [$PNC, 'index'])        ->name('photo-numbers.index');
+            Route::post('photo-numbers/save',                       [$PNC, 'save'])         ->name('photo-numbers.save');
+            Route::post('photo-numbers/student/{student}/request',  [$PNC, 'requestEdit'])  ->name('photo-numbers.request-edit');
+            Route::get ('photo-numbers/export-pending',             [$PNC, 'exportPending'])->name('photo-numbers.export-pending');
+        });
+
         // Transfer Certificates — management only
         Route::middleware(['school.management', 'module:students'])->group(function () {
             $TCC = \App\Http\Controllers\School\TransferCertificateController::class;

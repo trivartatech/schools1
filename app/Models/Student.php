@@ -19,7 +19,7 @@ class Student extends Model
         'first_name', 'last_name', 'dob', 'birth_place', 'mother_tongue', 'gender', 'blood_group',
         'religion', 'caste', 'category', 'aadhaar_no', 'nationality', 'address',
         'city', 'state', 'pincode', 'emergency_contact_name', 'emergency_contact_phone',
-        'admission_date', 'status', 'photo', 'uuid', 'is_defaulter'
+        'admission_date', 'status', 'photo', 'photo_number', 'uuid', 'is_defaulter'
     ];
 
     protected static function booted()
