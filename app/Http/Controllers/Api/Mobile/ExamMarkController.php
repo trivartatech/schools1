@@ -201,9 +201,10 @@ class ExamMarkController extends Controller
             $hist = $s->academicHistories->first();
             $name = trim("{$s->first_name} {$s->last_name}");
             return [
-                'id'      => $s->id,
-                'name'    => $name !== '' ? $name : 'Unknown',
-                'roll_no' => $hist?->roll_no,
+                'id'        => $s->id,
+                'name'      => $name !== '' ? $name : 'Unknown',
+                'roll_no'   => $hist?->roll_no,
+                'photo_url' => $s->photo_url,
             ];
         });
 

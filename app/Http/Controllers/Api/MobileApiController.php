@@ -148,6 +148,7 @@ class MobileApiController extends Controller
                     'gender'           => $s->gender,
                     'status'           => $s->status,
                     'phone'            => $s->phone,
+                    'photo_url'        => $s->photo ? asset('storage/' . $s->photo) : null,
                 ];
             }),
             'total'        => $students->total(),
@@ -658,6 +659,7 @@ class MobileApiController extends Controller
                     'employee_code' => $t->employee_code,
                     'designation'   => is_object($t->designation) ? ($t->designation->name ?? null) : $t->designation,
                     'department'    => is_object($t->department)  ? ($t->department->name  ?? null) : $t->department,
+                    'photo_url'     => $t->photo_url,
                 ];
             }),
         ]);
@@ -710,6 +712,7 @@ class MobileApiController extends Controller
                     'employee_code' => $s->employee_code ?? null,
                     'designation'   => is_object($s->designation) ? ($s->designation->name ?? null) : $s->designation,
                     'department'    => is_object($s->department)  ? ($s->department->name  ?? null) : $s->department,
+                    'photo_url'     => $s->photo_url,
                 ];
             }),
             'meta' => [
@@ -1174,7 +1177,7 @@ class MobileApiController extends Controller
             ->where('status', 'active')
             ->whereIn('pickup_type', [$tripType, 'both'])
             ->with([
-                'student:id,first_name,last_name,admission_no,user_id',
+                'student:id,first_name,last_name,admission_no,user_id,photo',
                 'student.user:id,name',
                 'stop:id,stop_name,stop_order',
             ])
@@ -1202,6 +1205,7 @@ class MobileApiController extends Controller
                 'status'       => $att?->status,         // null if not yet marked
                 'boarded_at'   => $att?->boarded_at,
                 'notes'        => $att?->notes,
+                'photo_url'    => $student?->photo ? asset('storage/' . $student->photo) : null,
             ];
         })->sortBy('stop_order')->values();
 
@@ -4585,10 +4589,11 @@ class MobileApiController extends Controller
         $students = $histories
             ->filter(fn($h) => $h->student !== null)
             ->map(fn($h) => [
-                'id'      => $h->student->id,
-                'name'    => trim(($h->student->first_name ?? '') . ' ' . ($h->student->last_name ?? '')),
-                'roll_no' => $h->roll_no,   // roll_no is on academic_history, not student
-                'status'  => $existing[$h->student_id] ?? null,
+                'id'        => $h->student->id,
+                'name'      => trim(($h->student->first_name ?? '') . ' ' . ($h->student->last_name ?? '')),
+                'roll_no'   => $h->roll_no,   // roll_no is on academic_history, not student
+                'status'    => $existing[$h->student_id] ?? null,
+                'photo_url' => $h->student->photo ? asset('storage/' . $h->student->photo) : null,
             ])
             ->values();
 
