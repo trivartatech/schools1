@@ -16,12 +16,15 @@ use Illuminate\Support\Facades\Schema;
  *
  * Fix (MySQL/MariaDB only):
  *   Replace the plain unique with a virtual sentinel column approach:
- *     deleted_at_key = IFNULL(UNIX_TIMESTAMP(deleted_at), 0)
+ *     deleted_at_key = IF(deleted_at IS NULL, 0, id)
  *   · Active rows  → sentinel 0   → (school_id, course_class_id, name, 0) must be unique ✔
- *   · Soft-deleted → sentinel > 0 → different timestamps allow multiple soft-deleted rows ✔
+ *   · Soft-deleted → sentinel = id → ids are unique, so soft-deletes never collide ✔
  *
- *   Edge case: two soft-deletes within the same second share the same sentinel. This is
- *   acceptable — it is prevented by the UI and is not reachable from normal school operations.
+ *   We use `id` (not UNIX_TIMESTAMP(deleted_at)) because UNIX_TIMESTAMP is on MySQL 8.0+'s
+ *   disallowed-functions list for generated columns — its result depends on session timezone,
+ *   so MySQL refuses to index it. The row's own id is deterministic, unique, and already
+ *   present, which sidesteps the timezone restriction *and* the same-second collision edge
+ *   case the timestamp approach had.
  */
 return new class extends Migration
 {
@@ -55,15 +58,36 @@ return new class extends Migration
         $ensureLeftmostIndex('school_id',       'sections_school_id_index');
         $ensureLeftmostIndex('course_class_id', 'sections_course_class_id_index');
 
-        // Drop the plain unique (blocks soft-deleted names).
-        Schema::table('sections', function (Blueprint $table) {
-            $table->dropUnique('idx_sections_school_class_name_unique');
-        });
+        // Steps below are individually idempotent. A prior failed run could have left the
+        // table mid-migration: the original unique already dropped, the new column not yet
+        // added. Re-running picks up cleanly.
 
-        // Virtual sentinel: 0 when active, UNIX_TIMESTAMP when soft-deleted.
-        DB::statement('ALTER TABLE sections ADD COLUMN deleted_at_key BIGINT UNSIGNED GENERATED ALWAYS AS (IFNULL(UNIX_TIMESTAMP(deleted_at), 0)) VIRTUAL');
+        // 1. Drop the plain unique if it still exists.
+        $uniqueExists = DB::selectOne(
+            "SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+              WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME   = 'sections'
+                AND INDEX_NAME   = 'idx_sections_school_class_name_unique'
+              LIMIT 1"
+        );
+        if ($uniqueExists) {
+            DB::statement('ALTER TABLE sections DROP INDEX idx_sections_school_class_name_unique');
+        }
 
-        // New unique: only active rows (sentinel 0) compete for the name slot.
+        // 2. Add the sentinel column if it doesn't exist already.
+        //    0 for active rows (NULL deleted_at), id for soft-deleted (always unique).
+        $columnExists = DB::selectOne(
+            "SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME   = 'sections'
+                AND COLUMN_NAME  = 'deleted_at_key'
+              LIMIT 1"
+        );
+        if (!$columnExists) {
+            DB::statement('ALTER TABLE sections ADD COLUMN deleted_at_key BIGINT UNSIGNED GENERATED ALWAYS AS (IF(deleted_at IS NULL, 0, id)) VIRTUAL');
+        }
+
+        // 3. Re-add the unique with the sentinel column included.
         DB::statement('ALTER TABLE sections ADD UNIQUE INDEX idx_sections_school_class_name_unique (school_id, course_class_id, name, deleted_at_key)');
     }
 
