@@ -87,7 +87,10 @@ return new class extends Migration
               LIMIT 1"
         );
         if (!$columnExists) {
-            DB::statement("ALTER TABLE sections ADD COLUMN deleted_at_key DATETIME NOT NULL GENERATED ALWAYS AS (IFNULL(deleted_at, '1900-01-01 00:00:00')) VIRTUAL");
+            // NOT NULL is omitted — for generated columns MySQL requires it after VIRTUAL,
+            // and it's redundant here anyway since IFNULL with a literal default never
+            // produces NULL. Adding it back as `... VIRTUAL NOT NULL` would also be valid.
+            DB::statement("ALTER TABLE sections ADD COLUMN deleted_at_key DATETIME GENERATED ALWAYS AS (IFNULL(deleted_at, '1900-01-01 00:00:00')) VIRTUAL");
         }
 
         // 3. Re-add the unique with the sentinel column included.
