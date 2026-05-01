@@ -32,12 +32,16 @@ return new class extends Migration
             // leftmost. Idempotent across servers where Laravel's foreignId() may or may
             // not have already created such an index.
             $ensureLeftmostIndex = function (string $column, string $indexName): void {
+                // Exclude the unique we're about to drop. Otherwise its leftmost column
+                // (course_class_id) would short-circuit the check and we'd skip adding
+                // the very backing index we need.
                 $hasLeftmost = DB::selectOne(
                     "SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
                       WHERE TABLE_SCHEMA = DATABASE()
                         AND TABLE_NAME   = 'class_subjects'
                         AND COLUMN_NAME  = ?
                         AND SEQ_IN_INDEX = 1
+                        AND INDEX_NAME  != 'unique_class_section_subject'
                       LIMIT 1",
                     [$column]
                 );

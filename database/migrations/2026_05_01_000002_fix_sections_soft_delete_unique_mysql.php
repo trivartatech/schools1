@@ -36,12 +36,15 @@ return new class extends Migration
         // (both leftmost candidates), dropping it raises error 1553. Add dedicated indexes
         // first when missing — idempotent across servers.
         $ensureLeftmostIndex = function (string $column, string $indexName): void {
+            // Exclude the unique we're about to drop — its leftmost column (school_id)
+            // would otherwise short-circuit the check and we'd skip adding a backing index.
             $hasLeftmost = DB::selectOne(
                 "SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
                   WHERE TABLE_SCHEMA = DATABASE()
                     AND TABLE_NAME   = 'sections'
                     AND COLUMN_NAME  = ?
                     AND SEQ_IN_INDEX = 1
+                    AND INDEX_NAME  != 'idx_sections_school_class_name_unique'
                   LIMIT 1",
                 [$column]
             );
