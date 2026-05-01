@@ -16,31 +16,44 @@ const props = defineProps({
 });
 
 const activeType = ref(props.selectedType || 'students');
+const isPhotoMode = computed(() => activeType.value === 'photos');
 
 const file = ref(null);
 const fileError = ref('');
+const photoFiles = ref([]);
+const photoError = ref('');
+const photoPreviews = ref([]);
 const uploading = ref(false);
 const validateOnly = ref(false);
 const dragOver = ref(false);
 const fileInputRef = ref(null);
+const photoInputRef = ref(null);
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024;        // 5MB Excel
+const MAX_PHOTO_SIZE = 10 * 1024 * 1024;      // 10MB per photo (matches server)
+const MAX_PHOTOS = 200;
 const ALLOWED_EXTENSIONS = ['xlsx', 'xls', 'csv'];
+const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
 const flash = computed(() => page.props.flash || {});
 const importErrors = computed(() => flash.value.import_errors || []);
 const errorLogPath = computed(() => flash.value.error_log_path || null);
+const bulkResults = computed(() => flash.value.bulk_results || null);
 
 const typeIcons = {
     users: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
     pencil: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
     briefcase: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
+    image: 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z',
 };
 
 const switchType = (type) => {
     activeType.value = type;
     file.value = null;
     fileError.value = '';
+    photoFiles.value = [];
+    photoError.value = '';
+    photoPreviews.value = [];
     uploading.value = false;
     validateOnly.value = false;
 };
@@ -111,12 +124,107 @@ const submitImport = (dryRun = false) => {
     });
 };
 
+// ── Photo handling ──
+const validatePhotos = (files) => {
+    photoError.value = '';
+    if (files.length > MAX_PHOTOS) {
+        photoError.value = `Too many files (${files.length}). Maximum is ${MAX_PHOTOS} photos per upload.`;
+        toast.error(photoError.value);
+        return false;
+    }
+    const invalidType = files.filter(f => !ALLOWED_PHOTO_TYPES.includes(f.type));
+    if (invalidType.length) {
+        const sample = invalidType.slice(0, 3).map(f => f.name).join(', ');
+        const more = invalidType.length > 3 ? ` (+${invalidType.length - 3} more)` : '';
+        photoError.value = `Invalid file type: ${sample}${more}. Only JPG, PNG, GIF, WebP allowed.`;
+        toast.error(photoError.value);
+        return false;
+    }
+    const oversized = files.filter(f => f.size > MAX_PHOTO_SIZE);
+    if (oversized.length) {
+        const sample = oversized.slice(0, 3).map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(1)}MB)`).join(', ');
+        const more = oversized.length > 3 ? ` (+${oversized.length - 3} more)` : '';
+        photoError.value = `${oversized.length} file(s) exceed 10MB: ${sample}${more}`;
+        toast.error(photoError.value);
+        return false;
+    }
+    return true;
+};
+
+const onPhotoSelect = (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    if (!validatePhotos(files)) {
+        photoFiles.value = [];
+        photoPreviews.value = [];
+        return;
+    }
+    photoFiles.value = files;
+    photoPreviews.value = [];
+    files.slice(0, 20).forEach(f => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            photoPreviews.value.push({ name: f.name, url: ev.target.result });
+        };
+        reader.readAsDataURL(f);
+    });
+    toast.info(`${files.length} photo(s) ready to upload.`);
+};
+
+const removePhotos = () => {
+    photoFiles.value = [];
+    photoError.value = '';
+    photoPreviews.value = [];
+    if (photoInputRef.value) photoInputRef.value.value = '';
+};
+
+const summarizeFailures = (failed) => {
+    const reasons = {};
+    failed.forEach(item => {
+        reasons[item.reason] = (reasons[item.reason] || 0) + 1;
+    });
+    return Object.entries(reasons)
+        .sort((a, b) => b[1] - a[1])
+        .map(([reason, count]) => `${count}× ${reason}`)
+        .join(' • ');
+};
+
+const submitPhotos = () => {
+    if (!photoFiles.value.length || uploading.value) return;
+    uploading.value = true;
+    toast.info(`Uploading ${photoFiles.value.length} photo(s)…`);
+    const formData = new FormData();
+    photoFiles.value.forEach(f => formData.append('photos[]', f));
+    router.post('/school/bulk-import/photos', formData, {
+        forceFormData: true,
+        preserveScroll: true,
+        onError: (errors) => {
+            const first = Object.values(errors)[0];
+            toast.error(typeof first === 'string'
+                ? first
+                : 'Some photos were rejected. Each file must be JPG/PNG/GIF/WebP under 10MB.');
+        },
+        onSuccess: (resp) => {
+            const r = resp.props.flash?.bulk_results;
+            if (r && r.failed && r.failed.length) {
+                toast.warning(
+                    `${r.failed.length} photo(s) failed: ${summarizeFailures(r.failed)}`,
+                    9000,
+                );
+            }
+            photoFiles.value = [];
+            photoPreviews.value = [];
+            if (photoInputRef.value) photoInputRef.value.value = '';
+        },
+        onFinish: () => { uploading.value = false; },
+    });
+};
 </script>
 
 <template>
     <SchoolLayout title="Bulk Import">
 
-        <PageHeader title="Bulk Import" subtitle="Import students or staff in bulk using Excel files." />
+        <PageHeader title="Bulk Import" subtitle="Import students, staff, or photos in bulk." />
 
         <div class="bi-layout">
             <!-- Sidebar -->
@@ -137,6 +245,9 @@ const submitImport = (dryRun = false) => {
 
             <!-- Main content -->
             <div class="bi-main">
+
+                <!-- ═══ EXCEL MODE ═══ -->
+                <template v-if="!isPhotoMode">
 
                 <!-- Step 1: Download Template -->
                     <div class="card bi-step">
@@ -220,6 +331,148 @@ const submitImport = (dryRun = false) => {
                             <p class="bi-action-hint">Use "Validate Only" to check your file for errors without importing any data.</p>
                         </div>
                     </div>
+                </template>
+
+                <!-- ═══ PHOTO MODE ═══ -->
+                <template v-else>
+
+                    <!-- Step 1: Naming convention -->
+                    <div class="card bi-step">
+                        <div class="bi-step-header">
+                            <span class="bi-step-num">1</span>
+                            <div>
+                                <h3 class="bi-step-title">Naming Convention</h3>
+                                <p class="bi-step-sub">Each photo file name must match a student's admission number.</p>
+                            </div>
+                        </div>
+                        <div class="bi-step-body">
+                            <div class="bi-naming-example">
+                                <code>STU001.jpg</code>
+                                <span style="color:#64748b;margin:0 6px;">&rarr;</span>
+                                matches student with admission no <strong>STU001</strong>
+                            </div>
+                            <p style="font-size:0.8rem;color:#64748b;margin-top:8px;">Supported: JPG, JPEG, PNG, GIF, WebP. Max 10 MB per photo, up to {{ MAX_PHOTOS }} photos per upload.</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Select photos -->
+                    <div class="card bi-step">
+                        <div class="bi-step-header">
+                            <span class="bi-step-num">2</span>
+                            <div>
+                                <h3 class="bi-step-title">Select Photos</h3>
+                                <p class="bi-step-sub">Select multiple student photos to upload at once.</p>
+                            </div>
+                        </div>
+                        <div class="bi-step-body">
+                            <div class="bi-dropzone" :class="{ 'bi-dropzone--has-file': photoFiles.length, 'bi-dropzone--error': photoError }" @click="photoInputRef?.click()">
+                                <input ref="photoInputRef" type="file" multiple accept="image/jpeg,image/png,image/gif,image/webp" @change="onPhotoSelect" style="display:none;" />
+                                <template v-if="photoError">
+                                    <div class="bi-file-error" @click.stop>
+                                        <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#ef4444"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        <span>{{ photoError }}</span>
+                                    </div>
+                                </template>
+                                <template v-else-if="!photoFiles.length">
+                                    <svg width="36" height="36" fill="none" viewBox="0 0 24 24" stroke="#94a3b8"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                    <p style="margin-top:8px;font-weight:600;color:#475569;">Click to select photos</p>
+                                    <p style="font-size:0.75rem;color:#94a3b8;margin-top:4px;">JPG/PNG/GIF/WebP, up to 10 MB each</p>
+                                </template>
+                                <template v-else>
+                                    <div class="bi-file-info" @click.stop>
+                                        <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#10b981"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        <div>
+                                            <div style="font-weight:600;color:#0f172a;">{{ photoFiles.length }} photo(s) selected</div>
+                                            <div style="font-size:0.75rem;color:#94a3b8;">{{ photoFiles.map(f => f.name).slice(0, 5).join(', ') }}{{ photoFiles.length > 5 ? '…' : '' }}</div>
+                                        </div>
+                                        <button @click.stop="removePhotos" class="bi-file-remove" title="Clear selection">&times;</button>
+                                    </div>
+                                </template>
+                            </div>
+                            <div v-if="photoPreviews.length" class="bi-preview-grid">
+                                <div v-for="(p, idx) in photoPreviews" :key="idx" class="bi-preview-item" :title="p.name">
+                                    <img :src="p.url" alt="" />
+                                </div>
+                                <div v-if="photoFiles.length > photoPreviews.length" class="bi-preview-more">
+                                    +{{ photoFiles.length - photoPreviews.length }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Upload -->
+                    <div class="card bi-step">
+                        <div class="bi-step-header">
+                            <span class="bi-step-num">3</span>
+                            <div>
+                                <h3 class="bi-step-title">Upload &amp; Update</h3>
+                                <p class="bi-step-sub">Photos are matched to students by admission number and saved.</p>
+                            </div>
+                        </div>
+                        <div class="bi-step-body">
+                            <Button @click="submitPhotos" :disabled="!photoFiles.length || uploading">
+                                <svg v-if="uploading" class="bi-spinner" width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="31.4" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.8s" repeatCount="indefinite"/></circle></svg>
+                                <svg v-else width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                                {{ uploading ? 'Uploading…' : 'Upload Photos' }}
+                            </Button>
+                        </div>
+                    </div>
+
+                    <!-- Results — success/failed tables -->
+                    <div v-if="bulkResults" class="bi-results">
+                        <div v-if="bulkResults.success?.length" class="card bi-step bi-result-card bi-result-card--ok">
+                            <div class="bi-step-header">
+                                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#10b981"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                <div style="flex:1;">
+                                    <h3 class="bi-step-title" style="color:#15803d;">Successfully Updated</h3>
+                                    <p class="bi-step-sub">{{ bulkResults.success.length }} student photo(s) replaced.</p>
+                                </div>
+                            </div>
+                            <div class="bi-step-body" style="padding-top:0;">
+                                <div class="bi-result-table-wrap">
+                                    <Table style="font-size:0.8125rem;">
+                                        <thead>
+                                            <tr><th>File</th><th>Admission #</th><th>Student Name</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr v-for="(item, i) in bulkResults.success" :key="i">
+                                                <td style="font-family:monospace;">{{ item.file }}</td>
+                                                <td><strong>{{ item.admission_no }}</strong></td>
+                                                <td>{{ item.name }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </Table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="bulkResults.failed?.length" class="card bi-step bi-result-card bi-result-card--fail">
+                            <div class="bi-step-header">
+                                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#ef4444"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                                <div style="flex:1;">
+                                    <h3 class="bi-step-title" style="color:#dc2626;">Failed Records</h3>
+                                    <p class="bi-step-sub">{{ bulkResults.failed.length }} photo(s) could not be matched.</p>
+                                </div>
+                            </div>
+                            <div class="bi-step-body" style="padding-top:0;">
+                                <div class="bi-result-table-wrap">
+                                    <Table style="font-size:0.8125rem;">
+                                        <thead>
+                                            <tr><th>File</th><th>Admission #</th><th>Reason</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr v-for="(item, i) in bulkResults.failed" :key="i">
+                                                <td style="font-family:monospace;">{{ item.file }}</td>
+                                                <td style="color:#dc2626;"><strong>{{ item.admission_no }}</strong></td>
+                                                <td style="color:#dc2626;font-style:italic;">{{ item.reason }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </Table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
 
                 <!-- ═══ ERROR TABLE ═══ -->
                 <div v-if="importErrors.length" class="card bi-step">
@@ -388,6 +641,53 @@ const submitImport = (dryRun = false) => {
 /* Action row */
 .bi-action-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .bi-action-hint { font-size: 0.7rem; color: #94a3b8; margin-top: 8px; }
+
+/* Photo mode helpers */
+.bi-naming-example {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.8125rem;
+}
+.bi-naming-example code {
+    background: #e0e7ff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    color: #4f46e5;
+}
+.bi-preview-grid {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+    gap: 6px;
+}
+.bi-preview-item {
+    aspect-ratio: 1;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+}
+.bi-preview-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.bi-preview-more {
+    aspect-ratio: 1;
+    background: #f1f5f9;
+    color: #64748b;
+    border-radius: 6px;
+    border: 1px dashed #cbd5e1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+/* Photo result tables */
+.bi-results { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.bi-result-card--ok   { border-left: 3px solid #10b981; }
+.bi-result-card--fail { border-left: 3px solid #ef4444; }
+.bi-result-table-wrap { max-height: 280px; overflow-y: auto; }
 
 /* Spinner */
 .bi-spinner { animation: bi-spin 0.8s linear infinite; }

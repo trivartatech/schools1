@@ -336,13 +336,15 @@ Route::middleware('auth')->group(function () {
             )->middleware('permission:finalize_rollover')->name('settings.rollover.finalize');
         });
 
-        // ── Bulk Import (Students & Staff Excel) ──
-        // Rate-limited: max 30 imports per minute per user to prevent server overload.
-        // Bulk photo upload lives separately at /school/students/bulk-photo.
+        // ── Bulk Import (Students, Staff & Photos) ──
+        // Single entry point for every bulk operation. Rate-limited at 30/min
+        // per user; one POST can carry up to 1000 student rows or up to 200
+        // photos (10MB each), so 30/min still leaves plenty of headroom.
         Route::middleware(['school.management'])->group(function () {
             $BIC = \App\Http\Controllers\School\BulkImportController::class;
             Route::get('bulk-import',                  [$BIC, 'index'])            ->name('bulk-import.index');
             Route::post('bulk-import',                 [$BIC, 'import'])           ->name('bulk-import.import')->middleware('throttle:30,1');
+            Route::post('bulk-import/photos',          [$BIC, 'importPhotos'])     ->name('bulk-import.photos')->middleware('throttle:30,1');
             Route::get('bulk-import/template/{type}',  [$BIC, 'downloadTemplate']) ->name('bulk-import.template');
             Route::get('bulk-import/errors',           [$BIC, 'downloadErrors'])   ->name('bulk-import.errors');
         });
@@ -365,8 +367,6 @@ Route::middleware('auth')->group(function () {
             Route::post('students/scan-by-uuid', [\App\Http\Controllers\School\StudentController::class, 'scanByUuid'])->name('students.scan-by-uuid');
             Route::get('students/export-qr',     [\App\Http\Controllers\School\StudentController::class, 'exportQRCodes'])->name('students.export-qr');
             Route::get('students/export-qr-pdf', [\App\Http\Controllers\School\StudentController::class, 'exportQrCodesPdf'])->name('students.export-qr-pdf');
-            Route::get('students/bulk-photo', [\App\Http\Controllers\School\StudentController::class, 'bulkPhotoUploadForm'])->name('students.bulk-photo');
-            Route::post('students/bulk-photo', [\App\Http\Controllers\School\StudentController::class, 'processBulkPhotoUpload'])->name('students.bulk-photo.store');
             Route::get('students/{student}/request-edit', [\App\Http\Controllers\School\StudentController::class, 'createRequest'])->name('students.request-edit');
             Route::post('students/{student}/request-edit', [\App\Http\Controllers\School\StudentController::class, 'storeRequest'])->name('students.request-edit.store');
             Route::resource('students', \App\Http\Controllers\School\StudentController::class);

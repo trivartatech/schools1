@@ -1130,69 +1130,6 @@ class StudentController extends Controller
     }
 
     /**
-     * GET /school/students/bulk-photo
-     */
-    public function bulkPhotoUploadForm()
-    {
-        return Inertia::render('School/Students/BulkPhotoUpload');
-    }
-
-    /**
-     * POST /school/students/bulk-photo
-     */
-    public function processBulkPhotoUpload(Request $request)
-    {
-        $request->validate([
-            'photos' => 'required|array|min:1',
-            'photos.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:10240', // 10MB per image
-        ]);
-
-        $schoolId = app('current_school_id');
-        $photos = $request->file('photos');
-        $results = [
-            'success' => [],
-            'failed' => [],
-        ];
-
-        foreach ($photos as $photo) {
-            $originalName = $photo->getClientOriginalName();
-            // Get admission no (filename without extension, handles .jpg, .png, etc)
-            $admissionNo = pathinfo($originalName, PATHINFO_FILENAME);
-
-            $student = Student::where('school_id', $schoolId)
-                ->where('admission_no', $admissionNo)
-                ->first();
-
-            if ($student) {
-                // Delete old photo if exists
-                if ($student->photo) {
-                    Storage::disk('public')->delete($student->photo);
-                }
-                
-                $path = $photo->store('students/photos', 'public');
-                $student->update(['photo' => $path]);
-                
-                $results['success'][] = [
-                    'admission_no' => $admissionNo,
-                    'name' => "{$student->first_name} {$student->last_name}",
-                    'file' => $originalName
-                ];
-            } else {
-                $results['failed'][] = [
-                    'admission_no' => $admissionNo,
-                    'file' => $originalName,
-                    'reason' => 'Student with this Admission No not found.'
-                ];
-            }
-        }
-
-        return back()->with([
-            'success' => count($results['success']) . ' photos updated successfully.',
-            'bulk_results' => $results
-        ]);
-    }
-
-    /**
      * GET /school/students/scanner
      * Renders the QR scanner page used to look up a student profile.
      * Same camera component as the attendance scanner, but on success

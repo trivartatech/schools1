@@ -23,9 +23,7 @@ class BulkImportController extends Controller
             'students' => ['label' => 'New Students', 'icon' => 'users', 'description' => 'Import new student records from Excel'],
             'student_update' => ['label' => 'Update Students', 'icon' => 'pencil', 'description' => 'Bulk update existing student data'],
             'staff' => ['label' => 'New Staff', 'icon' => 'briefcase', 'description' => 'Import new staff members from Excel'],
-            // Bulk photo upload lives on its own page at /school/students/bulk-photo —
-            // 10MB per file with a detailed success/failed table. Don't add a photos
-            // tab here; we want a single entry point for that flow.
+            'photos' => ['label' => 'Bulk Photos', 'icon' => 'image', 'description' => 'Upload student photos by admission number'],
         ];
     }
 
@@ -95,6 +93,60 @@ class BulkImportController extends Controller
         $action = $type === 'student_update' ? 'updated' : 'imported';
 
         return back()->with('success', "Successfully {$action} {$count} record(s).");
+    }
+
+    public function importPhotos(Request $request)
+    {
+        $this->authorize('bulkImport', Student::class);
+
+        $request->validate([
+            'photos' => 'required|array|min:1',
+            'photos.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:10240', // 10MB
+        ]);
+
+        $schoolId = app('current_school_id');
+        $results = ['success' => [], 'failed' => []];
+
+        foreach ($request->file('photos') as $photo) {
+            $originalName = $photo->getClientOriginalName();
+            $admissionNo  = pathinfo($originalName, PATHINFO_FILENAME);
+
+            $student = Student::where('school_id', $schoolId)
+                ->where('admission_no', $admissionNo)
+                ->first();
+
+            if (!$student) {
+                $results['failed'][] = [
+                    'file'         => $originalName,
+                    'admission_no' => $admissionNo,
+                    'reason'       => 'Student with this Admission No not found.',
+                ];
+                continue;
+            }
+
+            if ($student->photo) {
+                Storage::disk('public')->delete($student->photo);
+            }
+
+            $path = $photo->store('students/photos', 'public');
+            $student->update(['photo' => $path]);
+
+            $results['success'][] = [
+                'file'         => $originalName,
+                'admission_no' => $admissionNo,
+                'name'         => trim("{$student->first_name} {$student->last_name}"),
+            ];
+        }
+
+        $okCount = count($results['success']);
+        $failCount = count($results['failed']);
+        $message = "Updated {$okCount} student photo(s)."
+            . ($failCount ? " {$failCount} did not match any admission number." : '');
+
+        return back()->with([
+            'success'      => $message,
+            'bulk_results' => $results,
+        ]);
     }
 
     public function downloadErrors(Request $request)
