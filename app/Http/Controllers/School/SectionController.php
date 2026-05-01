@@ -71,7 +71,9 @@ class SectionController extends Controller
         // previous academic year, possibly soft-deleted — already exists.
         // Restore + reattach instead of inserting a duplicate, which the
         // unique index (school_id, course_class_id, name) would reject anyway.
-        $section = DB::transaction(function () use ($validated, $school, $currentYearId) {
+        // The transaction returns the section AND which path it took, so the
+        // caller can show an outcome-specific toast.
+        $result = DB::transaction(function () use ($validated, $school) {
             $existing = Section::withTrashed()
                 ->where('school_id', $school->id)
                 ->where('course_class_id', $validated['course_class_id'])
@@ -79,7 +81,8 @@ class SectionController extends Controller
                 ->first();
 
             if ($existing) {
-                if ($existing->trashed()) {
+                $wasTrashed = $existing->trashed();
+                if ($wasTrashed) {
                     $existing->restore();
                 }
                 $updates = [];
@@ -92,18 +95,21 @@ class SectionController extends Controller
                 if (!empty($updates)) {
                     $existing->update($updates);
                 }
-                return $existing;
+                return ['section' => $existing, 'outcome' => $wasTrashed ? 'restored' : 'reactivated'];
             }
 
-            return Section::create([
+            $new = Section::create([
                 'school_id'       => $school->id,
                 'course_class_id' => $validated['course_class_id'],
                 'name'            => $validated['name'],
                 'capacity'        => $validated['capacity'] ?? null,
                 'sort_order'      => $validated['sort_order'] ?? 0,
             ]);
+
+            return ['section' => $new, 'outcome' => 'created'];
         });
 
+        $section = $result['section'];
         $section->load('courseClass');
 
         // Attach to the current academic year so it appears in this year's
@@ -116,7 +122,17 @@ class SectionController extends Controller
         // Auto-create section chat group
         $chatService->ensureSectionGroup($section, $school->id);
 
-        return redirect()->back()->with('status', 'Section created successfully.');
+        // Outcome-specific toast: the user gets context for what actually
+        // happened — useful when reusing a row from a past year so they
+        // don't think "did it just silently keep the old capacity?"
+        $label = ($section->courseClass?->name ?? '') . ($section->courseClass?->name ? ' — ' : '') . $section->name;
+        $message = match ($result['outcome']) {
+            'created'     => "Section '{$label}' created.",
+            'reactivated' => "Section '{$label}' already existed from a previous year — reattached to this academic year.",
+            'restored'    => "Section '{$label}' was archived earlier — restored and attached to this academic year.",
+        };
+
+        return redirect()->back()->with('success', $message);
     }
 
     public function update(Request $request, Section $section)
@@ -140,7 +156,8 @@ class SectionController extends Controller
             ->where('group_type', 'section_group')
             ->update(['name' => ($section->courseClass->name ?? '') . ' - ' . $section->name]);
 
-        return redirect()->back()->with('status', 'Section updated successfully.');
+        $label = ($section->courseClass?->name ?? '') . ($section->courseClass?->name ? ' — ' : '') . $section->name;
+        return redirect()->back()->with('success', "Section '{$label}' updated.");
     }
 
     public function destroy(Section $section)
@@ -157,10 +174,10 @@ class SectionController extends Controller
 
         if ($section->academicYears()->count() === 0) {
             $section->delete();
-            return redirect()->back()->with('status', 'Section removed and archived.');
+            return redirect()->back()->with('success', "Section '{$section->name}' removed and archived.");
         }
 
-        return redirect()->back()->with('status', 'Section removed from this academic year.');
+        return redirect()->back()->with('success', "Section '{$section->name}' removed from this academic year.");
     }
 
     public function reorder(Request $request)
