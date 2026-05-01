@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Enums\FeePaymentStatus;
-use App\Enums\PaymentMode;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -34,7 +33,12 @@ class FeePayment extends Model
         'tax_percent'    => 'decimal:2',
         'payment_date'           => 'date',
         'status'                 => FeePaymentStatus::class,
-        'payment_mode'           => PaymentMode::class,
+        // payment_mode is intentionally NOT cast to App\Enums\PaymentMode —
+        // admins can register custom modes (phonepe, paytm, gpay, wallet, …)
+        // via Finance → Payment Methods. The enum has only 9 fixed cases;
+        // casting would throw ValueError on save for any custom code that
+        // passed the dynamic-list validation. Read-side callers (PDF blade,
+        // MobileApiController) handle both string and enum via instanceof.
         'fee_structure_snapshot' => 'array',
         'is_carry_forward'       => 'boolean',
     ];

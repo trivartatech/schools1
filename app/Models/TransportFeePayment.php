@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\PaymentMode;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -32,7 +31,11 @@ class TransportFeePayment extends Model
         'discount'     => 'decimal:2',
         'fine'         => 'decimal:2',
         'payment_date' => 'date',
-        'payment_mode' => PaymentMode::class,
+        // payment_mode stays a string — admins can register custom modes
+        // (phonepe, paytm, gpay, …) via Finance → Payment Methods. The
+        // PaymentMode enum has only 9 fixed cases; casting would throw
+        // ValueError on save for any custom code that passed the dynamic
+        // payment_methods list validation.
     ];
 
     public function scopeTenant($query)
