@@ -259,12 +259,29 @@ const downloadExport = (format) => {
     window.location.href = exportUrl(format);
 };
 
-const closeExportMenu = (e) => {
-    if (!e.target.closest('.export-split-button')) showExportMenu.value = false;
+// ── Export roster (current state, all editable fields) ─────────
+const showRosterMenu = ref(false);
+
+const rosterUrl = (format) => {
+    const params = new URLSearchParams({ format });
+    if (filters.value.academic_year_id) params.set('academic_year_id', filters.value.academic_year_id);
+    if (filters.value.class_id)         params.set('class_id',         filters.value.class_id);
+    if (filters.value.section_id)       params.set('section_id',       filters.value.section_id);
+    return `${route('school.photo-numbers.export-roster')}?${params.toString()}`;
 };
 
-onMounted(() => document.addEventListener('click', closeExportMenu));
-onBeforeUnmount(() => document.removeEventListener('click', closeExportMenu));
+const downloadRoster = (format) => {
+    showRosterMenu.value = false;
+    window.location.href = rosterUrl(format);
+};
+
+const closeAllExportMenus = (e) => {
+    if (!e.target.closest('.export-split-button')) showExportMenu.value = false;
+    if (!e.target.closest('.roster-split-button')) showRosterMenu.value = false;
+};
+
+onMounted(() => document.addEventListener('click', closeAllExportMenus));
+onBeforeUnmount(() => document.removeEventListener('click', closeAllExportMenus));
 
 // ── Photographer credential management ───────────────────────
 const photographerModalOpen = ref(false);
@@ -395,7 +412,28 @@ const yearLabel = computed(() => {
 
                         <Button variant="secondary" @click="showAutoModal = true">⚡ Auto Assign</Button>
 
-                        <!-- Export split button -->
+                        <!-- Export roster split button (current state with all editable fields) -->
+                        <div class="roster-split-button relative inline-flex">
+                            <Button variant="secondary" @click="downloadRoster('xlsx')">
+                                📋 Export roster
+                            </Button>
+                            <button type="button"
+                                    class="ml-1 px-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 text-xs"
+                                    @click.stop="showRosterMenu = !showRosterMenu">
+                                ▼
+                            </button>
+                            <div v-if="showRosterMenu"
+                                 class="absolute right-0 top-full mt-1 w-44 bg-white border border-slate-200 rounded-lg shadow-lg z-30 overflow-hidden">
+                                <button @click="downloadRoster('xlsx')" class="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2">
+                                    <span>📊</span> Export as Excel
+                                </button>
+                                <button @click="downloadRoster('pdf')" class="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2 border-t border-slate-100">
+                                    <span>📄</span> Export as PDF
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Export pending split button (only pending edit-requests, for approval review) -->
                         <div class="export-split-button relative inline-flex">
                             <Button variant="secondary"
                                     :disabled="totalPending === 0"

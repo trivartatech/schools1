@@ -428,6 +428,7 @@ Route::middleware('auth')->group(function () {
             Route::post  ('photo-numbers/save',                       [$PNC, 'save'])         ->name('photo-numbers.save');
             Route::post  ('photo-numbers/student/{student}/request',  [$PNC, 'requestEdit'])  ->name('photo-numbers.request-edit');
             Route::get   ('photo-numbers/export-pending',             [$PNC, 'exportPending'])->name('photo-numbers.export-pending');
+            Route::get   ('photo-numbers/export-roster',              [$PNC, 'exportRoster']) ->name('photo-numbers.export-roster');
 
             // Photographer credential — generate / view / clear the synthetic
             // per-school photographer login used by the mobile app.

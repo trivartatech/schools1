@@ -4,6 +4,7 @@ namespace App\Http\Controllers\School;
 
 use App\Enums\UserType;
 use App\Exports\PendingStudentEditsExport;
+use App\Exports\PhotoNumbersRosterExport;
 use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
 use App\Models\CourseClass;
@@ -422,6 +423,108 @@ class PhotoNumberController extends Controller
             new PendingStudentEditsExport($rows),
             "{$filename}.xlsx"
         );
+    }
+
+    // ── Export roster (xlsx | pdf) ───────────────────────────────────────
+    //
+    // Different from exportPending: this exports the CURRENT state of the
+    // roster — every student in the chosen class/section with their photo
+    // number plus all the fields editable in the inline modal. Used as a
+    // physical / digital crib sheet during the photoshoot so the operator
+    // can verify identity at a glance.
+
+    public function exportRoster(Request $request)
+    {
+        $schoolId  = app('current_school_id');
+        $yearId    = $request->integer('academic_year_id') ?: (app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null);
+        $classId   = $request->integer('class_id') ?: null;
+        $sectionId = $request->integer('section_id') ?: null;
+        $format    = $request->query('format', 'xlsx');
+
+        $rows = $this->buildRosterRows($schoolId, $yearId, $classId, $sectionId);
+
+        $filename = 'photo-numbers-roster-' . now()->format('Y-m-d_His');
+
+        if ($format === 'pdf') {
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.photo-numbers-roster', [
+                'rows'    => $rows,
+                'school'  => School::find($schoolId),
+                'printed' => now()->format('d M Y, h:i A'),
+                'class'   => $classId   ? CourseClass::find($classId)?->name : null,
+                'section' => $sectionId ? Section::find($sectionId)?->name   : null,
+                'count'   => count($rows),
+            ])->setPaper('a4', 'landscape');
+
+            return $pdf->download("{$filename}.pdf");
+        }
+
+        return Excel::download(
+            new PhotoNumbersRosterExport($rows),
+            "{$filename}.xlsx"
+        );
+    }
+
+    /**
+     * Build the flat roster row payload used by the roster export. Mirrors
+     * the index() roster mapping but reshaped for tabular export (no
+     * photo_url, no internal IDs — just human-readable fields). Honors
+     * class/section filters; if neither is provided, exports the whole
+     * school for the current year.
+     */
+    private function buildRosterRows(int $schoolId, ?int $yearId, ?int $classId, ?int $sectionId): array
+    {
+        if (! $yearId) return [];
+
+        $query = StudentAcademicHistory::with([
+                'student:id,first_name,last_name,admission_no,address,parent_id,photo_number',
+                'student.studentParent:id,father_name,mother_name,father_phone,mother_phone,primary_phone,address',
+                'courseClass:id,name',
+                'section:id,name',
+            ])
+            ->where('school_id', $schoolId)
+            ->where('academic_year_id', $yearId);
+
+        if ($classId)   $query->where('class_id', $classId);
+        if ($sectionId) $query->where('section_id', $sectionId);
+
+        $histories = $query->get()->filter(fn($h) => $h->student !== null);
+
+        $studentIds = $histories->pluck('student_id')->all();
+        $pendingByStudent = [];
+        if (! empty($studentIds)) {
+            $pendingByStudent = EditRequest::tenant()
+                ->where('requestable_type', Student::class)
+                ->whereIn('requestable_id', $studentIds)
+                ->where('status', 'pending')
+                ->get(['requestable_id', 'requested_changes'])
+                ->groupBy('requestable_id')
+                ->map(fn($g) => $g->reduce(fn($c, $r) => $c + count($r->requested_changes ?? []), 0))
+                ->all();
+        }
+
+        return $histories->map(function ($h) use ($pendingByStudent) {
+            $s = $h->student;
+            $p = $s->studentParent;
+
+            return [
+                'admission_no'    => $s->admission_no,
+                'photo_number'    => $s->photo_number ?? '',
+                'name'            => trim($s->first_name . ' ' . $s->last_name),
+                'class'           => $h->courseClass?->name,
+                'section'         => $h->section?->name,
+                'student_address' => $s->address,
+                'primary_phone'   => $p?->primary_phone,
+                'father_name'     => $p?->father_name,
+                'father_phone'    => $p?->father_phone,
+                'mother_name'     => $p?->mother_name,
+                'mother_phone'    => $p?->mother_phone,
+                'parent_address'  => $p?->address,
+                'pending_changes_count' => $pendingByStudent[$s->id] ?? 0,
+            ];
+        })
+            ->sortBy(fn($r) => [$r['class'] ?? '', $r['section'] ?? '', $r['name']])
+            ->values()
+            ->all();
     }
 
     /**
