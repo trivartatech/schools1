@@ -313,7 +313,12 @@ const statusBadge = (status) => {
                                 </div>
                                 <div>
                                     <h3 class="font-bold" style="color: var(--text-primary)">{{ student.first_name }} {{ student.last_name }}</h3>
-                                    <p class="text-xs" style="color: var(--text-muted)">{{ student.admission_no }}</p>
+                                    <p class="text-xs" style="color: var(--text-muted)">
+                                        {{ student.admission_no }}
+                                        <span v-if="student.current_academic_history?.course_class?.name">
+                                            · {{ student.current_academic_history.course_class.name }}<span v-if="student.current_academic_history?.section?.name"> &mdash; {{ student.current_academic_history.section.name }}</span>
+                                        </span>
+                                    </p>
                                 </div>
                             </div>
                             <!-- Summary chips -->

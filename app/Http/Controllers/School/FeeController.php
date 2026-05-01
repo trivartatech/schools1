@@ -262,7 +262,12 @@ class FeeController extends Controller
         $payments   = [];
 
         if ($request->filled('student_id')) {
-            $student = Student::with(['currentAcademicHistory.courseClass'])->find($request->student_id);
+            // Eager-load section alongside courseClass so the student summary
+            // panel can show "Class · Section" without an N+1 lookup.
+            $student = Student::with([
+                'currentAcademicHistory.courseClass',
+                'currentAcademicHistory.section',
+            ])->find($request->student_id);
 
             if ($student && $academicYearId) {
                 $history   = $student->currentAcademicHistory;
