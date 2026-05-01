@@ -83,14 +83,12 @@ class InchargeDummyDataSeeder extends Seeder
         }
 
         // ── 4. Section-level subject rows ─────────────────────────────────────
-        // For every scholastic (non-co-scholastic) class-level class_subject row,
-        // create one override per section so each section can have its own teacher.
-        // Co-scholastic subjects (PE, Art, Music) stay class-wide — one teacher
-        // teaches all sections.
+        // For every class-level class_subject row (both scholastic and
+        // co-scholastic), create one override per section so every subject
+        // — including PE, Art, Music — has its own section incharge.
         $classSubjects = DB::table('class_subjects')
             ->where('school_id', $schoolId)
             ->whereNull('section_id')
-            ->where('is_co_scholastic', false)
             ->get();
 
         $sections = DB::table('sections')
@@ -125,7 +123,7 @@ class InchargeDummyDataSeeder extends Seeder
                     'course_class_id'  => $cs->course_class_id,
                     'section_id'       => $section->id,
                     'subject_id'       => $cs->subject_id,
-                    'is_co_scholastic' => false,
+                    'is_co_scholastic' => (bool) $cs->is_co_scholastic,
                     'incharge_staff_id'=> $next(),
                 ]);
 
