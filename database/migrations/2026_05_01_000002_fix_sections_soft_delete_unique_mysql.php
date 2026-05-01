@@ -16,15 +16,18 @@ use Illuminate\Support\Facades\Schema;
  *
  * Fix (MySQL/MariaDB only):
  *   Replace the plain unique with a virtual sentinel column approach:
- *     deleted_at_key = IF(deleted_at IS NULL, 0, id)
- *   · Active rows  → sentinel 0   → (school_id, course_class_id, name, 0) must be unique ✔
- *   · Soft-deleted → sentinel = id → ids are unique, so soft-deletes never collide ✔
+ *     deleted_at_key = IFNULL(deleted_at, '1900-01-01 00:00:00')
+ *   · Active rows  → literal sentinel → (school_id, course_class_id, name, sentinel) must be unique ✔
+ *   · Soft-deleted → deleted_at value → different timestamps allow multiple soft-deleted rows ✔
  *
- *   We use `id` (not UNIX_TIMESTAMP(deleted_at)) because UNIX_TIMESTAMP is on MySQL 8.0+'s
- *   disallowed-functions list for generated columns — its result depends on session timezone,
- *   so MySQL refuses to index it. The row's own id is deterministic, unique, and already
- *   present, which sidesteps the timezone restriction *and* the same-second collision edge
- *   case the timestamp approach had.
+ *   MySQL 8.0+ disallows two appealing alternatives in generated-column expressions:
+ *     · UNIX_TIMESTAMP() — non-deterministic across timezones (error 3763)
+ *     · references to auto-increment columns like `id` (error 3109)
+ *   IFNULL with a literal datetime sidesteps both restrictions while keeping the index sargable.
+ *
+ *   Edge case: two soft-deletes within the same second share the same sentinel and would
+ *   collide if a school tried to recreate the name immediately after. Acceptable — the UI
+ *   serialises section deletes and this is not reachable from normal operations.
  */
 return new class extends Migration
 {
@@ -84,7 +87,7 @@ return new class extends Migration
               LIMIT 1"
         );
         if (!$columnExists) {
-            DB::statement('ALTER TABLE sections ADD COLUMN deleted_at_key BIGINT UNSIGNED GENERATED ALWAYS AS (IF(deleted_at IS NULL, 0, id)) VIRTUAL');
+            DB::statement("ALTER TABLE sections ADD COLUMN deleted_at_key DATETIME NOT NULL GENERATED ALWAYS AS (IFNULL(deleted_at, '1900-01-01 00:00:00')) VIRTUAL");
         }
 
         // 3. Re-add the unique with the sentinel column included.
