@@ -26,10 +26,13 @@ class UserManagementController extends Controller
         $schoolId = app('current_school_id');
 
         $query = User::where('school_id', $schoolId)
+            ->excludingPhotographers()
             ->with(['staff', 'student', 'studentParent']);
 
         // Filters
         if ($request->filled('user_type')) {
+            // Even with explicit user_type=photographer in the query string,
+            // the global scope above keeps the synthetic photographer hidden.
             $query->where('user_type', $request->user_type);
         } else {
             // Default whitelist — every user_type that can have a login.
@@ -552,6 +555,7 @@ class UserManagementController extends Controller
         $schoolId = app('current_school_id');
 
         $query = User::where('school_id', $schoolId)
+            ->excludingPhotographers()
             ->with([
                 'student.currentAcademicHistory.courseClass:id,name',
                 'student.currentAcademicHistory.section:id,name',

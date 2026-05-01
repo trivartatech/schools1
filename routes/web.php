@@ -424,10 +424,16 @@ Route::middleware('auth')->group(function () {
         // EditRequest approval queue (NOT a direct write).
         Route::middleware(['school.management', 'module:students'])->group(function () {
             $PNC = \App\Http\Controllers\School\PhotoNumberController::class;
-            Route::get ('photo-numbers',                            [$PNC, 'index'])        ->name('photo-numbers.index');
-            Route::post('photo-numbers/save',                       [$PNC, 'save'])         ->name('photo-numbers.save');
-            Route::post('photo-numbers/student/{student}/request',  [$PNC, 'requestEdit'])  ->name('photo-numbers.request-edit');
-            Route::get ('photo-numbers/export-pending',             [$PNC, 'exportPending'])->name('photo-numbers.export-pending');
+            Route::get   ('photo-numbers',                            [$PNC, 'index'])        ->name('photo-numbers.index');
+            Route::post  ('photo-numbers/save',                       [$PNC, 'save'])         ->name('photo-numbers.save');
+            Route::post  ('photo-numbers/student/{student}/request',  [$PNC, 'requestEdit'])  ->name('photo-numbers.request-edit');
+            Route::get   ('photo-numbers/export-pending',             [$PNC, 'exportPending'])->name('photo-numbers.export-pending');
+
+            // Photographer credential — generate / view / clear the synthetic
+            // per-school photographer login used by the mobile app.
+            Route::get   ('photo-numbers/photographer-credential',    [$PNC, 'getPhotographerCredential'])     ->name('photo-numbers.photographer-credential.show');
+            Route::post  ('photo-numbers/photographer-credential',    [$PNC, 'generatePhotographerCredential'])->name('photo-numbers.photographer-credential.generate');
+            Route::delete('photo-numbers/photographer-credential',    [$PNC, 'clearPhotographerCredential'])   ->name('photo-numbers.photographer-credential.clear');
         });
 
         // Transfer Certificates — management only

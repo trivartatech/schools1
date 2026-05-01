@@ -100,6 +100,22 @@ Route::middleware(['auth:sanctum', 'tenant', 'module:transport'])->group(functio
         ->name('api.bus.status');
 });
 
+// Photographer endpoints — used by the synthetic per-school photographer
+// login on the mobile app. Token must have the 'photographer' ability AND
+// the user_type must be photographer (or admin, for testing). Profile edits
+// here go through the same EditRequest approval queue the web inline modal
+// uses, so nothing on these endpoints can directly mutate a student's profile.
+Route::middleware(['auth:sanctum', 'tenant', 'ability:photographer', 'ensure.photographer'])
+    ->prefix('mobile/photographer')
+    ->group(function () {
+        $PMA = \App\Http\Controllers\Api\Mobile\PhotographerController::class;
+        Route::get ('/classes',                          [$PMA, 'classes'])           ->name('api.mobile.photographer.classes');
+        Route::get ('/sections',                         [$PMA, 'sections'])          ->name('api.mobile.photographer.sections');
+        Route::get ('/roster',                           [$PMA, 'roster'])            ->name('api.mobile.photographer.roster');
+        Route::post('/photo-numbers/save',               [$PMA, 'savePhotoNumbers'])  ->name('api.mobile.photographer.photo-numbers.save');
+        Route::post('/student/{student}/request-edit',   [$PMA, 'requestEdit'])       ->name('api.mobile.photographer.request-edit');
+    });
+
 // Authenticated mobile routes
 Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function () {
     $MA = MobileApiController::class;

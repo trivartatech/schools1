@@ -3,7 +3,11 @@
 namespace App\Http\Controllers\School;
 
 use App\Http\Controllers\Controller;
+use App\Models\CourseClass;
 use App\Models\EditRequest;
+use App\Models\Section;
+use App\Models\Student;
+use App\Models\StudentAcademicHistory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -55,12 +59,38 @@ class EditRequestController extends Controller
         $model = $editRequest->requestable;
         $changes = $editRequest->requested_changes;
 
+        // For class/section diffs we need the current-year academic history
+        // row's "before" values (those columns aren't on the Student model).
+        $history = null;
+        if ($model instanceof Student && app()->bound('current_academic_year_id')) {
+            $history = StudentAcademicHistory::where('student_id', $model->id)
+                ->where('school_id', $model->school_id)
+                ->where('academic_year_id', app('current_academic_year_id'))
+                ->latest('id')->first();
+        }
+
+        // ID-typed keys whose raw values aren't useful in a diff — translate
+        // them to readable names for the approver.
+        $idResolvers = [
+            'class_id'   => fn($id) => $id ? (CourseClass::find($id)?->name ?? "#{$id}") : null,
+            'section_id' => fn($id) => $id ? (Section::find($id)?->name ?? "#{$id}") : null,
+        ];
+
         foreach ($changes as $key => $newValue) {
             // Check if key is on the user model (like phone/name) or the student/staff model
             if (in_array($key, ['name', 'phone', 'email']) && $model->user) {
                 $oldValue = $model->user->$key;
+            } elseif (in_array($key, ['class_id', 'section_id'], true)) {
+                // Old values for academic-history fields come from the
+                // current-year history row, not from $model directly.
+                $oldValue = $history?->{$key};
             } else {
                 $oldValue = $model->$key;
+            }
+
+            if (isset($idResolvers[$key])) {
+                $oldValue = $idResolvers[$key]($oldValue);
+                $newValue = $idResolvers[$key]($newValue);
             }
 
             $diff[$key] = [
@@ -110,10 +140,17 @@ class EditRequestController extends Controller
             'parent_address',
         ];
 
-        DB::transaction(function () use ($model, $changes, $editRequest, $parentKeys) {
-            $userUpdates   = [];
-            $modelUpdates  = [];
-            $parentUpdates = [];
+        // Keys that live on the current-year StudentAcademicHistory row
+        // (not on the Student model). Photo-Numbers / Photographer flow
+        // can request class / section transfers, which are applied here
+        // on approval.
+        $historyKeys = ['class_id', 'section_id'];
+
+        DB::transaction(function () use ($model, $changes, $editRequest, $parentKeys, $historyKeys) {
+            $userUpdates    = [];
+            $modelUpdates   = [];
+            $parentUpdates  = [];
+            $historyUpdates = [];
 
             foreach ($changes as $key => $value) {
                 if (in_array($key, $parentKeys, true)) {
@@ -121,6 +158,8 @@ class EditRequestController extends Controller
                     // actual column 'address' on the parents table.
                     $col = $key === 'parent_address' ? 'address' : $key;
                     $parentUpdates[$col] = $value;
+                } elseif (in_array($key, $historyKeys, true)) {
+                    $historyUpdates[$key] = $value;
                 } elseif (in_array($key, ['name', 'phone', 'email'], true) && $model->user) {
                     $userUpdates[$key] = $value;
                 } else {
@@ -140,6 +179,36 @@ class EditRequestController extends Controller
             // (i.e. requestable is a Student with studentParent loaded).
             if (!empty($parentUpdates) && method_exists($model, 'studentParent') && $model->studentParent) {
                 $model->studentParent->update($parentUpdates);
+            }
+
+            // Apply class/section changes to the student's CURRENT-YEAR
+            // academic history row. If there's no current-year row (e.g. the
+            // student isn't enrolled this year), drop the change silently —
+            // the request shouldn't have been approvable in that state.
+            if (!empty($historyUpdates) && $model instanceof Student && app()->bound('current_academic_year_id')) {
+                $history = StudentAcademicHistory::where('student_id', $model->id)
+                    ->where('school_id', $model->school_id)
+                    ->where('academic_year_id', app('current_academic_year_id'))
+                    ->latest('id')->first();
+
+                if ($history) {
+                    // Re-validate that section belongs to the (possibly new)
+                    // class at approval time too — admin records may have
+                    // shifted between request and approve.
+                    if (isset($historyUpdates['section_id'])) {
+                        $intendedClassId = $historyUpdates['class_id'] ?? $history->class_id;
+                        $sectionBelongs = Section::where('id', $historyUpdates['section_id'])
+                            ->where('course_class_id', $intendedClassId)
+                            ->exists();
+                        if (! $sectionBelongs) {
+                            // Drop the section change; keep the class change
+                            // (if any). Surface to admin via flash later.
+                            unset($historyUpdates['section_id']);
+                        }
+                    }
+
+                    $history->update($historyUpdates);
+                }
             }
 
             $editRequest->update([

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\School;
 
+use App\Enums\UserType;
 use App\Exports\PendingStudentEditsExport;
 use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
@@ -11,8 +12,10 @@ use App\Models\Section;
 use App\Models\School;
 use App\Models\Student;
 use App\Models\StudentAcademicHistory;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -30,7 +33,10 @@ class PhotoNumberController extends Controller
         'mother_name'    => 'Mother Name',
         'father_phone'   => 'Father Phone',
         'mother_phone'   => 'Mother Phone',
+        'primary_phone'  => 'Primary Phone',
         'parent_address' => 'Parent Address',
+        'class_id'       => 'Class',
+        'section_id'     => 'Section',
     ];
 
     // ── Index ─────────────────────────────────────────────────
@@ -62,7 +68,7 @@ class PhotoNumberController extends Controller
         if ($classId && $yearId) {
             $query = StudentAcademicHistory::with([
                     'student:id,first_name,last_name,admission_no,photo,gender,address,parent_id,photo_number',
-                    'student.studentParent:id,father_name,mother_name,father_phone,mother_phone,address',
+                    'student.studentParent:id,father_name,mother_name,father_phone,mother_phone,primary_phone,address',
                     'courseClass:id,name',
                     'section:id,name',
                 ])
@@ -107,9 +113,12 @@ class PhotoNumberController extends Controller
                     'gender'          => $s->gender,
                     'photo_url'       => $s->photo_url,
                     'photo_number'    => $s->photo_number ?? '',
+                    'class_id'        => $h->class_id,
                     'class_name'      => $h->courseClass?->name,
+                    'section_id'      => $h->section_id,
                     'section_name'    => $h->section?->name,
                     'student_address' => $s->address,
+                    'primary_phone'   => $p?->primary_phone,
                     'father_name'     => $p?->father_name,
                     'mother_name'     => $p?->mother_name,
                     'father_phone'    => $p?->father_phone,
@@ -176,11 +185,32 @@ class PhotoNumberController extends Controller
     {
         abort_if($student->school_id !== app('current_school_id'), 403);
         abort_unless(
-            auth()->user()->can('request_edit_students') || auth()->user()->can('edit_students'),
+            auth()->user()->can('request_edit_students')
+            || auth()->user()->can('edit_students')
+            // Photographers can request edits as part of their photoshoot
+            // workflow on the mobile app. The change still queues as a
+            // pending EditRequest — it does NOT bypass approval.
+            || auth()->user()->user_type === UserType::Photographer,
             403,
             'Unauthorized access.'
         );
 
+        return $this->buildEditRequestResponse($request, $student);
+    }
+
+    /**
+     * Shared edit-request creation: validates the same field whitelist for
+     * both the web inline modal and the mobile photographer endpoint, builds
+     * a diff against the current Student / StudentParent / current-year
+     * StudentAcademicHistory rows, and creates an EditRequest if anything
+     * actually changed. Returns a JSON response either way.
+     *
+     * Kept on this controller (rather than a separate service class) so the
+     * file remains the single source of truth for the photo-numbers flow —
+     * the mobile photographer controller just calls this directly.
+     */
+    public function buildEditRequestResponse(Request $request, Student $student)
+    {
         $validated = $request->validate([
             'first_name'     => 'nullable|string|max:255',
             'last_name'      => 'nullable|string|max:255',
@@ -189,7 +219,10 @@ class PhotoNumberController extends Controller
             'mother_name'    => 'nullable|string|max:255',
             'father_phone'   => 'nullable|string|max:20',
             'mother_phone'   => 'nullable|string|max:20',
+            'primary_phone'  => 'nullable|string|max:20',
             'parent_address' => 'nullable|string|max:500',
+            'class_id'       => 'nullable|integer|exists:course_classes,id',
+            'section_id'     => 'nullable|integer|exists:sections,id',
             'reason'         => 'nullable|string|max:1000',
         ]);
 
@@ -197,6 +230,18 @@ class PhotoNumberController extends Controller
         unset($validated['reason']);
 
         $student->load('studentParent');
+
+        // Current-year academic history (the row class_id/section_id belong
+        // to). If there is no current-year history we still allow profile
+        // edits, but class/section changes get dropped because there's
+        // nothing to apply them to.
+        $currentYearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
+        $history = $currentYearId
+            ? StudentAcademicHistory::where('student_id', $student->id)
+                ->where('school_id', $student->school_id)
+                ->where('academic_year_id', $currentYearId)
+                ->latest('id')->first()
+            : null;
 
         $changes = [];
         $check = function ($key, $old, $new) use (&$changes) {
@@ -218,7 +263,33 @@ class PhotoNumberController extends Controller
             $check('mother_name',    $student->studentParent->mother_name,    $validated['mother_name']    ?? null);
             $check('father_phone',   $student->studentParent->father_phone,   $validated['father_phone']   ?? null);
             $check('mother_phone',   $student->studentParent->mother_phone,   $validated['mother_phone']   ?? null);
+            $check('primary_phone',  $student->studentParent->primary_phone,  $validated['primary_phone']  ?? null);
             $check('parent_address', $student->studentParent->address,        $validated['parent_address'] ?? null);
+        }
+
+        // Academic-history fields (class / section) — only meaningful when
+        // there's a current-year history row to apply them to.
+        if ($history) {
+            $check('class_id',   $history->class_id,   $validated['class_id']   ?? null);
+            $check('section_id', $history->section_id, $validated['section_id'] ?? null);
+
+            // Defensive validation: if both class and section are being changed,
+            // the section must belong to the new class. If only section is being
+            // changed, it must belong to the current class. Guards against an
+            // approval that would cross-link a section to the wrong class.
+            if (isset($changes['section_id'])) {
+                $intendedClassId = $changes['class_id'] ?? $history->class_id;
+                $sectionBelongs = Section::where('id', $changes['section_id'])
+                    ->where('course_class_id', $intendedClassId)
+                    ->exists();
+                if (! $sectionBelongs) {
+                    return response()->json([
+                        'errors' => [
+                            'section_id' => ['The chosen section does not belong to that class.'],
+                        ],
+                    ], 422);
+                }
+            }
         }
 
         if (empty($changes)) {
@@ -242,6 +313,83 @@ class PhotoNumberController extends Controller
             'edit_request_id' => $editRequest->id,
             'pending_changes' => $changes,
         ]);
+    }
+
+    // ── Photographer credential management ─────────────────────────────
+    //
+    // These three methods drive the "Photographer Login" panel on the web
+    // Photo Numbers page. The credential is stored as a User row with
+    // user_type = 'photographer', hidden from regular user listings via the
+    // excludingPhotographers() scope.
+
+    public function getPhotographerCredential()
+    {
+        abort_unless(auth()->user()->can('view_students'), 403);
+        $user = $this->findPhotographerUser(app('current_school_id'));
+
+        return response()->json([
+            'configured' => (bool) $user,
+            'username'   => $user?->username,
+            'created_at' => $user?->created_at?->toIso8601String(),
+        ]);
+    }
+
+    public function generatePhotographerCredential()
+    {
+        abort_unless(auth()->user()->can('edit_students'), 403);
+        $schoolId = app('current_school_id');
+
+        $username = 'photo-' . Str::lower(Str::random(6));
+        $password = Str::random(10);
+
+        $user = $this->findPhotographerUser($schoolId);
+
+        if ($user) {
+            $user->update([
+                'username' => $username,
+                'password' => $password, // hashed via the User model cast
+            ]);
+            // Revoke ALL existing photographer tokens so any in-the-wild
+            // copies of the previous credential stop working immediately.
+            $user->tokens()->delete();
+        } else {
+            $user = User::create([
+                'school_id' => $schoolId,
+                'name'      => 'Photographer',
+                'username'  => $username,
+                // Internal-only email so the row is well-formed but the
+                // address can never be used to log in or receive mail.
+                'email'     => "photographer-{$schoolId}@photographer.internal",
+                'password'  => $password,
+                'user_type' => UserType::Photographer,
+                'is_active' => true,
+            ]);
+        }
+
+        return response()->json([
+            'username' => $username,
+            'password' => $password, // plaintext, shown ONCE — never returned again
+        ]);
+    }
+
+    public function clearPhotographerCredential()
+    {
+        abort_unless(auth()->user()->can('edit_students'), 403);
+        $user = $this->findPhotographerUser(app('current_school_id'));
+
+        if ($user) {
+            $user->tokens()->delete();
+            $user->delete(); // soft delete — keeps history
+        }
+
+        return response()->json(['cleared' => true]);
+    }
+
+    private function findPhotographerUser(int $schoolId): ?User
+    {
+        return User::where('school_id', $schoolId)
+            ->where('user_type', UserType::Photographer)
+            ->first();
     }
 
     // ── Export pending student edits (xlsx | pdf) ────────────────────────

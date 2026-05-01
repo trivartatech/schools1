@@ -16,6 +16,10 @@ enum UserType: string
     case Conductor       = 'conductor';
     case FrontGateKeeper = 'front_gate_keeper';
     case ItSupport       = 'it_support';
+    // Photographer: synthetic per-school login used by external photographers
+    // during ID-card photoshoots. No Spatie role, hidden from user listings,
+    // token issued with ['photographer'] ability.
+    case Photographer    = 'photographer';
 
     public function label(): string
     {
@@ -32,6 +36,7 @@ enum UserType: string
             self::Conductor        => 'Conductor',
             self::FrontGateKeeper  => 'Front Gate Keeper',
             self::ItSupport        => 'IT Support',
+            self::Photographer     => 'Photographer',
         };
     }
 
@@ -90,6 +95,9 @@ enum UserType: string
             self::Conductor        => 'conductor',
             self::FrontGateKeeper  => 'front_gate_keeper',
             self::ItSupport        => 'it_support',
+            // Photographer has no Spatie role — access is gated entirely by
+            // user_type checks + the 'photographer' Sanctum token ability.
+            self::Photographer     => null,
         };
     }
 }

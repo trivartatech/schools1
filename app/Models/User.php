@@ -41,6 +41,18 @@ class User extends Authenticatable
         ];
     }
 
+    // ── Scopes ─────────────────────────────────────────────────────
+
+    /**
+     * Exclude synthetic photographer users from user listings. Photographers
+     * are per-school throwaway logins for ID-card photoshoots — they should
+     * never appear in user-management lists, recipient pickers, etc.
+     */
+    public function scopeExcludingPhotographers($query)
+    {
+        return $query->where('user_type', '!=', UserType::Photographer);
+    }
+
     // ── Relationships ──────────────────────────────────────────────
 
     public function school()

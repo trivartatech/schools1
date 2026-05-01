@@ -147,24 +147,64 @@ const editErrors = ref({});
 const editingMessage = ref('');
 const isSubmittingEdit = ref(false);
 
-const openEdit = (idx) => {
+const openEdit = async (idx) => {
     const r = rows.value[idx];
     editingRowIdx.value = idx;
     editForm.value = {
         first_name:     r.first_name ?? '',
         last_name:      r.last_name ?? '',
         address:        r.student_address ?? '',
+        primary_phone:  r.primary_phone ?? '',
         father_name:    r.father_name ?? '',
         mother_name:    r.mother_name ?? '',
         father_phone:   r.father_phone ?? '',
         mother_phone:   r.mother_phone ?? '',
         parent_address: r.parent_address ?? '',
+        class_id:       r.class_id ?? '',
+        section_id:     r.section_id ?? '',
         reason:         '',
     };
     editErrors.value = {};
     editingMessage.value = '';
+    // Preload sections for the row's current class so the dropdown isn't empty
+    // when the modal opens. The web filter bar already loads sections only for
+    // the filtered class, but we may be editing a student in a class outside
+    // that filter (e.g. after a class transfer is approved on another row).
+    editSections.value = props.sections;
+    if (r.class_id && (props.sections.length === 0 || props.sections[0]?.course_class_id !== r.class_id)) {
+        await loadSectionsForEdit(r.class_id);
+    }
     editModalOpen.value = true;
 };
+
+// Sections cache used by the edit modal's section dropdown.
+const editSections = ref([]);
+const loadSectionsForEdit = async (classId) => {
+    if (!classId) {
+        editSections.value = [];
+        return;
+    }
+    try {
+        // Existing endpoint returns the sections array directly, not wrapped.
+        const { data } = await axios.get(route('school.classes.sections', classId));
+        editSections.value = Array.isArray(data) ? data : (data.sections ?? []);
+    } catch {
+        // Fallback: at minimum keep the page-level filter sections so the user
+        // can still pick a section (won't be filtered to the right class).
+        editSections.value = props.sections;
+    }
+};
+
+// Reload section list whenever the modal's class selection changes. Clear the
+// chosen section so the user can't accidentally submit a section that doesn't
+// belong to the new class (the backend would reject it anyway).
+watch(() => editForm.value.class_id, (newClassId, oldClassId) => {
+    if (!editModalOpen.value) return;
+    if (newClassId !== oldClassId) {
+        editForm.value.section_id = '';
+        loadSectionsForEdit(newClassId);
+    }
+});
 
 const submitEdit = async () => {
     if (editingRowIdx.value === null) return;
@@ -226,6 +266,86 @@ const closeExportMenu = (e) => {
 onMounted(() => document.addEventListener('click', closeExportMenu));
 onBeforeUnmount(() => document.removeEventListener('click', closeExportMenu));
 
+// ── Photographer credential management ───────────────────────
+const photographerModalOpen = ref(false);
+const photographerCredential = ref({
+    configured: false,
+    username: null,
+    created_at: null,
+});
+const photographerLastGenerated = ref(null); // { username, password } shown ONCE
+const isLoadingCredential = ref(false);
+const isMutatingCredential = ref(false);
+
+const loadPhotographerCredential = async () => {
+    isLoadingCredential.value = true;
+    try {
+        const { data } = await axios.get(route('school.photo-numbers.photographer-credential.show'));
+        photographerCredential.value = data;
+    } catch {
+        toast.error('Could not load photographer credential.');
+    } finally {
+        isLoadingCredential.value = false;
+    }
+};
+
+const openPhotographerModal = async () => {
+    photographerLastGenerated.value = null;
+    photographerModalOpen.value = true;
+    await loadPhotographerCredential();
+};
+
+const generatePhotographerCredential = async () => {
+    if (photographerCredential.value.configured) {
+        if (!confirm('Regenerating will revoke the existing photographer login. Anyone using the old credentials will be signed out. Continue?')) {
+            return;
+        }
+    }
+    isMutatingCredential.value = true;
+    try {
+        const { data } = await axios.post(route('school.photo-numbers.photographer-credential.generate'));
+        photographerLastGenerated.value = data;
+        await loadPhotographerCredential();
+        toast.success('Photographer login generated. Copy it now — the password is shown only once.');
+    } catch {
+        toast.error('Could not generate photographer login.');
+    } finally {
+        isMutatingCredential.value = false;
+    }
+};
+
+const clearPhotographerCredential = async () => {
+    if (!confirm('Clear the photographer login? Anyone using these credentials will be signed out. You can generate a new one later.')) {
+        return;
+    }
+    isMutatingCredential.value = true;
+    try {
+        await axios.delete(route('school.photo-numbers.photographer-credential.clear'));
+        photographerLastGenerated.value = null;
+        await loadPhotographerCredential();
+        toast.success('Photographer login cleared.');
+    } catch {
+        toast.error('Could not clear photographer login.');
+    } finally {
+        isMutatingCredential.value = false;
+    }
+};
+
+const copyToClipboard = async (text, label) => {
+    try {
+        await navigator.clipboard.writeText(text);
+        toast.success(`${label} copied.`);
+    } catch {
+        toast.error('Could not copy. Long-press to select instead.');
+    }
+};
+
+// Eager-load credential state on mount so the header dot is accurate without
+// waiting for the user to open the modal.
+onMounted(() => {
+    loadPhotographerCredential();
+});
+
 // ── Helpers ───────────────────────────────────────────────────
 const classLabel = computed(() => {
     const c = props.classes.find(c => c.id === parseInt(filters.value.class_id));
@@ -260,6 +380,13 @@ const yearLabel = computed(() => {
                 title="Photo Numbers"
                 subtitle="Record the photographer's sequential photo number against each student during an ID-card session.">
                 <template #actions>
+                    <!-- Always available — photographer login can be generated even when no class is selected. -->
+                    <Button variant="secondary" @click="openPhotographerModal" class="!flex items-center gap-1.5">
+                        <span :class="['w-2 h-2 rounded-full inline-block',
+                                       photographerCredential.configured ? 'bg-emerald-500' : 'bg-slate-300']"></span>
+                        Photographer Login
+                    </Button>
+
                     <template v-if="rows.length > 0">
                         <label class="flex items-center gap-2 text-xs text-slate-600 select-none cursor-pointer mr-2">
                             <input type="checkbox" v-model="showDetails" class="accent-indigo-600">
@@ -396,6 +523,10 @@ const yearLabel = computed(() => {
                                             </span>
                                         </div>
                                         <div v-if="showDetails" class="mt-1 space-y-0.5 text-xs text-slate-500">
+                                            <div v-if="row.primary_phone">
+                                                <span class="text-slate-400">Primary phone:</span>
+                                                <a :href="`tel:${row.primary_phone}`" class="text-indigo-600 hover:underline ml-1">{{ row.primary_phone }}</a>
+                                            </div>
                                             <div v-if="row.father_name || row.father_phone">
                                                 <span class="text-slate-400">Father:</span>
                                                 <span v-if="row.father_name" class="text-slate-600">{{ row.father_name }}</span>
@@ -536,6 +667,26 @@ const yearLabel = computed(() => {
                     </div>
                 </div>
 
+                <!-- Class & Section (current academic year) -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="form-field">
+                        <label>Class</label>
+                        <select v-model="editForm.class_id">
+                            <option value="">— Select class —</option>
+                            <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+                        </select>
+                        <p v-if="editErrors.class_id" class="text-red-600 text-xs mt-1">{{ editErrors.class_id[0] }}</p>
+                    </div>
+                    <div class="form-field">
+                        <label>Section</label>
+                        <select v-model="editForm.section_id" :disabled="!editForm.class_id">
+                            <option value="">— Select section —</option>
+                            <option v-for="s in editSections" :key="s.id" :value="s.id">{{ s.name }}</option>
+                        </select>
+                        <p v-if="editErrors.section_id" class="text-red-600 text-xs mt-1">{{ editErrors.section_id[0] }}</p>
+                    </div>
+                </div>
+
                 <!-- Student address -->
                 <div class="form-field">
                     <label>Student Address</label>
@@ -544,6 +695,13 @@ const yearLabel = computed(() => {
                 </div>
 
                 <hr class="border-slate-200">
+
+                <!-- Primary phone (family contact, separate from individual parent phones) -->
+                <div class="form-field">
+                    <label>Primary Phone <span class="text-slate-400 text-xs">(family's main contact)</span></label>
+                    <input v-model="editForm.primary_phone" type="tel" maxlength="20">
+                    <p v-if="editErrors.primary_phone" class="text-red-600 text-xs mt-1">{{ editErrors.primary_phone[0] }}</p>
+                </div>
 
                 <!-- Father -->
                 <div class="grid grid-cols-2 gap-3">
@@ -592,6 +750,94 @@ const yearLabel = computed(() => {
                 <Button variant="secondary" @click="editModalOpen = false" :disabled="isSubmittingEdit">Cancel</Button>
                 <Button @click="submitEdit" :disabled="isSubmittingEdit">
                     {{ isSubmittingEdit ? 'Submitting…' : 'Submit for approval' }}
+                </Button>
+            </template>
+        </Modal>
+
+        <!-- ── Photographer Login Modal ── -->
+        <Modal v-model:open="photographerModalOpen" title="Photographer Login" size="md">
+            <p class="text-sm text-slate-500 mb-4">
+                Hand these credentials to your photographer. They'll log into the school mobile app
+                with this username and password and only see the Photo Numbers screen — they can't
+                access fees, attendance, or anything else. The login is shared per school; rotate it
+                if it's leaked or after a photoshoot ends.
+            </p>
+
+            <!-- Just-generated state: show plaintext password ONCE -->
+            <div v-if="photographerLastGenerated"
+                 class="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-4 space-y-3">
+                <div class="text-xs font-bold text-emerald-800 uppercase tracking-wide">
+                    ✓ New credential ready — copy it now
+                </div>
+                <p class="text-xs text-emerald-700">
+                    The password below is shown <strong>only this once</strong>. Once you close this dialog,
+                    it's gone forever — you'll have to regenerate.
+                </p>
+
+                <div class="bg-white rounded-lg p-3 border border-emerald-200 space-y-2">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="min-w-0">
+                            <div class="text-[10px] uppercase font-semibold text-slate-400">Username</div>
+                            <div class="font-mono text-sm font-bold text-slate-800 truncate">{{ photographerLastGenerated.username }}</div>
+                        </div>
+                        <button @click="copyToClipboard(photographerLastGenerated.username, 'Username')"
+                                class="px-2 py-1 text-xs bg-slate-100 hover:bg-slate-200 rounded text-slate-700 flex-shrink-0">
+                            Copy
+                        </button>
+                    </div>
+                    <div class="flex items-center justify-between gap-3 pt-2 border-t border-slate-100">
+                        <div class="min-w-0">
+                            <div class="text-[10px] uppercase font-semibold text-slate-400">Password</div>
+                            <div class="font-mono text-sm font-bold text-slate-800 truncate">{{ photographerLastGenerated.password }}</div>
+                        </div>
+                        <button @click="copyToClipboard(photographerLastGenerated.password, 'Password')"
+                                class="px-2 py-1 text-xs bg-slate-100 hover:bg-slate-200 rounded text-slate-700 flex-shrink-0">
+                            Copy
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configured (but no plaintext available — only username) -->
+            <div v-else-if="photographerCredential.configured"
+                 class="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-4 space-y-2">
+                <div class="text-xs font-semibold text-slate-600 uppercase tracking-wide">Currently configured</div>
+                <div class="flex items-center justify-between gap-3 bg-white p-2.5 rounded border border-slate-200">
+                    <div class="min-w-0">
+                        <div class="text-[10px] uppercase font-semibold text-slate-400">Username</div>
+                        <div class="font-mono text-sm font-bold text-slate-800 truncate">{{ photographerCredential.username }}</div>
+                    </div>
+                    <button @click="copyToClipboard(photographerCredential.username, 'Username')"
+                            class="px-2 py-1 text-xs bg-slate-100 hover:bg-slate-200 rounded text-slate-700 flex-shrink-0">
+                        Copy
+                    </button>
+                </div>
+                <p class="text-xs text-slate-500">
+                    The password isn't retrievable. If your photographer has lost it, click <strong>Regenerate</strong>
+                    to issue a new one.
+                </p>
+            </div>
+
+            <!-- Not configured -->
+            <div v-else-if="!isLoadingCredential"
+                 class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4 text-sm text-amber-900">
+                No photographer login is currently configured for this school. Click <strong>Generate</strong> to create one.
+            </div>
+
+            <div v-if="isLoadingCredential" class="text-center py-6 text-sm text-slate-400">
+                Loading…
+            </div>
+
+            <template #footer>
+                <Button variant="secondary" @click="photographerModalOpen = false" :disabled="isMutatingCredential">
+                    Close
+                </Button>
+                <Button v-if="photographerCredential.configured" variant="danger"
+                        @click="clearPhotographerCredential" :disabled="isMutatingCredential">
+                    Clear
+                </Button>
+                <Button @click="generatePhotographerCredential" :disabled="isMutatingCredential">
+                    {{ isMutatingCredential ? 'Working…' : (photographerCredential.configured ? 'Regenerate' : 'Generate') }}
                 </Button>
             </template>
         </Modal>

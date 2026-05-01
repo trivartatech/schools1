@@ -34,6 +34,10 @@ return Application::configure(basePath: dirname(__DIR__))
             // Use 'school.management' for all staff, 'school.management:admin_only' for admin-only routes
             'school.management'  => \App\Http\Middleware\RestrictToSchoolManagement::class,
             'module'             => \App\Http\Middleware\CheckModuleAccess::class,
+            // Sanctum token-ability gate (e.g. ability:photographer)
+            'ability'            => \Laravel\Sanctum\Http\Middleware\CheckAbilities::class,
+            // Photographer endpoint guard — allows photographer + admin user types
+            'ensure.photographer' => \App\Http\Middleware\EnsurePhotographer::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -212,7 +212,15 @@ class AuthController extends Controller
         $tokenName = 'mobile:' . substr($deviceName, 0, 120);
 
         $user->tokens()->where('name', $tokenName)->delete();
-        $token = $user->createToken($tokenName, ['*'], now()->addDays(30));
+
+        // Scope photographer tokens to the 'photographer' ability only — a
+        // leaked credential can't access fees / attendance / profiles, only
+        // the dedicated /api/mobile/photographer/* endpoints. Everyone else
+        // continues to get a wildcard token.
+        $abilities = $user->user_type === \App\Enums\UserType::Photographer
+            ? ['photographer']
+            : ['*'];
+        $token = $user->createToken($tokenName, $abilities, now()->addDays(30));
 
         // Bundle school localization in the login response so the mobile app
         // can format dates / times / currency consistently from the first
