@@ -69,24 +69,26 @@
     <table class="data">
         <thead>
             <tr>
-                <th style="width: 7%">Adm. No</th>
-                <th style="width: 6%">Photo #</th>
-                <th style="width: 13%">Student</th>
-                <th style="width: 5%">Class</th>
-                <th style="width: 5%">Sec</th>
-                <th style="width: 12%">Address</th>
+                <th style="width: 6%">Adm. No</th>
+                <th style="width: 7%">ERP No</th>
+                <th style="width: 5%">Photo #</th>
+                <th style="width: 12%">Student</th>
+                <th style="width: 4%">Class</th>
+                <th style="width: 4%">Sec</th>
+                <th style="width: 11%">Address</th>
                 <th style="width: 7%">Primary</th>
-                <th style="width: 10%">Father</th>
+                <th style="width: 9%">Father</th>
                 <th style="width: 7%">Father Phone</th>
-                <th style="width: 10%">Mother</th>
+                <th style="width: 9%">Mother</th>
                 <th style="width: 7%">Mother Phone</th>
-                <th style="width: 11%">Parent Address</th>
+                <th style="width: 12%">Parent Address</th>
             </tr>
         </thead>
         <tbody>
             @foreach ($rows as $r)
                 <tr>
                     <td>{{ $r['admission_no'] }}</td>
+                    <td>{{ $r['erp_no'] ?: '—' }}</td>
                     <td class="photo-no">{{ $r['photo_number'] !== '' ? $r['photo_number'] : '—' }}</td>
                     <td class="name">
                         {{ $r['name'] }}

@@ -587,7 +587,10 @@ const yearLabel = computed(() => {
                                     </div>
                                 </div>
                             </td>
-                            <td class="font-mono text-xs text-slate-500 align-top pt-3">{{ row.admission_no }}</td>
+                            <td class="font-mono text-xs text-slate-500 align-top pt-3">
+                                <div>{{ row.admission_no }}</div>
+                                <div v-if="row.erp_no" class="text-[10px] text-slate-400 mt-0.5">ERP: {{ row.erp_no }}</div>
+                            </td>
                             <td class="align-top pt-2">
                                 <div class="flex items-center gap-1.5">
                                     <input

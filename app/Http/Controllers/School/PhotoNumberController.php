@@ -68,7 +68,7 @@ class PhotoNumberController extends Controller
 
         if ($classId && $yearId) {
             $query = StudentAcademicHistory::with([
-                    'student:id,first_name,last_name,admission_no,photo,gender,address,parent_id,photo_number',
+                    'student:id,first_name,last_name,admission_no,erp_no,photo,gender,address,parent_id,photo_number',
                     'student.studentParent:id,father_name,mother_name,father_phone,mother_phone,primary_phone,address',
                     'courseClass:id,name',
                     'section:id,name',
@@ -111,6 +111,7 @@ class PhotoNumberController extends Controller
                     'first_name'      => $s->first_name,
                     'last_name'       => $s->last_name,
                     'admission_no'    => $s->admission_no,
+                    'erp_no'          => $s->erp_no,
                     'gender'          => $s->gender,
                     'photo_url'       => $s->photo_url,
                     'photo_number'    => $s->photo_number ?? '',
@@ -476,7 +477,7 @@ class PhotoNumberController extends Controller
         if (! $yearId) return [];
 
         $query = StudentAcademicHistory::with([
-                'student:id,first_name,last_name,admission_no,address,parent_id,photo_number',
+                'student:id,first_name,last_name,admission_no,erp_no,address,parent_id,photo_number',
                 'student.studentParent:id,father_name,mother_name,father_phone,mother_phone,primary_phone,address',
                 'courseClass:id,name',
                 'section:id,name',
@@ -508,6 +509,7 @@ class PhotoNumberController extends Controller
 
             return [
                 'admission_no'    => $s->admission_no,
+                'erp_no'          => $s->erp_no,
                 'photo_number'    => $s->photo_number ?? '',
                 'name'            => trim($s->first_name . ' ' . $s->last_name),
                 'class'           => $h->courseClass?->name,

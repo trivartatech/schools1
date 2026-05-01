@@ -22,6 +22,7 @@ class PhotoNumbersRosterExport implements FromArray, WithHeadings, WithStyles, S
     {
         return array_map(fn($r) => [
             $r['admission_no'],
+            $r['erp_no'] ?? '',
             $r['photo_number'] ?? '',
             $r['name'],
             $r['class'] ?? '',
@@ -41,6 +42,7 @@ class PhotoNumbersRosterExport implements FromArray, WithHeadings, WithStyles, S
     {
         return [
             'Admission No',
+            'ERP No',
             'Photo Number',
             'Student Name',
             'Class',
