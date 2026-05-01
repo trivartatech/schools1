@@ -25,7 +25,31 @@ return new class extends Migration
         $driver = DB::getDriverName();
 
         if (in_array($driver, ['mysql', 'mariadb'], true)) {
-            // Drop the broken plain unique.
+            // Some MySQL servers used the composite unique as the FK-backing index for
+            // course_class_id (leftmost column). Dropping it then fails with error 1553
+            // "Cannot drop index ... needed in a foreign key constraint". Add a dedicated
+            // single-column index for any FK column that doesn't already have one as its
+            // leftmost. Idempotent across servers where Laravel's foreignId() may or may
+            // not have already created such an index.
+            $ensureLeftmostIndex = function (string $column, string $indexName): void {
+                $hasLeftmost = DB::selectOne(
+                    "SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+                      WHERE TABLE_SCHEMA = DATABASE()
+                        AND TABLE_NAME   = 'class_subjects'
+                        AND COLUMN_NAME  = ?
+                        AND SEQ_IN_INDEX = 1
+                      LIMIT 1",
+                    [$column]
+                );
+                if (!$hasLeftmost) {
+                    DB::statement("ALTER TABLE class_subjects ADD INDEX `{$indexName}` (`{$column}`)");
+                }
+            };
+            $ensureLeftmostIndex('course_class_id', 'class_subjects_course_class_id_index');
+            $ensureLeftmostIndex('section_id',      'class_subjects_section_id_index');
+            $ensureLeftmostIndex('subject_id',      'class_subjects_subject_id_index');
+
+            // Now safe to drop the broken plain unique.
             DB::statement('ALTER TABLE class_subjects DROP INDEX unique_class_section_subject');
             // Virtual column: NULL section_id → sentinel 0; real IDs pass through unchanged.
             DB::statement('ALTER TABLE class_subjects ADD COLUMN section_id_key BIGINT UNSIGNED GENERATED ALWAYS AS (COALESCE(section_id, 0)) VIRTUAL');
