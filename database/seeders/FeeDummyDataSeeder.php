@@ -12,12 +12,18 @@ use App\Models\FeePayment;
 use App\Models\CourseClass;
 use App\Models\Student;
 use App\Models\AcademicYear;
+use App\Models\School;
 
 class FeeDummyDataSeeder extends Seeder
 {
     public function run(): void
     {
-        $schoolId = 1; // Assuming DPS North Campus
+        $school = School::first();
+        if (!$school) {
+            $this->command->error('No school found.');
+            return;
+        }
+        $schoolId = $school->id;
         $now = Carbon::now();
 
         // Get the active academic year
@@ -29,40 +35,38 @@ class FeeDummyDataSeeder extends Seeder
 
         // ── 1. Create Fee Groups ──────────────────────────────────────────────
         $groups = [
-            ['name' => 'General Fees', 'description' => 'Standard composite fees'],
-            ['name' => 'Transport Fees', 'description' => 'Optional bus fees'],
-            ['name' => 'Hostel Fees', 'description' => 'Optional boarding fees'],
+            ['name' => 'General Fees',  'description' => 'Standard composite fees'],
+            ['name' => 'Transport Fees','description' => 'Optional bus fees'],
+            ['name' => 'Hostel Fees',   'description' => 'Optional boarding fees'],
             ['name' => 'New Admission', 'description' => 'One-time admission charges'],
         ];
 
         $groupIds = [];
         foreach ($groups as $g) {
-            $groupIds[$g['name']] = DB::table('fee_groups')->insertGetId(array_merge($g, [
-                'school_id' => $schoolId,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]));
+            $group = FeeGroup::firstOrCreate(
+                ['school_id' => $schoolId, 'name' => $g['name']],
+                ['description' => $g['description']]
+            );
+            $groupIds[$g['name']] = $group->id;
         }
 
         // ── 2. Create Fee Heads ───────────────────────────────────────────────
         $heads = [
-            ['group' => 'General Fees', 'name' => 'Tuition Fee', 'short_code' => 'TUI', 'description' => 'Monthly tuition fee'],
-            ['group' => 'General Fees', 'name' => 'Computer Fee', 'short_code' => 'COMP', 'description' => 'Monthly computer fee'],
-            ['group' => 'General Fees', 'name' => 'Activity Fee', 'short_code' => 'ACT', 'description' => 'Quarterly activity fee'],
-            ['group' => 'New Admission', 'name' => 'Admission Fee', 'short_code' => 'ADM', 'description' => 'One-time admission fee'],
-            ['group' => 'Transport Fees', 'name' => 'Bus Fee', 'short_code' => 'BUS', 'description' => 'Monthly transport fee'],
+            ['group' => 'General Fees',  'name' => 'Tuition Fee',   'short_code' => 'TUI',  'description' => 'Monthly tuition fee'],
+            ['group' => 'General Fees',  'name' => 'Computer Fee',  'short_code' => 'COMP', 'description' => 'Monthly computer fee'],
+            ['group' => 'General Fees',  'name' => 'Activity Fee',  'short_code' => 'ACT',  'description' => 'Quarterly activity fee'],
+            ['group' => 'New Admission', 'name' => 'Admission Fee', 'short_code' => 'ADM',  'description' => 'One-time admission fee'],
+            ['group' => 'Transport Fees','name' => 'Bus Fee',        'short_code' => 'BUS',  'description' => 'Monthly transport fee'],
         ];
 
         $headIds = [];
         foreach ($heads as $h) {
             $groupId = $groupIds[$h['group']];
-            unset($h['group']);
-            $headIds[$h['name']] = DB::table('fee_heads')->insertGetId(array_merge($h, [
-                'school_id' => $schoolId,
-                'fee_group_id' => $groupId,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]));
+            $head = FeeHead::firstOrCreate(
+                ['school_id' => $schoolId, 'fee_group_id' => $groupId, 'name' => $h['name']],
+                ['short_code' => $h['short_code'], 'description' => $h['description']]
+            );
+            $headIds[$h['name']] = $head->id;
         }
 
         // ── 3. Create Fee Structures ──────────────────────────────────────────
@@ -70,53 +74,67 @@ class FeeDummyDataSeeder extends Seeder
         $terms = ['Installment 1', 'Installment 2', 'Installment 3'];
 
         foreach ($classes as $class) {
-            // Apply Admission Fee (One term)
-            DB::table('fee_structures')->insert([
-                'school_id' => $schoolId,
-                'academic_year_id' => $academicYear->id,
-                'class_id' => $class->id,
-                'fee_head_id' => $headIds['Admission Fee'],
-                'amount' => 15000.00,
-                'term' => 'Admission Installment',
-                'due_date' => Carbon::parse($academicYear->start_date)->addDays(15),
-                'student_type' => 'new', // Only new students
-                'gender' => 'all',
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
-
-            // Apply Tuition Fee (3 Terms)
-            foreach ($terms as $index => $term) {
-                DB::table('fee_structures')->insert([
-                    'school_id' => $schoolId,
+            FeeStructure::firstOrCreate(
+                [
+                    'school_id'        => $schoolId,
                     'academic_year_id' => $academicYear->id,
-                    'class_id' => $class->id,
-                    'fee_head_id' => $headIds['Tuition Fee'],
-                    'amount' => 6000.00,
-                    'term' => $term,
-                    'due_date' => Carbon::parse($academicYear->start_date)->addMonths($index * 4)->addDays(10),
-                    'student_type' => 'all',
-                    'gender' => 'all',
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ]);
+                    'class_id'         => $class->id,
+                    'fee_head_id'      => $headIds['Admission Fee'],
+                    'term'             => 'Admission Installment',
+                ],
+                [
+                    'amount'       => 15000.00,
+                    'due_date'     => Carbon::parse($academicYear->start_date)->addDays(15),
+                    'student_type' => 'new',
+                    'gender'       => 'all',
+                ]
+            );
+
+            foreach ($terms as $index => $term) {
+                FeeStructure::firstOrCreate(
+                    [
+                        'school_id'        => $schoolId,
+                        'academic_year_id' => $academicYear->id,
+                        'class_id'         => $class->id,
+                        'fee_head_id'      => $headIds['Tuition Fee'],
+                        'term'             => $term,
+                    ],
+                    [
+                        'amount'       => 6000.00,
+                        'due_date'     => Carbon::parse($academicYear->start_date)->addMonths($index * 4)->addDays(10),
+                        'student_type' => 'all',
+                        'gender'       => 'all',
+                    ]
+                );
             }
         }
 
-        // ── 4. Create Fee Payments (Realistic Analyzed Data) ────────────────────────
-        $students = clone Student::where('school_id', $schoolId)->get();
-        
-        $tuitionHead = $headIds['Tuition Fee'];
+        // ── 4. Create Fee Payments ────────────────────────────────────────────
+        $students = Student::where('school_id', $schoolId)->get();
 
-        $receiptCounter = 1;
+        // Build a set of student IDs that already have payments this year (O(1) lookup).
+        $paidStudentIds = array_flip(
+            FeePayment::where('school_id', $schoolId)
+                ->where('academic_year_id', $academicYear->id)
+                ->distinct()
+                ->pluck('student_id')
+                ->all()
+        );
+
+        $tuitionHead = $headIds['Tuition Fee'];
 
         $concessionsToAssign = [
             ['name' => 'Sibling Discount', 'type' => 'percentage', 'value' => 10.00],
-            ['name' => 'Staff Ward', 'type' => 'percentage', 'value' => 50.00],
-            ['name' => 'Merit Scholarship', 'type' => 'fixed', 'value' => 1000.00],
+            ['name' => 'Staff Ward',        'type' => 'percentage', 'value' => 50.00],
+            ['name' => 'Merit Scholarship', 'type' => 'fixed',      'value' => 1000.00],
         ];
 
         foreach ($students as $student) {
+            // Skip students that already have payment records for this academic year.
+            if (array_key_exists($student->id, $paidStudentIds)) {
+                continue;
+            }
+
             $paymentScenario = rand(1, 10); // 1-6 = Good Payer, 7-8 = Partial Payer, 9 = Late Payer, 10 = Defaulter
 
             // 15% chance to have a concession
@@ -128,131 +146,86 @@ class FeeDummyDataSeeder extends Seeder
             if ($hasConcession) {
                 $c = $concessionsToAssign[array_rand($concessionsToAssign)];
                 $concessionId = DB::table('fee_concessions')->insertGetId([
-                    'school_id' => $schoolId,
+                    'school_id'        => $schoolId,
                     'academic_year_id' => $academicYear->id,
-                    'student_id' => $student->id,
-                    'name' => $c['name'],
-                    'type' => $c['type'],
-                    'value' => $c['value'],
-                    'is_active' => true,
-                    'created_at' => $now,
-                    'updated_at' => $now,
+                    'student_id'       => $student->id,
+                    'name'             => $c['name'],
+                    'type'             => $c['type'],
+                    'value'            => $c['value'],
+                    'is_active'        => true,
+                    'created_at'       => $now,
+                    'updated_at'       => $now,
                 ]);
 
-                if ($c['type'] == 'percentage') {
-                    $concessionAmount = 6000.00 * ($c['value'] / 100);
-                } else {
-                    $concessionAmount = $c['value'];
-                }
+                $concessionAmount = $c['type'] === 'percentage'
+                    ? 6000.00 * ($c['value'] / 100)
+                    : $c['value'];
                 $concessionNote = $c['name'];
             }
 
-            $dueAmount = 6000.00;
-            $discount = $concessionAmount;
+            $dueAmount  = 6000.00;
+            $discount   = $concessionAmount;
             $netPayable = $dueAmount - $discount;
 
+            $base = [
+                'school_id'        => $schoolId,
+                'student_id'       => $student->id,
+                'academic_year_id' => $academicYear->id,
+                'fee_head_id'      => $tuitionHead,
+                'amount_due'       => $dueAmount,
+                'discount'         => $discount,
+                'concession_id'    => $concessionId,
+                'concession_note'  => $concessionNote,
+                'fine'             => 0,
+                'collected_by'     => 1,
+            ];
+
             if ($paymentScenario <= 6) {
-                // Scenario 1: Good Payer - Pays Installment 1 and 2 fully and on time
-                FeePayment::create([
-                    'receipt_no' => 'FEE-2026-' . str_pad($receiptCounter++, 5, '0', STR_PAD_LEFT),
-                    'school_id' => $schoolId,
-                    'student_id' => $student->id,
-                    'academic_year_id' => $academicYear->id,
-                    'fee_head_id' => $tuitionHead,
-                    'amount_due' => $dueAmount,
-                    'amount_paid' => $netPayable,
-                    'discount' => $discount,
-                    'concession_id' => $concessionId,
-                    'concession_note' => $concessionNote,
-                    'fine' => 0,
-                    'term' => 'Installment 1',
+                // Good Payer — pays Installment 1 and 2 fully and on time
+                FeePayment::create(array_merge($base, [
+                    'amount_paid'  => $netPayable,
+                    'term'         => 'Installment 1',
                     'payment_date' => Carbon::parse($academicYear->start_date)->addDays(rand(1, 15)),
                     'payment_mode' => 'online',
-                    'status' => 'paid',
-                    'collected_by' => 1,
-                ]);
+                    'status'       => 'paid',
+                ]));
 
-                FeePayment::create([
-                    'receipt_no' => 'FEE-2026-' . str_pad($receiptCounter++, 5, '0', STR_PAD_LEFT),
-                    'school_id' => $schoolId,
-                    'student_id' => $student->id,
-                    'academic_year_id' => $academicYear->id,
-                    'fee_head_id' => $tuitionHead,
-                    'amount_due' => $dueAmount,
-                    'amount_paid' => $netPayable,
-                    'discount' => $discount,
-                    'concession_id' => $concessionId,
-                    'concession_note' => $concessionNote,
-                    'fine' => 0,
-                    'term' => 'Installment 2',
+                FeePayment::create(array_merge($base, [
+                    'amount_paid'  => $netPayable,
+                    'term'         => 'Installment 2',
                     'payment_date' => Carbon::parse($academicYear->start_date)->addMonths(4)->addDays(rand(1, 15)),
                     'payment_mode' => 'online',
-                    'status' => 'paid',
-                    'collected_by' => 1,
-                ]);
+                    'status'       => 'paid',
+                ]));
             } elseif ($paymentScenario <= 8) {
-                // Scenario 2: Partial Payer - Paid Installment 1 fully, paid Installment 2 partially
-                FeePayment::create([
-                    'receipt_no' => 'FEE-2026-' . str_pad($receiptCounter++, 5, '0', STR_PAD_LEFT),
-                    'school_id' => $schoolId,
-                    'student_id' => $student->id,
-                    'academic_year_id' => $academicYear->id,
-                    'fee_head_id' => $tuitionHead,
-                    'amount_due' => $dueAmount,
-                    'amount_paid' => $netPayable,
-                    'discount' => $discount,
-                    'concession_id' => $concessionId,
-                    'concession_note' => $concessionNote,
-                    'fine' => 0,
-                    'term' => 'Installment 1',
+                // Partial Payer — Installment 1 full, Installment 2 half
+                FeePayment::create(array_merge($base, [
+                    'amount_paid'  => $netPayable,
+                    'term'         => 'Installment 1',
                     'payment_date' => Carbon::parse($academicYear->start_date)->addDays(rand(1, 20)),
                     'payment_mode' => 'cash',
-                    'status' => 'paid',
-                    'collected_by' => 1,
-                ]);
+                    'status'       => 'paid',
+                ]));
 
-                $partialPaymentAmount = round($netPayable / 2, 2);
-
-                FeePayment::create([
-                    'receipt_no' => 'FEE-2026-' . str_pad($receiptCounter++, 5, '0', STR_PAD_LEFT),
-                    'school_id' => $schoolId,
-                    'student_id' => $student->id,
-                    'academic_year_id' => $academicYear->id,
-                    'fee_head_id' => $tuitionHead,
-                    'amount_due' => $dueAmount,
-                    'amount_paid' => $partialPaymentAmount, // Partial
-                    'discount' => $discount,
-                    'concession_id' => $concessionId,
-                    'concession_note' => $concessionNote,
-                    'fine' => 0,
-                    'term' => 'Installment 2',
+                FeePayment::create(array_merge($base, [
+                    'amount_paid'  => round($netPayable / 2, 2),
+                    'term'         => 'Installment 2',
                     'payment_date' => Carbon::parse($academicYear->start_date)->addMonths(4)->addDays(rand(10, 25)),
                     'payment_mode' => 'cash',
-                    'status' => 'partial',
-                    'collected_by' => 1,
-                ]);
-            } elseif ($paymentScenario == 9) {
-                // Scenario 3: Late Payer - Paid Installment 1 late with fine
-                FeePayment::create([
-                    'receipt_no' => 'FEE-2026-' . str_pad($receiptCounter++, 5, '0', STR_PAD_LEFT),
-                    'school_id' => $schoolId,
-                    'student_id' => $student->id,
-                    'academic_year_id' => $academicYear->id,
-                    'fee_head_id' => $tuitionHead,
-                    'amount_due' => $dueAmount,
-                    'amount_paid' => $netPayable + 200.00, // net + fine
-                    'discount' => $discount,
-                    'concession_id' => $concessionId,
-                    'concession_note' => $concessionNote,
-                    'fine' => 200.00,
-                    'term' => 'Installment 1',
-                    'payment_date' => Carbon::parse($academicYear->start_date)->addMonths(1)->addDays(rand(1, 15)), // Paid a month late
+                    'status'       => 'partial',
+                ]));
+            } elseif ($paymentScenario === 9) {
+                // Late Payer — Installment 1 paid after due date with fine
+                FeePayment::create(array_merge($base, [
+                    'amount_paid'  => $netPayable + 200.00,
+                    'fine'         => 200.00,
+                    'term'         => 'Installment 1',
+                    'payment_date' => Carbon::parse($academicYear->start_date)->addMonths(1)->addDays(rand(1, 15)),
                     'payment_mode' => 'cheque',
-                    'status' => 'paid',
-                    'collected_by' => 1,
-                ]);
+                    'status'       => 'paid',
+                ]));
             }
-            // Scenario 4: Defaulter - Paid nothing yet (Will show up in Due Report)
+            // Scenario 10: Defaulter — no payment rows (shows up in Due Report)
         }
 
         $this->command->info('✅ Dummy Fee Data (Groups, Heads, Structures, Payments) seeded successfully!');
