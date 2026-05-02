@@ -111,10 +111,23 @@ class EditRequestController extends Controller
             ];
         }
 
+        $studentContext = null;
+        if ($model instanceof Student) {
+            $studentContext = [
+                'id'           => $model->id,
+                'name'         => trim(($model->first_name ?? '') . ' ' . ($model->last_name ?? '')),
+                'admission_no' => $model->admission_no ?? null,
+                'erp_no'       => $model->erp_no ?? null,
+                'class_name'   => $history ? ($idResolvers['class_id']($history->class_id)) : null,
+                'section_name' => $history ? ($idResolvers['section_id']($history->section_id)) : null,
+            ];
+        }
+
         return Inertia::render('School/EditRequests/Show', [
-            'editRequest' => $editRequest,
-            'requestType' => $this->getReadableType($editRequest->requestable_type),
-            'diff' => $diff
+            'editRequest'    => $editRequest,
+            'requestType'    => $this->getReadableType($editRequest->requestable_type),
+            'diff'           => $diff,
+            'studentContext' => $studentContext,
         ]);
     }
 

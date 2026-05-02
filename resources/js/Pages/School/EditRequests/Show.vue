@@ -12,7 +12,8 @@ import { useConfirm } from '@/Composables/useConfirm';
 const props = defineProps({
     editRequest: Object,
     requestType: String,
-    diff: Object
+    diff: Object,
+    studentContext: Object,
 });
 
 const form = useForm({
@@ -83,18 +84,61 @@ const reject = () => {
                     </div>
                 </div>
 
-                <!-- User Context -->
-                <div class="card">
+                <!-- Student Info (only for student requests) -->
+                <div class="card" v-if="studentContext">
                     <div class="card-header">
                         <h3 class="card-title">
-                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color:var(--accent)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                            User Context
+                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color:var(--accent)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
+                            Student Info
                         </h3>
                     </div>
                     <div class="card-body">
                         <dl class="meta-list">
                             <div class="meta-row">
-                                <dt class="meta-label">Profile Type</dt>
+                                <dt class="meta-label">Student Name</dt>
+                                <dd class="meta-value">
+                                    <Link :href="`/school/students/${studentContext.id}`" class="student-link">
+                                        {{ studentContext.name || '—' }}
+                                        <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                                    </Link>
+                                </dd>
+                            </div>
+                            <div class="meta-row">
+                                <dt class="meta-label">Admission No</dt>
+                                <dd class="meta-value meta-value--mono">{{ studentContext.admission_no || '—' }}</dd>
+                            </div>
+                            <div class="meta-row" v-if="studentContext.erp_no">
+                                <dt class="meta-label">ERP No</dt>
+                                <dd class="meta-value meta-value--mono">{{ studentContext.erp_no }}</dd>
+                            </div>
+                            <div class="meta-row">
+                                <dt class="meta-label">Class</dt>
+                                <dd class="meta-value">{{ studentContext.class_name || '—' }}</dd>
+                            </div>
+                            <div class="meta-row">
+                                <dt class="meta-label">Section</dt>
+                                <dd class="meta-value">{{ studentContext.section_name || '—' }}</dd>
+                            </div>
+                        </dl>
+                    </div>
+                </div>
+
+                <!-- Submitted By -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color:var(--accent)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                            Submitted By
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <dl class="meta-list">
+                            <div class="meta-row">
+                                <dt class="meta-label">Name</dt>
+                                <dd class="meta-value">{{ editRequest.user.name }}</dd>
+                            </div>
+                            <div class="meta-row">
+                                <dt class="meta-label">Role</dt>
                                 <dd class="meta-value">{{ requestType }}</dd>
                             </div>
                             <div class="meta-row">
@@ -104,6 +148,10 @@ const reject = () => {
                             <div class="meta-row">
                                 <dt class="meta-label">Phone</dt>
                                 <dd class="meta-value">{{ editRequest.user.phone }}</dd>
+                            </div>
+                            <div class="meta-row">
+                                <dt class="meta-label">Submitted On</dt>
+                                <dd class="meta-value">{{ school.fmtDateTime(editRequest.created_at) }}</dd>
                             </div>
                         </dl>
                     </div>
@@ -278,6 +326,16 @@ const reject = () => {
     letter-spacing: .05em;
 }
 .meta-value { font-size: .875rem; font-weight: 500; color: #1e293b; }
+.meta-value--mono { font-family: ui-monospace, 'SFMono-Regular', monospace; font-size: .8125rem; }
+.student-link {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+}
+.student-link:hover { text-decoration: underline; }
 
 /* ── Note cards ── */
 .note-card--info   { border-left: 3px solid #6366f1; }
