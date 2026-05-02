@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 class EditRequestController extends Controller
 {
@@ -77,6 +78,17 @@ class EditRequestController extends Controller
         ];
 
         foreach ($changes as $key => $newValue) {
+            // Photo: resolve both sides to full public URLs so the Vue
+            // component can render them as <img> thumbnails.
+            if ($key === 'photo') {
+                $diff[$key] = [
+                    'old'      => $model->photo ? asset('storage/' . $model->photo) : null,
+                    'new'      => asset('storage/' . $newValue),
+                    'is_photo' => true,
+                ];
+                continue;
+            }
+
             // Check if key is on the user model (like phone/name) or the student/staff model
             if (in_array($key, ['name', 'phone', 'email']) && $model->user) {
                 $oldValue = $model->user->$key;
@@ -153,7 +165,16 @@ class EditRequestController extends Controller
             $historyUpdates = [];
 
             foreach ($changes as $key => $value) {
-                if (in_array($key, $parentKeys, true)) {
+                if ($key === 'photo') {
+                    // Move the pending photo from the temp folder to the
+                    // permanent students/photos/ location, then update the model.
+                    if ($model->photo) {
+                        Storage::disk('public')->delete($model->photo);
+                    }
+                    $newPath = 'students/photos/' . basename($value);
+                    Storage::disk('public')->move($value, $newPath);
+                    $model->update(['photo' => $newPath]);
+                } elseif (in_array($key, $parentKeys, true)) {
                     // Translate the form-only key 'parent_address' into the
                     // actual column 'address' on the parents table.
                     $col = $key === 'parent_address' ? 'address' : $key;
@@ -237,6 +258,11 @@ class EditRequestController extends Controller
         $validated = $request->validate([
             'rejection_reason' => 'required|string|max:1000'
         ]);
+
+        // Clean up any pending temp photo so it doesn't orphan on disk.
+        if (isset($editRequest->requested_changes['photo'])) {
+            Storage::disk('public')->delete($editRequest->requested_changes['photo']);
+        }
 
         $editRequest->update([
             'status' => 'rejected',

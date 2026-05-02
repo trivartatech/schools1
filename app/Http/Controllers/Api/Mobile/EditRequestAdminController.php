@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Admin / principal review queue for parent-submitted edit requests.
@@ -62,6 +63,16 @@ class EditRequestAdminController extends Controller
         $parent = method_exists($model, 'studentParent') ? $model->studentParent : null;
 
         foreach ($changes as $key => $newValue) {
+            // Photo: return full URLs so the mobile UI can render thumbnails
+            if ($key === 'photo') {
+                $diff[$key] = [
+                    'old'      => $model->photo ? asset('storage/' . $model->photo) : null,
+                    'new'      => asset('storage/' . $newValue),
+                    'is_photo' => true,
+                ];
+                continue;
+            }
+
             $oldValue = null;
             if (in_array($key, self::USER_KEYS, true) && $model->user) {
                 $oldValue = $model->user->{$key} ?? null;
@@ -209,7 +220,15 @@ class EditRequestAdminController extends Controller
             $parentUpdates = [];
 
             foreach ($changes as $key => $value) {
-                if (in_array($key, self::PARENT_KEYS, true)) {
+                if ($key === 'photo') {
+                    // Move pending photo from temp folder to permanent location
+                    if ($model->photo) {
+                        Storage::disk('public')->delete($model->photo);
+                    }
+                    $newPath = 'students/photos/' . basename($value);
+                    Storage::disk('public')->move($value, $newPath);
+                    $model->update(['photo' => $newPath]);
+                } elseif (in_array($key, self::PARENT_KEYS, true)) {
                     $col = $key === 'parent_address' ? 'address' : $key;
                     $parentUpdates[$col] = $value;
                 } elseif (in_array($key, self::USER_KEYS, true) && $model->user) {
@@ -259,6 +278,11 @@ class EditRequestAdminController extends Controller
         $validated = $request->validate([
             'rejection_reason' => 'required|string|max:1000',
         ]);
+
+        // Clean up orphaned temp photo if present
+        if (isset($req->requested_changes['photo'])) {
+            Storage::disk('public')->delete($req->requested_changes['photo']);
+        }
 
         $req->update([
             'status'           => 'rejected',

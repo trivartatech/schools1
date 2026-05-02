@@ -170,18 +170,44 @@ const reject = () => {
                             <tbody>
                                 <tr v-for="(change, field) in diff" :key="field" class="diff-row">
                                     <td class="cell-field">{{ field }}</td>
-                                    <td class="cell-old" :class="{ 'cell-blank': !change.old }">
-                                        <div class="diff-cell-inner">
-                                            <span class="diff-pill diff-pill--old">−</span>
-                                            <span>{{ change.old || '— blank —' }}</span>
-                                        </div>
-                                    </td>
-                                    <td class="cell-new" :class="{ 'cell-blank': !change.new }">
-                                        <div class="diff-cell-inner">
-                                            <span class="diff-pill diff-pill--new">+</span>
-                                            <span class="cell-new-text">{{ change.new || '— blank —' }}</span>
-                                        </div>
-                                    </td>
+
+                                    <!-- Photo field: show passport-ratio thumbnails -->
+                                    <template v-if="change.is_photo">
+                                        <td class="cell-old">
+                                            <div class="diff-cell-inner diff-cell-inner--photo">
+                                                <span class="diff-pill diff-pill--old">−</span>
+                                                <div class="diff-photo-wrap diff-photo-wrap--old">
+                                                    <img v-if="change.old" :src="change.old" alt="Current photo" class="diff-photo" />
+                                                    <span v-else class="diff-photo-none">No photo</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="cell-new">
+                                            <div class="diff-cell-inner diff-cell-inner--photo">
+                                                <span class="diff-pill diff-pill--new">+</span>
+                                                <div class="diff-photo-wrap diff-photo-wrap--new">
+                                                    <img v-if="change.new" :src="change.new" alt="Proposed photo" class="diff-photo" />
+                                                    <span v-else class="diff-photo-none">—</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </template>
+
+                                    <!-- All other fields: plain text diff -->
+                                    <template v-else>
+                                        <td class="cell-old" :class="{ 'cell-blank': !change.old }">
+                                            <div class="diff-cell-inner">
+                                                <span class="diff-pill diff-pill--old">−</span>
+                                                <span>{{ change.old || '— blank —' }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="cell-new" :class="{ 'cell-blank': !change.new }">
+                                            <div class="diff-cell-inner">
+                                                <span class="diff-pill diff-pill--new">+</span>
+                                                <span class="cell-new-text">{{ change.new || '— blank —' }}</span>
+                                            </div>
+                                        </td>
+                                    </template>
                                 </tr>
                             </tbody>
                         </Table>
@@ -340,6 +366,30 @@ const reject = () => {
 }
 .cell-new-text { font-weight: 700; }
 .cell-blank { opacity: .5; font-style: italic; }
+
+/* ── Photo diff ── */
+.diff-cell-inner--photo { align-items: flex-start; }
+.diff-photo-wrap {
+    width: 70px;
+    height: 90px;   /* 7:9 passport ratio */
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1.5px solid;
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.diff-photo-wrap--old { border-color: #fca5a5; }
+.diff-photo-wrap--new { border-color: #86efac; }
+.diff-photo { width: 100%; height: 100%; object-fit: cover; }
+.diff-photo-none {
+    font-size: .6875rem;
+    color: #94a3b8;
+    font-style: italic;
+    text-align: center;
+    padding: .25rem;
+}
 
 /* ── Modal field styles (kept for textarea) ── */
 .modal-field-label {

@@ -965,7 +965,10 @@ class StudentController extends Controller
             'category' => 'nullable|string|max:50',
             'aadhaar_no' => 'nullable|string|max:20',
             'address' => 'nullable|string',
-            
+
+            // Passport photo (goes into the edit-request queue, not applied directly)
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:10240',
+
             // Parent/Guardian
             'primary_phone' => 'nullable|string|max:20',
             'father_name' => 'nullable|string|max:255',
@@ -1024,6 +1027,12 @@ class StudentController extends Controller
             $checkVal('mother_occupation',    $student->studentParent->mother_occupation,    $validated['mother_occupation']    ?? null);
             $checkVal('mother_qualification', $student->studentParent->mother_qualification, $validated['mother_qualification'] ?? null);
             $checkVal('parent_address',       $student->studentParent->address,              $validated['parent_address']       ?? null);
+        }
+
+        // Photo is always treated as a change when provided — no text-diff needed.
+        if ($request->hasFile('photo')) {
+            $requestedChanges['photo'] = $request->file('photo')
+                ->store('edit-requests/photos', 'public');
         }
 
         if (empty($requestedChanges)) {

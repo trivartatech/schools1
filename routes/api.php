@@ -167,6 +167,8 @@ Route::middleware(['auth:sanctum', 'tenant'])->prefix('mobile')->group(function 
     Route::get('/students',                   [$MA, 'studentList'])->name('api.mobile.students');
     Route::post('/students/lookup-by-uuid',   [$MA, 'lookupStudentByUuid'])->name('api.mobile.students.lookup-by-uuid');
     Route::get('/students/{id}',              [$MA, 'studentDetail'])->whereNumber('id')->name('api.mobile.students.detail');
+    Route::post('/students/{student}/photo',        [\App\Http\Controllers\Api\Mobile\StudentPhotoController::class,      'upload'])->name('api.mobile.students.photo');
+    Route::post('/students/{student}/edit-request', [\App\Http\Controllers\Api\Mobile\StudentEditRequestController::class, 'store']) ->name('api.mobile.students.edit-request');
     Route::get('/class-options',              [$MA, 'classOptions'])->name('api.mobile.class-options');
     Route::get('/teachers',                   [$MA, 'teacherList'])->name('api.mobile.teachers');
     Route::get('/staff',                      [$MA, 'staffList'])->name('api.mobile.staff');

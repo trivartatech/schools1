@@ -2,13 +2,36 @@
 import Button from '@/Components/ui/Button.vue';
 import PageHeader from '@/Components/ui/PageHeader.vue';
 import { useForm, Head, Link } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
 import SchoolLayout from '@/Layouts/SchoolLayout.vue';
 
 const props = defineProps({
     student: Object
 });
 
+// ── Photo preview ─────────────────────────────────────────────────────────────
+const photoPreviewUrl = ref(null);
+const photoInput = ref(null);
+
+function onPhotoSelected(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    form.photo = file;
+    photoPreviewUrl.value = URL.createObjectURL(file);
+}
+
+function clearPhoto() {
+    form.photo = null;
+    photoPreviewUrl.value = null;
+    if (photoInput.value) photoInput.value.value = '';
+}
+
+const currentPhotoUrl = computed(() => props.student?.photo_url ?? null);
+
 const form = useForm({
+    // Passport photo (file — sent as multipart automatically by Inertia)
+    photo: null,
+
     // Student Identity
     first_name: props.student?.first_name || '',
     last_name: props.student?.last_name || '',
@@ -77,6 +100,72 @@ const submit = () => {
         </div>
 
         <form @submit.prevent="submit" class="request-form">
+
+            <!-- Passport Photo -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title section-title">
+                        <span class="section-badge">
+                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        </span>
+                        Passport Photo
+                        <span class="optional-tag">Optional · 3.5 × 4.5 cm</span>
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="photo-row">
+                        <!-- Current photo -->
+                        <div class="photo-slot">
+                            <p class="photo-slot-label">Current</p>
+                            <div class="photo-thumb" :class="{ 'photo-thumb--empty': !currentPhotoUrl }">
+                                <img v-if="currentPhotoUrl" :src="currentPhotoUrl" alt="Current photo" class="photo-thumb-img" />
+                                <span v-else class="photo-thumb-placeholder">
+                                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                    <span>No photo</span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Arrow -->
+                        <div class="photo-arrow" aria-hidden="true">
+                            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                        </div>
+
+                        <!-- New photo -->
+                        <div class="photo-slot">
+                            <p class="photo-slot-label">Proposed</p>
+                            <div class="photo-thumb" :class="{ 'photo-thumb--pending': !!photoPreviewUrl, 'photo-thumb--empty': !photoPreviewUrl }">
+                                <img v-if="photoPreviewUrl" :src="photoPreviewUrl" alt="New photo preview" class="photo-thumb-img" />
+                                <span v-else class="photo-thumb-placeholder">
+                                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"/></svg>
+                                    <span>Select file</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- File controls -->
+                    <div class="photo-controls">
+                        <label class="photo-pick-btn">
+                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            {{ photoPreviewUrl ? 'Change Photo' : 'Choose Photo' }}
+                            <input
+                                ref="photoInput"
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
+                                class="photo-input-hidden"
+                                @change="onPhotoSelected"
+                            />
+                        </label>
+                        <button v-if="photoPreviewUrl" type="button" class="photo-clear-btn" @click="clearPhoto">
+                            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                            Remove
+                        </button>
+                        <span class="photo-hint">JPEG / PNG / WEBP · max 10 MB · passport size 3.5 × 4.5 cm</span>
+                    </div>
+                    <p v-if="form.errors.photo" class="photo-error">{{ form.errors.photo }}</p>
+                </div>
+            </div>
 
             <!-- Student Information -->
             <div class="card">
@@ -427,6 +516,86 @@ const submit = () => {
     margin: 0 0 .125rem;
 }
 .guardian-row { align-items: start; }
+
+/* ── Passport photo section ── */
+.photo-row {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    margin-bottom: 1rem;
+}
+.photo-slot { display: flex; flex-direction: column; align-items: center; gap: .375rem; }
+.photo-slot-label {
+    font-size: .6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #94a3b8;
+    margin: 0;
+}
+.photo-thumb {
+    width: 87px;
+    height: 113px; /* 3.5:4.5 ratio ≈ 77:100, bumped to 87:113 for visibility */
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1.5px solid var(--border);
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.photo-thumb--empty   { border-style: dashed; }
+.photo-thumb--pending { border-color: #6366f1; background: #eef2ff; }
+.photo-thumb-img { width: 100%; height: 100%; object-fit: cover; }
+.photo-thumb-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .3rem;
+    color: #94a3b8;
+    font-size: .6875rem;
+    font-weight: 500;
+}
+.photo-arrow { color: #cbd5e1; flex-shrink: 0; }
+.photo-controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .625rem;
+}
+.photo-pick-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .375rem .875rem;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    font-size: .8125rem;
+    font-weight: 600;
+    color: #374151;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+}
+.photo-pick-btn:hover { border-color: var(--accent); background: #f5f3ff; color: var(--accent); }
+.photo-input-hidden { display: none; }
+.photo-clear-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    padding: .375rem .75rem;
+    border: none;
+    border-radius: var(--radius);
+    font-size: .8125rem;
+    font-weight: 600;
+    color: #dc2626;
+    background: #fee2e2;
+    cursor: pointer;
+    transition: background .15s;
+}
+.photo-clear-btn:hover { background: #fecaca; }
+.photo-hint  { font-size: .75rem; color: #94a3b8; }
+.photo-error { font-size: .8rem; color: var(--danger); margin-top: .25rem; }
 
 /* ── Actions ── */
 .form-actions {
