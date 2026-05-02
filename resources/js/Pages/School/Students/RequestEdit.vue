@@ -35,7 +35,7 @@ const form = useForm({
     // Student Identity
     first_name: props.student?.first_name || '',
     last_name: props.student?.last_name || '',
-    dob: props.student?.dob || '',
+    dob: props.student?.dob ? String(props.student.dob).substring(0, 10) : '',
     gender: props.student?.gender || 'Male',
     blood_group: props.student?.blood_group || '',
     birth_place: props.student?.birth_place || '',
