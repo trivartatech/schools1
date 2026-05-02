@@ -79,8 +79,11 @@ class StudentUpdateTemplate implements FromArray, WithHeadings, WithStyles
             'font' => ['italic' => true, 'color' => ['rgb' => '9CA3AF']],
         ]);
 
-        foreach (range('A', $lastCol) as $col) {
-            $sheet->getColumnDimension($col)->setAutoSize(true);
+        $lastColIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($lastCol);
+        for ($i = 1; $i <= $lastColIndex; $i++) {
+            $sheet->getColumnDimension(
+                \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i)
+            )->setAutoSize(true);
         }
 
         return [];

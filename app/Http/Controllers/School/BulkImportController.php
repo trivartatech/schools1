@@ -140,7 +140,7 @@ class BulkImportController extends Controller
 
             $results['success'][] = [
                 'file'         => $originalName,
-                'admission_no' => $admissionNo,
+                'admission_no' => $key,
                 'name'         => trim("{$student->first_name} {$student->last_name}"),
             ];
         }
