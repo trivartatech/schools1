@@ -1173,6 +1173,10 @@ Route::middleware('auth')->group(function () {
                     Route::get('allocations',                   [$AC, 'index'])->name('allocations.index');
                     Route::get('allocations/students-by-class', [$AC, 'studentsByClass'])->name('allocations.students-by-class');
 
+                    // Bus Pass printing (literal segments before {allocation} wildcard)
+                    Route::get('allocations/bus-passes',              [$AC, 'bulkBusPass'])->name('allocations.bus-passes');
+                    Route::get('allocations/{allocation}/bus-pass',   [$AC, 'busPass'])->name('allocations.bus-pass');
+
                     Route::middleware(['permission:create_transport_allocations'])->group(function() use ($AC) {
                         Route::post('allocations',              [$AC, 'store'])->name('allocations.store');
                     });

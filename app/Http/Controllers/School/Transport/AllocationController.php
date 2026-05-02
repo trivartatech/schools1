@@ -175,6 +175,123 @@ class AllocationController extends Controller
         return back()->with('success', 'Allocation removed. Fee entry cancelled.');
     }
 
+    /**
+     * GET /school/transport/allocations/{allocation}/bus-pass
+     * Stream a single student's bus pass as a printable PDF (CR80 card layout).
+     */
+    public function busPass(TransportStudentAllocation $allocation)
+    {
+        $this->authorizeTenant($allocation);
+
+        $allocation->load([
+            'student:id,admission_no,first_name,last_name,photo',
+            'student.user:id,name',
+            'student.currentAcademicHistory:id,student_id,class_id,section_id',
+            'student.currentAcademicHistory.courseClass:id,name',
+            'student.currentAcademicHistory.section:id,name',
+            'route:id,route_name,route_code',
+            'stop:id,stop_name,stop_code',
+            'vehicle:id,vehicle_number,vehicle_name',
+        ]);
+
+        $school  = \App\Models\School::find($allocation->school_id);
+        $passes  = [$this->buildPassData($allocation)];
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.bus-pass', [
+            'passes' => $passes,
+            'school' => $school,
+        ])->setPaper('a4', 'portrait');
+
+        $admNo = str_replace(['/', '\\', ' '], '-', (string) $allocation->student?->admission_no);
+        return $pdf->stream("Bus-Pass-{$admNo}.pdf");
+    }
+
+    /**
+     * GET /school/transport/allocations/bus-passes?ids[]=1&ids[]=2...
+     * Stream bulk bus passes for multiple allocations (8 CR80 cards per A4 page).
+     */
+    public function bulkBusPass(\Illuminate\Http\Request $request)
+    {
+        $schoolId = app('current_school_id');
+
+        $ids = array_slice((array) $request->input('ids', []), 0, 100);
+        abort_if(empty($ids), 400, 'No allocations selected.');
+
+        $allocations = TransportStudentAllocation::where('school_id', $schoolId)
+            ->whereIn('id', $ids)
+            ->with([
+                'student:id,admission_no,first_name,last_name,photo',
+                'student.user:id,name',
+                'student.currentAcademicHistory:id,student_id,class_id,section_id',
+                'student.currentAcademicHistory.courseClass:id,name',
+                'student.currentAcademicHistory.section:id,name',
+                'route:id,route_name,route_code',
+                'stop:id,stop_name,stop_code',
+                'vehicle:id,vehicle_number,vehicle_name',
+            ])
+            ->get();
+
+        abort_if($allocations->isEmpty(), 404, 'No matching allocations found.');
+
+        $school = \App\Models\School::find($schoolId);
+        $passes = $allocations->map(fn($a) => $this->buildPassData($a))->all();
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.bus-pass', [
+            'passes' => $passes,
+            'school' => $school,
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->stream('Bus-Passes.pdf');
+    }
+
+    /**
+     * Build the data array for a single bus pass card.
+     */
+    private function buildPassData(TransportStudentAllocation $allocation): array
+    {
+        $student = $allocation->student;
+        $history = $student?->currentAcademicHistory;
+
+        $name    = $student?->user?->name
+            ?? trim(($student?->first_name ?? '') . ' ' . ($student?->last_name ?? ''))
+            ?: '—';
+        $class   = optional($history?->courseClass)->name;
+        $section = optional($history?->section)->name;
+        $classSection = collect([$class, $section])->filter()->implode(' - ') ?: null;
+
+        $admNo     = $student?->admission_no ?? '—';
+        $routeName = optional($allocation->route)->route_name ?? '—';
+        $routeCode = optional($allocation->route)->route_code ?? '';
+        $stopName  = optional($allocation->stop)->stop_name  ?? '—';
+        $vehicleNo = optional($allocation->vehicle)->vehicle_number ?? '—';
+
+        $pickupMap  = ['pickup' => 'Pickup Only', 'drop' => 'Drop Only', 'both' => 'Both'];
+        $pickupType = $pickupMap[$allocation->pickup_type] ?? ucfirst((string) $allocation->pickup_type);
+
+        $validFrom = $allocation->start_date ? \Carbon\Carbon::parse($allocation->start_date)->format('d M Y') : null;
+        $validTo   = $allocation->end_date   ? \Carbon\Carbon::parse($allocation->end_date)->format('d M Y')   : null;
+
+        // QR: encodes admission no + route code for scanning
+        $qrContent = "ADM:{$admNo}|ROUTE:{$routeCode}";
+        $qrCode    = base64_encode(
+            \SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')->size(80)->margin(0)->generate($qrContent)
+        );
+
+        return [
+            'name'        => $name,
+            'classSection'=> $classSection,
+            'admNo'       => $admNo,
+            'routeName'   => $routeName,
+            'stopName'    => $stopName,
+            'vehicleNo'   => $vehicleNo,
+            'pickupType'  => $pickupType,
+            'validFrom'   => $validFrom,
+            'validTo'     => $validTo,
+            'status'      => $allocation->status,
+            'qrCode'      => $qrCode,
+        ];
+    }
+
     private function authorizeTenant(TransportStudentAllocation $allocation): void
     {
         abort_unless($allocation->school_id === app('current_school_id'), 403);

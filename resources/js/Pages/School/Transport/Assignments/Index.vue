@@ -215,6 +215,16 @@ async function destroy(alloc) {
 
 const pickupLabel = (t) => ({ pickup: 'Pickup Only', drop: 'Drop Only', both: 'Both' })[t] || t;
 
+function printAllPasses() {
+    const ids = filteredAllocations.value.map(a => a.id);
+    if (!ids.length) {
+        toast.warning('No allocations to print.');
+        return;
+    }
+    const params = ids.map(id => `ids[]=${id}`).join('&');
+    window.open(`/school/transport/allocations/bus-passes?${params}`, '_blank');
+}
+
 const statCards = computed(() => [
     { label: 'Total Assigned', value: props.allocations.length, color: 'accent' },
     { label: 'Active',         value: props.allocations.filter(a => a.status === 'active').length, color: 'success' },
@@ -231,6 +241,7 @@ const statCards = computed(() => [
 
         <PageHeader title="Student Transport Allocation" subtitle="Assign students to routes and stops">
             <template #actions>
+                <Button variant="secondary" @click="printAllPasses">🖨 Print All Passes</Button>
                 <Button v-if="can('create_transport_allocations')" @click="openModal()">+ Assign Student</Button>
             </template>
         </PageHeader>
@@ -267,7 +278,7 @@ const statCards = computed(() => [
                         <th style="text-align:center;">Pickup</th>
                         <th style="text-align:center;">Fee</th>
                         <th style="text-align:center;">Status</th>
-                        <th v-if="can('edit_transport_allocations') || can('delete_transport_allocations')" style="text-align:right;">Actions</th>
+                        <th style="text-align:right;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -289,8 +300,11 @@ const statCards = computed(() => [
                         <td style="text-align:center;">
                             <span :class="a.status === 'active' ? 'badge badge-green' : 'badge badge-gray'" style="text-transform:capitalize;">{{ a.status }}</span>
                         </td>
-                        <td v-if="can('edit_transport_allocations') || can('delete_transport_allocations')" style="text-align:right;">
+                        <td style="text-align:right;">
                             <div style="display:flex;align-items:center;justify-content:flex-end;gap:0.5rem;">
+                                <a :href="`/school/transport/allocations/${a.id}/bus-pass`" target="_blank" style="text-decoration:none;">
+                                    <Button variant="secondary" size="xs">Bus Pass</Button>
+                                </a>
                                 <Button variant="secondary" size="xs" v-if="can('edit_transport_allocations')" @click="openModal(a)">Edit</Button>
                                 <Button variant="danger" size="xs" v-if="can('delete_transport_allocations')" @click="destroy(a)">Remove</Button>
                             </div>
