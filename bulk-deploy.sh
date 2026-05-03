@@ -39,6 +39,7 @@ CONCURRENCY=0        # 0 = unlimited
 SKIP_UNREACHABLE=false
 BUILD_FRONTEND=false
 RESEED=false
+RUN_CMD=""           # arbitrary command to run on each server
 TARGET_DOMAINS=()    # empty = all
 
 # ── Parse arguments ───────────────────────────────────────────────────────────
@@ -49,6 +50,7 @@ for arg in "$@"; do
     --skip-unreachable)  SKIP_UNREACHABLE=true ;;
     --build-frontend)    BUILD_FRONTEND=true ;;
     --reseed)            RESEED=true ;;
+    --cmd=*)             RUN_CMD="${arg#*=}" ;;
     --*)                 echo "Unknown flag: $arg"; exit 1 ;;
     *)                   TARGET_DOMAINS+=("$arg") ;;
   esac
@@ -294,6 +296,12 @@ deploy_server() {
       ssh_cmd "$user" "$pass" "$domain" \
         "find '$path/storage/backups' -name '*.sql.gz' -mtime +7 -delete 2>/dev/null || true"
       echo "  Cleanup done"
+    fi
+
+    # ── Run arbitrary command (--cmd) ────────────────────────────────────────
+    if [ -n "$RUN_CMD" ]; then
+      echo "--- Running: $RUN_CMD ---"
+      ssh_cmd "$user" "$pass" "$domain" "cd '$path' && $RUN_CMD"
     fi
 
     # ── Health check ─────────────────────────────────────────────────────────
