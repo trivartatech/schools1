@@ -9,6 +9,7 @@ enum UserType: string
     case SchoolAdmin = 'school_admin';
     case Principal  = 'principal';
     case Teacher    = 'teacher';
+    case Staff      = 'staff';      // legacy import value — normalise to 'teacher'
     case Student    = 'student';
     case Parent     = 'parent';
     case Accountant = 'accountant';
@@ -29,6 +30,7 @@ enum UserType: string
             self::SchoolAdmin      => 'School Admin',
             self::Principal        => 'Principal',
             self::Teacher          => 'Teacher',
+            self::Staff            => 'Staff',
             self::Student          => 'Student',
             self::Parent           => 'Parent',
             self::Accountant       => 'Accountant',
@@ -58,6 +60,7 @@ enum UserType: string
             self::SchoolAdmin->value,
             self::Principal->value,
             self::Teacher->value,
+            self::Staff->value,
             self::Accountant->value,
         ];
     }
@@ -88,6 +91,7 @@ enum UserType: string
             self::SchoolAdmin => 'school_admin',
             self::Principal   => 'principal',
             self::Teacher     => 'teacher',
+            self::Staff       => 'teacher',  // legacy — same role as teacher
             self::Student     => 'student',
             self::Parent      => 'parent',
             self::Accountant  => 'accountant',

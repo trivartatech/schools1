@@ -194,6 +194,8 @@ if $DRY_RUN; then
       echo "  Mode: bootstrap — will clone $repo into $path"
       if [ -f "$SCHOOL_CONFIGS_DIR/$domain.xlsx" ]; then
         echo "  Config: school-configs/$domain.xlsx found"
+      elif [ -f "$SCHOOL_CONFIGS_DIR/$domain" ]; then
+        echo "  Config: school-configs/$domain found (no .xlsx extension — ZohoSheet save)"
       else
         echo "  Config: WARNING — school-configs/$domain.xlsx NOT found"
       fi
@@ -242,6 +244,10 @@ deploy_server() {
     if [ "$mode" = "bootstrap" ]; then
       # ── Validate xlsx config ───────────────────────────────────────────────
       local xlsx="$SCHOOL_CONFIGS_DIR/$domain.xlsx"
+      if [ ! -f "$xlsx" ] && [ -f "$SCHOOL_CONFIGS_DIR/$domain" ]; then
+        xlsx="$SCHOOL_CONFIGS_DIR/$domain"
+        echo "  Note: using school-configs/$domain (ZohoSheet saved without .xlsx extension)"
+      fi
       if [ ! -f "$xlsx" ]; then
         echo "ERROR: school-configs/$domain.xlsx not found — skipping bootstrap."
         echo "  Create it by copying school-setup.example.xlsx and filling in the school details."

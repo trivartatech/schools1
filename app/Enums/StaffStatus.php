@@ -9,6 +9,7 @@ enum StaffStatus: string
     case OnLeave   = 'on_leave';
     case Resigned  = 'resigned';
     case Terminated = 'terminated';
+    case Left       = 'left';       // legacy import value — normalise to 'resigned'
 
     public function label(): string
     {
@@ -18,6 +19,7 @@ enum StaffStatus: string
             self::OnLeave    => 'On Leave',
             self::Resigned   => 'Resigned',
             self::Terminated => 'Terminated',
+            self::Left       => 'Left',
         };
     }
 
@@ -29,6 +31,7 @@ enum StaffStatus: string
             self::OnLeave    => 'yellow',
             self::Resigned   => 'orange',
             self::Terminated => 'red',
+            self::Left       => 'red',
         };
     }
 }

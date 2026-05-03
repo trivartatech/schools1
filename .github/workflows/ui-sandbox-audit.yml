@@ -1,0 +1,62 @@
+# UI Sandbox audits — runs both the web (Vue) and mobile (React Native)
+# sandbox compliance scripts on every PR + push to main. Either failing
+# blocks merge.
+#
+# Web audit:    scripts/audit_ui_sandbox.mjs       (existing)
+# Mobile audit: mobile app/scripts/audit_mobile_sandbox.mjs
+#
+# The mobile script is read-only and has zero npm deps — runs straight
+# off Node 20 without an `npm install`. Web uses the project's existing
+# package.json.
+name: UI Sandbox Audit
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  audit-web:
+    name: Web sandbox audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run web sandbox audit
+        run: node scripts/audit_ui_sandbox.mjs
+
+  audit-mobile:
+    name: Mobile sandbox audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check if mobile audit script is present
+        id: check
+        run: |
+          if [ -f "mobile app/scripts/audit_mobile_sandbox.mjs" ]; then
+            echo "present=true" >> $GITHUB_OUTPUT
+          else
+            echo "present=false" >> $GITHUB_OUTPUT
+            echo "Mobile app folder not in this checkout (it lives in a separate git repo). Skipping mobile audit." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Run mobile sandbox audit
+        if: steps.check.outputs.present == 'true'
+        # The mobile script is self-contained — no install step needed.
+        # Uses --quiet so the GH check shows just the summary.
+        # Note the path has a literal space (the mobile app folder is
+        # `mobile app/`, kept that way to match the on-disk layout).
+        run: node "mobile app/scripts/audit_mobile_sandbox.mjs" --quiet
