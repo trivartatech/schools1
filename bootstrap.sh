@@ -107,6 +107,11 @@ php artisan storage:link || true
 echo "🗄  Running migrations…"
 php artisan migrate --force
 
+# Give MySQL a moment to settle its prepared-statement cache after the DDL flood.
+# Without this, some servers (CloudPanel/ProxySQL) throw error 1615 on the first
+# seeder query. config:clear forces Laravel to open a fresh DB connection.
+php artisan config:clear
+
 # 7. Seeds — REQUIRED order: roles → school → grading → templates
 echo "🌱 Seeding…"
 php artisan db:seed --class=RolePermissionSeeder --force
