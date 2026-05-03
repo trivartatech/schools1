@@ -236,6 +236,11 @@ deploy_server() {
         ssh_cmd "$user" "$pass" "$domain" "cd '$path' && git pull origin main 2>&1"
       fi
 
+      # ── Fix ownership (handles files accidentally created by root) ────────
+      echo "--- Fixing file ownership ---"
+      ssh_cmd "$user" "$pass" "$domain" \
+        "sudo -n chown -R '$user:$user' '$path' 2>/dev/null && echo '  ✓ Ownership fixed' || echo '  ⚠ sudo not available — skipping chown (run manually if needed)'"
+
       # ── Upload school-setup.xlsx ──────────────────────────────────────────
       echo "--- Uploading school-setup.xlsx ---"
       scp_cmd "$pass" "$xlsx" "$user@$domain:$path/school-setup.xlsx"
@@ -269,6 +274,11 @@ deploy_server() {
         exit 3
       fi
       echo "  Syntax OK"
+
+      # ── Fix ownership (handles files accidentally created by root) ────────
+      echo "--- Fixing file ownership ---"
+      ssh_cmd "$user" "$pass" "$domain" \
+        "sudo -n chown -R '$user:$user' '$path' 2>/dev/null && echo '  ✓ Ownership fixed' || echo '  ⚠ sudo not available — skipping chown (run manually if needed)'"
 
       # ── Run deploy.sh ─────────────────────────────────────────────────────
       echo "--- Running deploy.sh ---"
