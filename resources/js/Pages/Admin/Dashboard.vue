@@ -22,7 +22,7 @@
                 </dd>
             </Link>
 
-            <Link href="/admin/organization/dashboard" class="relative bg-white pt-5 px-4 pb-6 sm:pt-6 sm:px-6 shadow-sm rounded-xl overflow-hidden border border-gray-100 group hover:border-emerald-500 transition-all ring-offset-2 hover:ring-2 hover:ring-emerald-500/20">
+            <Link href="/admin/org/dashboard" class="relative bg-white pt-5 px-4 pb-6 sm:pt-6 sm:px-6 shadow-sm rounded-xl overflow-hidden border border-gray-100 group hover:border-emerald-500 transition-all ring-offset-2 hover:ring-2 hover:ring-emerald-500/20">
                 <dt>
                     <div class="absolute bg-emerald-50 rounded-lg p-3 group-hover:bg-emerald-600 transition-colors">
                         <svg class="h-6 w-6 text-emerald-600 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -75,7 +75,7 @@
                             <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
                             Organization & Schools
                         </h3>
-                        <Button as="link" variant="success" href="/admin/organization/dashboard">
+                        <Button as="link" variant="success" href="/admin/org/dashboard">
                             Register School
                         </Button>
                     </div>
@@ -87,7 +87,7 @@
                            <span class="text-sm font-medium text-gray-700 group-hover:text-indigo-600">View All Organizations</span>
                            <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                         </Link>
-                        <Link href="/admin/organization/dashboard" class="flex items-center justify-between p-4 hover:bg-white transition-colors group">
+                        <Link href="/admin/org/dashboard" class="flex items-center justify-between p-4 hover:bg-white transition-colors group">
                            <span class="text-sm font-medium text-gray-700 group-hover:text-indigo-600">View All Registered Schools</span>
                            <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                         </Link>

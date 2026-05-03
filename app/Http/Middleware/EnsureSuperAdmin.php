@@ -15,7 +15,7 @@ class EnsureSuperAdmin
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->user() && $request->user()->user_type === 'super_admin') {
+        if ($request->user() && $request->user()->isSuperAdmin()) {
             return $next($request);
         }
 
