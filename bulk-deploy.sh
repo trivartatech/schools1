@@ -221,13 +221,22 @@ deploy_server() {
     if $CMD_ONLY; then
       if [ -z "$RUN_CMD" ]; then
         echo "ERROR: --cmd-only requires --cmd=\"your command\""
+        local _end=$(date +%s)
+        echo "FAILED|$(( _end - start_ts ))" > "$LOGS_DIR/.result_${domain}"
         exit 1
       fi
       echo "--- CMD-ONLY: $RUN_CMD ---"
       ssh_cmd "$user" "$pass" "$domain" "cd '$path' && $RUN_CMD"
+      local _cmd_exit=$?
       echo ""
       echo "=== DONE ==="
-      exit 0
+      local _end=$(date +%s)
+      if [ $_cmd_exit -eq 0 ]; then
+        echo "SUCCESS|$(( _end - start_ts ))" > "$LOGS_DIR/.result_${domain}"
+      else
+        echo "FAILED|$(( _end - start_ts ))"  > "$LOGS_DIR/.result_${domain}"
+      fi
+      exit $_cmd_exit
     fi
 
     if [ "$mode" = "bootstrap" ]; then
