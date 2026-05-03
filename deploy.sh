@@ -4,8 +4,17 @@
 # Pulls latest code, backs up the DB, runs migrations, rebuilds caches, and
 # restarts the queue worker. For the FIRST install on a fresh server, run
 # ./bootstrap.sh instead.
+#
+# Flags:
+#   --build-frontend   Also run `php artisan ziggy:generate && npm run build`
+#                      Use when routes or frontend assets have changed.
 # =============================================================================
 set -e
+
+BUILD_FRONTEND=false
+for arg in "$@"; do
+    [ "$arg" = "--build-frontend" ] && BUILD_FRONTEND=true
+done
 
 echo "🚀 Starting deployment..."
 
@@ -55,8 +64,16 @@ composer install --no-dev --optimize-autoloader
 # Run database migrations
 php artisan migrate --force
 
-# Note: Frontend assets are NOT rebuilt here. Build locally with `npm run build`
-# and upload the public/build/ directory to the server if assets changed.
+# Frontend build — only when --build-frontend is passed
+if $BUILD_FRONTEND; then
+    echo "🏗  Regenerating Ziggy routes + rebuilding frontend assets…"
+    php artisan ziggy:generate
+    npm install --prefer-offline
+    npm run build
+    echo "✅ Frontend built."
+else
+    echo "ℹ️  Skipping frontend build (pass --build-frontend to rebuild assets)."
+fi
 
 # Clear and cache everything
 php artisan config:cache

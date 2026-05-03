@@ -37,6 +37,7 @@ RUN_LABEL="$(date '+%Y-%m-%d %H:%M')"
 DRY_RUN=false
 CONCURRENCY=0        # 0 = unlimited
 SKIP_UNREACHABLE=false
+BUILD_FRONTEND=false
 TARGET_DOMAINS=()    # empty = all
 
 # ── Parse arguments ───────────────────────────────────────────────────────────
@@ -45,6 +46,7 @@ for arg in "$@"; do
     --dry-run)           DRY_RUN=true ;;
     --concurrency=*)     CONCURRENCY="${arg#*=}" ;;
     --skip-unreachable)  SKIP_UNREACHABLE=true ;;
+    --build-frontend)    BUILD_FRONTEND=true ;;
     --*)                 echo "Unknown flag: $arg"; exit 1 ;;
     *)                   TARGET_DOMAINS+=("$arg") ;;
   esac
@@ -263,7 +265,9 @@ deploy_server() {
 
       # ── Run deploy.sh ─────────────────────────────────────────────────────
       echo "--- Running deploy.sh ---"
-      ssh_cmd "$user" "$pass" "$domain" "cd '$path' && bash deploy.sh"
+      local deploy_flags=""
+      $BUILD_FRONTEND && deploy_flags="--build-frontend"
+      ssh_cmd "$user" "$pass" "$domain" "cd '$path' && bash deploy.sh $deploy_flags"
 
       # ── Backup cleanup (>7 days) ──────────────────────────────────────────
       echo "--- Cleaning up old backups (>7 days) ---"
