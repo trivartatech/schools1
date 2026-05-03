@@ -230,7 +230,8 @@ deploy_server() {
         ssh_cmd "$user" "$pass" "$domain" \
           "mkdir -p '$path' && git clone '$repo' '$path' 2>&1 || (rm -rf '$path' && git clone '$repo' '$path')"
       else
-        echo "--- Git repo already present at $path — skipping clone ---"
+        echo "--- Git repo already present at $path — pulling latest code ---"
+        ssh_cmd "$user" "$pass" "$domain" "cd '$path' && git pull origin main 2>&1"
       fi
 
       # ── Upload school-setup.xlsx ──────────────────────────────────────────
