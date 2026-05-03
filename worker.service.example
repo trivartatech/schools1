@@ -1,0 +1,42 @@
+# =============================================================================
+# systemd user-service template for the Schools ERP queue worker.
+#
+# bootstrap.sh fills __APP_PATH__ and __WORKER_NAME__ automatically.
+# You do not normally need to edit this file.
+#
+# Manual setup (if bootstrap.sh could not start the worker automatically):
+#
+#   APP_PATH=/home/trivarta-kvs/htdocs/kvs.trivarta.in
+#   WORKER=schools-kvs-trivarta-in-worker
+#   export XDG_RUNTIME_DIR=/run/user/$(id -u)
+#   mkdir -p ~/.config/systemd/user
+#   sed "s|__APP_PATH__|$APP_PATH|g; s|__WORKER_NAME__|$WORKER|g" \
+#       worker.service.example > ~/.config/systemd/user/${WORKER}.service
+#   systemctl --user daemon-reload
+#   systemctl --user enable  $WORKER
+#   systemctl --user start   $WORKER
+#   sudo loginctl enable-linger $USER   # survives reboots
+#
+# Check status:  systemctl --user status schools-*-worker
+# Live logs:     journalctl --user -u schools-*-worker -f
+# =============================================================================
+
+[Unit]
+Description=Schools ERP Queue Worker (__WORKER_NAME__)
+After=network.target mysql.service
+
+[Service]
+Type=simple
+WorkingDirectory=__APP_PATH__
+ExecStart=/usr/bin/php __APP_PATH__/artisan queue:work \
+    --queue=default,notifications --tries=1 --sleep=3 --timeout=60
+Restart=on-failure
+RestartSec=5
+# Give in-flight jobs up to 60s to finish before the process is killed.
+# deploy.sh calls `php artisan queue:restart` which sets a flag; the worker
+# exits cleanly after its current job and systemd restarts it with new code.
+TimeoutStopSec=60
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=default.target
