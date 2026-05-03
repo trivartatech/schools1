@@ -24,7 +24,9 @@ echo "🚀 Starting deployment..."
 php artisan down || true
 
 # Auto-fetch latest code from origin (= trivartatech/schools1)
-git pull origin main
+# Use fetch+reset instead of pull — handles diverged branches and local changes cleanly.
+git fetch origin
+git reset --hard origin/main
 
 # Fix any files accidentally owned by root (e.g. from a manual `git pull` run as
 # root on the server). `sudo -n` is non-interactive — if passwordless sudo isn't
