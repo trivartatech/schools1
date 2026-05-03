@@ -60,6 +60,11 @@ return [
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 (PHP_VERSION_ID >= 80500 ? \Pdo\Mysql::ATTR_SSL_CA : \PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
+                // Emulate prepared statements in PHP rather than on the MySQL server.
+                // Prevents SQLSTATE 1615 "Prepared statement needs to be re-prepared"
+                // which occurs on shared hosts (CloudPanel/ProxySQL) after a large
+                // batch of DDL migrations fills MySQL's table_definition_cache.
+                \PDO::ATTR_EMULATE_PREPARES => true,
             ]) : [],
         ],
 
