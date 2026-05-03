@@ -24,6 +24,11 @@ php artisan down || true
 # Auto-fetch latest code from origin (= trivartatech/schools1)
 git pull origin main
 
+# Fix any files accidentally owned by root (e.g. from a manual `git pull` run as
+# root on the server). `sudo -n` is non-interactive — if passwordless sudo isn't
+# configured this is silently skipped; it never blocks the deploy.
+sudo -n chown -R "$(whoami):$(whoami)" . 2>/dev/null || true
+
 # Pre-migration MySQL backup (so we can roll back if a migration breaks something)
 if [ -f .env ]; then
     # Read DB credentials WITHOUT exporting them — see bootstrap.sh for why

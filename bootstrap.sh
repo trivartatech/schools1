@@ -83,7 +83,10 @@ else
     echo "ℹ️  DB_ROOT_* not set — assuming database '$DB_DATABASE' already exists."
 fi
 
-# 2. PHP deps
+# 2. Fix any root-owned files before running any artisan/composer commands
+sudo -n chown -R "$(whoami):$(whoami)" . 2>/dev/null || true
+
+# 3. PHP deps
 echo "📦 composer install…"
 composer install --no-dev --optimize-autoloader --no-interaction
 
