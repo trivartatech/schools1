@@ -12,8 +12,10 @@
 set -e
 
 BUILD_FRONTEND=false
+RESEED=false
 for arg in "$@"; do
     [ "$arg" = "--build-frontend" ] && BUILD_FRONTEND=true
+    [ "$arg" = "--reseed" ] && RESEED=true
 done
 
 echo "🚀 Starting deployment..."
@@ -68,6 +70,20 @@ composer install --no-dev --optimize-autoloader
 
 # Run database migrations
 php artisan migrate --force
+
+# Reference data seeders — only when --reseed is passed.
+# These are all idempotent (safe to re-run): roles/permissions use
+# firstOrCreate, grading systems delete-then-recreate, templates upsert.
+# GenericSchoolSeeder is intentionally excluded — school identity data
+# (name, admin users) should only be set on first bootstrap.
+if $RESEED; then
+    echo "🌱 Re-seeding reference data…"
+    php artisan db:seed --class=RolePermissionSeeder --force
+    php artisan db:seed --class=GradingSystemSeeder --force
+    php artisan db:seed --class=FeeConcessionTypeSeeder --force
+    php artisan db:seed --class=CommunicationTemplateSeeder --force
+    echo "✅ Reference data re-seeded."
+fi
 
 # Frontend build — only when --build-frontend is passed
 if $BUILD_FRONTEND; then
