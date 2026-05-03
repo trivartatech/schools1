@@ -40,6 +40,7 @@ SKIP_UNREACHABLE=false
 BUILD_FRONTEND=false
 RESEED=false
 RUN_CMD=""           # arbitrary command to run on each server
+CMD_ONLY=false       # skip all deploy steps — only run --cmd
 TARGET_DOMAINS=()    # empty = all
 
 # ── Parse arguments ───────────────────────────────────────────────────────────
@@ -51,6 +52,7 @@ for arg in "$@"; do
     --build-frontend)    BUILD_FRONTEND=true ;;
     --reseed)            RESEED=true ;;
     --cmd=*)             RUN_CMD="${arg#*=}" ;;
+    --cmd-only)          CMD_ONLY=true ;;
     --*)                 echo "Unknown flag: $arg"; exit 1 ;;
     *)                   TARGET_DOMAINS+=("$arg") ;;
   esac
@@ -214,6 +216,19 @@ deploy_server() {
   {
     echo "=== Deploy log: $domain | mode=$mode | $RUN_LABEL ==="
     echo ""
+
+    # ── CMD-ONLY mode — skip all deploy steps, just run the command ──────────
+    if $CMD_ONLY; then
+      if [ -z "$RUN_CMD" ]; then
+        echo "ERROR: --cmd-only requires --cmd=\"your command\""
+        exit 1
+      fi
+      echo "--- CMD-ONLY: $RUN_CMD ---"
+      ssh_cmd "$user" "$pass" "$domain" "cd '$path' && $RUN_CMD"
+      echo ""
+      echo "=== DONE ==="
+      exit 0
+    fi
 
     if [ "$mode" = "bootstrap" ]; then
       # ── Validate xlsx config ───────────────────────────────────────────────
