@@ -263,6 +263,13 @@ deploy_server() {
       fi
       echo "  Syntax OK"
 
+      # ── Ensure git remote points to the correct repo ─────────────────────
+      # Handles cases where the server was previously cloned from a different
+      # organisation / fork. Always sync the remote to what servers.txt says.
+      echo "--- Ensuring git remote is correct ---"
+      ssh_cmd "$user" "$pass" "$domain" \
+        "cd '$path' && git remote set-url origin '$repo' && echo '  remote OK: $repo'"
+
       # ── Run deploy.sh ─────────────────────────────────────────────────────
       echo "--- Running deploy.sh ---"
       local deploy_flags=""
