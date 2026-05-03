@@ -7,7 +7,7 @@
 # =============================================================================
 set -e
 
-echo "🚀 Starting Deployment v1.0.0..."
+echo "🚀 Starting deployment..."
 
 # Enter maintenance mode
 php artisan down || true
@@ -55,10 +55,8 @@ composer install --no-dev --optimize-autoloader
 # Run database migrations
 php artisan migrate --force
 
-# Install Node dependencies and build assets
-# Note: On smaller servers, run this locally and upload the 'public/build' directory instead.
-# npm install
-# npm run build
+# Note: Frontend assets are NOT rebuilt here. Build locally with `npm run build`
+# and upload the public/build/ directory to the server if assets changed.
 
 # Clear and cache everything
 php artisan config:cache

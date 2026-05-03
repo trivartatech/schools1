@@ -1,0 +1,37 @@
+; =============================================================================
+; Supervisor config for the schools1 queue worker.
+;
+; Copy this file to /etc/supervisor/conf.d/schools1-worker.conf on each server.
+; Replace DOMAIN and USER with actual values, then:
+;   sudo supervisorctl reread
+;   sudo supervisorctl update
+;   sudo supervisorctl start schools1-worker
+;
+; Check status:  sudo supervisorctl status schools1-worker
+; View logs:     tail -f /var/log/schools1-worker.out.log
+; =============================================================================
+
+[program:schools1-worker]
+; ── Replace DOMAIN and USER ──────────────────────────────────────────────────
+command=php /home/USER/htdocs/DOMAIN/artisan queue:work --queue=default,notifications --tries=1 --sleep=3 --timeout=60
+directory=/home/USER/htdocs/DOMAIN
+user=USER
+
+; ── Process management ───────────────────────────────────────────────────────
+autostart=true
+autorestart=true
+; Wait up to 60s for in-flight jobs to finish before killing the process.
+; deploy.sh calls `php artisan queue:restart` which sets a flag; the worker
+; exits cleanly after the current job finishes and supervisor restarts it.
+stopwaitsecs=60
+stopsignal=TERM
+numprocs=1
+startsecs=5
+
+; ── Logging ──────────────────────────────────────────────────────────────────
+stdout_logfile=/var/log/schools1-worker.out.log
+stderr_logfile=/var/log/schools1-worker.err.log
+stdout_logfile_maxbytes=10MB
+stderr_logfile_maxbytes=10MB
+stdout_logfile_backups=3
+stderr_logfile_backups=3

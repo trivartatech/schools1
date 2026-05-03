@@ -1,0 +1,32 @@
+# =============================================================================
+# servers.txt — list of servers for bulk-deploy.sh
+#
+# Copy this file to servers.txt (gitignored) and fill in real values.
+# Lines starting with # are comments and are skipped.
+#
+# Columns (space or tab separated):
+#   MODE      bootstrap = first install | deploy = update existing server
+#   DOMAIN    server hostname / domain (used for SSH and health check)
+#   SSH_USER  Linux user on the server
+#   SSH_PASS  SSH password (stored only in this file — never commit servers.txt)
+#   APP_PATH  Absolute path to the Laravel app on the server
+#   GIT_REPO  HTTPS clone URL — required for bootstrap, ignored for deploy
+#
+# Telegram notifications (optional):
+#   Create bulk-deploy.env alongside this file with:
+#     TELEGRAM_BOT_TOKEN=your_bot_token
+#     TELEGRAM_CHAT_ID=your_chat_id
+# =============================================================================
+
+# ── Bootstrap examples (first-time installs) ──────────────────────────────────
+# Also create school-configs/<domain>.xlsx for each bootstrap entry.
+
+# mode        domain                      ssh_user    ssh_password        app_path                                         git_repo
+# bootstrap   school1.example.com         cloudpanel  CHANGE_ME           /home/cloudpanel/htdocs/school1.example.com      https://github.com/trivartatech/schools1.git
+# bootstrap   school2.example.com         ubuntu      CHANGE_ME           /var/www/school2                                 https://github.com/trivartatech/schools1.git
+
+# ── Deploy examples (update existing servers) ─────────────────────────────────
+
+# mode        domain                      ssh_user    ssh_password        app_path
+# deploy      school3.example.com         cloudpanel  CHANGE_ME           /home/cloudpanel/htdocs/school3.example.com
+# deploy      school4.example.com         root        CHANGE_ME           /var/www/school4

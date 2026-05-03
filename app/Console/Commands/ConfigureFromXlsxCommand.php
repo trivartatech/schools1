@@ -37,6 +37,7 @@ class ConfigureFromXlsxCommand extends Command
         // ── School sheet ──────────────────────────────────────────────────
         'App Name'                => 'APP_NAME',
         'App URL'                 => 'APP_URL',
+        'ERP Edition'             => 'ERP_EDITION',
         'Timezone'                => 'APP_TIMEZONE',
         'School Name'             => 'SCHOOL_NAME',
         'School Slug'             => 'SCHOOL_SLUG',
@@ -82,6 +83,7 @@ class ConfigureFromXlsxCommand extends Command
         'Firebase Credentials Path' => 'FIREBASE_CREDENTIALS',
         'Gemini API Key'            => 'GEMINI_API_KEY',
         'Groq API Key'              => 'GROQ_API_KEY',
+        'Log Viewer Secret'         => 'LOG_VIEWER_SECRET',
     ];
 
     public function handle(): int
@@ -125,8 +127,8 @@ class ConfigureFromXlsxCommand extends Command
             }
         }
 
-        // Start from .env.production.example as scaffold; override with xlsx values
-        $scaffold = '.env.production.example';
+        // Start from .env.example as scaffold; override with xlsx values
+        $scaffold = '.env.example';
         if (!is_file($scaffold)) {
             $this->error("Scaffold missing: $scaffold");
             return self::FAILURE;
@@ -197,6 +199,7 @@ class ConfigureFromXlsxCommand extends Command
             'School' => [
                 ['App Name',           $defaults['APP_NAME']           ?? 'Your School Name'],
                 ['App URL',            $defaults['APP_URL']            ?? 'https://yourschool.com'],
+                ['ERP Edition',        $defaults['ERP_EDITION']        ?? 'full'],
                 ['Timezone',           $defaults['APP_TIMEZONE']       ?? 'Asia/Kolkata'],
                 ['School Name',        $defaults['SCHOOL_NAME']        ?? 'Your School Name'],
                 ['School Slug',        $defaults['SCHOOL_SLUG']        ?? 'your-school'],
@@ -231,8 +234,8 @@ class ConfigureFromXlsxCommand extends Command
                 ['Root Password (optional, for auto-create)', ''],
             ],
             'Mail & Integrations' => [
-                ['Mail Host',                 $defaults['MAIL_HOST']        ?? 'smtp.mailtrap.io'],
-                ['Mail Port',                 $defaults['MAIL_PORT']        ?? '2525'],
+                ['Mail Host',                 ''],
+                ['Mail Port',                 ''],
                 ['Mail Username',             ''],
                 ['Mail Password',             ''],
                 ['Mail From Address',         $defaults['MAIL_FROM_ADDRESS']?? 'no-reply@yourschool.com'],
@@ -242,6 +245,7 @@ class ConfigureFromXlsxCommand extends Command
                 ['Firebase Credentials Path', ''],
                 ['Gemini API Key',            ''],
                 ['Groq API Key',              ''],
+                ['Log Viewer Secret',         ''],
             ],
         ];
 

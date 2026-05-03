@@ -28,6 +28,21 @@ Thumbs.db
 *.rar
 /.claude
 
+# Bulk deploy — credentials and per-school config must never be committed
+/servers.txt
+/school-configs/
+/bulk-deploy.env
+/logs/
+
+# Generated deploy guide (re-created on demand)
+/Bulk-Deploy-Setup-Guide.pdf
+
+# Marketing/proposal docs — not part of source code
+/PES SCHOOL PROPOSAL.pdf
+/School_ERP_Proposal.docx
+/School_ERP_Proposal_Letterhead.docx
+/School_ERP_Proposal_v2.docx
+
 # Legacy-ERP source Excel dumps (contain PII — never commit)
 /importent file/
 /storage/app/migrations/

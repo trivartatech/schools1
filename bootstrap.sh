@@ -131,7 +131,89 @@ php artisan event:cache
 # 10. Permissions (Linux/cPanel/CloudPanel)
 chmod -R 775 storage bootstrap/cache 2>/dev/null || true
 
-# 11. Mark bootstrap complete
+# 11. Cron job — add to the site user's crontab (no sudo needed)
+echo "⏰ Setting up cron job…"
+CRON_CMD="* * * * * cd $(pwd) && php artisan schedule:run >> /dev/null 2>&1"
+if crontab -l 2>/dev/null | grep -qF "artisan schedule:run"; then
+    echo "  Cron already configured — skipping."
+else
+    (crontab -l 2>/dev/null; echo "$CRON_CMD") | crontab -
+    echo "  ✅ Cron job added."
+fi
+
+# 12. Queue worker — systemd user service (no sudo needed), Supervisor fallback
+echo "⚙️  Setting up queue worker…"
+APP_DIR="$(pwd)"
+APP_DOMAIN=$(env_get APP_URL | sed 's|https\?://||; s|/$||')
+WORKER_NAME="schools-$(echo "$APP_DOMAIN" | tr '.' '-')-worker"
+WORKER_SETUP=false
+
+setup_systemd_worker() {
+    # XDG_RUNTIME_DIR is required for systemctl --user in non-interactive SSH sessions
+    export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+    local svc_dir="$HOME/.config/systemd/user"
+    local svc_file="$svc_dir/${WORKER_NAME}.service"
+    mkdir -p "$svc_dir"
+    sed "s|__APP_PATH__|$APP_DIR|g; s|__WORKER_NAME__|$APP_DOMAIN|g" \
+        worker.service.example > "$svc_file"
+    systemctl --user daemon-reload          2>/dev/null &&
+    systemctl --user enable  "$WORKER_NAME" 2>/dev/null &&
+    systemctl --user start   "$WORKER_NAME" 2>/dev/null
+}
+
+if [ -f worker.service.example ]; then
+    if setup_systemd_worker; then
+        echo "  ✅ Worker started — systemd user service: $WORKER_NAME"
+        WORKER_SETUP=true
+        # Enable linger so the service survives server reboots (needs root once)
+        if sudo -n loginctl enable-linger "$USER" 2>/dev/null; then
+            echo "  ✅ Linger enabled — worker survives reboots automatically."
+        else
+            echo "  ⚠️  Run once as root to make the worker survive reboots:"
+            echo "       sudo loginctl enable-linger $USER"
+        fi
+    fi
+fi
+
+# Supervisor fallback — used when systemd --user is unavailable
+if ! $WORKER_SETUP && command -v supervisorctl &>/dev/null && [ -f supervisor.conf.example ]; then
+    SUP_CONF="/etc/supervisor/conf.d/${WORKER_NAME}.conf"
+    if sudo -n bash -c "
+        sed 's|DOMAIN|${APP_DOMAIN}|g; s|USER|${USER}|g' \
+            '${APP_DIR}/supervisor.conf.example' > '${SUP_CONF}' &&
+        supervisorctl reread &&
+        supervisorctl update &&
+        supervisorctl start '${WORKER_NAME}'
+    " 2>/dev/null; then
+        echo "  ✅ Worker started — Supervisor: $WORKER_NAME"
+        WORKER_SETUP=true
+    fi
+fi
+
+# Neither worked — print clear manual instructions
+if ! $WORKER_SETUP; then
+    echo "  ⚠️  Worker could not be started automatically."
+    echo "  Run ONE of the following after bootstrap:"
+    echo ""
+    echo "  Option A — systemd (recommended, no sudo):"
+    echo "    export XDG_RUNTIME_DIR=/run/user/\$(id -u)"
+    echo "    mkdir -p ~/.config/systemd/user"
+    echo "    sed \"s|__APP_PATH__|$APP_DIR|g; s|__WORKER_NAME__|$APP_DOMAIN|g\" \\"
+    echo "        worker.service.example > ~/.config/systemd/user/${WORKER_NAME}.service"
+    echo "    systemctl --user daemon-reload"
+    echo "    systemctl --user enable $WORKER_NAME"
+    echo "    systemctl --user start  $WORKER_NAME"
+    echo "    sudo loginctl enable-linger $USER"
+    echo ""
+    echo "  Option B — Supervisor (needs sudo):"
+    echo "    sudo cp supervisor.conf.example /etc/supervisor/conf.d/${WORKER_NAME}.conf"
+    echo "    sudo nano /etc/supervisor/conf.d/${WORKER_NAME}.conf"
+    echo "    # Replace:  DOMAIN → $APP_DOMAIN   USER → $USER"
+    echo "    sudo supervisorctl reread && sudo supervisorctl update"
+    echo "    sudo supervisorctl start $WORKER_NAME"
+fi
+
+# 13. Mark bootstrap complete
 date -u +"%Y-%m-%dT%H:%M:%SZ" > .bootstrap-done
 
 # Pull display values from .env now (after seeds wrote any defaults back).
@@ -142,13 +224,13 @@ PRINCIPAL_EMAIL=$(env_get PRINCIPAL_EMAIL)
 DEFAULT_PASSWORD=$(env_get DEFAULT_PASSWORD)
 
 echo ""
-echo "✅ Deploy complete. Login at: ${APP_URL}/login"
-echo "   Super admin:  ${SUPER_ADMIN_EMAIL}"
-echo "   School admin: ${ADMIN_EMAIL}"
-echo "   Principal:    ${PRINCIPAL_EMAIL}"
-echo "   Temp password: ${DEFAULT_PASSWORD}  (change on first login!)"
+echo "✅ Bootstrap complete!"
+echo "   Login at:      ${APP_URL}/login"
+echo "   Super admin:   ${SUPER_ADMIN_EMAIL}"
+echo "   School admin:  ${ADMIN_EMAIL}"
+echo "   Principal:     ${PRINCIPAL_EMAIL}"
+echo "   Temp password: ${DEFAULT_PASSWORD}  ← change on first login!"
 echo ""
-echo "⚠️  Set up cron:"
-echo "    * * * * * cd $(pwd) && php artisan schedule:run >> /dev/null 2>&1"
-echo "⚠️  Run queue worker via supervisor/systemd:"
-echo "    php artisan queue:work --queue=default,notifications --tries=1"
+if ! $WORKER_SETUP; then
+    echo "⚠️  Queue worker needs manual setup — see instructions above."
+fi
