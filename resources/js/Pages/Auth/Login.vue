@@ -98,7 +98,7 @@
                             </Button>
                         </div>
 
-                        <div class="mt-3">
+                        <div v-if="demoMode" class="mt-3">
                             <button type="button" @click="quickDemoLogin" :disabled="emailForm.processing"
                                 class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 border border-dashed border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 text-sm font-medium rounded-lg transition disabled:opacity-60 disabled:cursor-not-allowed">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -196,6 +196,8 @@
 <script setup>
 import { ref, watchEffect } from 'vue'
 import { useForm, usePage, Head } from '@inertiajs/vue3'
+
+const props = defineProps({ demoMode: Boolean })
 import Button from '@/Components/ui/Button.vue';
 import Toast from '@/Components/ui/Toast.vue';
 import { useToast } from '@/Composables/useToast';
