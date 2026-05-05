@@ -580,6 +580,11 @@ Route::middleware('auth')->group(function () {
         });
 
         Route::middleware(['school.management', 'module:classes'])->group(function () {
+            // Departments: needed by both Academic Structure (classes belong to a department)
+            // and Staff & HR (staff belong to a department). Routed under module:classes
+            // so anyone managing academic structure can manage departments.
+            Route::resource('departments', \App\Http\Controllers\School\DepartmentController::class)->except(['create', 'show', 'edit']);
+
             Route::resource('classes', \App\Http\Controllers\School\CourseClassController::class)->except(['create', 'show', 'edit']);
             Route::post('classes/reorder', [\App\Http\Controllers\School\CourseClassController::class, 'reorder'])->name('classes.reorder');
             Route::resource('sections', \App\Http\Controllers\School\SectionController::class)->except(['create', 'show', 'edit']);
@@ -591,8 +596,6 @@ Route::middleware('auth')->group(function () {
 
         // Staff & HR
         Route::middleware(['school.management', 'module:staff'])->group(function () {
-            // Moved from classes group
-            Route::resource('departments', \App\Http\Controllers\School\DepartmentController::class)->except(['create', 'show', 'edit']);
 
             $DesigC = \App\Http\Controllers\School\DesignationController::class;
             Route::patch('designations/{designation}/toggle', [$DesigC, 'toggle'])->name('designations.toggle');
