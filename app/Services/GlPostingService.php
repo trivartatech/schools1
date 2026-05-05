@@ -46,14 +46,19 @@ class GlPostingService
 
         $this->assertLedgersExist($payment->school_id, [$cashLedgerId, $incomeLedgerId]);
 
-        return DB::transaction(function () use ($payment, $cashLedgerId, $incomeLedgerId) {
+        $payment->loadMissing('student');
+        $studentName = $payment->student
+            ? trim(($payment->student->first_name ?? '') . ' ' . ($payment->student->last_name ?? ''))
+            : null;
+
+        return DB::transaction(function () use ($payment, $cashLedgerId, $incomeLedgerId, $studentName) {
             $tx = $this->createTransaction([
                 'school_id'        => $payment->school_id,
                 'academic_year_id' => $payment->academic_year_id,
                 'date'             => $payment->getRawOriginal('payment_date'),
                 'type'             => 'receipt',
-                'narration'        => 'Fee receipt — ' . ($payment->receipt_no)
-                                    . ($payment->student ? ' (' . $payment->student->name . ')' : ''),
+                'narration'        => 'Fee receipt — ' . $payment->receipt_no
+                                    . ($studentName ? ' (' . $studentName . ')' : ''),
                 'reference_no'     => $payment->receipt_no,
                 'created_by'       => $payment->collected_by,
             ], [
@@ -64,6 +69,43 @@ class GlPostingService
             $payment->updateQuietly(['gl_transaction_id' => $tx->id]);
 
             return $tx;
+        });
+    }
+
+    /**
+     * Reverse the GL entry for a tuition fee receipt that has been voided
+     * (soft-deleted). Creates a balanced reversal transaction and marks the
+     * original as void.
+     */
+    public function reverseFeePayment(FeePayment $payment): ?Transaction
+    {
+        if (! $payment->gl_transaction_id) return null;
+
+        $oldTx = Transaction::with('lines')->find($payment->gl_transaction_id);
+        if (! $oldTx || $oldTx->status !== 'posted') return null;
+
+        return DB::transaction(function () use ($payment, $oldTx) {
+            $reversalLines = $oldTx->lines->map(fn($l) => [
+                'ledger_id'   => $l->ledger_id,
+                'type'        => $l->type === 'debit' ? 'credit' : 'debit',
+                'amount'      => $l->amount,
+                'description' => 'Reversal: ' . $l->description,
+            ])->all();
+
+            $reversal = $this->createTransaction([
+                'school_id'        => $oldTx->school_id,
+                'academic_year_id' => $oldTx->academic_year_id,
+                'date'             => now()->toDateString(),
+                'type'             => 'journal',
+                'narration'        => 'Reversal of ' . $oldTx->transaction_no . ' (void fee receipt)',
+                'reversal_of'      => $oldTx->id,
+                'created_by'       => auth()->id(),
+            ], $reversalLines);
+
+            $oldTx->update(['status' => 'void']);
+            $payment->updateQuietly(['gl_transaction_id' => null]);
+
+            return $reversal;
         });
     }
 
@@ -462,6 +504,38 @@ class GlPostingService
             $expense->updateQuietly(['gl_transaction_id' => $tx->id]);
 
             return $tx;
+        });
+    }
+
+    public function reverseExpense(Expense $expense): ?Transaction
+    {
+        if (! $expense->gl_transaction_id) return null;
+
+        $oldTx = Transaction::with('lines')->find($expense->gl_transaction_id);
+        if (! $oldTx || $oldTx->status !== 'posted') return null;
+
+        return DB::transaction(function () use ($expense, $oldTx) {
+            $reversalLines = $oldTx->lines->map(fn ($l) => [
+                'ledger_id'   => $l->ledger_id,
+                'type'        => $l->type === 'debit' ? 'credit' : 'debit',
+                'amount'      => $l->amount,
+                'description' => 'Reversal: ' . $l->description,
+            ])->all();
+
+            $reversal = $this->createTransaction([
+                'school_id'        => $oldTx->school_id,
+                'academic_year_id' => $oldTx->academic_year_id,
+                'date'             => now()->toDateString(),
+                'type'             => 'journal',
+                'narration'        => 'Reversal of expense: ' . $expense->title,
+                'reversal_of'      => $oldTx->id,
+                'created_by'       => $expense->recorded_by,
+            ], $reversalLines);
+
+            $oldTx->update(['status' => 'void']);
+            $expense->updateQuietly(['gl_transaction_id' => null]);
+
+            return $reversal;
         });
     }
 

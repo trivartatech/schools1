@@ -50,7 +50,7 @@ class ExpenseController extends Controller
                 'required',
                 Rule::exists('expense_categories', 'id')->where('school_id', $schoolId),
             ],
-            'amount'          => 'required|numeric|min:0',
+            'amount'          => 'required|numeric|min:0.01',
             // FIX #10: disallow future-dated expenses
             'expense_date'    => 'required|date|before_or_equal:today',
             'payment_mode'    => [
@@ -100,7 +100,7 @@ class ExpenseController extends Controller
                 'required',
                 Rule::exists('expense_categories', 'id')->where('school_id', $schoolId),
             ],
-            'amount'          => 'required|numeric|min:0',
+            'amount'          => 'required|numeric|min:0.01',
             // FIX #10: disallow future-dated expenses
             'expense_date'    => 'required|date|before_or_equal:today',
             'payment_mode'    => [

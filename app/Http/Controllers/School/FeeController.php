@@ -540,7 +540,7 @@ class FeeController extends Controller
             ],
             'term'                => 'required|string|max:50',
             'amount_due'          => 'required|numeric|min:0',
-            'amount_paid'         => 'required|numeric|min:0',
+            'amount_paid'         => 'required|numeric|min:0.01',
             'discount'            => 'nullable|numeric|min:0',
             'fine'                => 'nullable|numeric|min:0',
             'payment_mode'        => [
@@ -553,27 +553,27 @@ class FeeController extends Controller
             'payment_date'        => 'required|date|before_or_equal:today',
             'transaction_ref'     => 'nullable|string|max:100',
             'remarks'             => 'nullable|string',
-            'concession_id'       => 'nullable|exists:fee_concessions,id',
+            'concession_id'       => [
+                'nullable',
+                \Illuminate\Validation\Rule::exists('fee_concessions', 'id')
+                    ->where('school_id', $schoolId)
+                    ->where('student_id', $request->student_id)
+                    ->where('fee_type', 'tuition')
+                    ->where('is_active', true),
+            ],
             'existing_payment_id' => 'nullable|exists:fee_payments,id',
         ]);
 
-        $amountDue       = (float) $request->amount_due;
-        $amountPaid      = (float) $request->amount_paid;
-        $fine            = (float) ($request->fine ?? 0);
-        $concessionId    = $request->concession_id ?? null;
-        $concessionNote  = null;
+        $amountDue      = (float) $request->amount_due;
+        $amountPaid     = (float) $request->amount_paid;
+        $fine           = (float) ($request->fine ?? 0);
+        $concessionId   = $request->concession_id ?? null;
+        $concessionNote = null;
 
-        // Fetch the Fee Head to check for Tax properties
-        $feeHead = \App\Models\FeeHead::find($request->fee_head_id);
-        $taxableAmount = $amountPaid;
-        $taxAmount     = 0.00;
-        $taxPercent    = 0.00;
-
-        if ($feeHead && $feeHead->is_taxable && $feeHead->gst_percent > 0) {
-            $taxPercent    = (float) $feeHead->gst_percent;
-            $taxableAmount = round($amountPaid / (1 + ($taxPercent / 100)), 2);
-            $taxAmount     = round($amountPaid - $taxableAmount, 2);
-        }
+        $feeHead = \App\Models\FeeHead::where('id', $request->fee_head_id)
+            ->where('school_id', $schoolId)->first();
+        $tax = $feeHead ? $this->resolveTax($feeHead, $amountPaid)
+                        : ['taxable_amount' => $amountPaid, 'tax_amount' => 0.0, 'tax_percent' => 0.0];
 
         if ($concessionId) {
             // Prevent double-dipping: A concession can only be applied ONCE per fee head & term
@@ -593,7 +593,9 @@ class FeeController extends Controller
             $concession = \App\Models\FeeConcession::find($concessionId);
             if ($concession) {
                 $discount       = $concession->calculateDiscount($amountDue);
-                $concessionNote = "{$concession->name}: {$concession->description}";
+                $concessionNote = $concession->description
+                    ? "{$concession->name}: {$concession->description}"
+                    : $concession->name;
             } else {
                 $discount = (float)($request->discount ?? 0);
             }
@@ -601,8 +603,12 @@ class FeeController extends Controller
             $discount = (float) ($request->discount ?? 0);
         }
 
-        $balance = max(0, $amountDue - $discount + $fine - $amountPaid);
-        $status  = $balance <= 0 ? 'paid' : ($amountPaid > 0 ? 'partial' : 'due');
+        if ($amountPaid + $discount > $amountDue + $fine + 0.01) {
+            return back()->withErrors(['discount' => 'Discount plus payment amount cannot exceed amount due (₹' . number_format($amountDue, 2) . ').']);
+        }
+
+        $balance = $this->resolveBalance($amountDue, $discount, $fine, $amountPaid);
+        $status  = $this->resolveStatus($balance, $amountPaid);
 
         // ── If an existing due payment is being settled (e.g. transport fee) ──
         // UPDATE the existing record instead of creating a new one to prevent duplicates.
@@ -618,9 +624,9 @@ class FeeController extends Controller
                 'concession_id'   => $concessionId,
                 'fine'            => $fine,
                 'balance'         => $balance,
-                'taxable_amount'  => $taxableAmount,
-                'tax_amount'      => $taxAmount,
-                'tax_percent'     => $taxPercent,
+                'taxable_amount'  => $tax['taxable_amount'],
+                'tax_amount'      => $tax['tax_amount'],
+                'tax_percent'     => $tax['tax_percent'],
                 'payment_mode'    => $request->payment_mode,
                 'payment_date'    => $request->payment_date,
                 'transaction_ref' => $request->transaction_ref,
@@ -636,8 +642,7 @@ class FeeController extends Controller
 
             (new \App\Services\NotificationService(app('current_school')))->notifyFeePayment($existingPayment);
 
-            // Expire the concession after use — single-use only
-            if ($concessionId && isset($concession)) {
+            if ($concessionId && isset($concession) && $concession->is_one_time) {
                 $concession->update(['is_active' => false]);
             }
 
@@ -678,9 +683,9 @@ class FeeController extends Controller
             'discount'               => $discount,
             'fine'                   => $fine,
             'balance'                => $balance,
-            'taxable_amount'         => $taxableAmount,
-            'tax_amount'             => $taxAmount,
-            'tax_percent'            => $taxPercent,
+            'taxable_amount'         => $tax['taxable_amount'],
+            'tax_amount'             => $tax['tax_amount'],
+            'tax_percent'            => $tax['tax_percent'],
             'payment_mode'           => $request->payment_mode,
             'payment_date'           => $request->payment_date,
             'transaction_ref'        => $request->transaction_ref,
@@ -694,8 +699,7 @@ class FeeController extends Controller
         // Trigger Notification
         (new NotificationService(app('current_school')))->notifyFeePayment($payment);
 
-        // Expire the concession after use — single-use only
-        if ($concessionId && isset($concession)) {
+        if ($concessionId && isset($concession) && $concession->is_one_time) {
             $concession->update(['is_active' => false]);
         }
 
@@ -709,10 +713,13 @@ class FeeController extends Controller
         if ($feePayment->school_id !== $schoolId) abort(403);
 
         $request->validate([
-            'fee_head_id'    => 'required|exists:fee_heads,id',
+            'fee_head_id'    => [
+                'required',
+                \Illuminate\Validation\Rule::exists('fee_heads', 'id')->where('school_id', $schoolId),
+            ],
             'term'           => 'required|string|max:50',
             'amount_due'     => 'required|numeric|min:0',
-            'amount_paid'    => 'required|numeric|min:0',
+            'amount_paid'    => 'required|numeric|min:0.01',
             'discount'       => 'nullable|numeric|min:0',
             'fine'           => 'nullable|numeric|min:0',
             'payment_mode'   => [
@@ -721,7 +728,7 @@ class FeeController extends Controller
                     ->where('school_id', $schoolId)
                     ->where('is_active', true),
             ],
-            'payment_date'   => 'required|date',
+            'payment_date'   => 'required|date|before_or_equal:today',
             'transaction_ref'=> 'nullable|string|max:100',
             'remarks'        => 'nullable|string',
             'receipt_no'     => [
@@ -732,27 +739,22 @@ class FeeController extends Controller
             ],
         ]);
 
-        $amountDue  = $request->amount_due;
-        $amountPaid = $request->amount_paid;
-        $discount   = $request->discount ?? 0;
-        $fine       = $request->fine ?? 0;
-        $balance    = max(0, $amountDue - $discount + $fine - $amountPaid);
-        $status     = $balance <= 0 ? 'paid' : ($amountPaid > 0 ? 'partial' : 'due');
+        $amountDue  = (float) $request->amount_due;
+        $amountPaid = (float) $request->amount_paid;
+        $discount   = (float) ($request->discount ?? 0);
+        $fine       = (float) ($request->fine ?? 0);
 
-        // Fetch the Fee Head to check for Tax properties
-        $feeHead = \App\Models\FeeHead::find($request->fee_head_id);
-        $taxableAmount = $amountPaid; // Default assumes no tax
-        $taxAmount     = 0.00;
-        $taxPercent    = 0.00;
-
-        // Item-wise Tax calculation
-        if ($feeHead && $feeHead->is_taxable && $feeHead->gst_percent > 0) {
-            $taxPercent = (float) $feeHead->gst_percent;
-            // The amount_paid includes GST.
-            // Base = Total / (1 + (GST/100))
-            $taxableAmount = round($amountPaid / (1 + ($taxPercent / 100)), 2);
-            $taxAmount     = round($amountPaid - $taxableAmount, 2);
+        if ($amountPaid + $discount > $amountDue + $fine + 0.01) {
+            return back()->withErrors(['discount' => 'Discount plus payment amount cannot exceed amount due (₹' . number_format($amountDue, 2) . ').']);
         }
+
+        $balance = $this->resolveBalance($amountDue, $discount, $fine, $amountPaid);
+        $status  = $this->resolveStatus($balance, $amountPaid);
+
+        $feeHead = \App\Models\FeeHead::where('id', $request->fee_head_id)
+            ->where('school_id', $schoolId)->first();
+        $tax = $feeHead ? $this->resolveTax($feeHead, $amountPaid)
+                        : ['taxable_amount' => $amountPaid, 'tax_amount' => 0.0, 'tax_percent' => 0.0];
 
         $updatePayload = [
             'fee_head_id'     => $request->fee_head_id,
@@ -762,9 +764,9 @@ class FeeController extends Controller
             'discount'        => $discount,
             'fine'            => $fine,
             'balance'         => $balance,
-            'taxable_amount'  => $taxableAmount,
-            'tax_amount'      => $taxAmount,
-            'tax_percent'     => $taxPercent,
+            'taxable_amount'  => $tax['taxable_amount'],
+            'tax_amount'      => $tax['tax_amount'],
+            'tax_percent'     => $tax['tax_percent'],
             'payment_mode'    => $request->payment_mode,
             'payment_date'    => $request->payment_date,
             'transaction_ref' => $request->transaction_ref,
@@ -944,5 +946,32 @@ class FeeController extends Controller
 
         $safeReceiptNo = str_replace(['/', '\\'], '-', (string) $feePayment->receipt_no);
         return $pdf->stream("Receipt-{$safeReceiptNo}.pdf");
+    }
+
+    // ─────────────────────────── PRIVATE HELPERS ─────────────────────────────
+
+    private function resolveTax(\App\Models\FeeHead $feeHead, float $amountPaid): array
+    {
+        if (! $feeHead->is_taxable || ! $feeHead->gst_percent) {
+            return ['taxable_amount' => $amountPaid, 'tax_amount' => 0.0, 'tax_percent' => 0.0];
+        }
+        $pct      = (float) $feeHead->gst_percent;
+        $taxable  = round($amountPaid / (1 + $pct / 100), 2);
+        return [
+            'taxable_amount' => $taxable,
+            'tax_amount'     => round($amountPaid - $taxable, 2),
+            'tax_percent'    => $pct,
+        ];
+    }
+
+    private function resolveBalance(float $amountDue, float $discount, float $fine, float $amountPaid): float
+    {
+        return max(0.0, $amountDue - $discount + $fine - $amountPaid);
+    }
+
+    private function resolveStatus(float $balance, float $amountPaid): string
+    {
+        if ($balance <= 0) return 'paid';
+        return $amountPaid > 0 ? 'partial' : 'due';
     }
 }

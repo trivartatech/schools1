@@ -116,7 +116,7 @@ class HostelFeeCollectionController extends Controller
             ->where('fee_type', 'hostel')
             ->where('is_active', true)
             ->when($academicYearId, fn ($q) => $q->where('academic_year_id', $academicYearId))
-            ->whereDoesntHave('hostelPayments')
+            ->where(fn ($q) => $q->where('is_one_time', false)->orWhereDoesntHave('hostelPayments'))
             ->get(['id', 'name', 'description', 'type', 'value', 'is_one_time']);
 
         return Inertia::render('School/Hostel/Fees/Collect', [
@@ -151,7 +151,7 @@ class HostelFeeCollectionController extends Controller
                     ->where('is_active', true),
             ],
             'fine'            => 'nullable|numeric|min:0',
-            'payment_date'    => 'required|date',
+            'payment_date'    => 'required|date|before_or_equal:today',
             'payment_mode'    => [
                 'required', 'string',
                 \Illuminate\Validation\Rule::exists('payment_methods', 'code')
@@ -166,11 +166,11 @@ class HostelFeeCollectionController extends Controller
         $concessionId = $validated['concession_id'] ?? null;
 
         if ($concessionId) {
-            if (\App\Models\HostelFeePayment::where('concession_id', $concessionId)->exists()) {
+            $concession = \App\Models\FeeConcession::find($concessionId);
+            if ($concession && $concession->is_one_time && \App\Models\HostelFeePayment::where('concession_id', $concessionId)->exists()) {
                 return back()->withErrors(['concession_id' => 'This concession has already been applied.']);
             }
-            $concession = \App\Models\FeeConcession::find($concessionId);
-            $discount   = $concession ? (float) $concession->calculateDiscount((float) $allocation->balance) : (float) ($validated['discount'] ?? 0);
+            $discount = $concession ? (float) $concession->calculateDiscount((float) $allocation->balance) : (float) ($validated['discount'] ?? 0);
         } else {
             $discount = (float) ($validated['discount'] ?? 0);
         }

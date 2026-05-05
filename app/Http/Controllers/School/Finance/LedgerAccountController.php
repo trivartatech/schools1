@@ -186,6 +186,12 @@ class LedgerAccountController extends Controller
             'is_active'             => 'boolean',
         ]);
 
+        // Ensure the selected type belongs to this school
+        abort_unless(
+            LedgerType::where('id', $data['ledger_type_id'])->where('school_id', $ledger->school_id)->exists(),
+            403
+        );
+
         $exists = Ledger::where('school_id', $ledger->school_id)
             ->where('name', $data['name'])
             ->where('id', '!=', $ledger->id)

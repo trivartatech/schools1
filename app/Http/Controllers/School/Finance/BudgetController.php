@@ -103,6 +103,14 @@ class BudgetController extends Controller
             'notes'               => 'nullable|string|max:500',
         ]);
 
+        if (!empty($data['expense_category_id'])) {
+            abort_unless(
+                ExpenseCategory::where('id', $data['expense_category_id'])
+                    ->where('school_id', $budget->school_id)->exists(),
+                403
+            );
+        }
+
         $budget->update($data);
         return back()->with('success', 'Budget updated.');
     }

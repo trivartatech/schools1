@@ -5,6 +5,8 @@ namespace App\Http\Controllers\School;
 use App\Http\Controllers\Controller;
 use App\Services\TeacherScopeService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class ExamMarkController extends Controller
 {
@@ -49,9 +51,10 @@ class ExamMarkController extends Controller
      */
     public function students(Request $request)
     {
+        $schoolId = app('current_school_id');
         $request->validate([
-            'exam_schedule_id' => 'required|exists:exam_schedules,id',
-            'section_id' => 'required|exists:sections,id',
+            'exam_schedule_id'         => ['required', Rule::exists('exam_schedules', 'id')->where('school_id', $schoolId)],
+            'section_id'               => ['required', Rule::exists('sections', 'id')->where('school_id', $schoolId)],
             'exam_schedule_subject_id' => 'required|exists:exam_schedule_subjects,id',
         ]);
 
@@ -135,14 +138,13 @@ class ExamMarkController extends Controller
      */
     public function store(Request $request)
     {
+        $schoolId = app('current_school_id');
         $request->validate([
-            'exam_schedule_id'         => 'required|exists:exam_schedules,id',
-            'section_id'               => 'required|exists:sections,id',
+            'exam_schedule_id'         => ['required', Rule::exists('exam_schedules', 'id')->where('school_id', $schoolId)],
+            'section_id'               => ['required', Rule::exists('sections', 'id')->where('school_id', $schoolId)],
             'exam_schedule_subject_id' => 'required|exists:exam_schedule_subjects,id',
             'marks'                    => 'required|array',
         ]);
-
-        $schoolId = app('current_school_id');
         $academicYearId = app('current_academic_year_id');
         
         $scheduleSubject = \App\Models\ExamScheduleSubject::with(['examAssessment.items', 'markConfigs'])->findOrFail($request->exam_schedule_subject_id);
@@ -179,12 +181,17 @@ class ExamMarkController extends Controller
             }
         }
 
-        // Validate max marks before saving anything
+        // Validate all marks before saving anything
         foreach ($request->marks as $studentId => $items) {
             foreach ($items as $itemId => $data) {
+                // Reject item IDs not belonging to this schedule subject's assessment
+                if (!isset($maxMarksMap[$itemId])) {
+                    return redirect()->back()
+                        ->withErrors(['marks' => 'Invalid assessment item submitted.']);
+                }
                 if (empty($data['is_absent'])) {
-                    $max = $maxMarksMap[$itemId] ?? 0;
-                    $obtained = (float)($data['marks_obtained'] ?? 0);
+                    $max     = $maxMarksMap[$itemId];
+                    $obtained = (float) ($data['marks_obtained'] ?? 0);
                     if ($max > 0 && $obtained > $max) {
                         return redirect()->back()
                             ->withErrors(['marks' => "Marks entered exceed the maximum marks allowed ({$max}) for an assessment item."])
@@ -192,32 +199,34 @@ class ExamMarkController extends Controller
                     }
                     if ($obtained < 0) {
                         return redirect()->back()
-                            ->withErrors(['marks' => "Marks cannot be negative."])
+                            ->withErrors(['marks' => 'Marks cannot be negative.'])
                             ->with('error', 'Marks cannot be negative.');
                     }
                 }
             }
         }
 
-        // Upsert markConfigs
-        foreach ($request->marks as $studentId => $items) {
-            foreach ($items as $itemId => $data) {
-                \App\Models\ExamMark::updateOrCreate(
-                    [
-                        'student_id' => $studentId,
-                        'exam_schedule_subject_id' => $request->exam_schedule_subject_id,
-                        'exam_assessment_item_id' => $itemId,
-                    ],
-                    [
-                        'school_id' => $schoolId,
-                        'academic_year_id' => $academicYearId,
-                        'marks_obtained' => !empty($data['is_absent']) ? null : ($data['marks_obtained'] ?? 0),
-                        'is_absent' => !empty($data['is_absent']),
-                        'teacher_remarks' => $data['teacher_remarks'] ?? null,
-                    ]
-                );
+        // Upsert all marks in a single transaction to prevent partial saves
+        DB::transaction(function () use ($request, $schoolId, $academicYearId, $scheduleSubject) {
+            foreach ($request->marks as $studentId => $items) {
+                foreach ($items as $itemId => $data) {
+                    \App\Models\ExamMark::updateOrCreate(
+                        [
+                            'student_id'               => $studentId,
+                            'exam_schedule_subject_id' => $request->exam_schedule_subject_id,
+                            'exam_assessment_item_id'  => $itemId,
+                        ],
+                        [
+                            'school_id'        => $schoolId,
+                            'academic_year_id' => $academicYearId,
+                            'marks_obtained'   => !empty($data['is_absent']) ? null : ($data['marks_obtained'] ?? 0),
+                            'is_absent'        => !empty($data['is_absent']),
+                            'teacher_remarks'  => $data['teacher_remarks'] ?? null,
+                        ]
+                    );
+                }
             }
-        }
+        });
 
         return redirect()->back()->with('success', 'Marks saved successfully.');
     }

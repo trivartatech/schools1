@@ -6,6 +6,7 @@ use App\Models\Student;
 use App\Models\FeePayment;
 use App\Models\FeeStructure;
 use App\Models\FeeHead;
+use App\Models\HostelFeePayment;
 use App\Models\TransportStudentAllocation;
 use App\Models\StudentAcademicHistory;
 use Illuminate\Support\Collection;
@@ -418,7 +419,7 @@ class FeeService
             }
         }
 
-        // 8. Total paid + discount per student
+        // 8. Total paid + discount per student (tuition / adhoc / carry-forward only)
         $paymentsByStudent = \App\Models\FeePayment::where('school_id', $schoolId)
             ->where('academic_year_id', $academicYearId)
             ->whereIn('student_id', $studentIds)
@@ -426,6 +427,40 @@ class FeeService
             ->groupBy('student_id')
             ->get()
             ->keyBy('student_id');
+
+        // 8b. Add transport payments from the allocation record itself
+        foreach ($transportAllocations as $ta) {
+            $studentId = $ta->student_id;
+            $tPaid     = (float) ($ta->amount_paid ?? 0);
+            $tDiscount = (float) ($ta->discount    ?? 0);
+            $tFine     = (float) ($ta->fine        ?? 0);
+            if (!isset($paymentsByStudent[$studentId])) {
+                $paymentsByStudent[$studentId] = (object) ['total_paid' => 0, 'total_discount' => 0, 'total_fine' => 0];
+            }
+            $paymentsByStudent[$studentId]->total_paid     = (float) $paymentsByStudent[$studentId]->total_paid     + $tPaid;
+            $paymentsByStudent[$studentId]->total_discount = (float) $paymentsByStudent[$studentId]->total_discount + $tDiscount;
+            $paymentsByStudent[$studentId]->total_fine     = (float) $paymentsByStudent[$studentId]->total_fine     + $tFine;
+        }
+
+        // 8c. Add hostel payments from hostel_fee_payments table
+        $hostelPaymentsByStudent = \App\Models\HostelFeePayment::whereIn('allocation_id',
+                $hostelAllocations->pluck('id'))
+            ->selectRaw('allocation_id, SUM(amount_paid) as total_paid, SUM(discount) as total_discount, SUM(fine) as total_fine')
+            ->groupBy('allocation_id')
+            ->get()
+            ->keyBy('allocation_id');
+
+        $hostelAllocationStudentMap = $hostelAllocations->pluck('student_id', 'id');
+        foreach ($hostelPaymentsByStudent as $allocId => $hp) {
+            $studentId = $hostelAllocationStudentMap[$allocId] ?? null;
+            if (!$studentId) continue;
+            if (!isset($paymentsByStudent[$studentId])) {
+                $paymentsByStudent[$studentId] = (object) ['total_paid' => 0, 'total_discount' => 0, 'total_fine' => 0];
+            }
+            $paymentsByStudent[$studentId]->total_paid     = (float) $paymentsByStudent[$studentId]->total_paid     + (float) $hp->total_paid;
+            $paymentsByStudent[$studentId]->total_discount = (float) $paymentsByStudent[$studentId]->total_discount + (float) $hp->total_discount;
+            $paymentsByStudent[$studentId]->total_fine     = (float) $paymentsByStudent[$studentId]->total_fine     + (float) $hp->total_fine;
+        }
 
         // 9. Calculate outstanding per student
         $studentBalances = [];
@@ -472,6 +507,7 @@ class FeeService
             'transport_fee' => 0,
             'hostel_fee'    => 0,
             'adhoc_fees'    => 0,
+            'carry_forward' => 0,
             'fee_heads'     => [],
         ];
     }

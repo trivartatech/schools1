@@ -214,6 +214,11 @@ class ExamResultController extends Controller
 
             $overallPct = $totalMax > 0 ? round(($totalObtained / $totalMax) * 100, 2) : 0;
 
+            // A student passes only if they did not fail any individual subject
+            // AND their overall percentage meets the minimum threshold.
+            $anySubjectFailed = collect($subjectResults)->contains('fail', true);
+            $passed = !$hasAbsent && !$anySubjectFailed && $overallPct >= 33;
+
             $rows[] = [
                 'id'             => $student->id,
                 'name'           => $student->first_name . ' ' . $student->last_name,
@@ -224,6 +229,7 @@ class ExamResultController extends Controller
                 'total_max'      => $totalMax,
                 'percentage'     => $overallPct,
                 'has_absent'     => $hasAbsent,
+                'passed'         => $passed,
                 'rank'           => 0,
             ];
         }
@@ -248,7 +254,7 @@ class ExamResultController extends Controller
         }
 
         $percentages = collect($rows)->pluck('percentage');
-        $passRows    = collect($rows)->where('percentage', '>=', 33);
+        $passRows    = collect($rows)->where('passed', true);
         $topperRow   = collect($rows)->sortByDesc('percentage')->first();
 
         $stats = [

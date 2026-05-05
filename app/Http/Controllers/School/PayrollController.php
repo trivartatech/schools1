@@ -180,11 +180,11 @@ class PayrollController extends Controller
 
                 // Deduct Unpaid Leaves (LWP)
                 $unpaidDays   = $this->getUnpaidLeaveDays($schoolId, $s->id, $month, $year);
-                $daysInMonth  = cal_days_in_month(CAL_GREGORIAN, $month, $year);
+                $daysInMonth  = \Carbon\Carbon::create($year, $month)->daysInMonth;
                 $perDayGross  = $gross / $daysInMonth;
                 $lwpDeduction = round($unpaidDays * $perDayGross, 2);
 
-                $net = round($net - $lwpDeduction, 2);
+                $net = max(0.0, round($net - $lwpDeduction, 2));
 
                 Payroll::create([
                     'school_id'              => $schoolId,
@@ -215,7 +215,7 @@ class PayrollController extends Controller
         if ($payroll->school_id !== app('current_school_id')) abort(403);
 
         $validated = $request->validate([
-            'payment_date' => 'required|date',
+            'payment_date' => 'required|date|before_or_equal:today',
             'payment_mode' => [
                 'required', 'string',
                 \Illuminate\Validation\Rule::exists('payment_methods', 'code')

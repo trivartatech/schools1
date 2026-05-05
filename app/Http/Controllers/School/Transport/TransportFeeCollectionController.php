@@ -114,7 +114,7 @@ class TransportFeeCollectionController extends Controller
             ->where('fee_type', 'transport')
             ->where('is_active', true)
             ->when($academicYearId, fn ($q) => $q->where('academic_year_id', $academicYearId))
-            ->whereDoesntHave('transportPayments')
+            ->where(fn ($q) => $q->where('is_one_time', false)->orWhereDoesntHave('transportPayments'))
             ->get(['id', 'name', 'description', 'type', 'value', 'is_one_time']);
 
         return Inertia::render('School/Transport/Fees/Collect', [
@@ -149,7 +149,7 @@ class TransportFeeCollectionController extends Controller
                     ->where('is_active', true),
             ],
             'fine'            => 'nullable|numeric|min:0',
-            'payment_date'    => 'required|date',
+            'payment_date'    => 'required|date|before_or_equal:today',
             'payment_mode'    => [
                 'required', 'string',
                 \Illuminate\Validation\Rule::exists('payment_methods', 'code')
@@ -167,17 +167,16 @@ class TransportFeeCollectionController extends Controller
         // any client-supplied discount). Single-use rule: concession can't be
         // re-applied if a payment with the same concession_id already exists.
         if ($concessionId) {
-            if (\App\Models\TransportFeePayment::where('concession_id', $concessionId)->exists()) {
+            $concession = \App\Models\FeeConcession::find($concessionId);
+            if ($concession && $concession->is_one_time && \App\Models\TransportFeePayment::where('concession_id', $concessionId)->exists()) {
                 return back()->withErrors(['concession_id' => 'This concession has already been applied.']);
             }
-            $concession = \App\Models\FeeConcession::find($concessionId);
-            $discount   = $concession ? (float) $concession->calculateDiscount((float) $allocation->balance) : (float) ($validated['discount'] ?? 0);
+            $discount = $concession ? (float) $concession->calculateDiscount((float) $allocation->balance) : (float) ($validated['discount'] ?? 0);
         } else {
             $discount = (float) ($validated['discount'] ?? 0);
         }
 
         // Prevent overpayment
-        $newBalance = max(0, (float) $allocation->balance + $fine - $discount - (float) $validated['amount_paid']);
         if ((float) $validated['amount_paid'] + $discount > (float) $allocation->balance + $fine + 0.01) {
             return back()->withErrors([
                 'amount_paid' => 'Payment (' . number_format($validated['amount_paid'], 2) . ') + discount ('

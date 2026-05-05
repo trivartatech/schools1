@@ -152,6 +152,10 @@ class FeeConcessionController extends Controller
             abort(403);
         }
 
+        if ($feeConcession->isUsed()) {
+            return back()->withErrors(['concession' => 'Cannot delete a concession that has already been applied to payments.']);
+        }
+
         $feeConcession->delete();
         return back()->with('success', 'Concession deleted.');
     }
@@ -180,9 +184,13 @@ class FeeConcessionController extends Controller
             ->where('fee_type', $feeType)
             ->where('is_active', true)
             ->withCount(['payments', 'transportPayments', 'hostelPayments', 'stationaryPayments'])
-            ->get(['id', 'fee_type', 'name', 'description', 'type', 'value', 'is_one_time'])
+            ->get(['id', 'fee_type', 'name', 'description', 'type', 'value', 'is_one_time', 'is_active'])
             ->filter(function ($c) {
-                // Hide if already applied on any stream — concessions are single-use
+                // For one-time concessions, hide once any payment stream has used it.
+                // For recurring concessions (is_one_time = false), always show.
+                if (! $c->is_one_time) {
+                    return true;
+                }
                 $used = ($c->payments_count             ?? 0)
                       + ($c->transport_payments_count   ?? 0)
                       + ($c->hostel_payments_count      ?? 0)

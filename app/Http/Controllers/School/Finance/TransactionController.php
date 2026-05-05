@@ -4,9 +4,12 @@ namespace App\Http\Controllers\School\Finance;
 
 use App\Http\Controllers\Controller;
 use App\Models\FeePayment;
+use App\Models\HostelFeePayment;
 use App\Models\Ledger;
+use App\Models\StationaryFeePayment;
 use App\Models\Transaction;
 use App\Models\TransactionLine;
+use App\Models\TransportFeePayment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
@@ -101,7 +104,7 @@ class TransactionController extends Controller
         $academicYearId = app('current_academic_year_id');
 
         $data = $request->validate([
-            'date'         => 'required|date',
+            'date'         => 'required|date|before_or_equal:today',
             'type'         => 'required|in:journal,receipt,payment,contra',
             'status'       => 'in:draft,posted',
             'narration'    => 'nullable|string|max:500',
@@ -206,8 +209,10 @@ class TransactionController extends Controller
             return back()->withErrors(['error' => 'Voided transactions cannot be edited.']);
         }
 
+        $schoolId = app('current_school_id');
+
         $data = $request->validate([
-            'date'         => 'required|date',
+            'date'         => 'required|date|before_or_equal:today',
             'type'         => 'required|in:journal,receipt,payment,contra',
             'status'       => 'in:draft,posted',
             'narration'    => 'nullable|string|max:500',
@@ -218,6 +223,13 @@ class TransactionController extends Controller
             'lines.*.amount'      => 'required|numeric|min:0.01',
             'lines.*.description' => 'nullable|string|max:255',
         ]);
+
+        // Ensure all ledgers belong to this school (update has no secondary check unlike store)
+        $ledgerIds = collect($data['lines'])->pluck('ledger_id')->unique();
+        $valid = Ledger::where('school_id', $schoolId)->whereIn('id', $ledgerIds)->count();
+        if ($valid !== $ledgerIds->count()) {
+            return back()->withErrors(['lines' => 'Invalid ledger selected.']);
+        }
 
         $debitTotal  = collect($data['lines'])->where('type', 'debit')->sum('amount');
         $creditTotal = collect($data['lines'])->where('type', 'credit')->sum('amount');
@@ -258,8 +270,11 @@ class TransactionController extends Controller
             return back()->withErrors(['error' => 'Voided transactions cannot be deleted.']);
         }
 
-        // Clear gl_transaction_id on any fee payments linked to this transaction
+        // Clear gl_transaction_id on any fee payments linked to this transaction (all streams)
         FeePayment::where('gl_transaction_id', $transaction->id)->update(['gl_transaction_id' => null]);
+        TransportFeePayment::where('gl_transaction_id', $transaction->id)->update(['gl_transaction_id' => null]);
+        HostelFeePayment::where('gl_transaction_id', $transaction->id)->update(['gl_transaction_id' => null]);
+        StationaryFeePayment::where('gl_transaction_id', $transaction->id)->update(['gl_transaction_id' => null]);
 
         $transaction->delete();
         return back()->with('success', 'Transaction deleted.');

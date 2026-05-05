@@ -105,18 +105,18 @@ class ExamScheduleController extends Controller
             'section_ids.*'     => [Rule::exists('sections', 'id')->where('school_id', $schoolId)],
             'weightage'         => 'required|numeric|min:0|max:100',
             'has_co_scholastic' => 'boolean',
-            'scholastic_grading_system_id'    => 'nullable|exists:grading_systems,id',
-            'co_scholastic_grading_system_id' => 'nullable|exists:grading_systems,id',
+            'scholastic_grading_system_id'    => ['nullable', Rule::exists('grading_systems', 'id')->where('school_id', $schoolId)],
+            'co_scholastic_grading_system_id' => ['nullable', Rule::exists('grading_systems', 'id')->where('school_id', $schoolId)],
             'subjects'          => 'nullable|array',
             'subjects.*.subject_id'         => 'required|exists:subjects,id',
-            'subjects.*.exam_assessment_id' => 'nullable|exists:exam_assessments,id',
+            'subjects.*.exam_assessment_id' => ['nullable', Rule::exists('exam_assessments', 'id')->where('school_id', $schoolId)],
             'subjects.*.is_co_scholastic'   => 'boolean',
             'subjects.*.is_enabled'         => 'boolean',
             'subjects.*.exam_date'          => 'nullable|date',
             'subjects.*.exam_time'          => 'nullable|date_format:H:i',
             'subjects.*.duration_minutes'   => 'nullable|integer|min:1',
             'subjects.*.marks'              => 'nullable|array',
-            'subjects.*.marks.*.exam_assessment_item_id' => 'required|exists:exam_assessment_items,id',
+            'subjects.*.marks.*.exam_assessment_item_id' => ['required', Rule::exists('exam_assessment_items', 'id')->where('school_id', $schoolId)],
             'subjects.*.marks.*.max_marks'     => 'required|numeric|min:0',
             'subjects.*.marks.*.passing_marks' => 'required|numeric|min:0',
         ]);
@@ -175,18 +175,18 @@ class ExamScheduleController extends Controller
             'section_ids.*'     => [Rule::exists('sections', 'id')->where('school_id', $schoolId)],
             'weightage'         => 'required|numeric|min:0|max:100',
             'has_co_scholastic' => 'boolean',
-            'scholastic_grading_system_id'    => 'nullable|exists:grading_systems,id',
-            'co_scholastic_grading_system_id' => 'nullable|exists:grading_systems,id',
+            'scholastic_grading_system_id'    => ['nullable', Rule::exists('grading_systems', 'id')->where('school_id', $schoolId)],
+            'co_scholastic_grading_system_id' => ['nullable', Rule::exists('grading_systems', 'id')->where('school_id', $schoolId)],
             'subjects'          => 'nullable|array',
             'subjects.*.subject_id'         => 'required|exists:subjects,id',
-            'subjects.*.exam_assessment_id' => 'nullable|exists:exam_assessments,id',
+            'subjects.*.exam_assessment_id' => ['nullable', Rule::exists('exam_assessments', 'id')->where('school_id', $schoolId)],
             'subjects.*.is_co_scholastic'   => 'boolean',
             'subjects.*.is_enabled'         => 'boolean',
             'subjects.*.exam_date'          => 'nullable|date',
             'subjects.*.exam_time'          => 'nullable|date_format:H:i',
             'subjects.*.duration_minutes'   => 'nullable|integer|min:1',
             'subjects.*.marks'              => 'nullable|array',
-            'subjects.*.marks.*.exam_assessment_item_id' => 'required|exists:exam_assessment_items,id',
+            'subjects.*.marks.*.exam_assessment_item_id' => ['required', Rule::exists('exam_assessment_items', 'id')->where('school_id', $schoolId)],
             'subjects.*.marks.*.max_marks'     => 'required|numeric|min:0',
             'subjects.*.marks.*.passing_marks' => 'required|numeric|min:0',
         ]);
@@ -296,6 +296,9 @@ class ExamScheduleController extends Controller
             return back()->with('error', 'Cannot delete this schedule because student marks have already been recorded.');
         }
 
+        // Delete mark configs (ExamScheduleSubjectMark) before removing subjects
+        // — there is no DB-level cascade so we must do it explicitly.
+        $examSchedule->scheduleSubjects->each(fn ($ss) => $ss->markConfigs()->delete());
         $examSchedule->scheduleSubjects()->delete();
         $examSchedule->sections()->detach();
         $examSchedule->delete();

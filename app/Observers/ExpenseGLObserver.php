@@ -25,4 +25,15 @@ class ExpenseGLObserver
             );
         }
     }
+
+    public function deleted(Expense $expense): void
+    {
+        try {
+            app(GlPostingService::class)->reverseExpense($expense);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning(
+                'GL reversal failed for Expense #' . $expense->id . ': ' . $e->getMessage()
+            );
+        }
+    }
 }

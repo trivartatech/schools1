@@ -20,7 +20,7 @@ class ReportController extends Controller
     public function index(Request $request)
     {
         $schoolId = app('current_school_id');
-        $academicYearId = session('selected_academic_year_id');
+        $academicYearId = app()->bound('current_academic_year_id') ? app('current_academic_year_id') : null;
 
         $academicYear = \App\Models\AcademicYear::find($academicYearId);
 
