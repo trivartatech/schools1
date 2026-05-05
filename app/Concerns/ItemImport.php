@@ -81,8 +81,6 @@ trait ItemImport
         return $path;
     }
 
-    protected array $requiredHeadings = [];
-
     public function validateRequiredHeadings(Collection $rows): bool
     {
         if ($rows->isEmpty()) return true;
