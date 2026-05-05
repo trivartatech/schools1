@@ -50,10 +50,14 @@ class RolePermissionSeeder extends Seeder
         'payroll'       => 'Payroll',
 
         // ── Operations ──────────────────────────────────────────────────
+        // Parent modules: needed because routes use module:transport / module:stationary
+        // middleware which derives CRUD verbs from action names.
+        'transport'             => 'Transport',
         'transport_vehicles'    => 'Transport: Vehicles',
         'transport_routes'      => 'Transport: Routes & Stops',
         'transport_allocations' => 'Transport: Student Allocation',
         'transport_tracking'    => 'Transport: Tracking',
+        'stationary'               => 'Stationary',
         'stationary_items'         => 'Stationary: Items',
         'stationary_allocations'   => 'Stationary: Student Allocation',
         'hostel'        => 'Hostel',
