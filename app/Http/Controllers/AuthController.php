@@ -14,7 +14,7 @@ class AuthController extends Controller
     public function showLogin()
     {
         return Inertia::render('Auth/Login', [
-            'demoMode' => (bool) env('DEMO_MODE', false),
+            'demoMode' => config('app.demo_mode'),
         ]);
     }
 
