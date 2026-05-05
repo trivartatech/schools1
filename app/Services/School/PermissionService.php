@@ -13,15 +13,22 @@ use Spatie\Permission\PermissionRegistrar;
 
 class PermissionService
 {
-    // Permissions that cannot be assigned at school level (system-only)
+    // Platform-level permissions that aren't grantable from a school context.
+    // Submitting them returns an error rather than silently stripping.
     private const SYSTEM_PERMISSIONS = [
-        'manage_roles',
         'access_super_admin_panel',
         'impersonate_users',
     ];
 
-    // Roles that school admins are not allowed to modify
-    private const LOCKED_ROLES = ['super_admin', 'admin'];
+    // Hard-locked roles. super_admin is platform-only; admin/school_admin can be
+    // edited but with a self-lockout guard (see roleWiseAssign).
+    private const LOCKED_ROLES = ['super_admin'];
+
+    // Permissions that cannot be removed from admin-tier roles, because
+    // doing so would lock the editing user out of this very page.
+    private const SELF_LOCKOUT_GUARD = ['manage_roles'];
+
+    private const ADMIN_TIER_ROLES = ['admin', 'school_admin', 'principal'];
 
     public function roleWiseAssign(Request $request, School $school): void
     {
@@ -30,18 +37,39 @@ class PermissionService
 
         $role = SpatieRole::where('id', $roleId)->firstOrFail();
 
-        if (in_array($role->name, self::LOCKED_ROLES)) {
-            throw new \Exception('System core roles cannot be modified.');
+        if (in_array($role->name, self::LOCKED_ROLES, true)) {
+            throw new \Exception('System core role "' . $role->name . '" cannot be modified.');
         }
 
-        // Role must belong to this school (null school_id = global, not editable by school admin)
-        if ($role->school_id !== $school->id) {
-            throw new \Exception('You do not have permission to modify this role context.');
+        // Role must be either a global seeded role (school_id = null) or one
+        // owned by this school. Roles from other schools are off-limits.
+        if ($role->school_id !== null && $role->school_id !== $school->id) {
+            throw new \Exception('You cannot modify roles owned by another school.');
         }
 
-        // Strip system permissions before applying
-        $safeNames = array_diff($permissionNames, self::SYSTEM_PERMISSIONS);
-        $role->syncPermissions($safeNames);
+        // Reject system-only permissions outright instead of silently stripping
+        // them — UI should never have offered these checkboxes in the first place.
+        $rejected = array_intersect($permissionNames, self::SYSTEM_PERMISSIONS);
+        if (!empty($rejected)) {
+            throw new \Exception(
+                'These platform-only permissions cannot be assigned from school context: '
+                . implode(', ', $rejected)
+            );
+        }
+
+        // Self-lockout guard: removing manage_roles from an admin-tier role would
+        // strip the editing user's own access to this page on next request.
+        if (in_array($role->name, self::ADMIN_TIER_ROLES, true)) {
+            $missingGuards = array_diff(self::SELF_LOCKOUT_GUARD, $permissionNames);
+            if (!empty($missingGuards)) {
+                throw new \Exception(
+                    'Cannot remove ' . implode(', ', $missingGuards)
+                    . ' from "' . $role->name . '" — that would lock you out of role management.'
+                );
+            }
+        }
+
+        $role->syncPermissions($permissionNames);
     }
 
     public function userWiseAssign(Request $request, School $school): void
@@ -50,7 +78,13 @@ class PermissionService
         $permissionNames = $request->input('permissions', []);
         $action = $request->input('action', 'assign'); // 'assign' or 'revoke'
 
-        $safeNames = array_diff($permissionNames, self::SYSTEM_PERMISSIONS);
+        $rejected = array_intersect($permissionNames, self::SYSTEM_PERMISSIONS);
+        if (!empty($rejected)) {
+            throw new \Exception(
+                'These platform-only permissions cannot be assigned from school context: '
+                . implode(', ', $rejected)
+            );
+        }
 
         // Only target users in this school
         $users = User::whereIn('id', $userIds)->where('school_id', $school->id)->get();
@@ -59,9 +93,9 @@ class PermissionService
 
         foreach ($users as $user) {
             if ($action === 'assign') {
-                $user->givePermissionTo($safeNames);
+                $user->givePermissionTo($permissionNames);
             } else {
-                $user->revokePermissionTo($safeNames);
+                $user->revokePermissionTo($permissionNames);
             }
         }
 
