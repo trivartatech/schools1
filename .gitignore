@@ -28,14 +28,7 @@ Thumbs.db
 *.rar
 /.claude
 
-# Bulk deploy — credentials and per-school config must never be committed
-/servers.txt
-/school-configs/
-/bulk-deploy.env
 /logs/
-
-# Generated deploy guide (re-created on demand)
-/Bulk-Deploy-Setup-Guide.pdf
 
 # Marketing/proposal docs — not part of source code
 /PES SCHOOL PROPOSAL.pdf
