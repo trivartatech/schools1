@@ -83,8 +83,20 @@ else
     echo "ℹ️  DB_ROOT_* not set — assuming database '$DB_DATABASE' already exists."
 fi
 
-# 2. Fix any root-owned files before running any artisan/composer commands
-sudo -n chown -R "$(whoami):$(whoami)" . 2>/dev/null || true
+# 2. Fix file ownership — when cloned as root on CloudPanel/cPanel, detect the
+#    actual site user from the path (/home/SITE_USER/htdocs/...) so PHP-FPM can read files.
+SITE_USER=""
+if [ "$(whoami)" = "root" ]; then
+    SITE_USER=$(pwd | awk -F'/' '{print $3}')
+    if id "$SITE_USER" &>/dev/null && [ "$SITE_USER" != "root" ]; then
+        echo "🔐 Setting ownership to $SITE_USER…"
+        chown -R "$SITE_USER:$SITE_USER" .
+    else
+        SITE_USER=""
+    fi
+else
+    sudo -n chown -R "$(whoami):$(whoami)" . 2>/dev/null || true
+fi
 
 # 3. PHP deps
 echo "📦 composer install…"
@@ -138,6 +150,10 @@ php artisan event:cache
 
 # 10. Permissions (Linux/cPanel/CloudPanel)
 chmod -R 775 storage bootstrap/cache 2>/dev/null || true
+# Re-apply ownership after all files generated (vendor, public/build, .env, storage, etc.)
+if [ -n "${SITE_USER:-}" ]; then
+    chown -R "$SITE_USER:$SITE_USER" . 2>/dev/null || true
+fi
 
 # 11. Cron job — add to the site user's crontab (no sudo needed)
 echo "⏰ Setting up cron job…"
