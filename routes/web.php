@@ -1129,8 +1129,9 @@ Route::middleware('auth')->group(function () {
                 // Routes & Stops
                 Route::middleware(['permission:view_transport_routes'])->group(function() {
                     $RC = \App\Http\Controllers\School\Transport\RouteController::class;
-                    Route::get('routes',                [$RC, 'index'])->name('routes.index');
-                    Route::get('routes/{route}/stops',  [$RC, 'stops'])->name('routes.stops');
+                    Route::get('routes',                    [$RC, 'index'])->name('routes.index');
+                    Route::get('routes/export-pdf',         [$RC, 'exportPdf'])->name('routes.export-pdf');
+                    Route::get('routes/{route}/stops',      [$RC, 'stops'])->name('routes.stops');
                     
                     Route::middleware(['permission:create_transport_routes'])->group(function() use ($RC) {
                         Route::post('routes',           [$RC, 'store'])->name('routes.store');

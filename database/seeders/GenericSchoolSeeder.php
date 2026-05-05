@@ -31,6 +31,10 @@ class GenericSchoolSeeder extends Seeder
 {
     public function run(): void
     {
+        // Ensure roles & permissions exist before we try to assign them to users.
+        // This makes GenericSchoolSeeder safe to run standalone (without DatabaseSeeder first).
+        $this->call(RolePermissionSeeder::class);
+
         $cfg = config('school');
 
         $org = Organization::firstOrCreate(
@@ -82,6 +86,8 @@ class GenericSchoolSeeder extends Seeder
                     'expense'        => true,
                     'reports'        => true,
                     'students'       => true,
+                    'library'        => true,
+                    'stationary'     => true,
                 ], config(
                     'features.editions.' . config('features.edition', 'full'),
                     ['hostel' => true, 'transport' => true]

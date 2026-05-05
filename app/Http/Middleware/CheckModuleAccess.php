@@ -28,6 +28,7 @@ class CheckModuleAccess
         'payslip'            => 'view',
         'dayBook'            => 'view',
         'dueReport'          => 'view',
+        'sendDueReminder'    => 'view',   // sending a reminder is a reporting action, not a data-write
         'routeReport'        => 'view',
         'feeDefaulters'      => 'view',
         'parentView'         => 'view',

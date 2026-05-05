@@ -5,6 +5,7 @@ namespace App\Http\Controllers\School\Transport;
 use App\Http\Controllers\Controller;
 use App\Models\TransportRoute;
 use App\Models\TransportStop;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -67,6 +68,34 @@ class RouteController extends Controller
         $this->authorizeTenant($route);
         $route->delete();
         return back()->with('success', 'Route deleted.');
+    }
+
+    // ─── PDF Export ────────────────────────────────────────────────────
+
+    /**
+     * GET /school/transport/routes/export-pdf
+     * Stream a PDF listing all routes with their stops and stop fees.
+     */
+    public function exportPdf()
+    {
+        $schoolId = app('current_school_id');
+        $school   = \App\Models\School::find($schoolId);
+
+        $routes = TransportRoute::where('school_id', $schoolId)
+            ->with([
+                'stops' => fn ($q) => $q->orderBy('stop_order'),
+                'vehicles:id,route_id,vehicle_number,vehicle_name',
+            ])
+            ->orderBy('route_name')
+            ->get();
+
+        $pdf = Pdf::loadView('pdf.transport-routes', [
+            'school' => $school,
+            'routes' => $routes,
+            'generatedAt' => now()->format('d M Y, h:i A'),
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->stream('Transport-Routes-Stops.pdf');
     }
 
     // ─── Stop sub-resource ─────────────────────────────────────────────

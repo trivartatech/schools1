@@ -154,6 +154,14 @@ const statCards = computed(() => [
 
         <PageHeader title="Transport Routes" subtitle="Manage routes and their stops">
             <template #actions>
+                <a
+                    v-if="can('view_transport_routes') && routes.length"
+                    :href="route('school.transport.routes.export-pdf')"
+                    target="_blank"
+                    style="text-decoration:none;"
+                >
+                    <Button variant="secondary">⬇ Export PDF</Button>
+                </a>
                 <Button v-if="can('create_transport_routes')" @click="openRouteModal()">+ New Route</Button>
             </template>
         </PageHeader>

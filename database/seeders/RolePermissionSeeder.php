@@ -59,6 +59,7 @@ class RolePermissionSeeder extends Seeder
         'hostel'        => 'Hostel',
         'houses'        => 'Student Houses',
         'front_office'  => 'Front Office',
+        'library'       => 'Library',
 
         // ── Communication ───────────────────────────────────────────────
         'communication' => 'Communication & Announcements',
@@ -284,6 +285,9 @@ class RolePermissionSeeder extends Seeder
             // Transport — view
             'view_transport',
 
+            // Library — view (teachers can browse the catalogue and check issue status)
+            'view_library',
+
             // Student Leaves — teachers can view all, approve/reject, and download documents
             'view_student_leaves', 'approve_student_leaves', 'download_student_leave_document',
         ]);
@@ -311,6 +315,10 @@ class RolePermissionSeeder extends Seeder
 
             // Transport — view own bus/route
             'view_transport',
+
+            // Stationary — view own kit allocation (mirrors what parent role has)
+            'view_stationary',
+            'view_stationary_allocations',
 
             // Student Leaves — students can view/apply for their own + download their own document
             'view_student_leaves', 'create_student_leaves', 'apply_student_leave',
@@ -499,6 +507,7 @@ class RolePermissionSeeder extends Seeder
         // ── librarian ────────────────────────────────────────────────────────
         Role::findByName('librarian')->syncPermissions([
             'view_academic', 'view_students',
+            'view_library', 'create_library', 'edit_library', 'delete_library',
         ]);
 
         // ── nurse ────────────────────────────────────────────────────────────
