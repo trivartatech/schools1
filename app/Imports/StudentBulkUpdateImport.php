@@ -100,11 +100,12 @@ class StudentBulkUpdateImport implements ToCollection, WithHeadingRow
             }
 
             // DOB
-            if (!empty(trim($row['dob'] ?? ''))) {
-                if (!$this->parseDate($row['dob'])) {
+            if (!empty(trim((string)($row['dob'] ?? '')))) {
+                $parsedDob = $this->parseDate($row['dob']);
+                if (!$parsedDob) {
                     $this->setError($rowNum, 'dob', "Invalid date format. Use YYYY-MM-DD or DD/MM/YYYY.");
                 } else {
-                    $this->validateDOBReasonable($row['dob'], $rowNum, 'dob');
+                    $this->validateDOBReasonable($parsedDob, $rowNum, 'dob');
                 }
             }
 
@@ -135,17 +136,16 @@ class StudentBulkUpdateImport implements ToCollection, WithHeadingRow
             // Emails
             $this->validateEmailFormat(trim($row['guardian_email'] ?? ''), $rowNum, 'guardian_email');
 
-            // Student type — empty means "leave existing value alone"; the
-            // runtime resolver still falls back to the count heuristic when
-            // the column is null.
+            // Student type — empty means "leave existing value alone".
+            // Case-insensitive so 'new student' / 'NEW STUDENT' are accepted.
             $studentType = trim($row['student_type'] ?? '');
-            if ($studentType !== '' && !in_array($studentType, ['New Student', 'Old Student'], true)) {
+            if ($studentType !== '' && !in_array(strtolower($studentType), ['new student', 'old student'])) {
                 $this->setError($rowNum, 'student_type', "Student type must be 'New Student' or 'Old Student'.");
             }
 
-            // Enrollment type
+            // Enrollment type — case-insensitive match
             $enrollmentType = trim($row['enrollment_type'] ?? '');
-            if ($enrollmentType !== '' && !in_array($enrollmentType, ['Regular', 'Transfer', 'Lateral', 'Re-admission'], true)) {
+            if ($enrollmentType !== '' && !in_array(strtolower($enrollmentType), ['regular', 'transfer', 'lateral', 're-admission'])) {
                 $this->setError($rowNum, 'enrollment_type', "Enrollment type must be Regular, Transfer, Lateral, or Re-admission.");
             }
         }
@@ -211,11 +211,11 @@ class StudentBulkUpdateImport implements ToCollection, WithHeadingRow
                     }
 
                     if (!empty(trim($row['student_type'] ?? ''))) {
-                        $historyData['student_type'] = trim($row['student_type']);
+                        $historyData['student_type'] = ucwords(strtolower(trim($row['student_type'])));
                     }
 
                     if (!empty(trim($row['enrollment_type'] ?? ''))) {
-                        $historyData['enrollment_type'] = trim($row['enrollment_type']);
+                        $historyData['enrollment_type'] = ucwords(strtolower(trim($row['enrollment_type'])));
                     }
 
                     if (!empty($historyData)) {

@@ -76,7 +76,8 @@ info() { echo "[$(date '+%H:%M:%S')] $*"; }
 ssh_cmd() {
   local user="$1" pass="$2" host="$3"
   shift 3
-  sshpass -p "$pass" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=no -tt "$user@$host" "$@" 2>&1
+  sshpass -p "$pass" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=no \
+    -o ServerAliveInterval=30 -o ServerAliveCountMax=20 -tt "$user@$host" "$@" 2>&1
 }
 
 scp_cmd() {
@@ -435,7 +436,7 @@ for entry in "${SERVERS[@]}"; do
 
   # Concurrency throttle
   if [ "$CONCURRENCY" -gt 0 ] && [ "${#PIDS[@]}" -ge "$CONCURRENCY" ]; then
-    wait "${PIDS[0]}"
+    wait "${PIDS[0]}" || true
     PIDS=("${PIDS[@]:1}")
   fi
 done

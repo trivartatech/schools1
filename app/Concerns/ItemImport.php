@@ -71,7 +71,7 @@ trait ItemImport
         $path = 'import-errors/' . $fileName;
 
         $csv = "Row,Column,Error Message\n";
-        foreach (array_slice($this->errors, 0, 100) as $error) {
+        foreach ($this->errors as $error) {
             $csv .= '"' . $error['row'] . '","' . str_replace('"', '""', $error['column']) . '","' . str_replace('"', '""', $error['message']) . '"' . "\n";
         }
 
@@ -186,7 +186,16 @@ trait ItemImport
             return null;
         }
 
-        $value = trim($value);
+        // PhpSpreadsheet/Maatwebsite may return Carbon or DateTime objects for date-formatted cells
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return null;
+        }
 
         if (is_numeric($value) && $value > 10000) {
             try {

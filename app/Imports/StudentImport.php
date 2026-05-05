@@ -91,18 +91,22 @@ class StudentImport implements ToCollection, WithHeadingRow
             }
 
             // DOB
-            if (!empty(trim($row['dob'] ?? ''))) {
-                if (!$this->parseDate($row['dob'])) {
+            if (!empty(trim((string)($row['dob'] ?? '')))) {
+                $parsedDob = $this->parseDate($row['dob']);
+                if (!$parsedDob) {
                     $this->setError($rowNum, 'dob', "Invalid date format for DOB. Use YYYY-MM-DD or DD/MM/YYYY.");
                 } else {
-                    $this->validateDOBReasonable($row['dob'], $rowNum, 'dob');
+                    $this->validateDOBReasonable($parsedDob, $rowNum, 'dob');
                 }
             }
 
             // Admission date
-            if (!empty(trim($row['admission_date'] ?? ''))) {
-                if (!$this->parseDate($row['admission_date'])) {
+            if (!empty(trim((string)($row['admission_date'] ?? '')))) {
+                $parsedAdmDate = $this->parseDate($row['admission_date']);
+                if (!$parsedAdmDate) {
                     $this->setError($rowNum, 'admission_date', "Invalid date format. Use YYYY-MM-DD or DD/MM/YYYY.");
+                } else {
+                    $this->validateDateNotFuture($parsedAdmDate, $rowNum, 'admission_date');
                 }
             }
 
@@ -125,10 +129,9 @@ class StudentImport implements ToCollection, WithHeadingRow
             // Emails
             $this->validateEmailFormat(trim($row['guardian_email'] ?? ''), $rowNum, 'guardian_email');
 
-            // Student type — must match the values the runtime fee resolver
-            // recognises. Empty is fine; falls back to count-based heuristic.
+            // Student type — case-insensitive match so 'new student' / 'NEW STUDENT' are accepted.
             $studentType = trim($row['student_type'] ?? '');
-            if ($studentType !== '' && !in_array($studentType, ['New Student', 'Old Student'], true)) {
+            if ($studentType !== '' && !in_array(strtolower($studentType), ['new student', 'old student'])) {
                 $this->setError($rowNum, 'student_type', "Student type must be 'New Student' or 'Old Student'.");
             }
 
@@ -197,8 +200,8 @@ class StudentImport implements ToCollection, WithHeadingRow
                             'section_id'       => $sectionId,
                             'roll_no'          => trim($row['roll_no'] ?? ''),
                             'status'           => 'current',
-                            'student_type'     => trim($row['student_type'] ?? '')    ?: 'New Student',
-                            'enrollment_type'  => trim($row['enrollment_type'] ?? '') ?: 'Regular',
+                            'student_type'    => ucwords(strtolower(trim($row['student_type'] ?? '')))    ?: 'New Student',
+                            'enrollment_type' => ucwords(strtolower(trim($row['enrollment_type'] ?? ''))) ?: 'Regular',
                         ]);
                     }
                 }

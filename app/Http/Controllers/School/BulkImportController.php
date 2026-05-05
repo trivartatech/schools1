@@ -55,9 +55,13 @@ class BulkImportController extends Controller
 
         $type = $request->input('type');
 
-        // Granular policy check: bulk student import requires explicit permission
+        // Granular permission checks per import type
         if (in_array($type, ['students', 'student_update'])) {
             $this->authorize('bulkImport', Student::class);
+        }
+
+        if ($type === 'staff') {
+            abort_unless(auth()->user()->can('create_staff'), 403, 'You do not have permission to bulk import staff.');
         }
 
         $schoolId = app('current_school_id');
@@ -74,7 +78,19 @@ class BulkImportController extends Controller
             return back()->with('error', $importer->getErrors()[0]['message'] ?? 'Invalid file.');
         }
 
-        Excel::import($importer, $request->file('file'));
+        try {
+            Excel::import($importer, $request->file('file'));
+        } catch (\Throwable $e) {
+            \Log::error('Bulk import exception', [
+                'type'    => $type,
+                'user_id' => auth()->id(),
+                'message' => $e->getMessage(),
+                'file'    => $e->getFile() . ':' . $e->getLine(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
+
+            return back()->with('error', 'Import failed: ' . $e->getMessage());
+        }
 
         if ($importer->hasErrors()) {
             $logPath = $importer->writeErrorLog($type);

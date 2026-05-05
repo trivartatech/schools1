@@ -22,10 +22,43 @@ class StaffImport implements ToCollection, WithHeadingRow
     protected bool $validateOnly;
     protected int $importedCount = 0;
 
+    /**
+     * All Spatie role slugs that may be assigned via staff bulk import.
+     * Keep in sync with RolePermissionSeeder::$roleNames.
+     */
     protected array $validRoles = [
-        'admin', 'teacher', 'accountant', 'librarian', 'receptionist',
-        'hr', 'transport_manager', 'driver', 'conductor',
-        'hostel_warden', 'nurse', 'it_support', 'auditor',
+        // Management
+        'admin', 'school_admin', 'principal',
+        // Academic
+        'teacher', 'hr',
+        // Finance
+        'accountant',
+        // Operations
+        'receptionist', 'front_office', 'front_gate_keeper',
+        'librarian', 'nurse', 'it_support', 'auditor',
+        // Transport
+        'transport_manager', 'driver', 'conductor',
+        // Stationary / Hostel
+        'stationary_manager', 'hostel_warden', 'mess_manager',
+    ];
+
+    /**
+     * Maps a Spatie role slug to the UserType enum value that should be stored
+     * in users.user_type. Roles that have no dedicated UserType case fall back
+     * to 'teacher' (generic staff).
+     */
+    private const ROLE_TO_USER_TYPE = [
+        'admin'            => 'admin',
+        'school_admin'     => 'school_admin',
+        'principal'        => 'principal',
+        'teacher'          => 'teacher',
+        'accountant'       => 'accountant',
+        'driver'           => 'driver',
+        'conductor'        => 'conductor',
+        'front_gate_keeper'=> 'front_gate_keeper',
+        'it_support'       => 'it_support',
+        // Everything else (librarian, receptionist, hr, transport_manager, etc.)
+        // has no dedicated UserType case — store as 'teacher' (generic staff).
     ];
 
     public function __construct(int $schoolId, bool $validateOnly = false)
@@ -106,9 +139,12 @@ class StaffImport implements ToCollection, WithHeadingRow
                 }
             }
 
-            // Role
-            if (!empty(trim($row['role'] ?? '')) && !in_array(strtolower(trim($row['role'])), $this->validRoles)) {
-                $this->setError($rowNum, 'role', "Invalid role. Valid: " . implode(', ', $this->validRoles));
+            // Role — required; warn clearly when blank so operators don't get silent defaults
+            $roleVal = strtolower(trim($row['role'] ?? ''));
+            if ($roleVal === '') {
+                $this->setError($rowNum, 'role', "Role is required. Valid values: " . implode(', ', $this->validRoles));
+            } elseif (!in_array($roleVal, $this->validRoles)) {
+                $this->setError($rowNum, 'role', "Invalid role '{$row['role']}'. Valid: " . implode(', ', $this->validRoles));
             }
 
             // Department & Designation
@@ -121,7 +157,7 @@ class StaffImport implements ToCollection, WithHeadingRow
             }
 
             // Joining date
-            if (!empty(trim($row['joining_date'] ?? ''))) {
+            if (!empty(trim((string)($row['joining_date'] ?? '')))) {
                 if (!$this->parseDate($row['joining_date'])) {
                     $this->setError($rowNum, 'joining_date', "Invalid date format.");
                 }
@@ -169,9 +205,17 @@ class StaffImport implements ToCollection, WithHeadingRow
 
         // Phase 2: Import
         DB::transaction(function () use ($rows, $departments, $designations) {
+            // Set Spatie team scope so roles are assigned to this school's team.
+            app(\Spatie\Permission\PermissionRegistrar::class)->setPermissionsTeamId($this->schoolId);
+
             foreach ($rows as $row) {
-                $role = strtolower(trim($row['role'] ?? 'teacher'));
+                $role = strtolower(trim($row['role'] ?? ''));
                 if (!in_array($role, $this->validRoles)) $role = 'teacher';
+
+                // Map the Spatie role to the closest valid UserType enum value.
+                // Roles that have no dedicated UserType (librarian, receptionist, etc.)
+                // are stored as 'teacher' (generic staff) to avoid enum hydration errors.
+                $userType = self::ROLE_TO_USER_TYPE[$role] ?? 'teacher';
 
                 $username = trim($row['username'] ?? '');
                 $password = trim($row['password'] ?? '');
@@ -181,7 +225,7 @@ class StaffImport implements ToCollection, WithHeadingRow
                     'email'     => trim($row['email']),
                     'phone'     => trim($row['phone'] ?? ''),
                     'username'  => $username !== '' ? $username : null,
-                    'user_type' => $role,
+                    'user_type' => $userType,
                     'school_id' => $this->schoolId,
                     'password'  => Hash::make($password !== '' ? $password : Str::random(10)),
                     'is_active' => true,
