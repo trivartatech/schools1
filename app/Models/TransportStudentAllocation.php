@@ -40,7 +40,7 @@ class TransportStudentAllocation extends Model
         'balance'           => 'decimal:2',
         'start_date'        => 'date',
         'end_date'          => 'date',
-        'last_payment_date' => 'date',
+        'last_payment_date' => 'date:Y-m-d',
     ];
 
     public function scopeTenant($query)

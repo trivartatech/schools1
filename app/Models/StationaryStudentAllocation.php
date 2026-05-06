@@ -34,8 +34,8 @@ class StationaryStudentAllocation extends Model
         'discount'          => 'decimal:2',
         'fine'              => 'decimal:2',
         'balance'           => 'decimal:2',
-        'last_payment_date' => 'date',
-        'last_issued_date'  => 'date',
+        'last_payment_date' => 'date:Y-m-d',
+        'last_issued_date'  => 'date:Y-m-d',
     ];
 
     public function scopeTenant($query)

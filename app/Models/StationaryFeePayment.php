@@ -30,7 +30,7 @@ class StationaryFeePayment extends Model
         'amount_paid'  => 'decimal:2',
         'discount'     => 'decimal:2',
         'fine'         => 'decimal:2',
-        'payment_date' => 'date',
+        'payment_date' => 'date:Y-m-d',
         // payment_mode stays a string — admins can register custom modes
         // (phonepe, paytm, gpay, …) via Finance → Payment Methods. The
         // PaymentMode enum has only 9 fixed cases; casting would throw

@@ -32,7 +32,7 @@ class Payroll extends Model
         'deductions' => 'array',
         'basic_pay' => 'decimal:2',
         'net_salary' => 'decimal:2',
-        'payment_date' => 'date',
+        'payment_date' => 'date:Y-m-d',
     ];
 
     /**

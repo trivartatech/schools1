@@ -27,7 +27,7 @@ class HostelStudent extends Model
         'balance'           => 'decimal:2',
         'admission_date'    => 'date',
         'vacate_date'       => 'date',
-        'last_payment_date' => 'date',
+        'last_payment_date' => 'date:Y-m-d',
     ];
 
     public function scopeTenant($query)

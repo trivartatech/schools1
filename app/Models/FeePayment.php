@@ -31,7 +31,7 @@ class FeePayment extends Model
         'taxable_amount' => 'decimal:2',
         'tax_amount'     => 'decimal:2',
         'tax_percent'    => 'decimal:2',
-        'payment_date'           => 'date',
+        'payment_date'           => 'date:Y-m-d',
         'status'                 => FeePaymentStatus::class,
         // payment_mode is intentionally NOT cast to App\Enums\PaymentMode —
         // admins can register custom modes (phonepe, paytm, gpay, wallet, …)
