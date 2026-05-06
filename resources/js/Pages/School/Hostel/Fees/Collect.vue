@@ -28,7 +28,7 @@ const studentName = computed(() =>
     || '—'
 );
 
-const today = new Date().toISOString().slice(0, 10);
+const today = school.today();
 
 const form = useForm({
     amount_paid:     props.allocation.balance > 0 ? Number(props.allocation.balance) : '',
@@ -75,7 +75,7 @@ function submit() {
         onSuccess: () => {
             form.reset('amount_paid', 'discount', 'fine', 'transaction_ref', 'remarks');
             form.payment_mode = 'cash';
-            form.payment_date = today;
+            form.payment_date = school.today();
         },
     });
 }

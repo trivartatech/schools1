@@ -214,6 +214,7 @@ const cancelEdit = () => {
     feeForm.discount = 0;
     feeForm.fine = 0;
     feeForm.payment_mode = 'cash';
+    feeForm.payment_date = school.today();
     feeForm.transaction_ref = '';
     feeForm.remarks = '';
     feeForm.receipt_no = '';
@@ -237,6 +238,7 @@ const submit = () => {
                 feeForm.amount_paid          = '';
                 feeForm.discount             = 0;
                 feeForm.fine                 = 0;
+                feeForm.payment_date         = school.today();
                 feeForm.transaction_ref      = '';
                 feeForm.remarks              = '';
                 feeForm.concession_id        = '';
