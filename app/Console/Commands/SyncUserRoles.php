@@ -66,7 +66,7 @@ class SyncUserRoles extends Command
                     continue;
                 }
 
-                if (!Role::where('name', $roleName)->where('guard_name', 'web')->exists()) {
+                if (!Role::where('name', $roleName)->exists()) {
                     $rows[] = [$user->id, $user->email, (string) $user->user_type, $roleName, 'SKIP (role not seeded)'];
                     $skipped++;
                     continue;

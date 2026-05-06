@@ -16,6 +16,8 @@ class OnlinePaymentOrder extends Model
         'status', 'failure_reason', 'paid_at', 'processed_at',
     ];
 
+    protected $appends = ['amount'];
+
     protected $casts = [
         'fee_items'    => 'array',
         'amount_paise' => 'integer',

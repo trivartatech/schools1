@@ -136,6 +136,10 @@ class FillHolidayAttendance extends Command
                     continue;
                 }
 
+                if ($existing && $force && $existing->status !== 'holiday') {
+                    $this->warn("  --force: overwriting student {$r->student_id} status '{$existing->status}' → 'holiday' on {$dateStr}");
+                }
+
                 Attendance::updateOrCreate(
                     [
                         'school_id'  => $school->id,
@@ -182,6 +186,10 @@ class FillHolidayAttendance extends Command
                 if ($existing && !$force && $existing->status !== 'holiday') {
                     $skipped++;
                     continue;
+                }
+
+                if ($existing && $force && $existing->status !== 'holiday') {
+                    $this->warn("  --force: overwriting staff {$staffId} status '{$existing->status}' → 'holiday' on {$dateStr}");
                 }
 
                 StaffAttendance::updateOrCreate(

@@ -39,7 +39,7 @@ class StoreFeePaymentRequest extends FormRequest
             'remarks'         => 'nullable|string|max:500',
             'discount'        => 'nullable|numeric|min:0',
             'fine'            => 'nullable|numeric|min:0',
-            'concession_id'   => ['nullable', Rule::exists('fee_concessions', 'id')],
+            'concession_id'   => ['nullable', Rule::exists('fee_concessions', 'id')->where('school_id', $schoolId)],
             'concession_note' => 'nullable|string|max:500',
         ];
     }

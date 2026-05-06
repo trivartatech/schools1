@@ -93,7 +93,7 @@ class ChatController extends Controller
                     'class_id'   => $s->course_class_id,
                     'class_name' => $s->courseClass?->name,
                     // Pre-formatted label for legacy callers
-                    'label'      => ($s->courseClass->name ?? '') . ' - ' . $s->name,
+                    'label'      => ($s->courseClass?->name ?? '') . ' - ' . $s->name,
                 ]);
         }
 

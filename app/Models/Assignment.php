@@ -14,6 +14,8 @@ class Assignment extends Model
         'title', 'description', 'due_date', 'max_marks', 'status', 'attachments',
     ];
 
+    protected $appends = ['is_expired', 'is_active'];
+
     protected $casts = [
         'due_date'    => 'datetime',
         'attachments' => 'json',

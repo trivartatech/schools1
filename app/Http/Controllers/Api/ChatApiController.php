@@ -63,7 +63,7 @@ class ChatApiController extends Controller
             'conversation_id' => 'required|exists:chat_conversations,id',
             'type'            => 'required|in:text,image,pdf,voice',
             'body'            => 'nullable|string|max:5000',
-            'attachment'      => 'nullable|file|max:10240',
+            'attachment'      => 'nullable|file|max:10240|mimes:jpg,jpeg,png,gif,webp,pdf,mp3,wav,ogg,m4a,aac,webm,mp4',
             'reply_to_id'     => 'nullable|exists:chat_messages,id',
         ]);
 

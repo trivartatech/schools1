@@ -41,9 +41,15 @@ class ProcessScheduledAnnouncements extends Command
             $this->info("Broadcasting announcement: {$announcement->title} (ID: {$announcement->id})");
             try {
                 $count = $broadcastService->broadcast($announcement);
+                $announcement->update(['is_broadcasted' => true]);
                 $this->info("Broadcast successful for {$count} users.");
             } catch (\Exception $e) {
                 $this->error("Failed to broadcast announcement ID {$announcement->id}: " . $e->getMessage());
+                // Leave is_broadcasted = false so the next run retries, but log to avoid silent infinite loops
+                \Illuminate\Support\Facades\Log::error('announcements:process failed', [
+                    'announcement_id' => $announcement->id,
+                    'error'           => $e->getMessage(),
+                ]);
             }
         }
 

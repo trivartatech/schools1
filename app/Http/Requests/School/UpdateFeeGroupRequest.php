@@ -15,7 +15,8 @@ class UpdateFeeGroupRequest extends FormRequest
     public function rules(): array
     {
         $schoolId  = app('current_school_id');
-        $feeGroupId = $this->route('feeGroup')?->id ?? $this->route('fee_group');
+        $param      = $this->route('feeGroup') ?? $this->route('fee_group');
+        $feeGroupId = is_object($param) ? $param->id : $param;
 
         return [
             'name' => [

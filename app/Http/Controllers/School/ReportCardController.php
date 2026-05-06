@@ -540,7 +540,7 @@ class ReportCardController extends Controller
         // Pull the term name for the print pill when in term mode
         $termName = null;
         if ($reportType === 'term') {
-            $termName = $baseSchedule->examType->examTerm->name ?? null;
+            $termName = $baseSchedule->examType?->examTerm?->name ?? null;
         }
 
         return Inertia::render('School/Examinations/ReportCards/Print', [
@@ -548,7 +548,7 @@ class ReportCardController extends Controller
             'students'       => $students,
             'sectionData'    => Section::find($sectionId),
             'schoolInfo'     => app('current_school'),
-            'academicYear'   => app('current_academic_year')->name,
+            'academicYear'   => app('current_academic_year')?->name ?? '',
             'useWeightage'   => $applyWeightage,
             'reportType'     => $reportType,
             'termName'       => $termName,

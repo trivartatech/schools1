@@ -65,7 +65,7 @@ class StoreStudentRequest extends FormRequest
 
             // Transport (optional) — scoped to school
             'transport_route_id'       => ['nullable', Rule::exists('transport_routes', 'id')->where('school_id', $schoolId)],
-            'transport_stop_id'        => 'nullable|exists:transport_stops,id',
+            'transport_stop_id'        => ['nullable', Rule::exists('transport_stops', 'id')->where('school_id', $schoolId)],
             'transport_pickup_type'    => 'nullable|in:pickup,drop,both',
             'transport_months'         => 'nullable|integer|min:0|max:24',
             'transport_days'           => 'nullable|integer|min:0|max:30',

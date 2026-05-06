@@ -13,6 +13,8 @@ class LibraryIssue extends Model
         'fine_amount', 'fine_paid', 'issued_by', 'returned_to', 'notes',
     ];
 
+    protected $appends = ['borrower_name', 'calculated_fine'];
+
     protected $casts = [
         'issue_date'  => 'date',
         'due_date'    => 'date',

@@ -17,6 +17,8 @@ class Asset extends Model
         'depreciation_method', 'condition', 'status', 'notes', 'disposed_on', 'disposal_reason',
     ];
 
+    protected $appends = ['current_value', 'total_maintenance_cost'];
+
     protected $casts = [
         'purchase_date' => 'date',
         'purchase_cost' => 'decimal:2',

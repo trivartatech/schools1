@@ -15,6 +15,8 @@ class AcademicYear extends Model
         'is_current', 'status', 'copied_from_id', 'copied_items',
     ];
 
+    protected $appends = ['is_active'];
+
     protected $casts = [
         'start_date'   => 'date',
         'end_date'     => 'date',

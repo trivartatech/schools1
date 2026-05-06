@@ -75,10 +75,6 @@ Route::any(                   '/voice/exoml',              [VoiceController::cla
 
 use App\Http\Controllers\Api\MobileApiController;
 
-// Public — called by the app before login
-Route::get('/public/school-config', [\App\Http\Controllers\Api\PublicApiController::class, 'schoolConfig'])
-    ->name('api.public.school-config');
-
 // Auth
 Route::post('/login',   [\App\Http\Controllers\AuthController::class, 'apiLogin'])
     ->middleware('throttle:10,1')

@@ -14,8 +14,8 @@ use Symfony\Component\HttpFoundation\Response;
  * will receive a 403 (or redirect, for Inertia).
  *
  * Usage in routes:
- *   Route::middleware('school.admin')->group(...)   → school_admin + principal
- *   Route::middleware('school.admin_only')->group(...)  → school_admin only
+ *   Route::middleware('school.management')->group(...)            → all staff types
+ *   Route::middleware('school.management:admin_only')->group(...) → admin/principal only
  */
 class RestrictToSchoolManagement
 {

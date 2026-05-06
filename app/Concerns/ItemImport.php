@@ -9,6 +9,7 @@ trait ItemImport
 {
     protected array $errors = [];
     protected string $logFileName = '';
+    protected array $requiredHeadings = [];
 
     public function validateFile($file): bool
     {

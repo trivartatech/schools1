@@ -10,8 +10,13 @@ $ip = $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 $headers = getallheaders();
+$sensitiveHeaders = ['authorization', 'cookie', 'x-auth-token', 'x-api-key', 'x-csrf-token'];
 $headerStr = "";
-foreach ($headers as $k => $v) { $headerStr .= "$k: $v; "; }
+foreach ($headers as $k => $v) {
+    if (!in_array(strtolower($k), $sensitiveHeaders)) {
+        $headerStr .= "$k: $v; ";
+    }
+}
 
 $msg = date('[Y-m-d H:i:s] ') . "HOST: {$_SERVER['HTTP_HOST']} METHOD: $method ID: $id UA: $ua IP: $ip HEADERS: $headerStr" . PHP_EOL;
 @file_put_contents($logFile, $msg, FILE_APPEND);
