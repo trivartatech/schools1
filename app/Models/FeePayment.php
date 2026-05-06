@@ -54,6 +54,16 @@ class FeePayment extends Model
     public function sourceYear()    { return $this->belongsTo(AcademicYear::class, 'source_year_id'); }
     public function rolloverRun()   { return $this->belongsTo(RolloverRun::class); }
 
+    /**
+     * Compatibility accessor: NotificationService::notifyFeePayment() reads
+     * $payment->amount, but our column is amount_paid. Expose the same name
+     * so the unified notification flow works for tuition + transport + hostel + stationary.
+     */
+    public function getAmountAttribute()
+    {
+        return $this->amount_paid;
+    }
+
     // Auto-generate receipt number using school's configurable format
     protected static function booted(): void
     {
